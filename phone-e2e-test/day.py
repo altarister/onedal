@@ -562,16 +562,22 @@ def act(a):
                 shot(S23, f'see_{CUR[0]}')
                 raise Stop(f'S23 «{v["text"]}» {"안 보임" if want else "그대로 보임"} ({sec}초)')
             time.sleep(1)
-    elif k == 'call_end':   # {sec} — 덩어리를 누른 뒤 S23 에 전화가 걸렸나(N초 안) 보고 바로 끊는다 · 끊긴 뒤 관제앱으로 돌아왔나
-        if DRY: log(f'  📞 S23 전화 걸림 {v.get("sec", 10)}초 안 → 끊기'); return
+    elif k == 'call_end':   # {sec} — 덩어리를 누른 뒤 관제앱이 S23 전화에 «나가는 전화»를 넘겼나(N초 안) 보고 끊는다 · 끊긴 뒤 관제앱으로 돌아왔나
+        # S23 은 유심이 없어 «긴급 전화만 가능»으로 바로 끊긴다(S05a 판 5) — 통화 중(mCallState=2)은 못 본다. 통신 기록(dumpsys telecom)의
+        # «CREATED (kr.co.onedal.dashboard … OUTGOING» 줄 시각이 누른 직후인지 본다(번호는 가운데가 가려져 «tel:010*****748»)
+        if DRY: log(f'  📞 S23 관제앱이 전화 걸기를 넘김 {v.get("sec", 10)}초 안 → 끊기'); return
         end = time.time() + v.get('sec', 10)
-        while call_state() != 2:
-            if time.time() > end: shot(S23, f'nocall_{CUR[0]}'); raise Stop(f'S23 전화가 안 걸림 ({v.get("sec", 10)}초)')
+        while True:
+            now = datetime.datetime.strptime(run.adb(S23, 'shell', 'date', '+%H:%M:%S').strip(), '%H:%M:%S')
+            made = re.findall(r'(\d\d:\d\d:\d\d)\.\d+ - CREATED \(kr\.co\.onedal\.dashboard;[^)]*OUTGOING', run.adb(S23, 'shell', 'dumpsys', 'telecom'))
+            if made and 0 <= (now - datetime.datetime.strptime(made[-1], '%H:%M:%S')).total_seconds() <= 20: break
+            if time.time() > end: shot(S23, f'nocall_{CUR[0]}'); raise Stop(f'관제앱이 S23 전화에 나가는 전화를 안 넘김 ({v.get("sec", 10)}초)')
             time.sleep(0.5)
-        log('  📞 S23 전화 걸림 — 바로 끊음'); time.sleep(1)
-        run.guard(S23); run.adb(S23, 'shell', 'input', 'keyevent', 'KEYCODE_ENDCALL'); time.sleep(2)
+        log(f'  📞 관제앱이 나가는 전화를 넘김({made[-1]}) — 끊고 관제앱으로')
+        if call_state() != 0: run.guard(S23); run.adb(S23, 'shell', 'input', 'keyevent', 'KEYCODE_ENDCALL'); time.sleep(2)
+        if 'incallui' in run.focus_of(S23): run.adb(S23, 'shell', 'input', 'tap', '540', '2074'); time.sleep(1)   # 끊김 사유 창 «긴급 전화만 가능합니다 · 확인»의 확인(뒤로 단추는 안 먹는다 · 10-23 00:33 사진)
         if call_state() != 0: shot(S23, f'nohang_{CUR[0]}'); raise Stop('S23 전화가 안 끊김 — 손으로 끊어 주세요')
-        if not s23_sees('1/6'):
+        if 'kr.co.onedal.dashboard' not in run.focus_of(S23):
             run.adb(S23, 'shell', 'am', 'start', '-n', 'kr.co.onedal.dashboard/.MainActivity'); time.sleep(2)
     elif k == 'mark_srv':   # 서버 기록 기준점을 지금으로 — 뒤 wait_srv 가 이 뒤에 선 줄만 본다(같은 줄이 장면 앞쪽에 먼저 찍혀도 헷갈리지 않게 · 105판 S02)
         if DRY: log('  📍 서버 기준점'); return
