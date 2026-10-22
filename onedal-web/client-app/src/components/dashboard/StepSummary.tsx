@@ -64,7 +64,6 @@ export default function StepSummary({ orderId, view, codAmount, hideButtons, onO
                 </div>
             )}
             {s.source && <div className="text-[11px] text-text-muted">{s.source}에서 온 값</div>}
-            {s.draftNote && <div className="text-[11px] font-bold text-warning">✍️ 적다 만 것 있음 — 열면 이어서</div>}
             {!hideButtons && s.buttons.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                     {s.buttons.map(b => (

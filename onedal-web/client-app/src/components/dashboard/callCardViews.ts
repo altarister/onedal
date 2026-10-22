@@ -85,7 +85,7 @@ const SOURCE_LABEL: Record<string, string> = { MEMO: '📄 적요', VEHICLE: '�
  * 🪪 **카드에 보일 단계 한 장** — 카드는 보기만 하고(글자 · 바로 저장 단추), 고치기는 팝업에서 한다.
  * 단추: 통화 «스킵 · 통화» · 도착 «스킵 · 도착 · 이슈» · 상차 완료 «스킵 · 상차 완료 · 수정» ·
  *       하차 완료 «하차 완료 · 수정»(스킵 없음 — 콜을 끝내는 단계) · 착불 콜은 «받았음 · 못 받음»이 하차 완료 바로 위.
- * 안 생긴 칸은 단추 없음 · 끝난 칸은 «✓ 시각 (출처)» 와 «수정»만(되돌리기는 팝업 안).
+ * 안 생긴 칸은 단추 없음 · 끝난 칸은 «✓ 시각 (출처)» 와 «수정»만(되돌리기는 팝업 안) · 적다 만 것이 있으면 팝업 단추에 «✍️».
  * @param x 단계 한 줄 — 짐 칸이 없는 단계는 `stepViewOf` 로 빌려 입힌 것을 준다
  */
 export function stepSummaryOf(x: StepViewRow, { codAmount, draft }: { codAmount?: number | null; draft?: boolean }) {
@@ -104,7 +104,9 @@ export function stepSummaryOf(x: StepViewRow, { codAmount, draft }: { codAmount?
         DELIVERED: [dwell, cod],
     } as Record<string, Array<string | null | undefined>>)[x.step] ?? [];
     const by = r.status === 'SKIPPED' ? '⏭️ 건너뜀' : r.source === 'GPS' ? '🛰️ 자동' : '✍️ 직접';
-    const btn = (kind: StepCardButton['kind'], label: string, popup = false): StepCardButton => ({ kind, label, popup });
+    const writing = !!draft && born && !ended;
+    /* ✍️ 적다 만 것이 있으면 이어서 고칠 바로 그 단추(팝업을 여는 단추)에 표시 — 줄을 늘리지 않는다 */
+    const btn = (kind: StepCardButton['kind'], label: string, popup = false): StepCardButton => ({ kind, label: popup && writing ? `${label} ✍️` : label, popup });
     const buttons: StepCardButton[] = !born ? []
         : ended ? [btn('edit', '수정', true)]
         : x.step.startsWith('CALL_') ? [btn('skip', '스킵'), btn('call', '통화', true)]
@@ -117,7 +119,6 @@ export function stepSummaryOf(x: StepViewRow, { codAmount, draft }: { codAmount?
         source: x.step.startsWith('CALL_') && !ended ? SOURCE_LABEL[r.planned_source] ?? null : null,
         doneText: ended ? `✓ ${hhmmText(r.occurred_at) ?? '--:--'} (${by})` : null,
         buttons,
-        draftNote: !!draft && born && !ended,
     };
 }
 

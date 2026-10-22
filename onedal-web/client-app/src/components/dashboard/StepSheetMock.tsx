@@ -27,6 +27,7 @@
  */
 import { useDerivation } from '../../stores/judgmentStore';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { socket } from '../../lib/socket';
 import { telHref } from '../../lib/routeUtils';
 import { callNow } from '../../lib/phoneCall';
@@ -147,6 +148,12 @@ export function actualCargoOf(row: Record<string, any>): CargoState {
 const reasonsOut = (reasons: string[], reasonMemo: string) => reasons.length
     ? reasons.map(x => x === REASON_NEEDS_MEMO && reasonMemo.trim() ? `${x}: ${reasonMemo.trim()}` : x)
     : undefined;
+
+/** 🔘 칸 맨 아래 단추 줄 — 수정 팝업이 바닥 자리(`slot`)를 주면 그곳에(늘 보이게), 아니면 제자리에 */
+function ActionRow({ slot, className, children }: { slot?: HTMLElement | null; className: string; children: React.ReactNode }) {
+    const row = <div className={className}>{children}</div>;
+    return slot ? createPortal(row, slot) : row;
+}
 
 function MinuteBadge({ minutes, unit, onEdit }: { minutes: number; unit?: string; onEdit?: (v: number) => void }) {
     const [open, setOpen] = useState(false);
@@ -548,7 +555,8 @@ const doneBtn = 'flex-1 py-2.5 rounded-md bg-success text-white text-[13px] font
  * 🚚 ①②: 통화 두 단계 — 행 값으로 시작해, 저장은 다른 화면과 같은 문으로.
  * 상차는 짐 폼 전부, 하차는 방법·후작업만 (짐은 상차에서 정해진다 — 테이블에 칸도 없다).
  */
-function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrevMs, segmentDriveMinutes, writtenByName }: {
+function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrevMs, segmentDriveMinutes, writtenByName, actionsSlot }: {
+    actionsSlot?: HTMLElement | null;
     orderId: string; r: Record<string, any>; pickup: boolean; place?: StepPlace;
     prevName?: string | null; leadMinutes?: number | null;
     departPrevMs?: number | null; segmentDriveMinutes?: number | null;
@@ -590,12 +598,12 @@ function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrev
             {writtenByName && (
                 <div className="text-[11px] text-text-muted">✍️ <b className="text-text-primary">{writtenByName}</b> 적음{r.occurred_at ? <> · <span className="tabular-nums">{hhmm(r.occurred_at)}</span></> : null} — 확인하고 고치면 «다시 저장»</div>
             )}
-            <div className="flex gap-2">
+            <ActionRow slot={actionsSlot} className="flex gap-2">
                 <button type="button" className={skipBtn} onClick={() => save('SKIPPED')}>통화 스킵</button>
                 <button type="button" className={mainBtn} onClick={() => save('DECLARED')}>
                     {done ? '다시 저장' : '통화 완료'}
                 </button>
-            </div>
+            </ActionRow>
         </>
     );
 }
@@ -604,7 +612,7 @@ function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrev
  * 🚚 ③⑤: 도착 두 단계 — 사유 칩 + [건너뛰기][📍 도착] / 이미 도착이면 [도착 취소].
  * 🔴 `predictedAt` 은 저장된 행의 값을 싣는다 — 버튼 누른 시각으로 예측을 만들지 않는다.
  */
-function LiveArrive({ orderId, r, step }: { orderId: string; r: Record<string, any>; step: string }) {
+function LiveArrive({ orderId, r, step, actionsSlot }: { orderId: string; r: Record<string, any>; step: string; actionsSlot?: HTMLElement | null }) {
     /* ✍️ 적던 것 — 통화 칸과 같은 규칙 */
     const dKey = draftKeyOf(orderId, step);
     const rowState = () => ({ reasons: parse(r.reasons), reasonMemo: '' });
@@ -640,12 +648,12 @@ function LiveArrive({ orderId, r, step }: { orderId: string; r: Record<string, a
                     placeholder="무슨 일이었나요? (한 줄)"
                     className="w-full px-2 py-1.5 rounded-md bg-surface-alt/40 border border-border text-[12px] text-text-primary" />
             )}
-            <div className="flex gap-1.5">
+            <ActionRow slot={actionsSlot} className="flex gap-1.5">
                 {!arrived && <button type="button" className={`${skipSmall} text-center`} onClick={skip}>⏭️ 건너뛰기</button>}
                 {!arrived
                     ? <button type="button" className={`${arriveBtn} text-center`} onClick={fire}>📍 도착</button>
                     : <button type="button" className="flex-1 py-2.5 rounded-md border border-warning/40 bg-warning/10 text-warning text-[13px] font-black" onClick={undo}>↩︎ 도착 취소</button>}
-            </div>
+            </ActionRow>
         </>
     );
 }
@@ -655,7 +663,8 @@ function LiveArrive({ orderId, r, step }: { orderId: string; r: Record<string, a
  * 이 순서로 나간다: `save('ACTUAL')` → `report-milestone`.
  * 실측 폼은 **실측이 있으면 실측, 없으면 계획을 복사**해서 시작한다.
  */
-function LiveDone({ orderId, r, step, codAmount }: {
+function LiveDone({ orderId, r, step, codAmount, actionsSlot }: {
+    actionsSlot?: HTMLElement | null;
     orderId: string; r: Record<string, any>; step: string; codAmount?: number | null;
 }) {
     const pickup = step === 'LOADED';
@@ -734,7 +743,7 @@ function LiveDone({ orderId, r, step, codAmount }: {
                 </div>
             )}
 
-            <div className="flex gap-1.5">
+            <ActionRow slot={actionsSlot} className="flex gap-1.5">
                 {/* ⏭️ 기록 없이 다음으로 — 하차 완료는 콜의 끝이라 건너뛸 수 없다 */}
                 {pickup && !done && (
                     <button type="button" title="기록 없이 다음 단계로"
@@ -765,7 +774,7 @@ function LiveDone({ orderId, r, step, codAmount }: {
                         ✕ 취소
                     </button>
                 )}
-            </div>
+            </ActionRow>
             {pickup && !done && (
                 <div className="text-[10px] text-text-muted -mt-1">상차 취소는 방출로 처리되고, 이 장소에 사유가 기록됩니다</div>
             )}
@@ -810,8 +819,10 @@ function MockBtn({ cls, label, onMock, children }: {
     return <button type="button" className={cls} onClick={() => onMock(label)}>{children}</button>;
 }
 
-export default function StepSheetMock({ view, orderId, codAmount, place, prevName, leadMinutes, departPrevMs, segmentDriveMinutes, onMock }: {
+export default function StepSheetMock({ view, orderId, codAmount, place, prevName, leadMinutes, departPrevMs, segmentDriveMinutes, onMock, actionsSlot }: {
     view: StepViewLike; orderId?: string; codAmount?: number | null;
+    /** 🔘 수정 팝업의 바닥 자리 — 주면 맨 아래 단추 줄을 그곳에 그린다(늘 보이게) */
+    actionsSlot?: HTMLElement | null;
     /**
      * 🎛️ **목업에서만 준다** — 모양만이던 버튼이 눌리고, 무엇을 눌렀는지 알려 준다.
      *    저장은 여전히 안 나간다 (그건 `orderId` 가 있을 때만).
@@ -858,7 +869,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
             )}
             {/* 통화 단계 — 살아 있으면 진짜, 아니면 모양만 */}
             {isCall && (liveNow
-                ? <LiveCall orderId={orderId!} r={r} pickup={pickup} place={place}
+                ? <LiveCall orderId={orderId!} r={r} pickup={pickup} place={place} actionsSlot={actionsSlot}
                     prevName={prevName} leadMinutes={leadMinutes}
                     departPrevMs={departPrevMs} segmentDriveMinutes={segmentDriveMinutes} writtenByName={view.writtenByName} />
                 : (
@@ -874,7 +885,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
             ))}
 
             {/* 도착 단계 — 살아 있으면 진짜, 아니면 모양만 */}
-            {isArrive && liveNow && <LiveArrive orderId={orderId!} r={r} step={step} />}
+            {isArrive && liveNow && <LiveArrive orderId={orderId!} r={r} step={step} actionsSlot={actionsSlot} />}
             {isArrive && !liveNow && (
                 <>
                     {r.predicted_at && (
@@ -893,7 +904,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
             )}
 
             {/* 완료 단계 — 살아 있으면 진짜 */}
-            {isDone && liveNow && <LiveDone orderId={orderId!} r={r} step={step} codAmount={codAmount} />}
+            {isDone && liveNow && <LiveDone orderId={orderId!} r={r} step={step} codAmount={codAmount} actionsSlot={actionsSlot} />}
 
             {/* 상차 완료 — 모양만 (안 태어난 예정) */}
             {step === 'LOADED' && !liveNow && (

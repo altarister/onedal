@@ -10,6 +10,7 @@ import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 /**
  * ✏️ **단계 수정 팝업 — 카드에서 «통화 · 이슈 · 수정»을 누르면 화면을 덮는다** (기사님 «가»).
  * 안은 카드에 있던 단계 시트(`StepSheetMock`)를 그대로 — 누른 칸에서 열리고 좌우로 넘겨 다른 칸도 고친다.
+ * 지금 보이는 칸의 맨 아래 단추 줄은 팝업 바닥에 고정된다(운전 중 1~2초에 눌러야 하는 단추).
  * 닫힘: ✕ · 팝업 안 저장(그 콜 칸의 상태 · 일어난 시각이 바뀜) · 새 콜 심사 · 도착 감지(`popupCloseReasonOf`).
  * 저장 없이 닫혀도 적던 것은 `stepDraftStore` 에 남아, 다시 열면 이어서 고친다.
  * 바깥 일: 없음 — 저장은 시트가 소켓으로 보내고, 닫힘 신호는 저장소 둘을 읽기만 한다.
@@ -22,6 +23,8 @@ export default function StepEditPopup({ route, seededSteps, timeline, startIdx, 
     onClose: (why: string) => void;
 }) {
     const [idx, setIdx] = useState(startIdx);
+    /** 🔘 바닥 자리 — 지금 보이는 칸의 맨 아래 단추 줄이 여기로 온다(늘 보이게) */
+    const [slot, setSlot] = useState<HTMLDivElement | null>(null);
     const interrupt = useStepDraftStore(s => s.interruptTick);
     const arrivalTick = useGpsFocusStore(s => s.arrival?.tick ?? null);
     /* 여섯 칸의 상태 · 일어난 시각 — 팝업 안 어느 칸에서 저장해도 닫힌다(정차 배지 · 착불은 이 둘을 안 바꾼다) */
@@ -38,7 +41,7 @@ export default function StepEditPopup({ route, seededSteps, timeline, startIdx, 
 
     const x = seededSteps[idx];
     return (
-        <div className="fixed inset-0 z-[70] flex flex-col bg-background text-text-primary" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-x-0 top-0 h-[100dvh] z-[70] flex flex-col bg-background text-text-primary" onClick={e => e.stopPropagation()}>
             <div className="shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-border bg-surface">
                 <div className="min-w-0 flex-1">
                     <div className="text-[15px] font-black truncate">{route.pickup} → {route.dropoff}</div>
@@ -66,11 +69,14 @@ export default function StepEditPopup({ route, seededSteps, timeline, startIdx, 
                                     leadMinutes={pane.leadMinutes}
                                     departPrevMs={pane.departPrevMs}
                                     segmentDriveMinutes={pane.segmentDriveMinutes}
-                                    view={stepViewOf(s, seededSteps)} />
+                                    view={stepViewOf(s, seededSteps)}
+                                    actionsSlot={k === idx ? slot : null} />
                             </section>
                         );
                     }} />
             </div>
+            {/* 🔘 바닥 고정 단추 줄 — 폰 바닥 여백(제스처 줄)만큼 띄운다 */}
+            <div ref={setSlot} className="shrink-0 px-3 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-border bg-surface empty:hidden" />
         </div>
     );
 }

@@ -110,14 +110,15 @@ describe('🪪 6단계 — 카드에 보일 글자 · 단추(카드는 보기만
         expect(done.buttons.map(b => b.label)).toEqual(['수정']);
         expect(stepSummaryOf(row('CALL_PICKUP', { status: 'SKIPPED', occurred_at: '2026-10-22T01:00:00Z' }), {}).doneText).toContain('⏭️ 건너뜀');
     });
-    it('통화 칸 글자 = 짐 · 방법 · 약속 · 메모 + 어디서 온 값 · 적다 만 것이 있으면 한 줄 더', () => {
+    it('통화 칸 글자 = 짐 · 방법 · 약속 · 메모 + 어디서 온 값 · 적다 만 것이 있으면 «통화 ✍️»', () => {
         const s = stepSummaryOf(row('CALL_PICKUP', { planned_unit: '라면박스', planned_quantity: 20, planned_handling: '수작업',
             promised_arrival_at: '2026-10-22T01:20:00Z', memo: '경비실 통과', planned_source: 'MEMO' }), { draft: true });
         expect(s.lines.join(' ')).toContain('라면박스 20 · 수작업');
         expect(s.lines.join(' ')).toContain(`약속 ${hhmmText('2026-10-22T01:20:00Z')}`);
         expect(s.lines.join(' ')).toContain('경비실 통과');
         expect(s.source).toBe('📄 적요');
-        expect(s.draftNote).toBe(true);
+        expect(s.buttons.map(b => b.label)).toEqual(['스킵', '통화 ✍️']);   // 바로 저장 단추엔 안 붙는다
+        expect(stepSummaryOf(row('LOADED', { status: 'DONE', occurred_at: '2026-10-22T01:00:00Z' }), { draft: true }).buttons.map(b => b.label)).toEqual(['수정']);   // 끝난 칸엔 안 붙는다
     });
 });
 
