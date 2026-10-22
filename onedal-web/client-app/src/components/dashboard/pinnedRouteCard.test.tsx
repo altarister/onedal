@@ -47,13 +47,24 @@ function draw(o: { route?: any; timeline?: any[]; records?: any; etaMap?: Map<st
 /** 글자만 — 태그를 걷는다 */
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
+/** html 안에서 그 글자가 나오는 자리 **전부**가 <details> … </details> 안인가(true) · 전부 밖인가(false) · 섞였나(null) */
+const insideDetails = (html: string, s: string) => {
+    const at: boolean[] = [];
+    for (let i = html.indexOf(s); i >= 0; i = html.indexOf(s, i + 1)) {
+        at.push(html.lastIndexOf('<details', i) > html.lastIndexOf('</details>', i));
+    }
+    if (!at.length) return undefined;
+    return at.every(Boolean) ? true : at.some(Boolean) ? null : false;
+};
+
 describe('📍 잡은 뒤 카드 — 머리 경로 · 상 · 하차 덩어리', () => {
     it('🔴 머리 줄은 «몇 번째. 동 → 동» — 잡은 시각 · 차종은 머리에 없다(더보기)', () => {
         const route = { ...ROUTE, vehicleType: '1t' };
         const t = text(draw({ route }));
         expect(t).toContain('1. 초월읍 → 신둔면');
-        expect(t).not.toContain('잡은 시각');   // 더보기를 안 열었다
-        expect(draw({ route })).not.toMatch(/>1t</);
+        const html = draw({ route });
+        expect(insideDetails(html, '잡은 시각')).toBe(true);
+        expect(insideDetails(html, '>1t<')).toBe(true);
     });
     it('🔴 번호가 있는 덩어리는 그곳에 거는 링크 · 없으면 «번호 없음»', () => {
         const route = { ...ROUTE, pickupDetails: [{ phone1: '010-1234-5678', customerName: '모다아울렛', addressDetail: '경기 광주시 초월읍 경충대로 907' }] };
@@ -77,12 +88,24 @@ describe('📍 잡은 뒤 카드 — 머리 경로 · 상 · 하차 덩어리', 
         expect(t).toContain('통과');
         expect(t).not.toMatch(/밀림|·21분/);
     });
-    it('🔴 하차 덩어리에 마감 시각 — 배송 주행 근거 · 판정 근거 서랍은 더보기 안(처음엔 안 그린다)', () => {
+    it('🔴 하차 덩어리에 마감 시각(더보기 밖) — 배송 주행 근거는 더보기 안', () => {
         const html = draw();
         expect(text(html)).toMatch(/하차 · 신둔면 .*마감 \d\d:\d\d/);
-        expect(html).not.toContain('🚚 배송 주행');
-        expect(html).not.toContain('판정 근거 · 원본 데이터');
+        expect(insideDetails(html, '🚚 배송 주행')).toBe(true);
+        expect(text(html)).toMatch(/22분 · 14\.7km \((실측|추정)\)/);
+        expect(text(html)).toMatch(/하차 마감 \d\d:\d\d/);
         expect(text(html)).toContain('▸ 더보기');
+    });
+    it('판정 근거 · 원본 데이터는 더보기 안 — 단독 경로 · 원본 칸', () => {
+        const html = draw();
+        expect(insideDetails(html, '판정 근거 · 원본 데이터')).toBe(true);
+        expect(insideDetails(html, 'route.detailMemo :')).toBe(true);
+        expect(text(html)).toContain('단독 14.7km / 22분');
+    });
+    it('🔴 내 여유를 모르는 콜(약속 전)엔 «경로 최소» 줄이 없다 — 견줄 것이 없다', () => {
+        const at = Date.parse('2026-10-07T05:00:00Z');
+        const other = { ...tl('dropoff'), orderId: 'c2', promisedUntil: new Date(at + 6 * 60_000).toISOString(), etaMs: at };
+        expect(text(draw({ timeline: [tl('pickup'), tl('dropoff'), other] }))).not.toContain('경로 최소');
     });
     it('심사 중 카드는 그대로 — 머리에 잡은 시각 · 차종 · 덩어리 없음', () => {
         const route = { ...ROUTE, status: 'ORDER_SECURED_EVALUATING', vehicleType: '1t' };

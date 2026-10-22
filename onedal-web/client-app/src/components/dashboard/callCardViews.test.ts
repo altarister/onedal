@@ -131,6 +131,8 @@ describe('🪪 6단계 — 카드에 보일 글자 · 단추(카드는 보기만
         expect(s.chips[2].value).toBe(`정리 ${afterworkMinutes(['정리'])}분`);
         expect(s.source).toBeNull();   // 상차 짐 출처를 물려받은 칸이라 출처를 안 쓴다
         expect(stepSummaryOf(row('CALL_DROPOFF', { status: 'DONE', occurred_at: '2026-10-22T01:00:00Z' }), {}).source).toBe('✍️ 통화로 정함');
+        /* 건너뛴 칸은 «통화로 정함»이 아니다 — 위 «⏭️ 건너뜀»과 한 장에 두 말을 하지 않는다 */
+        expect(stepSummaryOf(row('CALL_DROPOFF', { status: 'SKIPPED', occurred_at: '2026-10-22T01:00:00Z' }), {}).source).toBe('⏭️ 통화 없이 미리 눌린 값');
     });
 });
 

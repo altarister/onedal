@@ -141,6 +141,7 @@ export function stepSummaryOf(x: StepViewRow, { codAmount, draft, unk }: { codAm
         memo: (x.step.startsWith('CALL_') && r.memo) ? String(r.memo) : null,
         meta,
         source: !x.step.startsWith('CALL_') ? null
+            : r.status === 'SKIPPED' ? '⏭️ 통화 없이 미리 눌린 값'
             : ended ? '✍️ 통화로 정함'
             : x.step === 'CALL_PICKUP' ? SOURCE_LABEL[r.planned_source] ?? null : null,
         doneText: ended ? `✓ ${hhmmText(r.occurred_at) ?? '--:--'} (${by})` : null,

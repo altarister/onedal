@@ -151,9 +151,8 @@ export default function PinnedRouteCard({
      * `processingId` 는 PinnedRoute 가 콜 자료가 바뀌거나 결재가 실패로 돌아오면 풀어서 방어가 되지 않는다.
      */
     const [locked, setLocked] = useState(false);
-    /** ▸ 더보기 — 잡은 뒤 카드에서 흘깃 보지 않는 값(잡은 시각 · 차종 · 버퍼 · 배송 주행 · 판정 근거 · 이 콜 처리)을 접어 둔다 */
-    const [moreOpen, setMoreOpen] = useState(false);
-    /** 아직 심사 중인 콜인가 — 잡은 뒤 카드(경로 머리 · 정거장 덩어리 · 더보기)와 심사 중 카드(결재 재료 그대로)를 가른다 */
+    /** 아직 심사 중인 콜인가 — 잡은 뒤 카드(경로 머리 · 정거장 덩어리 · 더보기)와 심사 중 카드(결재 재료 그대로)를 가른다.
+        `evaluating` 과 다른 콜은 «미리보기 콜의 결재 대기»뿐이고, 그 콜의 본문은 전부터 닫혀 있었다 — 둘을 합치지 않는다 */
     const judging = isEvaluating(route.status);
 
     /**
@@ -701,7 +700,7 @@ export default function PinnedRouteCard({
                                             const mb = timeline ? minRouteBuffer(timeline) : null;
                                             if (!mb || mb.orderId === route.id) return null;
                                             const mine = budgets.map(c => c.b.min);
-                                            if (mine.length && !mine.some(m => mb.minutes < m)) return null;
+                                            if (!mine.length || !mine.some(m => mb.minutes < m)) return null;   // 내 여유가 있어야 견준다
                                             return (
                                                 <div className={`text-[12px] font-bold tabular-nums ${mb.minutes >= 0 ? 'text-text-muted' : 'text-danger'}`}>
                                                     경로 최소 {mb.minutes >= 0 ? '+' : ''}{mb.minutes}분{mb.firm ? '' : '~'} (다른 콜 약속)
@@ -715,19 +714,20 @@ export default function PinnedRouteCard({
                                                 {memoText || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
                                             </span>
                                         </div>
-                                        {/* 🏢 사무실(누르면 사무실 전화) · ▸ 더보기 */}
-                                        <div className="flex items-center gap-3 text-[13px]">
+                                        {/* 🏢 사무실(누르면 사무실 전화) · ▸ 더보기 — 접힌 채로도 DOM 에 있어 검사 · 폰 시험이 글자로 찾는다.
+                                            🔴 펼쳐 두면 폰에서 세로로 길어져 단계가 자리를 못 받는다 */}
+                                        <details className="group">
+                                        <summary className="list-none cursor-pointer select-none flex items-center gap-3 text-[13px]">
                                             {quickPhone ? (
                                                 <a href={telHref(quickPhone)} onClick={e => { e.stopPropagation(); e.preventDefault(); callNow(quickPhone); }}
                                                    className="min-w-0 truncate font-bold text-info">🏢 {quickClean}</a>
                                             ) : quickName ? <span className="min-w-0 truncate text-text-muted">🏢 {quickClean}</span> : null}
-                                            <button type="button" onClick={() => setMoreOpen(v => !v)}
-                                                className="ml-auto shrink-0 text-text-muted font-bold">{moreOpen ? '▾ 접기' : '▸ 더보기'}</button>
-                                        </div>
-                                        {/* ── 더보기 — 흘깃 보지 않는 값 · 문제가 생겼을 때 여는 것 ──
-                                            🔴 펼쳐 두면 폰에서 세로로 길어져 단계가 자리를 못 받는다 */}
-                                        {moreOpen && (
-                                        <div className="flex flex-col gap-1.5 rounded-lg border border-border-card bg-surface-alt/30 px-2.5 py-2 text-[11.5px]">
+                                            <span className="ml-auto shrink-0 text-text-muted font-bold">
+                                                <span className="group-open:hidden">▸ 더보기</span>
+                                                <span className="hidden group-open:inline">▾ 접기</span>
+                                            </span>
+                                        </summary>
+                                        <div className="mt-1.5 flex flex-col gap-1.5 rounded-lg border border-border-card bg-surface-alt/30 px-2.5 py-2 text-[11.5px]">
                                             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-text-muted tabular-nums">
                                                 <span>잡은 시각 <b className="text-text-primary">{clockText(route.capturedAt) ?? '-'}</b></span>
                                                 {route.vehicleType && <span className="px-1.5 rounded-[5px] font-black border bg-surface-alt border-border-card text-text-primary">{route.vehicleType}</span>}
@@ -834,7 +834,7 @@ export default function PinnedRouteCard({
                                     </details>
                                 )}
                                         </div>
-                                        )}
+                                        </details>
                                         <CallStepTrack route={route} timeline={timeline} seededSteps={seededSteps}
                                             shownStepIdx={shownStepIdx} stepCurIdx={stepCurIdx} stepNav={stepNav}
                                             onNav={(idx, by) => { navByRef.current = by; setStepNav(idx); }} />
