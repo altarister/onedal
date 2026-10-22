@@ -5,7 +5,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords, safeCancelSecOf, stopPhoneLogOf } from "@onedal/shared";
 import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
-import { telHref } from "../../lib/routeUtils";
+import { telHref, getAddressLabel } from "../../lib/routeUtils";
 import { callNow } from "../../lib/phoneCall";
 import { drawsDecisionButtons, capturedHowOf } from "../../lib/callBadges";
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
@@ -151,6 +151,10 @@ export default function PinnedRouteCard({
      * `processingId` 는 PinnedRoute 가 콜 자료가 바뀌거나 결재가 실패로 돌아오면 풀어서 방어가 되지 않는다.
      */
     const [locked, setLocked] = useState(false);
+    /** ▸ 더보기 — 잡은 뒤 카드에서 흘깃 보지 않는 값(잡은 시각 · 차종 · 버퍼 · 배송 주행 · 판정 근거 · 이 콜 처리)을 접어 둔다 */
+    const [moreOpen, setMoreOpen] = useState(false);
+    /** 아직 심사 중인 콜인가 — 잡은 뒤 카드(경로 머리 · 정거장 덩어리 · 더보기)와 심사 중 카드(결재 재료 그대로)를 가른다 */
+    const judging = isEvaluating(route.status);
 
     /**
      * 🌱 **콜을 잡는 순간 여섯 단계가 정해진다** — 서버가 만든 단계 행(`steps-synced`)을 받아 둔다.
@@ -280,10 +284,9 @@ export default function PinnedRouteCard({
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-warning/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
             )}
 
-            {/* 1-a. 덱 헤더 — **한 줄**. 폰 한 화면이 목표다.
-                🔴 경로·거리·분은 **바로 위 덱 요약 줄이 이미 말한다** — 여기엔 적지 않는다.
-                   기사님: *"UI 영역을 아껴 써야 한다."*
-                   → 여기엔 몇 번째 콜 · 언제 잡았나 · 차종 · 수수료 · 예약 · 판정 색 · 돈을 적는다. */}
+            {/* 1-a. 덱 헤더 — **한 줄**. 폰 한 화면이 목표다 (기사님: *"UI 영역을 아껴 써야 한다."*).
+                심사 중: 몇 번째 콜 · 언제 잡았나 · 차종 · 수수료 · 예약 · 판정 색 · 돈 — 결재 재료다.
+                잡은 뒤: 몇 번째 콜 · 경로(동 → 동) · 잡은 길 · 판정 색 · 돈 — 나머지는 본문의 «▸ 더보기». */}
             {/* 🔤 목업과 같은 크기 — 머리 줄 11.5 · 칩 11 */}
             {(
                 /* 🔤 **한 줄로 선다** (기사님: *"두 줄로 되어서 자리를 너무 많이
@@ -291,23 +294,29 @@ export default function PinnedRouteCard({
                    아니라 **가운데가** 줄어야 한다 (요금·번호는 흘깃 보는 값이다) */
                 <div className="px-3 pt-2.5 pb-1 flex items-center gap-x-1.5 text-[11.5px] text-text-muted tabular-nums whitespace-nowrap">
                     {accentColor && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: accentColor }} />}
-                    <span className="font-black text-text-primary">{indexNum}.</span>
+                    <span className={`font-black text-text-primary ${judging ? '' : 'text-[15px]'}`}>{indexNum}.</span>
+                    {/* 🧭 잡은 뒤 카드는 머리에 경로 — 정거장 덩어리가 이름 · 주소를 들어 덱 요약 줄 없이도 읽힌다 (기사님 «가») */}
+                    {!judging && (
+                        <span className="min-w-0 truncate text-[15px] font-black text-text-primary">
+                            {getAddressLabel(route.pickup)} → {getAddressLabel(route.dropoff)}
+                        </span>
+                    )}
                     {/* 🔄 이번 운행에서 **끝낸** 콜 — 사이클이 도는 동안 카드가 남는다.
                         마지막 하차를 마치면 이 카드들이 한꺼번에 완료됨 탭으로 간다 */}
                     {isDeliveredCall(route) && (
                         <span className="px-1.5 py-0.5 rounded bg-success/15 text-success text-[11px] font-black">✅ 완료</span>
                     )}
-                    {/* 🕐 라벨 없이 시각만 적는다 — 시각 하나면 «언제 잡았나»로 읽힌다 */}
-                    <span>
+                    {/* 🕐 라벨 없이 시각만 적는다 — 시각 하나면 «언제 잡았나»로 읽힌다 · 잡은 뒤에는 차종 · 수수료 · 예약과 함께 더보기로 */}
+                    {judging && <span>
                         <b className="text-text-primary font-bold">
                             {clockText(route.capturedAt) ?? '-'}
                         </b>
-                    </span>
+                    </span>}
                     {/**
                       * 🚚 **이 콜이 부르는 차종** — 단가가 여기서 나온다 (내 차종은 폴백일 뿐).
                       *    조회용 리스트 헤더는 첫 글자만 적으므로 **덱에서는 온전히 적는다.**
                       */}
-                    {route.vehicleType && (
+                    {judging && route.vehicleType && (
                         <span className="px-1.5 rounded-[5px] text-[11px] font-black border
                                          bg-surface-alt border-border-card text-text-primary">{route.vehicleType}</span>
                     )}
@@ -320,8 +329,8 @@ export default function PinnedRouteCard({
                         <span className="px-1.5 rounded-[5px] text-[11px] font-black border
                                          bg-warning/15 border-warning/40 text-warning">급송</span>
                     )}
-                    {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
-                    {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
+                    {judging && route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
+                    {judging && route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
                     {/* 🧭 어떻게 잡았나 — 덱 머리글에도 단다 (리스트 헤더에만 달면
                         기사님이 보는 덱에는 안 나온다). 알람 듣고 잡음=알람콜 · 손=직접콜 */}
                     {!evaluating && isManualLineage(route.type) && route.status !== 'ORDER_COMPLETED' && (
@@ -594,11 +603,11 @@ export default function PinnedRouteCard({
                         기사님이 실제로 하는 일이 이 순서이기 때문이다 —
                         콜을 알아보고 → 적요를 읽고 → 전화를 걸고 → 다음 단계로 넘어간다.
 
-                          ① 착불 경고 · 퀵사무실          ← 놓치면 안 되는 것 · 보조 연락처
-                          ② 짐 · 버퍼 칩 줄               ← «어떤 콜인가»
-                          ③ 적요 · 상·하차 줄 · 배송 주행 ← 콜을 설명하는 값
-                          ④ 접힘                          ← 판정 근거·원본 데이터 · 이 콜 처리(방출·사무실 취소)
-                          ⑤ 스텝(지금 할 일)              ← 현재 단계 하나 + 진행 막대
+                          ① 착불 경고                     ← 놓치면 현금을 못 받는다
+                          ② 상 · 하차 덩어리(누르면 전화) ← 이름 · 전체 주소 · 약속 · 예상 · 여유 · 마감
+                          ③ 적요                          ← 통화 전에 읽는 유일한 문장
+                          ④ 🏢 사무실 · ▸ 더보기           ← 잡은 시각 · 차종 · 짐 · 버퍼 · 배송 주행 · 판정 근거 · 이 콜 처리
+                          ⑤ 스텝(지금 할 일)              ← 머리 한 줄 + 지금 칸에서 고른 값
 
                         🔴 ④의 내용을 본문에 펼치면 폰에서 세로로 길어져
                            "한 화면에 들어온다"는 목표가 깨진다.
@@ -625,6 +634,15 @@ export default function PinnedRouteCard({
                              */
                             const memoText = route.detailMemo;
                             const isCod = route.paymentType === '착불';
+                            /* 💰 **버퍼** (기사님 모델) — `여유 = 약속 − 지금 예상` · 우회가 이 안에 들어와야 잡는 콜. 지나간 정거장은 안 센다 */
+                            const budgets = (['pickup', 'dropoff'] as const).flatMap(k => {
+                                const st = seededSteps?.find(x => x.step === (k === 'pickup' ? 'CALL_PICKUP' : 'CALL_DROPOFF'));
+                                const promised = st?.row?.promised_arrival_at;
+                                const tl = timeline?.find(e => e.orderId === route.id && e.stopType === k);
+                                if (!st || !promised || !tl || tl.etaMs == null || tl.arrived) return [];
+                                return [{ k, b: { min: Math.round((Date.parse(promised) - tl.etaMs) / 60_000), firm: st.born !== false && st.row.status !== 'PLANNED' } }];
+                            });
+                            const deadlineAt = seededSteps?.find(x => x.step === 'CALL_DROPOFF')?.row?.deadline_at;
 
                             return (
                                 <>
@@ -657,8 +675,8 @@ export default function PinnedRouteCard({
                                         저장된 단계 행만 그린다. 통화·현장 규칙은 시딩·StepSheetMock 이 잇는다. */}
                                     {!evaluating && <hr className="border-border-card" />}
 
-                                    {/* 🏢 퀵사무실 — 신고와 실제가 다를 때 여기로 건다. 한 줄만 남긴다 */}
-                                    {quickPhone && (
+                                    {/* 🏢 퀵사무실 — 심사 중 카드는 한 줄 링크 그대로(잡은 뒤 카드는 아래 «🏢 · ▸ 더보기» 줄) */}
+                                    {judging && quickPhone && (
                                         <a href={telHref(quickPhone)} onClick={e => { e.stopPropagation(); e.preventDefault(); callNow(quickPhone); }}
                                            className="text-[11px] text-info font-bold underline underline-offset-2 px-0.5">
                                             🏢 {quickClean} {quickPhone}
@@ -669,46 +687,67 @@ export default function PinnedRouteCard({
                                         기사님: *"콜을 잡는 순간 모든 상세값이 임시로 정해지는 거지."*
                                         저장된 단계 행만 그린다 — 화면에는 계산이 없다 (규칙 ③).
                                         🔴 KEEP 뒤에만 보인다 — 그 전에는 `orders` 에 행이 없어 FK 가 걸린다. */}
-                                    {!isEvaluating(route.status) && (
+                                    {!judging && (
                                     /* 📏 이 상자는 «위 덩어리 + 스텝»을 함께 담는다 —
                                        **최소 높이는 스텝 것**이라 여기 두면 위 덩어리가 그 몫을 먹는다 */
                                     <div onClick={e => e.stopPropagation()}
-                                         className="flex-1 min-h-0 flex flex-col">
-                                        {/* 💰 **예산 줄** (기사님 모델) — `여유 = 약속 − 지금 예상`.
-                                            약속은 통화로만 굳고, 합짐이 붙으면 예상만 민다. 그래서 이 뺄셈이
-                                            곧 **"합짐에 쓸 수 있는 시간"**이다. 우회가 이 안에 들어와야 잡는 콜.
-                                            ~ 는 아직 통화 전(추정 약속)이라는 표시다. 지나간 정거장은 안 센다 */}
+                                         className="flex-1 min-h-0 flex flex-col gap-1.5">
+                                        {/* 📍 상 · 하차 덩어리 — 이름 · 전체 주소 · 약속 · 예상 · 여유 · 마감 · 누르면 그곳에 전화 */}
+                                        <StopDetailBlock route={route} timeline={timeline}
+                                            visitOrder={visitOrder} timing={timing} etas={etas} seededSteps={seededSteps} />
+                                        {/* 🧮 경로 최소 버퍼 (⑯-1) — 이 콜이 +60 이어도 **다른 콜 약속**이 +6 이면 예산은 6분이다 (기사님 실측).
+                                            덩어리의 «N분 여유»가 못 하는 말이라 접지 않는다 — 이 콜의 여유보다 빡빡할 때만 적는다 */}
                                         {(() => {
-                                            if (!seededSteps) return null;
-                                            const budget = (stopType: 'pickup' | 'dropoff') => {
-                                                const st = seededSteps.find(x => x.step === (stopType === 'pickup' ? 'CALL_PICKUP' : 'CALL_DROPOFF'));
-                                                const promised = st?.row?.promised_arrival_at;
-                                                const tl = timeline?.find(e => e.orderId === route.id && e.stopType === stopType);
-                                                if (!promised || !tl || tl.etaMs == null || tl.arrived) return null;
-                                                return {
-                                                    min: Math.round((Date.parse(promised) - tl.etaMs) / 60_000),
-                                                    firm: st.born !== false && st.row.status !== 'PLANNED',
-                                                };
-                                            };
-                                            const chips = (['pickup', 'dropoff'] as const)
-                                                .map(k => ({ k, b: budget(k) }))
-                                                .filter(x => x.b != null) as Array<{ k: 'pickup' | 'dropoff'; b: { min: number; firm: boolean } }>;
-                                            if (!chips.length) return null;
+                                            const mb = timeline ? minRouteBuffer(timeline) : null;
+                                            if (!mb || mb.orderId === route.id) return null;
+                                            const mine = budgets.map(c => c.b.min);
+                                            if (mine.length && !mine.some(m => mb.minutes < m)) return null;
                                             return (
-                                                <div className="flex items-center gap-1.5 flex-wrap text-[11px] mb-1">
-                                                    {/**
-                                                      * 📦 **짐과 버퍼는 한 줄이다**.
-                                                      *    둘 다 «이 콜이 어떤 콜인가»의 답이라 눈이 한 번에 훑는다.
-                                                      * 🔴 짐이 없으면 안 그린다 — 적요에서 짜내지 않는다 (규칙 ④).
-                                                      */}
+                                                <div className={`text-[12px] font-bold tabular-nums ${mb.minutes >= 0 ? 'text-text-muted' : 'text-danger'}`}>
+                                                    경로 최소 {mb.minutes >= 0 ? '+' : ''}{mb.minutes}분{mb.firm ? '' : '~'} (다른 콜 약속)
+                                                </div>
+                                            );
+                                        })()}
+                                        {/* 📄 적요 — 통화 전에 읽어야 하는 유일한 텍스트 · 덩어리 다음, 단계 위 (적요를 읽고 전화를 거는 순서) */}
+                                        <div className="leading-snug text-[13px]">
+                                            <span className="text-text-muted">적요 : </span>
+                                            <span className="font-bold break-keep">
+                                                {memoText || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
+                                            </span>
+                                        </div>
+                                        {/* 🏢 사무실(누르면 사무실 전화) · ▸ 더보기 */}
+                                        <div className="flex items-center gap-3 text-[13px]">
+                                            {quickPhone ? (
+                                                <a href={telHref(quickPhone)} onClick={e => { e.stopPropagation(); e.preventDefault(); callNow(quickPhone); }}
+                                                   className="min-w-0 truncate font-bold text-info">🏢 {quickClean}</a>
+                                            ) : quickName ? <span className="min-w-0 truncate text-text-muted">🏢 {quickClean}</span> : null}
+                                            <button type="button" onClick={() => setMoreOpen(v => !v)}
+                                                className="ml-auto shrink-0 text-text-muted font-bold">{moreOpen ? '▾ 접기' : '▸ 더보기'}</button>
+                                        </div>
+                                        {/* ── 더보기 — 흘깃 보지 않는 값 · 문제가 생겼을 때 여는 것 ──
+                                            🔴 펼쳐 두면 폰에서 세로로 길어져 단계가 자리를 못 받는다 */}
+                                        {moreOpen && (
+                                        <div className="flex flex-col gap-1.5 rounded-lg border border-border-card bg-surface-alt/30 px-2.5 py-2 text-[11.5px]">
+                                            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-text-muted tabular-nums">
+                                                <span>잡은 시각 <b className="text-text-primary">{clockText(route.capturedAt) ?? '-'}</b></span>
+                                                {route.vehicleType && <span className="px-1.5 rounded-[5px] font-black border bg-surface-alt border-border-card text-text-primary">{route.vehicleType}</span>}
+                                                {route.commissionRate && <span>· 수수료 {route.commissionRate}</span>}
+                                                {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
+                                            </div>
+                                            {/**
+                                              * 📦 **짐과 버퍼는 한 줄이다** — 둘 다 «이 콜이 어떤 콜인가»의 답.
+                                              * 🔴 짐이 없으면 안 그린다 — 적요에서 짜내지 않는다 (규칙 ④).
+                                              * ~ 는 아직 통화 전(추정 약속) · 지나간 정거장은 안 센다.
+                                              */}
+                                            {(route.itemDescription || budgets.length > 0 || deadlineAt) && (
+                                                <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
                                                     {route.itemDescription && (
-                                                        <span className="px-2 py-0.5 rounded-md border font-black
-                                                                         bg-surface-alt/60 border-border-card text-text-primary">
+                                                        <span className="px-2 py-0.5 rounded-md border font-black bg-surface-alt/60 border-border-card text-text-primary">
                                                             📦 {route.itemDescription}
                                                         </span>
                                                     )}
-                                                    <span className="text-text-muted font-bold">버퍼</span>
-                                                    {chips.map(({ k, b }) => (
+                                                    {budgets.length > 0 && <span className="text-text-muted font-bold">버퍼</span>}
+                                                    {budgets.map(({ k, b }) => (
                                                         <span key={k} className={`px-1.5 py-0.5 rounded font-bold tabular-nums ${
                                                             b.min >= 30 ? 'bg-success/15 text-success'
                                                             : b.min >= 10 ? 'bg-info/15 text-info'
@@ -718,137 +757,84 @@ export default function PinnedRouteCard({
                                                             {k === 'pickup' ? '상차버퍼' : '경유버퍼'} {b.min >= 0 ? '+' : ''}{b.min}분{b.firm ? '' : '~'}
                                                         </span>
                                                     ))}
-                                                    <span className="text-[10px] text-text-muted">{chips.some(c => !c.b.firm) ? '~는 통화 전 추정' : ''}</span>
-                                                    {/* 🧮 경로 최소 버퍼 (⑯-1) — 이 콜의 칩이 +60 이어도 **다른 콜 약속**이
-                                                        +6 이면 예산은 6분이다 (기사님 실측). 내 칩보다 빡빡할 때만 적는다 */}
-                                                    {(() => {
-                                                        const mb = timeline ? minRouteBuffer(timeline) : null;
-                                                        if (!mb || mb.orderId === route.id) return null;
-                                                        if (chips.length && !chips.some(c => mb.minutes < c.b.min)) return null;
-                                                        return (
-                                                            <span className={`px-1.5 py-0.5 rounded font-bold tabular-nums text-[10px] ${
-                                                                mb.minutes >= 0 ? 'bg-surface-hover text-text-muted' : 'bg-danger/15 text-danger'
-                                                            }`}>
-                                                                경로 최소 {mb.minutes >= 0 ? '+' : ''}{mb.minutes}분{mb.firm ? '' : '~'} (다른 콜 약속)
-                                                            </span>
-                                                        );
-                                                    })()}
                                                     {/* ⏱️ 데드라인 — 콜마다 자동으로 서는 배달 상한. 통화로 합의하면 미뤄진다 (용어집) */}
-                                                    {(() => {
-                                                        const dl = seededSteps.find(x => x.step === 'CALL_DROPOFF')?.row?.deadline_at;
-                                                        return dl ? (
-                                                            <span className="px-1.5 py-0.5 rounded bg-surface-hover text-text-muted font-bold tabular-nums text-[10px]">
-                                                                데드라인 {hhmmText(dl)}
-                                                            </span>
-                                                        ) : null;
-                                                    })()}
+                                                    {deadlineAt && (
+                                                        <span className="px-1.5 py-0.5 rounded bg-surface-hover text-text-muted font-bold tabular-nums text-[10px]">
+                                                            데드라인 {hhmmText(deadlineAt)}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            );
-                                        })()}
-                                        {/**
-                                          * 📄 **적요는 칩 줄 다음이다**.
-                                          *    위의 한 줄(번호·차종·수수료·판정·요금)과 칩 줄(짐·버퍼)이 «어떤 콜인가»를
-                                          *    답하고 나면, 그다음이 **읽을 문장**이다. 통화 전에 읽는 유일한 텍스트다.
-                                          */}
-                                    {/* ── 적요 — 통화 전에 읽어야 하는 유일한 텍스트 ──
-                                        🔴 적요는 스텝('지금 할 일') **위**에 둔다 — 적요를 읽고 전화를 거는 순서다. */}
-                                    {/* 배경 박스 없이 라벨만 둔다 — 한 줄이면 라벨만으로 충분히 구분된다 (UI 영역 아끼기) */}
-                                    <div className="flex gap-1.5 items-baseline">
-                                        <span className="shrink-0 text-[11px] font-bold text-text-muted">적요 :</span>
-                                        <span className="font-bold leading-snug break-keep text-[12px]">
-                                            {memoText || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
-                                        </span>
-                                    </div>
-                                    {/* 🧭 상·하차 줄 — 구간·밀림. 타이틀에 없는 것만 든다 (까닭은 부품 주석) */}
-                                    <StopDetailBlock route={route} timeline={timeline}
-                                        visitOrder={visitOrder} timing={timing} etas={etas} />
-                                    {/**
-                                      * 🔼 **셋(배송 주행 · 판정 근거 · 이 콜 처리)은 위 덩어리 안에 둔다** (기사님).
-                                      *
-                                      * 🔴 **스텝 아래**에 두면 카드가 «위 덩어리 + 스텝» 둘이 아니라 셋으로 서서 길어지고,
-                                      *    스텝이 자리를 못 받아 **스크롤 막대가 두 개**로 보인다.
-                                      * 🟢 여기(적요 아래)는 **위 덩어리 안**이다 — 콜을 설명하는 값들끼리 모인다.
-                                      *    자리가 모자라면 위 덩어리가 스크롤하고, 스텝은 자기 몫(220px)을 지킨다.
-                                      */}
-                                    {/* 🚚 **배송 주행과 하차 마감 — 접지 않는다** (기사님 확정)
-                                        하차 마감은 `상차 완료 + 배송 주행 × 150%` 라 **이 줄이 곧 마감의 근거**다.
-                                        기사님이 «독촉 전화가 오면 카카오를 근거로 대응»하시는 값이므로 판정 근거
-                                        서랍에 넣지 않는다. 실측인지 어림인지를 함께 적는다 (규칙 ⑤-2 — 일반값을
-                                        쓰되 «미확인»을 화면이 말해야 한다. 표시 없이 값만 쓰면 위반이다). */}
-                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold mb-2 px-0.5">
-                                        <span className="text-text-muted">🚚 배송 주행</span>
-                                        {timing.soloMinutes != null ? (
-                                            <>
-                                                <span className="tabular-nums">{timing.soloMinutes}분
-                                                    {timing.soloKm != null ? ` · ${Number(timing.soloKm).toFixed(1)}km` : ''}</span>
-                                                <span className={timing.soloEstimated ? 'text-warning' : 'text-success'}>
-                                                    {timing.soloEstimated ? '(추정)' : '(실측)'}
-                                                </span>
-                                            </>
-                                        ) : (
-                                            /* 지어내지 않는다 — 모르면 모른다고 적는다 (규칙 ④) */
-                                            <span className="text-text-muted">아직 못 쟀습니다</span>
+                                            )}
+                                            {/* 🚚 배송 주행과 하차 마감 — 하차 마감은 `상차 완료 + 배송 주행 × 150%` 라 이 줄이 마감의 근거다.
+                                                마감 시각은 하차 덩어리에도 있다(독촉 전화 때 바로 보이게) · 근거(분 · km · 실측/추정)는 여기.
+                                                실측인지 어림인지를 함께 적는다 (규칙 ⑤-2 — «미확인»을 화면이 말해야 한다) */}
+                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold">
+                                                <span className="text-text-muted">🚚 배송 주행</span>
+                                                {timing.soloMinutes != null ? (
+                                                    <>
+                                                        <span className="tabular-nums">{timing.soloMinutes}분
+                                                            {timing.soloKm != null ? ` · ${Number(timing.soloKm).toFixed(1)}km` : ''}</span>
+                                                        <span className={timing.soloEstimated ? 'text-warning' : 'text-success'}>
+                                                            {timing.soloEstimated ? '(추정)' : '(실측)'}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    /* 지어내지 않는다 — 모르면 모른다고 적는다 (규칙 ④) */
+                                                    <span className="text-text-muted">아직 못 쟀습니다</span>
+                                                )}
+                                                {timing.dropoffDeadlineAt && (
+                                                    <>
+                                                        <span className="text-text-muted">·</span>
+                                                        <span className="text-text-muted">하차 마감</span>
+                                                        <span className="text-danger tabular-nums">{hhmmText(timing.dropoffDeadlineAt)}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                            <CallEvidenceDrawer route={route} soloKm={soloKm} soloMin={soloMin} milestoneLog={milestoneLog} />
+                                            {/* 방출 · 사무실 취소는 **한 번 더 접어 둔다** — 기사님: "특수한 상황에 클릭해야 할 듯."
+                                                ⚠️ decision 은 서버에서 멱등이 아니므로 누른 즉시 잠근다 —
+                                                   processingId 는 콜 자료가 바뀌거나 결재가 실패하면 풀려 방어가 되지 않는다. */}
+                                {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (
+                                    <details className="mt-3 group" onClick={(e) => e.stopPropagation()}>
+                                        <summary className="list-none cursor-pointer text-[11px] font-bold text-text-muted py-1.5 select-none">
+                                            <span className="group-open:hidden">⋯ 이 콜 처리 (방출 · 사무실 취소)</span>
+                                            <span className="hidden group-open:inline">× 닫기</span>
+                                        </summary>
+                                        <div className="flex gap-2 pt-1">
+                                            <Button
+                                                variant="outline"
+                                                disabled={locked}
+                                                onClick={(e: React.MouseEvent) => {
+                                                    e.stopPropagation();
+                                                    logRoadmapEvent("결재", "웹", "콜 카드 — 내가 방출 버튼 클릭");
+                                                    setLocked(true); setProcessingId(route.id);
+                                                    onDecision?.(route.id, 'ORDER_RELEASED_BY_ME');
+                                                }}
+                                                className="flex-1 py-3 text-sm font-bold bg-warning/10 hover:bg-warning/20 text-warning border-warning/30"
+                                            >
+                                                🙋‍♂️ 배차 방출
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                disabled={locked}
+                                                onClick={(e: React.MouseEvent) => {
+                                                    e.stopPropagation();
+                                                    logRoadmapEvent("결재", "웹", "콜 카드 — 사무실 방출 버튼 클릭");
+                                                    setLocked(true); setProcessingId(route.id);
+                                                    onDecision?.(route.id, 'ORDER_RELEASED_BY_OFFICE');
+                                                }}
+                                                className="flex-1 py-3 text-sm font-bold shadow-sm"
+                                            >
+                                                🏢 사무실 취소
+                                            </Button>
+                                        </div>
+                                        <div className="text-[10px] text-text-muted mt-1.5">
+                                            되돌릴 수 없습니다. 방출은 그 장소에 사유가 기록됩니다.
+                                        </div>
+                                    </details>
+                                )}
+                                        </div>
                                         )}
-                                        {timing.dropoffDeadlineAt && (
-                                            <>
-                                                <span className="text-text-muted">·</span>
-                                                <span className="text-text-muted">하차 마감</span>
-                                                <span className="text-danger tabular-nums">
-                                                    {hhmmText(timing.dropoffDeadlineAt)}
-                                                </span>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {/* ── 접힘 — 문제가 생겼을 때만 ──
-                                        🔴 단독 경로·요금·수수료는 본문에 펴지 않는다 —
-                                        덱 헤더가 이미 같은 값을 띄우므로 중복이고, 세로만 잡아먹는다.
-                                        판단에 참고하는 값이지 **지금 할 일**이 아니라 여기로 내린다. */}
-                                    <CallEvidenceDrawer route={route} soloKm={soloKm} soloMin={soloMin} milestoneLog={milestoneLog} />
-                    {/* 방출 · 사무실 취소는 **접어 둔다**.
-                        기사님: "특수한 상황에 클릭해야 할 듯."
-                        주 버튼(도착·완료)과 같은 자리에 두면 잘못 눌러 콜을 잃는다.
-                        ⚠️ decision 은 서버에서 멱등이 아니므로 누른 즉시 잠근다 —
-                           processingId 는 콜 자료가 바뀌거나 결재가 실패하면 풀려 방어가 되지 않는다. */}
-                    {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (
-                        <details className="mt-3 group" onClick={(e) => e.stopPropagation()}>
-                            <summary className="list-none cursor-pointer text-[11px] font-bold text-text-muted py-1.5 select-none">
-                                <span className="group-open:hidden">⋯ 이 콜 처리 (방출 · 사무실 취소)</span>
-                                <span className="hidden group-open:inline">× 닫기</span>
-                            </summary>
-                            <div className="flex gap-2 pt-1">
-                                <Button
-                                    variant="outline"
-                                    disabled={locked}
-                                    onClick={(e: React.MouseEvent) => {
-                                        e.stopPropagation();
-                                        logRoadmapEvent("결재", "웹", "콜 카드 — 내가 방출 버튼 클릭");
-                                        setLocked(true); setProcessingId(route.id);
-                                        onDecision?.(route.id, 'ORDER_RELEASED_BY_ME');
-                                    }}
-                                    className="flex-1 py-3 text-sm font-bold bg-warning/10 hover:bg-warning/20 text-warning border-warning/30"
-                                >
-                                    🙋‍♂️ 배차 방출
-                                </Button>
-                                <Button
-                                    variant="destructive"
-                                    disabled={locked}
-                                    onClick={(e: React.MouseEvent) => {
-                                        e.stopPropagation();
-                                        logRoadmapEvent("결재", "웹", "콜 카드 — 사무실 방출 버튼 클릭");
-                                        setLocked(true); setProcessingId(route.id);
-                                        onDecision?.(route.id, 'ORDER_RELEASED_BY_OFFICE');
-                                    }}
-                                    className="flex-1 py-3 text-sm font-bold shadow-sm"
-                                >
-                                    🏢 사무실 취소
-                                </Button>
-                            </div>
-                            <div className="text-[10px] text-text-muted mt-1.5">
-                                되돌릴 수 없습니다. 방출은 그 장소에 사유가 기록됩니다.
-                            </div>
-                        </details>
-                    )}
                                         <CallStepTrack route={route} timeline={timeline} seededSteps={seededSteps}
                                             shownStepIdx={shownStepIdx} stepCurIdx={stepCurIdx} stepNav={stepNav}
                                             onNav={(idx, by) => { navByRef.current = by; setStepNav(idx); }} />

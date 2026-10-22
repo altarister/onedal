@@ -4,10 +4,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { hhmmText } from '@onedal/shared';
 
 /**
- * 🧾 **펼친 콜 카드를 실제로 그려 본다** — 상 · 하차 줄(구간 분 · 밀린 분 · 장부 폴백)과 배송 주행 · 판정 근거 서랍.
+ * 🧾 **펼친 콜 카드를 실제로 그려 본다** — 머리 경로 · 상 · 하차 덩어리(전화 · 장부 폴백 · 마감) · 심사 중 카드.
  * 카드를 노드에서 그린다(효과는 안 돈다 — 단계 행이 아직 안 와 6단계 트랙은 이 검사 밖이다).
  * 브라우저 전용 객체(localStorage)와 소켓은 빈 대역이다.
- * 못 잡는 것: 6단계 트랙(단계 행은 소켓으로 온다) · 결재 단추를 누른 뒤 · 텔레메트리 막대(심사 중 소켓).
+ * 못 잡는 것: 6단계 트랙(단계 행은 소켓으로 온다) · 결재 단추를 누른 뒤 · 텔레메트리 막대(심사 중 소켓) · «▸ 더보기»를 연 뒤(누르기가 없다).
  */
 vi.hoisted(() => {
     const g = globalThis as any;
@@ -47,57 +47,48 @@ function draw(o: { route?: any; timeline?: any[]; records?: any; etaMap?: Map<st
 /** 글자만 — 태그를 걷는다 */
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
-describe('🧭 펼친 카드의 상 · 하차 줄 — 타이틀이 못 하는 말만', () => {
-    it('🔴 구간 분은 타임라인의 «앞 정거장 → 여기» — 정거장마다', () => {
-        const t = text(draw({ timeline: [tl('pickup', { segmentDriveMinutes: 21 }), tl('dropoff', { segmentDriveMinutes: 37 })] }));
-        expect(t).toMatch(/1 상차 · \S+ [\d.-]+km ?·21분/);
-        expect(t).toMatch(/3 하차 · \S+ [\d.-]+km ?·37분/);
+describe('📍 잡은 뒤 카드 — 머리 경로 · 상 · 하차 덩어리', () => {
+    it('🔴 머리 줄은 «몇 번째. 동 → 동» — 잡은 시각 · 차종은 머리에 없다(더보기)', () => {
+        const route = { ...ROUTE, vehicleType: '1t' };
+        const t = text(draw({ route }));
+        expect(t).toContain('1. 초월읍 → 신둔면');
+        expect(t).not.toContain('잡은 시각');   // 더보기를 안 열었다
+        expect(draw({ route })).not.toMatch(/>1t</);
     });
-    it('🔴 앞 정거장이 민 분을 적는다 — 밀림 · 당겨짐 · 0 이면 안 적는다', () => {
-        const t = text(draw({ timeline: [tl('pickup', { dwellShiftMinutes: 5 }), tl('dropoff', { dwellShiftMinutes: -3 })] }));
-        expect(t).toContain('+5분 밀림');
-        expect(t).toContain('-3분 당겨짐');
-        const none = text(draw({ timeline: [tl('pickup'), tl('dropoff')] }));
-        expect(none).not.toMatch(/밀림|당겨짐|앞 정거장이 예측과 달라/);
+    it('🔴 번호가 있는 덩어리는 그곳에 거는 링크 · 없으면 «번호 없음»', () => {
+        const route = { ...ROUTE, pickupDetails: [{ phone1: '010-1234-5678', customerName: '모다아울렛', addressDetail: '경기 광주시 초월읍 경충대로 907' }] };
+        const html = draw({ route });
+        expect(html).toMatch(/<a[^>]*href="tel:01012345678"[^>]*aria-label="상차 모다아울렛 전화"/);
+        expect(text(html)).toContain('경기 광주시 초월읍 경충대로 907');
+        expect(html).not.toMatch(/aria-label="하차 [^"]* 전화"/);
+        expect(text(html)).toMatch(/하차 · 신둔면 .*번호 없음/);
     });
-    it('🔴 경로에 없는 콜은 장부(통화로 합의한 약속)에서 시각을 읽는다', () => {
+    it('🔴 경로에 없는 콜은 장부(통화로 합의한 약속)에서 예상을 읽는다 · 경로의 예정이 있으면 그것이 이긴다', () => {
         const at = '2026-10-07T05:40:00.000Z';
         const records = { ...EMPTY, reports: [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: at }] };
-        expect(text(draw({ records }))).toContain(`→ ${hhmmText(Date.parse(at))}`);
-        /* 경로의 예정이 있으면 그것이 이긴다 */
+        expect(text(draw({ records }))).toContain(`예상 ${hhmmText(Date.parse(at))}`);
         const etaMap = new Map([['c1', { pickupEta: '09:09' }]]);
-        expect(text(draw({ records, etaMap }))).toContain('→ 09:09');
+        expect(text(draw({ records, etaMap }))).toContain('예상 09:09');
     });
-    it('늦으면 ⚠️N분 · 지난 곳은 «통과»', () => {
-        const t = text(draw({ timeline: [tl('pickup', { lateMinutes: 7, etaMs: Date.parse('2026-10-07T03:00:00Z') }), tl('dropoff')],
+    it('늦으면 ⚠️N분 늦음 · 지난 곳은 «통과» · 구간 km · 밀린 분은 덩어리에 없다', () => {
+        const t = text(draw({ timeline: [tl('pickup', { lateMinutes: 7, dwellShiftMinutes: 5, segmentDriveMinutes: 21, etaMs: Date.parse('2026-10-07T03:00:00Z') }), tl('dropoff')],
             records: { ...EMPTY, milestones: [{ milestone: 'ARRIVED_DROPOFF', occurredAt: '2026-10-07T04:00:00Z' }] } }));
-        expect(t).toContain('⚠️7분');
+        expect(t).toContain('⚠️7분 늦음');
         expect(t).toContain('통과');
+        expect(t).not.toMatch(/밀림|·21분/);
     });
-});
-
-describe('🚚 배송 주행 · 판정 근거 서랍', () => {
-    /** html 안에서 그 글자가 나오는 자리 **전부**가 <details> … </details> 안인가(true) · 전부 밖인가(false) · 섞였나(null) */
-    const insideDetails = (html: string, s: string) => {
-        const at: boolean[] = [];
-        for (let i = html.indexOf(s); i >= 0; i = html.indexOf(s, i + 1)) {
-            at.push(html.lastIndexOf('<details', i) > html.lastIndexOf('</details>', i));
-        }
-        if (!at.length) return undefined;
-        return at.every(Boolean) ? true : at.some(Boolean) ? null : false;
-    };
-    it('🔴 배송 주행 · 실측/추정 · 하차 마감은 서랍 밖 — 펼치지 않아도 보인다', () => {
+    it('🔴 하차 덩어리에 마감 시각 — 배송 주행 근거 · 판정 근거 서랍은 더보기 안(처음엔 안 그린다)', () => {
         const html = draw();
-        expect(html).toContain('🚚 배송 주행');
-        expect(insideDetails(html, '🚚 배송 주행')).toBe(false);
-        expect(text(html)).toMatch(/22분 · 14\.7km \((실측|추정)\)/);
-        expect(insideDetails(html, '하차 마감')).toBe(false);
-        expect(text(html)).toMatch(/하차 마감 \d\d:\d\d/);
+        expect(text(html)).toMatch(/하차 · 신둔면 .*마감 \d\d:\d\d/);
+        expect(html).not.toContain('🚚 배송 주행');
+        expect(html).not.toContain('판정 근거 · 원본 데이터');
+        expect(text(html)).toContain('▸ 더보기');
     });
-    it('판정 근거 · 원본 데이터는 서랍 안 — 단독 경로 · 원본 칸', () => {
-        const html = draw();
-        expect(insideDetails(html, '판정 근거 · 원본 데이터')).toBe(true);
-        expect(insideDetails(html, 'route.detailMemo :')).toBe(true);
-        expect(text(html)).toContain('단독 14.7km / 22분');
+    it('심사 중 카드는 그대로 — 머리에 잡은 시각 · 차종 · 덩어리 없음', () => {
+        const route = { ...ROUTE, status: 'ORDER_SECURED_EVALUATING', vehicleType: '1t' };
+        const html = draw({ route });
+        expect(html).toMatch(/>1t</);
+        expect(text(html)).not.toContain('초월읍 → 신둔면');
+        expect(text(html)).not.toContain('▸ 더보기');
     });
 });

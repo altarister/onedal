@@ -1,4 +1,5 @@
-import { hhmmText, manwonText, stopPhoneOf } from '@onedal/shared';
+import { hhmmText, manwonText, stopPhoneOf, unitPoints, dwellMinutes, protectionMinutes, afterworkMinutes, jsonArrayOf } from '@onedal/shared';
+import type { DwellUnknown } from '@onedal/shared';
 import type { SecuredOrder, StepViewRow, RouteTimelineEntry, CallTiming } from '@onedal/shared';
 import { getAddressLabel } from '../../lib/routeUtils';
 
@@ -79,30 +80,51 @@ export interface StepCardButton {
     popup: boolean;
 }
 
-const SOURCE_LABEL: Record<string, string> = { MEMO: '📄 적요', VEHICLE: '🚚 차종', DECLARED: '✍️ 통화', ACTUAL: '📏 실측' };
+const SOURCE_LABEL: Record<string, string> = { MEMO: '📄 적요에서 읽음', VEHICLE: '🚚 차종 기본값' };
+
+/** 🏷️ 카드 칩 하나 — 시트 칩과 같은 낱말 · 분이 붙는 칩은 분까지 */
+export interface StepChip { label: string; value: string }
+
+const listOf = (v: unknown) => (jsonArrayOf(v as string | null) ?? []) as string[];
 
 /**
- * 🪪 **카드에 보일 단계 한 장** — 카드는 보기만 하고(글자 · 바로 저장 단추), 고치기는 팝업에서 한다.
+ * 🪪 **카드에 보일 단계 한 장** — 카드는 보기만 하고(고른 값 미리 보기 · 바로 저장 단추), 고치기는 팝업에서 한다.
+ * 고른 값(칩): 상차지 통화 «짐 · 상차방법 N분 · 보호 N분 · 성질» · 하차지 통화 «짐 · 하차방법 N분 · 후작업 N분» ·
+ *   도착 «예정 · 늦은 사유» · 완료 «실측 짐 · 방법 · 정차 · 착불». 분은 시트와 같은 shared 함수(`dwellMinutes` 등)로.
+ * 출처: 그 칸이 닫혔으면 «✍️ 통화로 정함», 아니면 상차 칸만 적요 · 차종 — 하차 칸의 출처 칸은 상차 짐 출처를 물려받은 것이라 안 쓴다.
  * 단추: 통화 «스킵 · 통화» · 도착 «스킵 · 도착 · 이슈» · 상차 완료 «스킵 · 상차 완료 · 수정» ·
  *       하차 완료 «하차 완료 · 수정»(스킵 없음 — 콜을 끝내는 단계) · 착불 콜은 «받았음 · 못 받음»이 하차 완료 바로 위.
  * 안 생긴 칸은 단추 없음 · 끝난 칸은 «✓ 시각 (출처)» 와 «수정»만(되돌리기는 팝업 안) · 적다 만 것이 있으면 팝업 단추에 «✍️».
  * @param x 단계 한 줄 — 짐 칸이 없는 단계는 `stepViewOf` 로 빌려 입힌 것을 준다
+ * @param unk 판정 기준 일반값(`useDerivation().unk`) — 시트의 분과 같은 숫자가 나오게
  */
-export function stepSummaryOf(x: StepViewRow, { codAmount, draft }: { codAmount?: number | null; draft?: boolean }) {
+export function stepSummaryOf(x: StepViewRow, { codAmount, draft, unk }: { codAmount?: number | null; draft?: boolean; unk?: DwellUnknown }) {
     const r: Record<string, any> = x.row ?? {};
     const born = x.born !== false;
     const ended = r.status === 'DONE' || r.status === 'SKIPPED';
-    const cargo = [r.planned_unit && `${r.planned_unit}${r.planned_quantity != null ? ` ${r.planned_quantity}` : ''}`, r.planned_handling].filter(Boolean).join(' · ');
-    const dwell = r.planned_dwell_min != null ? `정차 ${r.planned_dwell_min}분` : null;
-    const cod = codAmount ? (r.cod_received != null ? `💵 착불 ${manwonText(codAmount)} — ${r.cod_received ? '받음' : '못 받음'}` : `💵 착불 ${manwonText(codAmount)}`) : null;
-    const lines = ({
-        CALL_PICKUP: [cargo, r.promised_arrival_at && `약속 ${hhmmText(r.promised_arrival_at)}`, r.memo],
-        CALL_DROPOFF: [cargo, r.promised_arrival_at && `약속 ${hhmmText(r.promised_arrival_at)}`, r.memo],
-        ARRIVE_PICKUP: [r.predicted_at && `예정 ${hhmmText(r.predicted_at)}`],
-        ARRIVE_DROPOFF: [r.predicted_at && `예정 ${hhmmText(r.predicted_at)}`],
-        LOADED: [cargo && `예정 짐 ${cargo}`, dwell],
-        DELIVERED: [dwell, cod],
-    } as Record<string, Array<string | null | undefined>>)[x.step] ?? [];
+    const pickupSide = x.step === 'CALL_PICKUP' || x.step === 'ARRIVE_PICKUP' || x.step === 'LOADED';
+    const actual = x.step === 'LOADED' || x.step === 'DELIVERED';
+    const unit = actual ? r.actual_unit ?? r.planned_unit : r.planned_unit;
+    const qty = actual ? r.actual_quantity ?? r.planned_quantity : r.planned_quantity;
+    const handling = actual ? r.actual_handling ?? r.planned_handling : r.planned_handling;
+    const points = unitPoints(unit, qty);
+    const chips: StepChip[] = [];
+    if (x.step.startsWith('ARRIVE_')) {
+        listOf(r.reasons).forEach(v => chips.push({ label: '사유', value: v }));
+    } else {
+        if (unit) chips.push({ label: actual ? '실측 짐' : '짐', value: `${unit}${qty != null ? ` ${qty}` : ''}` });
+        if (handling) chips.push({ label: pickupSide ? '상차방법' : '하차방법', value: `${handling} ${dwellMinutes(handling, points, pickupSide ? 'pickup' : 'dropoff', unk)}분` });
+        if (pickupSide) listOf(actual ? r.actual_protections ?? r.planned_protections : r.planned_protections).forEach(v => chips.push({ label: '보호', value: `${v} ${protectionMinutes([v])}분` }));
+        else listOf(actual ? r.actual_afterworks ?? r.planned_afterworks : r.planned_afterworks).forEach(v => chips.push({ label: '후작업', value: `${v} ${afterworkMinutes([v], unk?.afterworkMin)}분` }));
+        if (pickupSide) listOf(actual ? r.actual_tags ?? r.planned_tags : r.planned_tags).forEach(v => chips.push({ label: '성질', value: v }));
+    }
+    const dwell = actual ? (r.actual_dwell_min ?? r.planned_dwell_min) : r.planned_dwell_min;
+    const meta = [
+        x.step.startsWith('CALL_') && r.promised_arrival_at ? `약속 ${hhmmText(r.promised_arrival_at)}` : null,
+        x.step.startsWith('ARRIVE_') && r.predicted_at ? `예정 ${hhmmText(r.predicted_at)}` : null,
+        !x.step.startsWith('ARRIVE_') && dwell != null ? `정차 ${dwell}분` : null,
+        x.step === 'DELIVERED' && codAmount ? (r.cod_received != null ? `💵 착불 ${manwonText(codAmount)} — ${r.cod_received ? '받음' : '못 받음'}` : `💵 착불 ${manwonText(codAmount)}`) : null,
+    ].filter((l): l is string => !!l).join(' · ') || null;
     const by = r.status === 'SKIPPED' ? '⏭️ 건너뜀' : r.source === 'GPS' ? '🛰️ 자동' : '✍️ 직접';
     const writing = !!draft && born && !ended;
     /* ✍️ 적다 만 것이 있으면 이어서 고칠 바로 그 단추(팝업을 여는 단추)에 표시 — 줄을 늘리지 않는다 */
@@ -115,8 +137,12 @@ export function stepSummaryOf(x: StepViewRow, { codAmount, draft }: { codAmount?
         : [...(codAmount && r.cod_received == null ? [btn('codYes', '받았음'), btn('codNo', '못 받음')] : []),
             btn('delivered', '하차 완료'), btn('edit', '수정', true)];
     return {
-        lines: lines.filter((l): l is string => !!l),
-        source: x.step.startsWith('CALL_') && !ended ? SOURCE_LABEL[r.planned_source] ?? null : null,
+        chips,
+        memo: (x.step.startsWith('CALL_') && r.memo) ? String(r.memo) : null,
+        meta,
+        source: !x.step.startsWith('CALL_') ? null
+            : ended ? '✍️ 통화로 정함'
+            : x.step === 'CALL_PICKUP' ? SOURCE_LABEL[r.planned_source] ?? null : null,
         doneText: ended ? `✓ ${hhmmText(r.occurred_at) ?? '--:--'} (${by})` : null,
         buttons,
     };
@@ -198,6 +224,53 @@ export function stopDetailRowsOf({ route, timeline, visitOrder, timing, etas }: 
         return {
             kind: r.kind, stopType: r.stopType, seq: r.seq, name: r.name, legKm: r.legKm, legMin, shiftMin, late,
             promisedText: clockOf(promised), promiseConfirmed: !!tl?.promiseConfirmed, real, arrived: !!r.arrived,
+        };
+    });
+}
+
+/** 📍 정거장 덩어리 하나 — 누르면 그곳에 전화(`phone` 이 없으면 단추가 아니다) */
+export interface StopBlock extends StopDetailRow {
+    /** 그 정거장 사람 · 가게 이름 — 없으면 동 이름 */
+    address: string;
+    phone: string | null;
+    /** 약속이 통화로 굳었나 — 아니면 화면이 «~»를 붙인다(통화 전 추정) */
+    promiseFirm: boolean;
+    /** 예상 도착 — 지난 곳은 null */
+    etaText: string | null;
+    /** 여유 = 약속 − 예상(분) · 늦으면 음수 · 모르면 null */
+    slackMin: number | null;
+    /** 하차 마감 — 하차 덩어리에만(약속이 있어도 남긴다 · 독촉 전화 근거) */
+    deadlineText: string | null;
+}
+
+const minutesOfHm = (t: string | null) => { const m = t?.match(/^(\d{1,2}):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : null; };
+
+/**
+ * 📍 **펼친 카드의 정거장 덩어리** — 이름 · 전체 주소 · 약속(통화 전이면 추정) · 예상 · 여유 · 하차 마감 · 전화.
+ * 약속 · 예상 · 지나감 · 늦음은 `stopDetailRowsOf` 와 같은 원천(타임라인 먼저)이다 — 화면이 두 말을 하지 않게.
+ */
+export function stopBlocksOf({ route, timeline, visitOrder, timing, etas, seededSteps }: {
+    route: SecuredOrder; timeline?: RouteTimelineEntry[]; visitOrder?: { pickupIdx: number; dropoffIdx: number };
+    timing: CallTiming; etas: { pickupEta?: string; dropoffEta?: string }; seededSteps: StepViewRow[] | null;
+}): StopBlock[] {
+    return stopDetailRowsOf({ route, timeline, visitOrder, timing, etas }).map(r => {
+        const pickup = r.stopType === 'pickup';
+        const dd = pickup ? route.pickupDetails?.[0] : route.dropoffDetails?.[0];
+        const callRow = seededSteps?.find(x => x.step === (pickup ? 'CALL_PICKUP' : 'CALL_DROPOFF'));
+        const tl = timeline?.find(e => e.orderId === route.id && e.stopType === r.stopType);
+        const promised = tl?.promisedUntil ?? (pickup ? timing.pickupPromisedArrivalAt : timing.dropoffPromisedArrivalAt);
+        const slackMin = r.arrived ? null
+            : tl?.etaMs != null && promised ? Math.round((Date.parse(promised) - tl.etaMs) / 60000)
+                : (() => { const a = minutesOfHm(r.promisedText), b = minutesOfHm(r.real); return a != null && b != null ? a - b : null; })();
+        return {
+            ...r,
+            name: dd?.contactName || dd?.customerName || r.name,
+            address: dd?.addressDetail || (pickup ? route.pickup : route.dropoff),
+            phone: stopPhoneOf(dd) ?? null,
+            promiseFirm: !!callRow && callRow.born !== false && callRow.row?.status !== 'PLANNED',
+            etaText: r.real,
+            slackMin,
+            deadlineText: pickup ? null : hhmmText(timing.dropoffDeadlineAt) ?? null,
         };
     });
 }

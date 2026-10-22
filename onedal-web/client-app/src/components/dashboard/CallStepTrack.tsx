@@ -45,9 +45,6 @@ export default function CallStepTrack({ route, timeline, seededSteps, shownStepI
                 if (!sv) return null;
                 const r = sv.row || {};
                 const born = sv.born !== false;
-                const statusLabel = !born ? '예정'
-                    : r.status === 'DONE' ? '함'
-                    : r.status === 'SKIPPED' ? '건너뜀' : '진행';
                 const allDone = seededSteps.every(stepDoneOf);
                 return (
                     <div className={`mt-1 flex-1 min-h-0 flex flex-col`}
@@ -60,13 +57,14 @@ export default function CallStepTrack({ route, timeline, seededSteps, shownStepI
                           *    양옆을 `1fr` 로 같게 잡으면 제자리다.
                           * 🔴 «몇 번째»를 **숫자로도** 적는다 — 점만으로는 세어야 한다.
                           */}
-                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 py-1">
-                            <span className="text-[12.5px] font-black text-text-primary truncate">{sv.label}</span>
-                            <span className="flex gap-1 justify-self-center">
+                        {/* 🌱 **머리 한 줄** — 점 막대 · «n/6 단계명» · 상태 꼬리표(지금 할 것 · 마쳤습니다 · 건너뜀 · 아직).
+                            점은 누르면 그 단계로 넘어간다 · 점의 aria 이름은 폰 시험이 찾는 자리다 */}
+                        <div className="flex items-center gap-2 py-1">
+                            <span className="flex gap-1 shrink-0">
                                 {seededSteps.map((x, i) => (
                                     <button key={x.step} type="button" title={x.label} aria-label={x.label}
                                         onClick={() => onNav(i === stepCurIdx ? null : i, '손으로 넘긴 것')}
-                                        className={`w-4 h-1.5 rounded-full transition-colors ${
+                                        className={`w-4 h-2 rounded-full transition-colors ${
                                             i === shownIdx ? 'bg-info'
                                             : x.row?.status === 'SKIPPED' ? 'bg-warning/70'
                                             : stepDoneOf(x) ? 'bg-success'
@@ -75,29 +73,27 @@ export default function CallStepTrack({ route, timeline, seededSteps, shownStepI
                                         }`} />
                                 ))}
                             </span>
-                            <span className="justify-self-end text-[11px] text-text-muted tabular-nums">
-                                {shownIdx + 1}/{seededSteps.length}
-                            </span>
+                            <span className="min-w-0 truncate text-[14px] font-black text-text-primary tabular-nums">{shownIdx + 1}/{seededSteps.length} {sv.label}</span>
+                            <em className={`ml-auto shrink-0 not-italic px-1.5 py-0.5 rounded-[5px] text-[11px] font-black border ${
+                                !born ? 'border-border-card text-text-muted'
+                                : r.status === 'DONE' ? 'bg-success/12 border-success/40 text-success'
+                                : r.status === 'SKIPPED' ? 'bg-warning/12 border-warning/40 text-warning'
+                                : shownIdx === stepCurIdx ? 'bg-info/15 border-info/50 text-info'
+                                : 'border-border-card text-text-muted'
+                            }`}>
+                                {!born ? '아직' : r.status === 'DONE' ? `마쳤습니다${r.occurred_at ? ` ${hhmmText(r.occurred_at)}` : ''}` : r.status === 'SKIPPED' ? '건너뜀' : shownIdx === stepCurIdx ? '지금 할 것' : '아직'}
+                            </em>
                         </div>
-                        <div className="flex items-center gap-2 text-[11px] pb-1">
-                            <span className={`px-1 rounded text-[10px] ${
-                                !born ? 'bg-surface-hover text-text-muted'
-                                : r.status === 'DONE' ? 'bg-success/15 text-success'
-                                : r.status === 'SKIPPED' ? 'bg-warning/15 text-warning'
-                                : 'bg-info/15 text-info'
-                            }`}>{statusLabel}</span>
-                            {r.occurred_at && (
-                                <span className="text-[10px] text-text-muted tabular-nums">
-                                    {hhmmText(r.occurred_at)}
-                                </span>
-                            )}
-                            {stepNav !== null && stepNav !== stepCurIdx && (
-                                <button type="button" onClick={() => onNav(null, '되돌린 것')}
-                                    className="text-text-muted underline underline-offset-2 text-[10px]">
-                                    되돌아보는 중 · 현재 단계로</button>
-                            )}
-                            {allDone && <span className="text-success text-[10px] font-bold">운행 완료 · 6단계를 모두 마쳤습니다</span>}
-                        </div>
+                        {(allDone || (stepNav !== null && stepNav !== stepCurIdx)) && (
+                            <div className="flex items-center gap-2 text-[11px] pb-1">
+                                {stepNav !== null && stepNav !== stepCurIdx && (
+                                    <button type="button" onClick={() => onNav(null, '되돌린 것')}
+                                        className="text-text-muted underline underline-offset-2 text-[11px]">
+                                        되돌아보는 중 · 현재 단계로</button>
+                                )}
+                                {allDone && <span className="text-success text-[11px] font-bold">운행 완료 · 6단계를 모두 마쳤습니다</span>}
+                            </div>
+                        )}
                         {/**
                           * 🌱 **가로 트랙 — 한 장씩 넘긴다.**
                           * ⚠️ «한 번에 하나»(기사님 확정)는 그대로다 — 스와이프로도 넘긴다.
@@ -110,26 +106,9 @@ export default function CallStepTrack({ route, timeline, seededSteps, shownStepI
                                 const x = seededSteps[k];
                                 /* 헤더·문장 재료 — 행에 없는 값(장소·전화·구간 주행)은 경로·타임라인이 준다 (`stepPaneOf`) */
                                 const pane = stepPaneOf({ route, step: x, seededSteps, timeline });
-                                const xr = x.row || {};
-                                const xBorn = x.born !== false;
                                 return (
                                     <section key={x.step} aria-label={x.label}
                                         className="shrink-0 w-full min-w-0 snap-center overflow-y-auto pr-0.5">
-                                        <h3 className="mb-1.5 flex items-center gap-1.5 text-[13px] font-black text-text-primary">
-                                            {k + 1}. {x.label}
-                                            <em className={`not-italic px-1.5 py-0.5 rounded-[5px] text-[10px] font-black border ${
-                                                !xBorn ? 'border-border-card text-text-muted'
-                                                : xr.status === 'DONE' ? 'bg-success/12 border-success/40 text-success'
-                                                : xr.status === 'SKIPPED' ? 'bg-warning/12 border-warning/40 text-warning'
-                                                : k === stepCurIdx ? 'bg-info/15 border-info/50 text-info'
-                                                : 'border-border-card text-text-muted'
-                                            }`}>
-                                                {!xBorn ? '아직'
-                                                    : xr.status === 'DONE' ? '마쳤습니다'
-                                                    : xr.status === 'SKIPPED' ? '건너뜀'
-                                                    : k === stepCurIdx ? '지금 할 것' : '아직'}
-                                            </em>
-                                        </h3>
                                         <StepSummary key={pane.key} orderId={route.id}
                                             codAmount={pane.codAmount}
                                             view={stepViewOf(x, seededSteps)}

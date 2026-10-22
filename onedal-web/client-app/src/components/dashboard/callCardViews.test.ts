@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { hhmmText, manwonText } from '@onedal/shared';
-import { stepDoneOf, stepCurIdxOf, stepViewOf, stepPaneOf, stopDetailRowsOf, rawFieldsOf, stepSummaryOf, popupCloseReasonOf } from './callCardViews';
+import { hhmmText, manwonText, dwellMinutes, unitPoints, protectionMinutes, afterworkMinutes } from '@onedal/shared';
+import { stepDoneOf, stepCurIdxOf, stepViewOf, stepPaneOf, stopDetailRowsOf, rawFieldsOf, stepSummaryOf, popupCloseReasonOf, stopBlocksOf } from './callCardViews';
 
 /**
  * 🧾 **펼친 콜 카드의 셈** — 값만 넣고 값을 본다. 카드가 그 값을 글자로 그리는지는 `pinnedRouteCard.test.tsx` 가 본다.
@@ -101,7 +101,7 @@ describe('🪪 6단계 — 카드에 보일 글자 · 단추(카드는 보기만
     it('🔴 착불 콜의 하차 완료 칸은 «받았음 · 못 받음»이 하차 완료 바로 위 — 받은 뒤엔 안 보인다', () => {
         expect(labels(row('DELIVERED'), { codAmount: 30000 })).toEqual(['받았음', '못 받음', '하차 완료', '수정']);
         expect(labels(row('DELIVERED', { cod_received: 1 }), { codAmount: 30000 })).toEqual(['하차 완료', '수정']);
-        expect(stepSummaryOf(row('DELIVERED'), { codAmount: 30000 }).lines.join(' ')).toContain(`착불 ${manwonText(30000)}`);
+        expect(stepSummaryOf(row('DELIVERED'), { codAmount: 30000 }).meta).toContain(`착불 ${manwonText(30000)}`);
     });
     it('🔴 안 생긴 칸은 단추 없음 · 끝난 칸은 «✓ 시각 (출처)» 와 «수정»만', () => {
         expect(stepSummaryOf(row('LOADED', {}, false), {}).buttons).toEqual([]);
@@ -110,15 +110,27 @@ describe('🪪 6단계 — 카드에 보일 글자 · 단추(카드는 보기만
         expect(done.buttons.map(b => b.label)).toEqual(['수정']);
         expect(stepSummaryOf(row('CALL_PICKUP', { status: 'SKIPPED', occurred_at: '2026-10-22T01:00:00Z' }), {}).doneText).toContain('⏭️ 건너뜀');
     });
-    it('통화 칸 글자 = 짐 · 방법 · 약속 · 메모 + 어디서 온 값 · 적다 만 것이 있으면 «통화 ✍️»', () => {
+    it('🔴 상차지 통화 칸 = 고른 값 칩(짐 · 상차방법 분 · 보호 분 · 성질) · 기타 · 약속 · 정차 합 · 출처 · 적다 만 것은 «통화 ✍️»', () => {
         const s = stepSummaryOf(row('CALL_PICKUP', { planned_unit: '라면박스', planned_quantity: 20, planned_handling: '수작업',
+            planned_protections: '["결박"]', planned_tags: '["일반화물"]', planned_dwell_min: 17,
             promised_arrival_at: '2026-10-22T01:20:00Z', memo: '경비실 통과', planned_source: 'MEMO' }), { draft: true });
-        expect(s.lines.join(' ')).toContain('라면박스 20 · 수작업');
-        expect(s.lines.join(' ')).toContain(`약속 ${hhmmText('2026-10-22T01:20:00Z')}`);
-        expect(s.lines.join(' ')).toContain('경비실 통과');
-        expect(s.source).toBe('📄 적요');
+        expect(s.chips.map(c => c.label)).toEqual(['짐', '상차방법', '보호', '성질']);
+        expect(s.chips[0].value).toBe('라면박스 20');
+        expect(s.chips[1].value).toBe(`수작업 ${dwellMinutes('수작업', unitPoints('라면박스', 20), 'pickup')}분`);   // 시트와 같은 계산
+        expect(s.chips[2].value).toBe(`결박 ${protectionMinutes(['결박'])}분`);
+        expect(s.memo).toBe('경비실 통과');
+        expect(s.meta).toBe(`약속 ${hhmmText('2026-10-22T01:20:00Z')} · 정차 17분`);
+        expect(s.source).toBe('📄 적요에서 읽음');
         expect(s.buttons.map(b => b.label)).toEqual(['스킵', '통화 ✍️']);   // 바로 저장 단추엔 안 붙는다
-        expect(stepSummaryOf(row('LOADED', { status: 'DONE', occurred_at: '2026-10-22T01:00:00Z' }), { draft: true }).buttons.map(b => b.label)).toEqual(['수정']);   // 끝난 칸엔 안 붙는다
+        expect(stepSummaryOf(row('LOADED', { status: 'DONE', occurred_at: '2026-10-22T01:00:00Z' }), { draft: true }).buttons.map(b => b.label)).toEqual(['수정']);
+    });
+    it('🔴 하차지 통화 칸 = 하차방법 분 · 후작업 분 · 출처는 그 칸 상태로(물려받은 값을 «통화»라 하지 않는다)', () => {
+        const s = stepSummaryOf(row('CALL_DROPOFF', { planned_unit: '마대', planned_quantity: 1, planned_handling: '수작업',
+            planned_afterworks: '["정리"]', planned_source: 'DECLARED' }), {});
+        expect(s.chips.map(c => c.label)).toEqual(['짐', '하차방법', '후작업']);
+        expect(s.chips[2].value).toBe(`정리 ${afterworkMinutes(['정리'])}분`);
+        expect(s.source).toBeNull();   // 상차 짐 출처를 물려받은 칸이라 출처를 안 쓴다
+        expect(stepSummaryOf(row('CALL_DROPOFF', { status: 'DONE', occurred_at: '2026-10-22T01:00:00Z' }), {}).source).toBe('✍️ 통화로 정함');
     });
 });
 
@@ -136,5 +148,32 @@ describe('🔔 단계 팝업 — 언제 닫나', () => {
         expect(popupCloseReasonOf(at, { ...at, status: 'DONE' })).toBe('저장됨');
         expect(popupCloseReasonOf(at, { ...at, occurredAt: '2026-10-22T01:00:00Z' })).toBe('저장됨');
         expect(popupCloseReasonOf(at, { ...at })).toBeNull();
+    });
+});
+
+describe('📍 정거장 덩어리 — 이름 · 전체 주소 · 약속 · 예상 · 여유 · 전화', () => {
+    const timing = { approachKm: 2.6, approachMinutes: 7, soloKm: 14.7, soloMinutes: 22, arrivedPickup: false, arrivedDropoff: false,
+        pickupPromisedArrivalAt: '2026-10-07T00:20:00Z', dropoffPromisedArrivalAt: '2026-10-07T01:00:00Z', dropoffDeadlineAt: '2026-10-07T01:10:00Z' } as any;
+    const tl = [
+        { orderId: 'c1', stopType: 'pickup', promisedUntil: '2026-10-07T00:20:00Z', etaMs: Date.parse('2026-10-07T00:05:00Z'), lateMinutes: 0 },
+        { orderId: 'c1', stopType: 'dropoff', promisedUntil: '2026-10-07T01:00:00Z', etaMs: Date.parse('2026-10-07T01:07:00Z'), lateMinutes: 7 },
+    ] as any;
+    const steps = [row('CALL_PICKUP', { status: 'DONE' }), row('ARRIVE_PICKUP'), row('LOADED'), row('CALL_DROPOFF'), row('ARRIVE_DROPOFF'), row('DELIVERED')];
+    it('🔴 이름 · 전체 주소 · 전화는 그 정거장 · 전화가 없으면 null(덩어리를 단추로 만들지 않는다)', () => {
+        const route = { ...ROUTE, pickupDetails: [{ ...ROUTE.pickupDetails[0], phone1: '010-1111-2222' }] };
+        const [p, d] = stopBlocksOf({ route, timeline: tl, timing, etas: {}, seededSteps: steps });
+        expect(p).toMatchObject({ kind: '상차', name: '모다', address: '경충대로 907', phone: '010-1111-2222' });
+        expect(d).toMatchObject({ kind: '하차', name: '신둔농협', address: '수광리 1', phone: null });
+    });
+    it('🔴 여유 = 약속 − 예상 · 늦으면 음수 · 통화 전 약속은 추정(firm=false)', () => {
+        const [p, d] = stopBlocksOf({ route: ROUTE, timeline: tl, timing, etas: {}, seededSteps: steps });
+        expect([p.slackMin, p.promiseFirm]).toEqual([15, true]);      // 상차 통화 끝남 → 굳은 약속
+        expect([d.slackMin, d.promiseFirm, d.late]).toEqual([-7, false, 7]);
+        expect(d.deadlineText).toBe(hhmmText('2026-10-07T01:10:00Z'));   // 하차 마감은 약속이 있어도 남는다
+        expect(p.deadlineText).toBeNull();
+    });
+    it('지나간 정거장은 예상 · 여유가 없다', () => {
+        const [p] = stopBlocksOf({ route: ROUTE, timeline: tl, timing: { ...timing, arrivedPickup: true }, etas: {}, seededSteps: steps });
+        expect([p.arrived, p.etaText, p.slackMin]).toEqual([true, null, null]);
     });
 });

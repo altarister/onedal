@@ -1,66 +1,66 @@
-import type { SecuredOrder, RouteTimelineEntry, CallTiming } from '@onedal/shared';
-import { stopDetailRowsOf } from './callCardViews';
+import type { SecuredOrder, RouteTimelineEntry, CallTiming, StepViewRow } from '@onedal/shared';
+import { stopBlocksOf } from './callCardViews';
+import { telHref } from '../../lib/routeUtils';
+import { callNow } from '../../lib/phoneCall';
 
-/* 🧭 펼친 콜 카드(`PinnedRouteCard`)의 상 · 하차 줄.
+/* 🧭 펼친 콜 카드(`PinnedRouteCard`)의 상 · 하차 덩어리.
    이 파일은 위(`PinnedRouteCard`)를 가져오지 않는다 — 방향: PinnedRouteCard → StopDetailBlock → callCardViews.
-   바깥 일(저장소 · 소켓 · 타이머)을 하는 곳: 없음 — 줄의 값은 `stopDetailRowsOf` 가 내고, 여기는 그리기만 한다. */
+   바깥 일: 전화 걸기(`callNow`) 하나 — 덩어리의 값은 `stopBlocksOf` 가 내고, 여기는 그리기만 한다. */
 
 /**
- * 🧭 **펼친 카드의 상·하차 줄 — 타이틀이 못 하는 말만 한다**
- *    (기사님: *"목업에서 열리면 보이는 컨텐츠 상하차 부분은
- *    가지고 가서 기존 거에 더하고 싶어"*).
+ * 🧭 **정거장 덩어리 — 누르면 그곳에 전화** (기사님: *"전화 모양의 버튼을 지워 버리고, 상차 덩어리,
+ *    하차 덩어리를 클릭하면 전화 할수 있도록"*).
  *
- * 🔴 **약속·차이만 적는 줄(`PromiseLines`)은 두지 않는다** — 그것은 *"타이틀과 중복"* 이다 (기사님).
- *    이 줄은 그와 달라 철거 대상이 아니다 — **타이틀에 없는 둘**을 든다:
- *      · **구간 거리·분** — 그 정거장으로 들어오는 구간 (내 위치→상차 · 상차→하차)
- *      · **밀린 분** — 접힌 줄은 `▲▼` **기호로만** 말한다 (안 C). 몇 분인지는 여기에만 있다
- *    `timeDisplay.test.ts` 가 그 둘을 «자격»으로 묻는다 — 그 둘 없이 약속·차이만 적으면 빨간불이다.
- *
- * ⚠️ **원인별 내역**(`└ 합짐2 경유 +7분`)은 이 줄에 아직 없다 — `shared` 의 `impactOfStop` 을
- *    이 줄은 아직 부르지 않는다.
+ * 🔴 **약속·차이만 적는 줄(`PromiseLines`)은 두지 않는다** — 그것은 *"타이틀과 중복"* 이라 철거했다 (기사님).
+ *    이 덩어리는 타이틀에 없는 것을 든다: 이름 · 전체 주소 · 여유(약속 − 예상) · 하차 마감 · 전화.
+ *    구간 km · 분과 밀린 분은 여기 없다 — 덱 요약 줄과 단계 서랍 칩이 말한다.
+ * 🔴 약속이 통화로 안 굳었으면 «~»(통화 전 추정 — 버퍼 칩과 같은 표시) · 번호가 없으면 단추가 아니다(«번호 없음»).
+ *    지난 정거장도 전화는 걸린다(되묻는 전화) — 흐리게만 한다. 걸기는 손을 뗄 때(onClick) 하나다.
  */
-export default function StopDetailBlock({ route, timeline, visitOrder, timing, etas }: {
+export default function StopDetailBlock({ route, timeline, visitOrder, timing, etas, seededSteps }: {
     route: SecuredOrder;
     timeline?: RouteTimelineEntry[];
     visitOrder?: { pickupIdx: number; dropoffIdx: number };
     timing: CallTiming;
     /** 🕐 타임라인이 없을 때의 도착 예정 — 타이틀이 쓰는 그 값(`etaMap` · 장부 폴백) */
     etas: { pickupEta?: string; dropoffEta?: string };
+    /** 통화 칸이 굳었나(약속의 «~») — 단계 행이 아직 안 왔으면 null */
+    seededSteps: StepViewRow[] | null;
 }) {
-    const rows = stopDetailRowsOf({ route, timeline, visitOrder, timing, etas });
+    const blocks = stopBlocksOf({ route, timeline, visitOrder, timing, etas, seededSteps });
 
     return (
-        <div className="flex flex-col gap-0.5 text-[11px] tabular-nums mb-2 px-0.5">
-            {rows.map(r => {
-                return (
-                    <div key={r.stopType} className="flex flex-col">
-                        <div className="flex justify-between gap-1 font-bold">
-                            <span className="min-w-0 truncate">
-                                {r.seq ?? '?'} {r.kind} · {r.name}
-                                <span className="font-normal text-text-muted">
-                                    {' '}{r.legKm != null ? `${Number(r.legKm).toFixed(1)}km` : '--km'}
-                                    ·{r.legMin != null ? `${r.legMin}분` : '--분'}
-                                </span>
-                            </span>
-                            <span className="shrink-0">
-                                <span className={r.promiseConfirmed ? 'text-accent-alt' : 'text-text-muted'}>
-                                    {r.promisedText}
-                                </span>
-                                <span className="text-text-muted"> → </span>
-                                <b className={r.late > 0 ? 'text-warning' : 'text-success'}>{r.real ?? '--:--'}</b>
-                                {r.arrived && <span className="text-success text-[9.5px]"> 통과</span>}
-                                {r.late > 0 && <b className="text-warning"> ⚠️{r.late}분</b>}
-                            </span>
+        <div className="rounded-lg border border-border-card px-2.5 tabular-nums">
+            {blocks.map(b => {
+                const body = (
+                    <>
+                        <div className="flex items-center gap-1.5 text-[15px] font-black">
+                            <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-black text-white ${b.stopType === 'pickup' ? 'bg-danger' : 'bg-info'}`}>{b.seq ?? '?'}</span>
+                            <span className="min-w-0 truncate">{b.kind} · {b.name}</span>
+                            {b.arrived && <span className="ml-auto shrink-0 text-[11px] font-bold text-success">통과</span>}
+                            {!b.arrived && b.late > 0 && <span className="ml-auto shrink-0 text-[11px] font-bold text-warning">⚠️{b.late}분 늦음</span>}
                         </div>
-                        {r.shiftMin !== 0 && (
-                            <div className="pl-2 flex justify-between gap-1 text-[10px] text-text-muted">
-                                <span>└ 앞 정거장이 예측과 달라</span>
-                                <span className={r.shiftMin > 0 ? 'text-warning' : 'text-success'}>
-                                    {r.shiftMin > 0 ? `+${r.shiftMin}분 밀림` : `${r.shiftMin}분 당겨짐`}
+                        <div className="text-[12.5px] text-text-primary/85 break-keep leading-snug">{b.address}</div>
+                        <div className="text-[12.5px] text-text-muted">
+                            약속 {b.promiseFirm ? '' : '~'}{b.promisedText}
+                            {b.etaText && <> · 예상 <b className={b.late > 0 ? 'text-warning' : 'text-success'}>{b.etaText}</b></>}
+                            {b.slackMin != null && (
+                                <span className={b.slackMin >= 0 ? 'text-success' : 'text-danger'}>
+                                    {' '}({b.slackMin >= 0 ? `${b.slackMin}분 여유` : `${-b.slackMin}분 늦음`})
                                 </span>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                            {b.deadlineText && <> · 마감 <span className="text-danger">{b.deadlineText}</span></>}
+                            {!b.phone && <> · 번호 없음</>}
+                        </div>
+                    </>
+                );
+                const box = `w-full text-left flex flex-col gap-0.5 py-2 border-b border-border/60 last:border-0 ${b.arrived ? 'opacity-60' : ''}`;
+                return b.phone ? (
+                    <a key={b.stopType} href={telHref(b.phone)} aria-label={`${b.kind} ${b.name} 전화`}
+                        onClick={e => { e.stopPropagation(); e.preventDefault(); callNow(b.phone!); }}
+                        className={`${box} rounded-md active:bg-success/10`}>{body}</a>
+                ) : (
+                    <div key={b.stopType} className={box}>{body}</div>
                 );
             })}
         </div>

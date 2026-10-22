@@ -2,6 +2,7 @@ import type { StepViewRow } from '@onedal/shared';
 import { stepSummaryOf, type StepCardButton } from './callCardViews';
 import { sendCallSave, sendArrive, sendSkip, sendDone, sendCod, actualCargoOf, cargoOfRow } from './StepSheetMock';
 import { useStepDraftStore, draftKeyOf, draftFor, stepFactOf } from '../../stores/stepDraftStore';
+import { useDerivation } from '../../stores/judgmentStore';
 
 /**
  * 🪪 **카드 안 단계 한 장 — 보기만 한다** (기사님 «가»).
@@ -22,7 +23,8 @@ export default function StepSummary({ orderId, view, codAmount, hideButtons, onO
     const r: Record<string, any> = view.row ?? {};
     const key = draftKeyOf(orderId, view.step);
     const draft = useStepDraftStore(s => s.drafts[key]?.fact === stepFactOf(r));   // 사실이 바뀐 옛 초안은 «적다 만 것»이 아니다
-    const s = stepSummaryOf(view, { codAmount, draft });
+    const { unk } = useDerivation();
+    const s = stepSummaryOf(view, { codAmount, draft, unk });
     const born = view.born !== false;
 
     const press = (b: StepCardButton) => {
@@ -58,12 +60,23 @@ export default function StepSummary({ orderId, view, codAmount, hideButtons, onO
     return (
         <div className={`flex flex-col gap-2 rounded-lg border border-border-card bg-surface-alt/20 p-2.5 ${born ? '' : 'opacity-45'}`}>
             {s.doneText && <div className="text-[13px] font-black text-success">{s.doneText}</div>}
-            {s.lines.length > 0 && (
-                <div className="flex flex-col gap-0.5 text-[13px] text-text-primary break-keep">
-                    {s.lines.map((l, i) => <div key={i}>{l}</div>)}
+            {/* 🏷️ 고른 값 — 시트 칩과 같은 낱말 · 분까지 */}
+            {s.chips.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 text-[12.5px]">
+                    {s.chips.map((c, i) => (
+                        <span key={i} className="px-2 py-1 rounded-md bg-surface-alt/70 border border-border">
+                            <span className="text-text-muted">{c.label}</span> <b className="text-text-primary">{c.value}</b>
+                        </span>
+                    ))}
                 </div>
             )}
-            {s.source && <div className="text-[11px] text-text-muted">{s.source}에서 온 값</div>}
+            {s.memo && <div className="text-[13px] text-text-primary break-keep">기타 : {s.memo}</div>}
+            {(s.meta || s.source) && (
+                <div className="flex items-center gap-2 text-[13.5px] text-text-primary">
+                    {s.meta && <span className="tabular-nums">{s.meta}</span>}
+                    {s.source && <span className="ml-auto text-[11px] text-text-muted">{s.source}</span>}
+                </div>
+            )}
             {!hideButtons && s.buttons.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                     {s.buttons.map(b => (
