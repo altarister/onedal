@@ -5,6 +5,7 @@
 //   예정 단계의 «모양만» 단추는 <span> 이라 안 걸린다(StepSheetMock.tsx MockBtn)
 //   결재석: 글자 자리에 «seat:<요금 글자>:keep|reject»(예 seat:6.1만원:keep) — 그 요금이 머리줄에 적힌 결재석 칸의 단추(앞 = 거절 · 뒤 = KEEP · JudgmentSeat.tsx)
 //     그 요금 칸이 없으면 none 이고 why 에 지금 결재석에 뜬 요금들을 적는다(다른 콜이 떠 있음 — 누르지 않고 기다린다 · 71 F46)
+//   전화 덩어리(이름표 단 <a> · StopDetailBlock)는 «aria:이름»으로만 찾는다 — 다른 고르기는 <button> 만 본다
 //   단추 고르기(글자 자리): «글자»(단추 글에 듦) · «=글자»(단추 글이 똑같음) · «^글자»(단추 글이 그것으로 시작) · «aria:이름»(aria-label 이 똑같음) · «title:조각»(title 에 듦)
 //     앞에 «in:<글자>>»를 붙이면 그 글자가 든 잎에서 위로 올라가 처음 만나는 상자 안의 단추만 본다(예: in:A24>title:모드를 바꾸려면 · in:최소 금액>=+)
 //   화면 확인: «see:<글자>» — 그 글자가 든 잎 요소가 화면 안에 보이나(ok · none) · 좌표 누름 전에 «기대한 화면인가»를 본다(71)
@@ -84,7 +85,7 @@ try {
                     if (spec.startsWith('title:')) return (b.getAttribute('title') || '').includes(spec.slice(6));
                     return tx.includes(spec);
                 };
-                const buttons = [...document.querySelectorAll('button, a[aria-label]')].filter(match);   /* 전화 덩어리는 이름표 단 <a>(StopDetailBlock) */
+                const buttons = [...document.querySelectorAll(spec.startsWith('aria:') ? 'button, a[aria-label]' : 'button')].filter(match);   /* 전화 덩어리 <a>(StopDetailBlock)는 aria: 로만 — 포함 · ^ · = 글자가 덩어리를 물면 전화가 걸린다 */
                 if (scope === null) all = buttons;
                 else {
                     /* 범위: 그 글자가 든 잎 → 위로 올라가 단추를 품은 첫 상자 안의 것만(다른 폰 줄 · 지도 +/− 와 안 섞임) */

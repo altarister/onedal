@@ -119,7 +119,7 @@ not_white = lambda c, px: not (c[0] > 240 and c[1] > 240 and c[2] > 240)
 any_px = lambda c, px: True
 
 # ── 기록 ──
-def app_mark(): return int(adb(A24, 'shell', f'wc -l < {APP_LOG}').strip() or 0)
+def app_mark(): return int(adb(A24, 'shell', f'[ -f {APP_LOG} ] && wc -l < {APP_LOG} || echo 0').strip() or 0)   # 자정 넘어 원달앱이 아직 한 줄도 안 쓴 날은 파일이 없다 — 0 줄로 본다(10-23 00:01)
 def app_since(n): return adb(A24, 'shell', f'tail -n +{n + 1} {APP_LOG}', check=False)
 def srv_mark(): return sum(1 for _ in open(SRV_LOG, encoding='utf8', errors='ignore'))
 def srv_since(n):
