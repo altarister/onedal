@@ -299,6 +299,7 @@ async function e2eNoWeb(dbPath, userId, tok, deviceId, webSock, supply) {
     /* ⏳ 끊긴 뒤 5초(WEB_GAP_MS)는 «관제웹 있음» — 짧은 끊김에 자동이 안 멈춘다(40 X1-a) · 그 뒤 1초 주기가 알람으로 */
     const modes = [await reportWith(true), await reportWith(false)];
     await wait(4500);
+    await scrap(deviceId);   // 💓 실제 폰처럼 보고를 잇는다 — 말 없는 폰은 데드맨(150초)에 공급 줄에서 빠진다(실물엔 없는 조건)
     modes.push(await supplied(), await reportWith(true));
     check('🧪 관제웹 없음 — 자동 명령이 붙음 자동 · 끊고 5초 안에는 자동 그대로 · 5초가 지나면 알람 · 다시 붙음 자동',
         set.status === 200 && modes.join(' ') === 'AUTO AUTO ALARM AUTO', `명령 HTTP ${set.status} · ${modes.join(' → ')}`);
@@ -371,6 +372,8 @@ async function e2eSupplyDecision(supply, deviceId, orderId, action = 'KEEP') {
  *    공급 값의 필터 판 · 폰 모드가 같은 순간 보고 답과 같은지도 본다(한 함수 · 두 벌 셈 없음).
  */
 async function e2eSupplyMode(supply, tok, deviceId) {
+    /* 💓 실제 폰처럼 보고를 잇는다 — 앞 단계(카카오를 켜면 길다) 동안 말이 없으면 데드맨(150초)에 공급 줄에서 빠져 «모드 빈 값»이 됐다(10-22 kakao 판) */
+    await scrap(deviceId);
     const last = () => supply.supplies[supply.supplies.length - 1];
     const waitMode = async (mode) => {
         for (let i = 0; i < 70 && last()?.phones?.[deviceId]?.mode !== mode; i++) await wait(100);   // 끊고 알람은 5초 뒤(WEB_GAP_MS) · 넉넉히 7초
