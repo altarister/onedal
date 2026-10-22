@@ -452,7 +452,12 @@ data class FilterConfig(
         "safeCancelSecInsung" -> safeCancelSecInsung
         "safeCancelSecHwamul24" -> safeCancelSecHwamul24
         "pickerAlarmDetailSec" -> pickerAlarmDetailSec
-        else -> null
+        null -> null
+        else -> {
+            /* 표의 칸 이름이 여기 없다 — 표와 FilterConfig 가 어긋났다(그 배차망 안전취소 · 머묾 타이머가 안 걸린다) */
+            com.onedal.app.core.AppLogger.w("1DAL_SETTINGS", "⚙️ [설정 칸 모름] $key — 배차망 정의 표와 FilterConfig 가 어긋났다")
+            null
+        }
     }
 }
 
