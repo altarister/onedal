@@ -84,7 +84,7 @@ try {
                     if (spec.startsWith('title:')) return (b.getAttribute('title') || '').includes(spec.slice(6));
                     return tx.includes(spec);
                 };
-                const buttons = [...document.querySelectorAll('button')].filter(match);
+                const buttons = [...document.querySelectorAll('button, a[aria-label]')].filter(match);   /* 전화 덩어리는 이름표 단 <a>(StopDetailBlock) */
                 if (scope === null) all = buttons;
                 else {
                     /* 범위: 그 글자가 든 잎 → 위로 올라가 단추를 품은 첫 상자 안의 것만(다른 폰 줄 · 지도 +/− 와 안 섞임) */
@@ -113,7 +113,13 @@ try {
                 if (cy < 0) return { ...base, state: 'above' };
                 const top = document.elementFromPoint(cx, cy);
                 if (!top) return { ...base, state: 'hidden', why: '그 자리에 그려진 것이 없음' };
-                if (top !== b && !b.contains(top)) return { ...base, state: 'covered', why: '위에 ' + (top.tagName + ' ' + norm(top.innerText).slice(0, 20)) };
+                if (top !== b && !b.contains(top)) {
+                    /* 가운데가 스크롤 상자 밖으로 잘렸으면(상자 아래 칸이 그 자리에 그려짐 — 단계 칸 단추 밑의 정거장 줄) 화면 밖과 같다 — 밀면 나온다(S05a 판 1) */
+                    let p = b.parentElement; while (p && !(p.scrollHeight > p.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(p).overflowY))) p = p.parentElement;
+                    const pr = p && p.getBoundingClientRect();
+                    if (pr && (cy > pr.bottom || cy < pr.top)) return { ...base, state: cy > pr.bottom ? 'below' : 'above', why: '스크롤 상자 밖으로 잘림' };
+                    return { ...base, state: 'covered', why: '위에 ' + (top.tagName + ' ' + norm(top.innerText).slice(0, 20)) };
+                }
                 return { ...base, state: 'ok' };
             });
             const ok = seen.filter(s => s.state === 'ok');

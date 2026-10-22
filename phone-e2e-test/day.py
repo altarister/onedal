@@ -265,6 +265,15 @@ def place(key, ref=None):
         return cands[-k] if parts[1] == 'far' else cands[k - 1]
     raise ToolStop(f'⚪ 시험 도구 — 장소 «{key}» 없음')
 
+# 📞 시험 콜의 상차 · 하차 번호는 기사님 휴대폰 둘 — 덩어리를 눌러 실제로 걸려도 된다(기사님 «둘다 내 번호라 통화버튼을 클릭 해도 된다»)
+TEST_PHONE = {'pickup': {'customerName': '시험 상차지', 'phone1': '010-2684-8748'}, 'dropoff': {'customerName': '시험 하차지', 'phone1': '010-5865-8748'}}
+
+def call_state():
+    """S23 통화 상태 — 0 쉼 · 1 울림 · 2 거는 중/통화 중(telephony.registry mCallState)"""
+    out = run.adb(S23, 'shell', 'dumpsys', 'telephony.registry')
+    st = [int(m) for m in re.findall(r'mCallState=(\d)', out)]
+    return max(st) if st else 0
+
 def do_call(c):
     pick, drop = place(c['pick']), place(c['drop'], c['pick'])
     if c['veh'] == 'filter': veh = None if DRY else (run.app_filter().get('allowedVehicleTypes') or ['1t'])[0]
@@ -272,7 +281,7 @@ def do_call(c):
     else: veh = c['veh']
     if DRY: log(f'  📦 {c["net"]} {pick[0]} → {drop[0]} · {c["fare"]} · {veh} · {c.get("tag")} · bind {c.get("bind")}'); return
     n = app_mark(); sm = srv_mark(); fare = c['fare'] + (run.fare_bump() // 1000 % 10) * 1000   # 끝수 0~9천 원 — 시나리오 요금 차(높음/낮음)를 안 뒤집게
-    body = {'pickup': dict(zip(('addressDetail', 'region', 'lon', 'lat'), pick)), 'dropoff': dict(zip(('addressDetail', 'region', 'lon', 'lat'), drop)), 'fare': fare, 'vehicleType': veh,
+    body = {'pickup': {**dict(zip(('addressDetail', 'region', 'lon', 'lat'), pick)), **TEST_PHONE['pickup']}, 'dropoff': {**dict(zip(('addressDetail', 'region', 'lon', 'lat'), drop)), **TEST_PHONE['dropoff']}, 'fare': fare, 'vehicleType': veh,
             'net': run.SIM_CODE[c['net']], 'randomTime': False}   # 🎲 시험 콜은 «오늘 · 예약 없음» — 돌리는 시각에 따라 «낼»이 붙어 필터에서 떨어지지 않게(10-22 23:16 S04) · 🔀 받을 배차망 — 시뮬은 배차망마다 칸을 들고 있어 «누가 받나»가 시험의 사실이 되게(71 «가»)
     r = urllib.request.urlopen(urllib.request.Request('http://localhost:4000/api/sim/calls', json.dumps(body).encode(), {'Content-Type': 'application/json'}))
     log(f'📦 {c.get("tag")} {pick[0]} → {drop[0]} · {fare} · {veh} · {r.read().decode()[:40]}')
@@ -543,11 +552,27 @@ def act(a):
         want = not v.get('gone'); sec = v.get('sec', 10)
         if DRY: log(f'  👀 S23 «{spec}» {"보임" if want else "안 보임"} {sec}초 안'); return
         end = time.time() + sec
-        while (json.loads(run.sh('node', os.path.join(HERE, 'find.mjs'), S23, spec, str(run.MENU_Y), check=False).strip().splitlines()[-1])['state'] == 'ok') != want:
+        while True:
+            r = json.loads(run.sh('node', os.path.join(HERE, 'find.mjs'), S23, spec, str(run.MENU_Y), check=False).strip().splitlines()[-1])
+            if (r['state'] == 'ok') == want: break
+            if want and r['state'] in ('below', 'above') and r.get('swipe'):   # 단추가 화면 밖 · 떠 있는 줄 밑이면 기사님처럼 밀어 다시 본다(S05a 판 1)
+                sw = r['swipe']; y1, y2 = (sw['y1'], sw['y2']) if r['state'] == 'below' else (sw['y2'], sw['y1'])
+                run.guard(S23); run.adb(S23, 'shell', 'input', 'swipe', str(sw['x']), str(y1), str(sw['x']), str(y2), '400'); time.sleep(1); continue
             if time.time() > end:
                 shot(S23, f'see_{CUR[0]}')
                 raise Stop(f'S23 «{v["text"]}» {"안 보임" if want else "그대로 보임"} ({sec}초)')
             time.sleep(1)
+    elif k == 'call_end':   # {sec} — 덩어리를 누른 뒤 S23 에 전화가 걸렸나(N초 안) 보고 바로 끊는다 · 끊긴 뒤 관제앱으로 돌아왔나
+        if DRY: log(f'  📞 S23 전화 걸림 {v.get("sec", 10)}초 안 → 끊기'); return
+        end = time.time() + v.get('sec', 10)
+        while call_state() != 2:
+            if time.time() > end: shot(S23, f'nocall_{CUR[0]}'); raise Stop(f'S23 전화가 안 걸림 ({v.get("sec", 10)}초)')
+            time.sleep(0.5)
+        log('  📞 S23 전화 걸림 — 바로 끊음'); time.sleep(1)
+        run.guard(S23); run.adb(S23, 'shell', 'input', 'keyevent', 'KEYCODE_ENDCALL'); time.sleep(2)
+        if call_state() != 0: shot(S23, f'nohang_{CUR[0]}'); raise Stop('S23 전화가 안 끊김 — 손으로 끊어 주세요')
+        if not s23_sees('1/6'):
+            run.adb(S23, 'shell', 'am', 'start', '-n', 'kr.co.onedal.dashboard/.MainActivity'); time.sleep(2)
     elif k == 'mark_srv':   # 서버 기록 기준점을 지금으로 — 뒤 wait_srv 가 이 뒤에 선 줄만 본다(같은 줄이 장면 앞쪽에 먼저 찍혀도 헷갈리지 않게 · 105판 S02)
         if DRY: log('  📍 서버 기준점'); return
         PENDING['smark2'] = srv_mark()

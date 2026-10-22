@@ -650,6 +650,14 @@
       "check": "any",
       "text": "leaf:▸ 더보기",
       "from": "글자로 찾아 손 누름(find.mjs · 정확 · 머리 · 이름표 글자만 — 포함 글자로 누르면 카드 덩어리를 눌러 전화가 걸릴 수 있다) — 잡은 뒤 카드 «🏢 사무실 · ▸ 더보기» 접힘 머리(PinnedRouteCard details/summary)"
+    },
+    "s23.stop.pickup.call": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "aria:상차 시험 상차지 전화",
+      "from": "글자로 찾아 손 누름 — 콜 카드 상차 덩어리(StopDetailBlock <a aria-label «상차 이름 전화»>) · 누르면 그 번호로 바로 건다(DirectCall) · 시험 콜 번호는 기사님 휴대폰(day.py TEST_PHONE)"
     }
   }
 }

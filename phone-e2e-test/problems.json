@@ -1566,18 +1566,81 @@
      }
     },
     {
-     "id": "4fb2cf",
+     "id": "4fb2c1",
      "who": "스크립트",
      "writer": "스크립트",
      "where": "S23",
      "task": "S23 «{text}» 보임",
      "desc": "관제앱 화면 글자(find.mjs)",
-     "evidence": "덩어리 전화 자리 — 시험 콜엔 번호가 없어 «번호 없음»(링크 아님 · 누르지 않음)",
+     "evidence": "상차 덩어리가 전화 자리 — 시험 콜 번호(기사님 휴대폰)가 있어 «상차 시험 상차지 전화» 링크",
+     "target": null,
+     "onFail": "continue",
+     "run": "see",
+     "args": {
+      "text": "aria:상차 시험 상차지 전화",
+      "sec": 10
+     }
+    },
+    {
+     "id": "4fb2c2",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "S23 «{text}» 보임",
+     "desc": "관제앱 화면 글자(find.mjs)",
+     "evidence": "하차 덩어리도 전화 자리 «하차 시험 하차지 전화»",
+     "target": null,
+     "onFail": "continue",
+     "run": "see",
+     "args": {
+      "text": "aria:하차 시험 하차지 전화",
+      "sec": 10
+     }
+    },
+    {
+     "id": "4fb2c3",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "S23 «{text}» 안 보임",
+     "desc": "관제앱 화면 글자(find.mjs)",
+     "evidence": "번호가 있으면 «번호 없음»이 없다",
      "target": null,
      "onFail": "continue",
      "run": "see",
      "args": {
       "text": "번호 없음",
+      "sec": 10,
+      "gone": true
+     }
+    },
+    {
+     "id": "4fb2c4",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "단추: {name}",
+     "desc": "단추를 글자로 찾아 누름(taps.json)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "s23.stop.pickup.call"
+     }
+    },
+    {
+     "id": "4fb2c5",
+     "who": "관제앱",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "S23 전화 걸림 → 끊기",
+     "desc": "덩어리를 누르면 그 번호로 바로 건다(DirectCall) — 걸림(telephony mCallState=2)을 보고 바로 끊는다",
+     "evidence": "상차 덩어리를 누르니 S23 이 기사님 휴대폰(010-2684-8748)으로 걸었다",
+     "target": null,
+     "onFail": "continue",
+     "run": "call_end",
+     "args": {
       "sec": 10
      }
     },
