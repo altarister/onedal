@@ -5,7 +5,7 @@ import { Hwamul24SimScreen } from '@altari/ui-simulators';
 import type { Hwamul24Call, NetScreenProps } from '@altari/ui-simulators';
 import { callA } from './fixtures';
 import { FIXED_NOW, seededRandom } from './seededRandom';
-import tableSource from '../../onedal-web/shared/src/networkPages.ts?raw';
+import tableSource from '../../onedal-web/shared/src/networkPages.hwamul24.ts?raw';   // 배차망 몫 파일(공통은 networkPages.ts)
 
 /**
  * 🧭 **시뮬레이터 화물24시 상세가 배차망 정의 표의 그 페이지로 읽히나** (실물 18 «화물상세정보»).
@@ -19,8 +19,8 @@ type FieldRow = { field: string; read?: string; part?: string };
 
 const table = (() => {
     const body = tableSource.match(/\/\*JSON\*\/([\s\S]*?)\/\*JSON\*\//)?.[1];
-    if (!body) throw new Error('networkPages.ts 에서 JSON 표시 사이를 못 찾았다');
-    return JSON.parse(body).hwamul24 as { screens: Screen[]; pages: { detail: FieldRow[] } };
+    if (!body) throw new Error('networkPages.hwamul24.ts 에서 JSON 표시 사이를 못 찾았다');
+    return JSON.parse(body) as { screens: Screen[]; pages: { detail: FieldRow[] } };
 })();
 
 const fits = (text: string, m: Match) =>
