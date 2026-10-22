@@ -58,8 +58,8 @@ export default function StepScreenMockup() {
     const [peek, setPeek] = useState<number | null>(null);
     const [log, setLog] = useState('');
     /** 장면 — 콜 카드(한 줄 요약) · 한 콜 화면(덮이는 층) · 새 콜 심사(한 콜 화면이 비킴) */
-    const [scene, setScene] = useState<'card' | 'steps' | 'judging'>('card');
-    const [backTo, setBackTo] = useState<'card' | 'steps'>('card');
+    const [scene, setScene] = useState<'card' | 'steps' | 'judging' | 'cardNow' | 'cardNew'>('cardNew');
+    const [backTo, setBackTo] = useState<'card' | 'steps' | 'cardNow' | 'cardNew'>('card');
     const pick = (i: number) => { setCi(i); setNow(Math.max(0, CALL_STEPS.findIndex(s => MOCK_ORDER.indexOf(s.id) >= calls[i].now))); setPeek(null); setLog(''); };
 
     const cur = CALL_STEPS[now];
@@ -69,10 +69,18 @@ export default function StepScreenMockup() {
     const sceneBar = (
         <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-warning/10 text-[11px] border-b border-border">
             <span className="text-text-muted">장면:</span>
-            {([['card', '① 콜 카드'], ['steps', '② 한 콜 화면'], ['judging', '③ 새 콜 들어옴']] as const).map(([k, t]) => (
+            {([['cardNow', '카드 지금'], ['cardNew', '카드 정리안'], ['card', '① 콜 카드'], ['steps', '② 한 콜 화면'], ['judging', '③ 새 콜']] as const).map(([k, t]) => (
                 <button key={k} onClick={() => { if (k === 'judging') setBackTo(scene === 'judging' ? backTo : scene); setScene(k); }}
                     className={`px-2 py-0.5 rounded border ${scene === k ? 'border-warning text-warning font-bold' : 'border-border text-text-muted'}`}>{t}</button>
             ))}
+        </div>
+    );
+
+    /* ── 카드 지금 / 정리안 — 콜 정보(위 덩어리)와 단계 정보(아래 덩어리) 둘로 ── */
+    if (scene === 'cardNow' || scene === 'cardNew') return (
+        <div className="fixed inset-0 flex flex-col bg-background text-text-primary">
+            {sceneBar}
+            <div className="flex-1 overflow-y-auto">{scene === 'cardNow' ? <CardNow /> : <CardNew />}</div>
         </div>
     );
 
@@ -191,6 +199,102 @@ export default function StepScreenMockup() {
                         className="flex-[2] py-3.5 rounded-xl bg-info text-white text-[17px] font-black">{right}</button>
                 </div>
             )}
+        </div>
+    );
+}
+
+/* ═══════════ 카드 지금 · 정리안 — 값은 10-22 S23 관제앱 사진의 실제 콜 두 개(적요 · 짐 · 사무실은 앞 콜) ═══════════ */
+
+const BlockTag = ({ t, tone }: { t: string; tone: string }) => (
+    <div className={`text-[10px] font-black tracking-wide ${tone} mb-1`}>{t}</div>
+);
+
+/** 지금 화면 — 사진 그대로의 차례 · 빈 자리(⬚)와 같은 말 두 번(⧉)을 표시 */
+function CardNow() {
+    const gap = (h: number, why: string) => (
+        <div style={{ height: h }} className="mx-3 my-0.5 rounded border border-dashed border-warning/60 flex items-center justify-center text-[10px] text-warning">⬚ 빈 자리 {why}</div>
+    );
+    const dup = (t: string) => <span className="ml-1 text-[10px] font-bold text-danger">⧉ {t}</span>;
+    return (
+        <div className="px-3 py-2 flex flex-col gap-1.5 text-[13px]">
+            <div className="text-[11px] text-text-muted">서랍: «⏸ ① 초월읍 1.7km 남음 · 상차 · 정차 중» / 칩 «1 초월읍 14:41 −15 14:26 · 2 신둔면 15:28 −25 15:02»</div>
+            <BlockTag t="콜 정보 (위 덩어리)" tone="text-info" />
+            <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-danger" /><b>3. 14:21:58</b><span className="px-1.5 rounded bg-surface-alt">✋ 직접콜</span><span className="px-1.5 rounded bg-success text-white font-bold">보통 41</span><b className="ml-auto text-[17px]">1.0만원</b></div>
+            {gap(60, '콜 머리 아래 구분선 둘레 (약 150px)')}
+            <div><span className="text-text-muted">버퍼</span> <span className="px-1.5 rounded bg-info/15 text-info">상차버퍼 +15분</span> <span className="px-1.5 rounded bg-info/15 text-info">경유버퍼 +25분~</span> <span className="text-[11px] text-text-muted">~는 통화 전 추정</span></div>
+            <div><span className="px-1.5 rounded bg-surface-alt text-text-muted">데드라인 15:28</span>{dup('하차 마감과 같은 값')}</div>
+            <div><span className="text-text-muted">적요 :</span> *카고 입니다. 세금계산서필 14:16상차. 마스크 카톤마대 1개…</div>
+            <div>1 상차 · 초월읍 1.8km·5분 <span className="float-right">14:41 → <b className="text-success">14:26</b></span>{dup('서랍 칩과 같은 시각')}</div>
+            <div>2 하차 · 신둔면 16.1km·21분 <span className="float-right">15:28 → <b className="text-success">15:02</b></span></div>
+            <div>🚚 배송 주행 21분 · 16.1km (실측) · 하차 마감 <b className="text-danger">15:28</b></div>
+            {gap(28, '(약 70px)')}
+            <div className="text-text-muted">▸ 판정 근거 · 원본 데이터</div>
+            {gap(36, '(약 100px)')}
+            <div className="text-text-muted">… 이 콜 처리 (방출 · 사무실 취소)</div>
+            {gap(32, '(약 90px)')}
+            <BlockTag t="단계 정보 (아래 덩어리)" tone="text-success" />
+            <div className="flex items-center gap-2"><b>하차지 통화</b><span className="flex gap-1">{[0,1,2,3,4,5].map(i => <span key={i} className={`w-4 h-1.5 rounded-full ${i === 0 ? 'bg-warning' : i === 1 ? 'bg-info' : 'bg-border'}`} />)}</span><span className="ml-auto text-text-muted">2/6</span></div>
+            <div><span className="px-1 rounded bg-info/15 text-info text-[11px]">진행</span>{dup('«지금 할 것»과 같은 말')}</div>
+            <div><b>2. 하차지 통화</b> <span className="px-1.5 rounded border border-info text-info text-[11px]">지금 할 것</span>{dup('머리와 같은 이름')}</div>
+            <div className="rounded-lg border border-border-card p-2.5 flex flex-col gap-1.5">
+                <div>약속 15:28</div>
+                <div className="text-[11px] text-text-muted">✍️ 통화에서 온 값 <span className="text-danger font-bold">← 아직 통화 안 함(상차 통화에서 물려받은 값)</span></div>
+                <div className="flex gap-2"><span className="flex-1 py-2 rounded-md bg-surface-alt text-center font-black">스킵</span><span className="flex-1 py-2 rounded-md border border-info text-info text-center font-black">통화</span></div>
+            </div>
+            {gap(52, '바닥 (약 135px)')}
+            <div className="text-[11px] text-text-muted">빠진 것: 상차지 · 하차지 전화 단추가 카드에 없다(팝업 안에만)</div>
+        </div>
+    );
+}
+
+/** 정리안 — 같은 두 덩어리 · 운행 중 먼발치에 읽을 것만 위로 · 같은 말은 한 번 · 드문 것은 한 줄로 접음 */
+function CardNew() {
+    const stop = (n: number, kind: string, name: string, promise: string, eta: string, slack: number, label: string) => (
+        <div className="flex items-center gap-2 py-1.5 border-b border-border/60 last:border-0">
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-black text-white ${kind === '상차' ? 'bg-danger' : 'bg-info'}`}>{n}</span>
+            <div className="min-w-0 flex-1">
+                <div className="text-[15px] font-black">{kind} · {name}</div>
+                <div className="text-[12px] text-text-muted">{label} {promise} · 예상 <b className="text-success">{eta}</b> <span className="text-success">({slack}분 여유)</span></div>
+            </div>
+            <span className="shrink-0 px-2.5 py-2 rounded-lg border border-success/50 bg-success/10 text-success text-[13px] font-black">📞</span>
+        </div>
+    );
+    return (
+        <div className="px-3 py-2 flex flex-col gap-2 text-[13px]">
+            <div className="text-[11px] text-text-muted">서랍 상태 줄 · 칩 줄은 그대로(카드 밖)</div>
+            <BlockTag t="콜 정보" tone="text-info" />
+            <div className="flex items-center gap-2">
+                <span className="text-[16px] font-black">초월읍 → 신둔면</span>
+                <span className="px-1.5 rounded bg-surface-alt text-[11px]">✋ 직접</span>
+                <b className="ml-auto text-[19px] text-success">1.0만원</b>
+            </div>
+            <div className="rounded-lg border border-border-card px-2.5">
+                {stop(1, '상차', '초월읍 모다아울렛', '약속 14:41', '14:26', 15, '')}
+                {stop(2, '하차', '신둔면', '마감 15:28', '15:02', 26, '')}
+            </div>
+            <div className="flex gap-2 items-start">
+                <span className="shrink-0 px-2 py-1 rounded-md bg-warning/15 text-warning font-black text-[12px]">📦 마대 1개</span>
+                <div className="text-[13px] leading-snug line-clamp-2">*카고 입니다. 세금계산서필 14:16상차. 마스크 카톤마대 1개명세서폐기.</div>
+            </div>
+            <div className="flex items-center gap-3 text-[12px] text-text-muted">
+                <span>🏢 고양퀵서비스 📞</span>
+                <span className="ml-auto">▸ 더 보기 — 배송 주행 · 버퍼 · 판정 근거 · 방출/취소</span>
+            </div>
+            <div className="h-px bg-border my-1" />
+            <BlockTag t="단계 정보" tone="text-success" />
+            <div className="flex items-center gap-2">
+                <span className="flex gap-1">{[0,1,2,3,4,5].map(i => <span key={i} className={`w-5 h-2 rounded-full ${i === 0 ? 'bg-warning' : i === 1 ? 'bg-info' : 'bg-border'}`} />)}</span>
+                <b className="text-[15px]">2/6 하차지 통화</b>
+                <span className="ml-auto px-1.5 rounded border border-info text-info text-[11px] font-bold">지금 할 것</span>
+            </div>
+            <div className="rounded-lg border border-border-card p-2.5 flex flex-col gap-2">
+                <div className="text-[14px]">약속 15:28 <span className="text-[11px] text-text-muted">· 🚚 차종 기본값</span></div>
+                <div className="flex gap-2"><span className="flex-1 py-3 rounded-md bg-surface-alt text-center font-black text-[15px]">스킵</span><span className="flex-[2] py-3 rounded-md bg-info text-white text-center font-black text-[15px]">통화</span></div>
+            </div>
+            <div className="mt-2 rounded-md bg-surface-alt/50 p-2 text-[11px] text-text-muted leading-snug">
+                <b className="text-text-primary">바뀐 것</b> — 콜 정보: 콜 번호 · 잡은 시각(초) · 판정 점수 뺌 · 버퍼 칩 · 데드라인 칩 · 배송 주행은 «더 보기»로(정거장 줄의 «여유 · 마감»이 같은 말) · 정거장 줄마다 📞 · 사무실 한 줄 · 접힌 줄 둘을 한 줄로.
+                단계 정보: 머리 세 줄 → 한 줄(점 · n/6 · 이름 · 지금 할 것) · 출처 글을 바르게(물려받은 값은 «통화에서 온 값»이라 하지 않음) · 주 단추를 크게.
+            </div>
         </div>
     );
 }
