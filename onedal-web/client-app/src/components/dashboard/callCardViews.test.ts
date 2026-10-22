@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { hhmmText } from '@onedal/shared';
-import { stepDoneOf, stepCurIdxOf, stepViewOf, stepPaneOf, stopDetailRowsOf, rawFieldsOf } from './callCardViews';
+import { hhmmText, manwonText } from '@onedal/shared';
+import { stepDoneOf, stepCurIdxOf, stepViewOf, stepPaneOf, stopDetailRowsOf, rawFieldsOf, stepSummaryOf, popupCloseReasonOf } from './callCardViews';
 
 /**
  * 🧾 **펼친 콜 카드의 셈** — 값만 넣고 값을 본다. 카드가 그 값을 글자로 그리는지는 `pinnedRouteCard.test.tsx` 가 본다.
@@ -81,5 +81,59 @@ describe('🗄️ 판정 근거 서랍 — 원본 칸', () => {
         expect(f[0]).toEqual(['id', 'c1']);
         expect(f.map(([k]) => k).slice(0, 3)).toEqual(['id', 'type', 'status']);
         expect(f.at(-1)).toEqual(['deliveryDistance', 30]);
+    });
+});
+
+describe('🪪 6단계 — 카드에 보일 글자 · 단추(카드는 보기만 · 고치기는 팝업)', () => {
+    const labels = (x: any, o: any = {}) => stepSummaryOf(x, o).buttons.map(b => b.label);
+    it('🔴 칸마다 카드 단추 — 통화: 스킵 · 통화 / 도착: 스킵 · 도착 · 이슈 / 상차 완료: 스킵 · 상차 완료 · 수정 / 하차 완료: 하차 완료 · 수정', () => {
+        expect(labels(row('CALL_PICKUP'))).toEqual(['스킵', '통화']);
+        expect(labels(row('CALL_DROPOFF'))).toEqual(['스킵', '통화']);
+        expect(labels(row('ARRIVE_PICKUP'))).toEqual(['스킵', '도착', '이슈']);
+        expect(labels(row('LOADED'))).toEqual(['스킵', '상차 완료', '수정']);
+        expect(labels(row('DELIVERED'))).toEqual(['하차 완료', '수정']);   // 하차 완료엔 스킵 없음 — 콜을 끝내는 단계
+    });
+    it('🔴 «통화 · 이슈 · 수정»은 팝업을 열고, 나머지는 바로 저장', () => {
+        const s = stepSummaryOf(row('ARRIVE_DROPOFF'), {});
+        expect(s.buttons.map(b => [b.label, b.popup])).toEqual([['스킵', false], ['도착', false], ['이슈', true]]);
+        expect(stepSummaryOf(row('CALL_PICKUP'), {}).buttons.find(b => b.label === '통화')?.popup).toBe(true);
+    });
+    it('🔴 착불 콜의 하차 완료 칸은 «받았음 · 못 받음»이 하차 완료 바로 위 — 받은 뒤엔 안 보인다', () => {
+        expect(labels(row('DELIVERED'), { codAmount: 30000 })).toEqual(['받았음', '못 받음', '하차 완료', '수정']);
+        expect(labels(row('DELIVERED', { cod_received: 1 }), { codAmount: 30000 })).toEqual(['하차 완료', '수정']);
+        expect(stepSummaryOf(row('DELIVERED'), { codAmount: 30000 }).lines.join(' ')).toContain(`착불 ${manwonText(30000)}`);
+    });
+    it('🔴 안 생긴 칸은 단추 없음 · 끝난 칸은 «✓ 시각 (출처)» 와 «수정»만', () => {
+        expect(stepSummaryOf(row('LOADED', {}, false), {}).buttons).toEqual([]);
+        const done = stepSummaryOf(row('ARRIVE_PICKUP', { status: 'DONE', occurred_at: '2026-10-22T01:03:00Z', source: 'GPS' }), {});
+        expect(done.doneText).toBe(`✓ ${hhmmText('2026-10-22T01:03:00Z')} (🛰️ 자동)`);
+        expect(done.buttons.map(b => b.label)).toEqual(['수정']);
+        expect(stepSummaryOf(row('CALL_PICKUP', { status: 'SKIPPED', occurred_at: '2026-10-22T01:00:00Z' }), {}).doneText).toContain('⏭️ 건너뜀');
+    });
+    it('통화 칸 글자 = 짐 · 방법 · 약속 · 메모 + 어디서 온 값 · 적다 만 것이 있으면 한 줄 더', () => {
+        const s = stepSummaryOf(row('CALL_PICKUP', { planned_unit: '라면박스', planned_quantity: 20, planned_handling: '수작업',
+            promised_arrival_at: '2026-10-22T01:20:00Z', memo: '경비실 통과', planned_source: 'MEMO' }), { draft: true });
+        expect(s.lines.join(' ')).toContain('라면박스 20 · 수작업');
+        expect(s.lines.join(' ')).toContain(`약속 ${hhmmText('2026-10-22T01:20:00Z')}`);
+        expect(s.lines.join(' ')).toContain('경비실 통과');
+        expect(s.source).toBe('📄 적요');
+        expect(s.draftNote).toBe(true);
+    });
+});
+
+describe('🔔 단계 팝업 — 언제 닫나', () => {
+    const at = { interrupt: 3, arrivalTick: 7, status: 'PLANNED', occurredAt: null };
+    it('🔴 열린 뒤 새 콜 심사가 오면 닫힘 · 이미 심사 중에 열었으면(사건 수 그대로) 안 닫힘', () => {
+        expect(popupCloseReasonOf(at, { ...at, interrupt: 4 })).toBe('새 콜 심사');
+        expect(popupCloseReasonOf(at, { ...at })).toBeNull();
+    });
+    it('🔴 도착 감지 tick 이 바뀌면 닫힘', () => {
+        expect(popupCloseReasonOf(at, { ...at, arrivalTick: 8 })).toBe('도착 감지');
+        expect(popupCloseReasonOf({ ...at, arrivalTick: null }, { ...at, arrivalTick: null })).toBeNull();
+    });
+    it('🔴 팝업 안 저장(상태 · 일어난 시각이 바뀜)은 닫힘 · 정차 배지(recorded_at 만 바뀜)는 안 닫힘', () => {
+        expect(popupCloseReasonOf(at, { ...at, status: 'DONE' })).toBe('저장됨');
+        expect(popupCloseReasonOf(at, { ...at, occurredAt: '2026-10-22T01:00:00Z' })).toBe('저장됨');
+        expect(popupCloseReasonOf(at, { ...at })).toBeNull();
     });
 });

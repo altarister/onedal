@@ -40,6 +40,7 @@ import {
 import type { CargoUnit } from '@onedal/shared';
 import { hhmmText, wonText } from "@onedal/shared";
 import { jsonArrayOf } from '@onedal/shared';
+import { draftKeyOf, draftFor, syncDraft } from '../../stores/stepDraftStore';
 
 /** 서버 `stepsView()` 가 주는 한 단계 */
 export interface StepViewLike {
@@ -130,6 +131,23 @@ const toggle = (list: string[], v: string) =>
  *    콜 옵션 표(모든 콜의 규칙)는 고치지 않는다.
  *    그래서 배지는 **완료 단계에서만** 열린다 (`actualDwell` 을 받은 폼).
  */
+/** 📏 완료 칸의 시작 짐 — 실측이 있으면 실측, 없으면 계획 */
+export function actualCargoOf(row: Record<string, any>): CargoState {
+    return {
+        unit: row.actual_unit ?? row.planned_unit ?? null,
+        qty: row.actual_quantity ?? row.planned_quantity ?? null,
+        handling: row.actual_handling ?? row.planned_handling ?? null,
+        protections: row.actual_protections != null ? parse(row.actual_protections) : parse(row.planned_protections),
+        afterworks: row.actual_afterworks != null ? parse(row.actual_afterworks) : parse(row.planned_afterworks),
+        tags: row.actual_tags != null ? parse(row.actual_tags) : parse(row.planned_tags),
+    };
+}
+
+/** 늦은 사유 — «기타»류는 메모를 붙여 보낸다 */
+const reasonsOut = (reasons: string[], reasonMemo: string) => reasons.length
+    ? reasons.map(x => x === REASON_NEEDS_MEMO && reasonMemo.trim() ? `${x}: ${reasonMemo.trim()}` : x)
+    : undefined;
+
 function MinuteBadge({ minutes, unit, onEdit }: { minutes: number; unit?: string; onEdit?: (v: number) => void }) {
     const [open, setOpen] = useState(false);
     /**
@@ -537,36 +555,24 @@ function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrev
     /** 운영센터(통화 도우미)가 적었으면 그 사람 이름 — 짐 · 약속 · 메모는 이미 칸에 들어가 있으니 출처 한 줄만 */
     writtenByName?: string;
 }) {
-    const [cargo, setCargo] = useState<CargoState>(() => cargoOfRow(r));
-    const [memo, setMemo] = useState<string>(r.memo ?? '');
-    const [pick, setPick] = useState<SlotPick>({ touched: false });
+    /* ✍️ 적던 것 — 시작 값과 «행이 바뀌면 다시 맞추기»가 같은 함수(`startOf`)를 부른다(마운트 때 다시 맞추기가 적던 것을 지우지 않게) */
+    const dKey = draftKeyOf(orderId, pickup ? 'CALL_PICKUP' : 'CALL_DROPOFF');
+    const rowState = () => ({ cargo: cargoOfRow(r), memo: (r.memo ?? '') as string, pick: { touched: false } as SlotPick });
+    const startOf = () => ({ ...rowState(), ...(draftFor(dKey, r.recorded_at) as Partial<ReturnType<typeof rowState>> | null) });
+    const [cargo, setCargo] = useState<CargoState>(() => startOf().cargo);
+    const [memo, setMemo] = useState<string>(() => startOf().memo);
+    const [pick, setPick] = useState<SlotPick>(() => startOf().pick);
     /**
-     * 저장(steps-synced)이 오면 행이 바뀐다 — 그때 상태를 행에 다시 맞춘다.
+     * 저장(steps-synced)이 오면 행이 바뀐다 — 그때 상태를 행에 다시 맞춘다(적던 것은 행이 바뀌면 버려진다).
      * recorded_at 이 안 바뀌었으면 기사님이 고치는 중일 수 있으니 덮지 않는다.
      */
     useEffect(() => {
-        setCargo(cargoOfRow(r)); setMemo(r.memo ?? ''); setPick({ touched: false });
+        const s0 = startOf(); setCargo(s0.cargo); setMemo(s0.memo); setPick(s0.pick);
     }, [r.recorded_at, r.occurred_at]);
+    useEffect(() => { syncDraft(dKey, r.recorded_at, rowState(), { cargo, memo, pick }); }, [cargo, memo, pick]);
 
     const done = r.status === 'DONE' || r.status === 'SKIPPED';
-    const save = (kind: 'DECLARED' | 'SKIPPED') => {
-        socket.emit('save-cargo-report', {
-            orderId, stopType: pickup ? 'pickup' : 'dropoff', kind,
-            ...(kind === 'DECLARED' ? {
-                // 짐의 단위·수량·보호·성질은 **상차에서만** — 하차로 보내면 두 벌이 된다 (규칙 ③)
-                unit: pickup ? cargo.unit ?? undefined : undefined,
-                quantity: pickup ? cargo.qty ?? undefined : undefined,
-                handling: cargo.handling ?? undefined,
-                tags: pickup && cargo.tags.length ? cargo.tags : undefined,
-                protections: pickup && cargo.protections.length ? cargo.protections : undefined,
-                afterworks: !pickup && cargo.afterworks.length ? cargo.afterworks : undefined,
-                // 🔴 손댄 것만 약속으로 — 안 누른 추천값은 싣지 않는다
-                promisedArrivalAt: pick.touched ? pick.until : undefined,
-                promisedArrivalFromAt: pick.touched ? pick.from : undefined,
-                memo: memo || undefined,
-            } : { memo: '통화 없이 진행' }),
-        });
-    };
+    const save = (kind: 'DECLARED' | 'SKIPPED') => sendCallSave(orderId, pickup, kind, { cargo, memo, pick });
 
     return (
         <>
@@ -599,20 +605,19 @@ function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrev
  * 🔴 `predictedAt` 은 저장된 행의 값을 싣는다 — 버튼 누른 시각으로 예측을 만들지 않는다.
  */
 function LiveArrive({ orderId, r, step }: { orderId: string; r: Record<string, any>; step: string }) {
-    const [reasons, setReasons] = useState<string[]>(() => parse(r.reasons));
-    const [reasonMemo, setReasonMemo] = useState('');
-    useEffect(() => { setReasons(parse(r.reasons)); setReasonMemo(''); }, [r.recorded_at, r.occurred_at]);
+    /* ✍️ 적던 것 — 통화 칸과 같은 규칙 */
+    const dKey = draftKeyOf(orderId, step);
+    const rowState = () => ({ reasons: parse(r.reasons), reasonMemo: '' });
+    const startOf = () => ({ ...rowState(), ...(draftFor(dKey, r.recorded_at) as Partial<ReturnType<typeof rowState>> | null) });
+    const [reasons, setReasons] = useState<string[]>(() => startOf().reasons);
+    const [reasonMemo, setReasonMemo] = useState(() => startOf().reasonMemo);
+    useEffect(() => { const s0 = startOf(); setReasons(s0.reasons); setReasonMemo(s0.reasonMemo); }, [r.recorded_at, r.occurred_at]);
+    useEffect(() => { syncDraft(dKey, r.recorded_at, rowState(), { reasons, reasonMemo }); }, [reasons, reasonMemo]);
 
     const milestone = step === 'ARRIVE_PICKUP' ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF';
     const arrived = !!r.occurred_at;
-    const fire = () => socket.emit('report-milestone', {
-        orderId, milestone,
-        predictedAt: r.predicted_at ?? undefined,
-        reasons: reasons.length
-            ? reasons.map(x => x === REASON_NEEDS_MEMO && reasonMemo.trim() ? `${x}: ${reasonMemo.trim()}` : x)
-            : undefined,
-    });
-    const skip = () => socket.emit('report-milestone', { orderId, milestone, source: 'SKIPPED' });
+    const fire = () => sendArrive(orderId, step, r, { reasons, reasonMemo });
+    const skip = () => sendSkip(orderId, milestone);
     /* 잘못 눌러도 되돌릴 수 있어야 한다 (기사님: "단계별로 저장하고 수정이 가능해야 한다") */
     const undo = () => {
         if (confirm(`도착 기록(${hhmm(r.occurred_at)})을 취소할까요?`))
@@ -654,42 +659,25 @@ function LiveDone({ orderId, r, step, codAmount }: {
     orderId: string; r: Record<string, any>; step: string; codAmount?: number | null;
 }) {
     const pickup = step === 'LOADED';
-    const actualOf = (row: Record<string, any>): CargoState => ({
-        unit: row.actual_unit ?? row.planned_unit ?? null,
-        qty: row.actual_quantity ?? row.planned_quantity ?? null,
-        handling: row.actual_handling ?? row.planned_handling ?? null,
-        protections: row.actual_protections != null ? parse(row.actual_protections) : parse(row.planned_protections),
-        afterworks: row.actual_afterworks != null ? parse(row.actual_afterworks) : parse(row.planned_afterworks),
-        tags: row.actual_tags != null ? parse(row.actual_tags) : parse(row.planned_tags),
-    });
-    const [cargo, setCargo] = useState<CargoState>(() => actualOf(r));
-    const [reasons, setReasons] = useState<string[]>(() => parse(r.reasons));
-    const [reasonMemo, setReasonMemo] = useState('');
+    const actualOf = actualCargoOf;
+    /* ✍️ 적던 것 — 통화 칸과 같은 규칙 */
+    const dKey = draftKeyOf(orderId, step);
+    const rowState = () => ({ cargo: actualOf(r), reasons: parse(r.reasons), reasonMemo: '' });
+    const startOf = () => ({ ...rowState(), ...(draftFor(dKey, r.recorded_at) as Partial<ReturnType<typeof rowState>> | null) });
+    const [cargo, setCargo] = useState<CargoState>(() => startOf().cargo);
+    const [reasons, setReasons] = useState<string[]>(() => startOf().reasons);
+    const [reasonMemo, setReasonMemo] = useState(() => startOf().reasonMemo);
     useEffect(() => {
-        setCargo(actualOf(r)); setReasons(parse(r.reasons)); setReasonMemo('');
+        const s0 = startOf(); setCargo(s0.cargo); setReasons(s0.reasons); setReasonMemo(s0.reasonMemo);
     }, [r.recorded_at, r.occurred_at]);
+    useEffect(() => { syncDraft(dKey, r.recorded_at, rowState(), { cargo, reasons, reasonMemo }); }, [cargo, reasons, reasonMemo]);
 
     const done = !!r.occurred_at;
     const milestone = pickup ? 'PICKED_UP' : 'DELIVERED';
-    const saveActual = () => socket.emit('save-cargo-report', {
-        orderId, stopType: pickup ? 'pickup' : 'dropoff', kind: 'ACTUAL',
-        unit: pickup ? cargo.unit ?? undefined : undefined,
-        quantity: pickup ? cargo.qty ?? undefined : undefined,
-        handling: cargo.handling ?? undefined,
-        protections: pickup && cargo.protections.length ? cargo.protections : undefined,
-        afterworks: !pickup && cargo.afterworks.length ? cargo.afterworks : undefined,
-        tags: pickup && cargo.tags.length ? cargo.tags : undefined,
-    });
+    const saveActual = () => sendActual(orderId, step, cargo);
     const fire = () => {
         if (!done) {
-            saveActual();
-            socket.emit('report-milestone', {
-                orderId, milestone,
-                predictedAt: r.predicted_at ?? undefined,   // 저장된 예측 — 버튼 시각으로 만들지 않는다
-                reasons: reasons.length
-                    ? reasons.map(x => x === REASON_NEEDS_MEMO && reasonMemo.trim() ? `${x}: ${reasonMemo.trim()}` : x)
-                    : undefined,
-            });
+            sendDone(orderId, step, r, { cargo, reasons, reasonMemo });
         } else if (confirm(`${pickup ? '상차' : '하차'} 완료 기록을 취소할까요?`)) {
             socket.emit('undo-milestone', { orderId, milestone });
         }
@@ -734,11 +722,11 @@ function LiveDone({ orderId, r, step, codAmount }: {
                         💵 착불 {wonText(codAmount)} — 지금 받으세요
                     </div>
                     <div className="flex gap-2 mt-2">
-                        <button type="button" onClick={() => socket.emit('cod-collected', { orderId, received: true })}
+                        <button type="button" onClick={() => sendCod(orderId, true)}
                             className={`flex-1 py-2.5 rounded-md text-[13px] font-black border ${
                                 cod === 1 ? 'bg-success text-white border-success' : 'bg-success/12 text-success border-success/45'
                             }`}>{cod === 1 ? '✓ 받았음' : '받았음'}</button>
-                        <button type="button" onClick={() => socket.emit('cod-collected', { orderId, received: false })}
+                        <button type="button" onClick={() => sendCod(orderId, false)}
                             className={`flex-1 py-2.5 rounded-md text-[13px] font-black border ${
                                 cod === 0 ? 'bg-danger text-white border-danger' : 'bg-danger/10 text-danger border-danger/40'
                             }`}>{cod === 0 ? '✓ 미수' : '못 받음 · 미수'}</button>
@@ -750,7 +738,7 @@ function LiveDone({ orderId, r, step, codAmount }: {
                 {/* ⏭️ 기록 없이 다음으로 — 하차 완료는 콜의 끝이라 건너뛸 수 없다 */}
                 {pickup && !done && (
                     <button type="button" title="기록 없이 다음 단계로"
-                        onClick={() => socket.emit('report-milestone', { orderId, milestone: 'PICKED_UP', source: 'SKIPPED' })}
+                        onClick={() => sendSkip(orderId, 'PICKED_UP')}
                         className={`${skipSmall} text-center`}>⏭️</button>
                 )}
                 {/* 💾 완료 뒤에도 실측만 다시 저장 — 취소를 강요하면 시각 기록을 잃는다 (기획 ⑥) */}
@@ -950,4 +938,87 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
             )}
         </div>
     );
+}
+
+/* ─────────────────────────── 📤 단계 저장 ─────────────────────────── */
+
+type CallInput = { cargo: CargoState; memo: string; pick: { until?: string; from?: string; touched: boolean } };
+type ReasonInput = { reasons: string[]; reasonMemo: string };
+
+/**
+ * 📤 **단계 저장 몸통 — 시트와 카드가 같이 쓴다.** 같은 행 · 같은 입력이면 어디서 눌러도 같은 것을 보낸다.
+ * 몸통(`stepBodies` — 값만)과 보내기(`send…` — 사건 이름을 글자 그대로 적어 소켓 짝 감사가 센다)를 나눈다.
+ * 완료는 **실측 먼저 → 완료 보고** 차례다.
+ */
+export const stepBodies = {
+    callSave(orderId: string, pickup: boolean, kind: 'DECLARED' | 'SKIPPED', v: CallInput) {
+        return {
+            orderId, stopType: pickup ? 'pickup' : 'dropoff', kind,
+            ...(kind === 'DECLARED' ? {
+                // 짐의 단위·수량·보호·성질은 **상차에서만** — 하차로 보내면 두 벌이 된다 (규칙 ③)
+                unit: pickup ? v.cargo.unit ?? undefined : undefined,
+                quantity: pickup ? v.cargo.qty ?? undefined : undefined,
+                handling: v.cargo.handling ?? undefined,
+                tags: pickup && v.cargo.tags.length ? v.cargo.tags : undefined,
+                protections: pickup && v.cargo.protections.length ? v.cargo.protections : undefined,
+                afterworks: !pickup && v.cargo.afterworks.length ? v.cargo.afterworks : undefined,
+                // 🔴 손댄 것만 약속으로 — 안 누른 추천값은 싣지 않는다
+                promisedArrivalAt: v.pick.touched ? v.pick.until : undefined,
+                promisedArrivalFromAt: v.pick.touched ? v.pick.from : undefined,
+                memo: v.memo || undefined,
+            } : { memo: '통화 없이 진행' }),
+        };
+    },
+    arrive(orderId: string, step: string, r: Record<string, any>, v: ReasonInput) {
+        return {
+            orderId, milestone: step === 'ARRIVE_PICKUP' ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF',
+            predictedAt: r.predicted_at ?? undefined,
+            reasons: reasonsOut(v.reasons, v.reasonMemo),
+        };
+    },
+    skip(orderId: string, milestone: string) {
+        return { orderId, milestone, source: 'SKIPPED' };
+    },
+    /** 실측 짐 — 완료 칸에서만(도착 시점에 적은 수량은 추측이다) */
+    actual(orderId: string, step: string, cargo: CargoState) {
+        const pickup = step === 'LOADED';
+        return {
+            orderId, stopType: pickup ? 'pickup' : 'dropoff', kind: 'ACTUAL',
+            unit: pickup ? cargo.unit ?? undefined : undefined,
+            quantity: pickup ? cargo.qty ?? undefined : undefined,
+            handling: cargo.handling ?? undefined,
+            protections: pickup && cargo.protections.length ? cargo.protections : undefined,
+            afterworks: !pickup && cargo.afterworks.length ? cargo.afterworks : undefined,
+            tags: pickup && cargo.tags.length ? cargo.tags : undefined,
+        };
+    },
+    doneMilestone(orderId: string, step: string, r: Record<string, any>, v: ReasonInput) {
+        return {
+            orderId, milestone: step === 'LOADED' ? 'PICKED_UP' : 'DELIVERED',
+            predictedAt: r.predicted_at ?? undefined,   // 저장된 예측 — 버튼 시각으로 만들지 않는다
+            reasons: reasonsOut(v.reasons, v.reasonMemo),
+        };
+    },
+};
+
+/* 📤 보내기 — 사건 이름은 글자 그대로(소켓 짝 감사 `audit:socket` 이 센다) · 함수 선언이라 위 부품들이 먼저 불러도 된다 */
+export function sendCallSave(orderId: string, pickup: boolean, kind: 'DECLARED' | 'SKIPPED', v: CallInput) {
+    socket.emit('save-cargo-report', stepBodies.callSave(orderId, pickup, kind, v));
+}
+export function sendArrive(orderId: string, step: string, r: Record<string, any>, v: ReasonInput) {
+    socket.emit('report-milestone', stepBodies.arrive(orderId, step, r, v));
+}
+export function sendSkip(orderId: string, milestone: string) {
+    socket.emit('report-milestone', stepBodies.skip(orderId, milestone));
+}
+export function sendActual(orderId: string, step: string, cargo: CargoState) {
+    socket.emit('save-cargo-report', stepBodies.actual(orderId, step, cargo));
+}
+/** 실측 먼저 → 완료 보고 */
+export function sendDone(orderId: string, step: string, r: Record<string, any>, v: ReasonInput & { cargo: CargoState }) {
+    socket.emit('save-cargo-report', stepBodies.actual(orderId, step, v.cargo));
+    socket.emit('report-milestone', stepBodies.doneMilestone(orderId, step, r, v));
+}
+export function sendCod(orderId: string, received: boolean) {
+    socket.emit('cod-collected', { orderId, received });
 }

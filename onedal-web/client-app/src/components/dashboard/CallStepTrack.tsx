@@ -1,14 +1,18 @@
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { hhmmText } from '@onedal/shared';
 import type { SecuredOrder, StepViewRow, RouteTimelineEntry } from '@onedal/shared';
-import StepSheetMock from './StepSheetMock';
+import StepSummary from './StepSummary';
+import StepEditPopup from './StepEditPopup';
 import StepSwipeTrack from './StepSwipeTrack';
 import { stepDoneOf, stepViewOf, stepPaneOf } from './callCardViews';
 
 /**
- * 🌱 **6단계 트랙** — 펼친 콜 카드(`PinnedRouteCard`)의 «스텝 영역»: 머리(단계명 · 점 · n/6) · 상태 줄 · 한 장씩 넘기는 시트.
+ * 🌱 **6단계 트랙** — 펼친 콜 카드(`PinnedRouteCard`)의 «스텝 영역»: 머리(단계명 · 점 · n/6) · 상태 줄 · 한 장씩 넘기는 장.
+ * 카드 장은 **보기만**(`StepSummary` — 글자 · 바로 저장 단추) · 고치기는 «통화 · 이슈 · 수정»이 여는 **수정 팝업**(`StepEditPopup` — 시트 그대로).
  * 이 파일은 위(`PinnedRouteCard`)를 가져오지 않는다 — 방향: PinnedRouteCard → CallStepTrack → callCardViews · StepSheetMock.
  * 바깥 일(저장소 · 소켓 · 타이머)을 하는 곳: 없음 — 단계 행(`steps-synced`) · 보여 줄 단계는 카드가 쥐고 넘기며,
- *    단계를 넘기는 손은 `onNav` 로 카드에 돌려준다(카드가 «누가 열었나»를 로그에 적는다). 시트 안의 저장은 `StepSheetMock` 몫이다.
+ *    단계를 넘기는 손은 `onNav` 로 카드에 돌려준다(카드가 «누가 열었나»를 로그에 적는다). 저장은 카드 장 · 팝업 시트가 같은 보내기(`send…` — StepSheetMock)로 보낸다.
  */
 export default function CallStepTrack({ route, timeline, seededSteps, shownStepIdx, stepCurIdx, stepNav, onNav }: {
     route: SecuredOrder;
@@ -19,6 +23,8 @@ export default function CallStepTrack({ route, timeline, seededSteps, shownStepI
     stepNav: number | null;
     onNav: (idx: number | null, by: '손으로 넘긴 것' | '되돌린 것') => void;
 }) {
+    /** ✏️ 수정 팝업을 연 칸 — 없으면 닫힘 */
+    const [editIdx, setEditIdx] = useState<number | null>(null);
     /* 📏 사슬 — 여기가 auto 면 아래 트랙이 내용대로 자란다 */
     /* 📏 **여기가 스텝 영역이다** — 남는 자리를 먹되 **220px 은 지킨다**
         (목업). 자리가 모자라면 위 덩어리가 스크롤하고, 스텝은 제 몫을 지킨다 */
@@ -123,17 +129,19 @@ export default function CallStepTrack({ route, timeline, seededSteps, shownStepI
                                                     : k === stepCurIdx ? '지금 할 것' : '아직'}
                                             </em>
                                         </h3>
-                                        <StepSheetMock key={pane.key} orderId={route.id}
+                                        <StepSummary key={pane.key} orderId={route.id}
                                             codAmount={pane.codAmount}
-                                            place={pane.place}
-                                            prevName={pane.prevName}
-                                            leadMinutes={pane.leadMinutes}
-                                            departPrevMs={pane.departPrevMs}
-                                            segmentDriveMinutes={pane.segmentDriveMinutes}
-                                            view={stepViewOf(x, seededSteps)} />
+                                            view={stepViewOf(x, seededSteps)}
+                                            hideButtons={editIdx !== null}
+                                            onOpen={() => setEditIdx(k)} />
                                     </section>
                                 );
                             }} />
+                        {/* ✏️ 수정 팝업 — 시트 서랍(움직이는 층) 밖, 문서 맨 위층에 그린다(덮는 창이 서랍 안에 갇히지 않게) */}
+                        {editIdx !== null && createPortal(
+                            <StepEditPopup route={route} seededSteps={seededSteps} timeline={timeline} startIdx={editIdx}
+                                onClose={() => setEditIdx(null)} />,
+                            document.body)}
                     </div>
                 );
             })()}

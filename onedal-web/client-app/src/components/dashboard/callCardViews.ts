@@ -1,4 +1,4 @@
-import { hhmmText, stopPhoneOf } from '@onedal/shared';
+import { hhmmText, manwonText, stopPhoneOf } from '@onedal/shared';
 import type { SecuredOrder, StepViewRow, RouteTimelineEntry, CallTiming } from '@onedal/shared';
 import { getAddressLabel } from '../../lib/routeUtils';
 
@@ -70,6 +70,78 @@ export function stepPaneOf({ route, step: x, seededSteps, timeline }: {
         departPrevMs: xTl?.departPrevMs ?? null,
         segmentDriveMinutes: xTl?.segmentDriveMinutes ?? null,
     };
+}
+
+/** 🪪 카드 단추 하나 — `popup` 이면 수정 팝업을 열고, 아니면 바로 저장한다 */
+export interface StepCardButton {
+    kind: 'skip' | 'call' | 'arrive' | 'issue' | 'loaded' | 'delivered' | 'edit' | 'codYes' | 'codNo';
+    label: string;
+    popup: boolean;
+}
+
+const SOURCE_LABEL: Record<string, string> = { MEMO: '📄 적요', VEHICLE: '🚚 차종', DECLARED: '✍️ 통화', ACTUAL: '📏 실측' };
+
+/**
+ * 🪪 **카드에 보일 단계 한 장** — 카드는 보기만 하고(글자 · 바로 저장 단추), 고치기는 팝업에서 한다.
+ * 단추: 통화 «스킵 · 통화» · 도착 «스킵 · 도착 · 이슈» · 상차 완료 «스킵 · 상차 완료 · 수정» ·
+ *       하차 완료 «하차 완료 · 수정»(스킵 없음 — 콜을 끝내는 단계) · 착불 콜은 «받았음 · 못 받음»이 하차 완료 바로 위.
+ * 안 생긴 칸은 단추 없음 · 끝난 칸은 «✓ 시각 (출처)» 와 «수정»만(되돌리기는 팝업 안).
+ * @param x 단계 한 줄 — 짐 칸이 없는 단계는 `stepViewOf` 로 빌려 입힌 것을 준다
+ */
+export function stepSummaryOf(x: StepViewRow, { codAmount, draft }: { codAmount?: number | null; draft?: boolean }) {
+    const r: Record<string, any> = x.row ?? {};
+    const born = x.born !== false;
+    const ended = r.status === 'DONE' || r.status === 'SKIPPED';
+    const cargo = [r.planned_unit && `${r.planned_unit}${r.planned_quantity != null ? ` ${r.planned_quantity}` : ''}`, r.planned_handling].filter(Boolean).join(' · ');
+    const dwell = r.planned_dwell_min != null ? `정차 ${r.planned_dwell_min}분` : null;
+    const cod = codAmount ? (r.cod_received != null ? `💵 착불 ${manwonText(codAmount)} — ${r.cod_received ? '받음' : '못 받음'}` : `💵 착불 ${manwonText(codAmount)}`) : null;
+    const lines = ({
+        CALL_PICKUP: [cargo, r.promised_arrival_at && `약속 ${hhmmText(r.promised_arrival_at)}`, r.memo],
+        CALL_DROPOFF: [cargo, r.promised_arrival_at && `약속 ${hhmmText(r.promised_arrival_at)}`, r.memo],
+        ARRIVE_PICKUP: [r.predicted_at && `예정 ${hhmmText(r.predicted_at)}`],
+        ARRIVE_DROPOFF: [r.predicted_at && `예정 ${hhmmText(r.predicted_at)}`],
+        LOADED: [cargo && `예정 짐 ${cargo}`, dwell],
+        DELIVERED: [dwell, cod],
+    } as Record<string, Array<string | null | undefined>>)[x.step] ?? [];
+    const by = r.status === 'SKIPPED' ? '⏭️ 건너뜀' : r.source === 'GPS' ? '🛰️ 자동' : '✍️ 직접';
+    const btn = (kind: StepCardButton['kind'], label: string, popup = false): StepCardButton => ({ kind, label, popup });
+    const buttons: StepCardButton[] = !born ? []
+        : ended ? [btn('edit', '수정', true)]
+        : x.step.startsWith('CALL_') ? [btn('skip', '스킵'), btn('call', '통화', true)]
+        : x.step.startsWith('ARRIVE_') ? [btn('skip', '스킵'), btn('arrive', '도착'), btn('issue', '이슈', true)]
+        : x.step === 'LOADED' ? [btn('skip', '스킵'), btn('loaded', '상차 완료'), btn('edit', '수정', true)]
+        : [...(codAmount && r.cod_received == null ? [btn('codYes', '받았음'), btn('codNo', '못 받음')] : []),
+            btn('delivered', '하차 완료'), btn('edit', '수정', true)];
+    return {
+        lines: lines.filter((l): l is string => !!l),
+        source: x.step.startsWith('CALL_') && !ended ? SOURCE_LABEL[r.planned_source] ?? null : null,
+        doneText: ended ? `✓ ${hhmmText(r.occurred_at) ?? '--:--'} (${by})` : null,
+        buttons,
+        draftNote: !!draft && born && !ended,
+    };
+}
+
+/** 🔔 단계 팝업이 지켜보는 것 — 열 때 찍어 두고, 지금 값과 견준다 */
+export interface StepPopupWatch {
+    /** 새 콜 심사 사건 수(`stepDraftStore.interruptTick`) */
+    interrupt: number;
+    /** 도착 감지 tick(`gpsFocusStore.arrival.tick`) */
+    arrivalTick: number | null;
+    /** 연 칸의 상태 · 일어난 시각 — 팝업 안 저장 단추가 바꾼다(정차 배지 · 착불은 안 바꾼다) */
+    status?: string | null;
+    occurredAt?: string | null;
+}
+
+/**
+ * 🔔 **단계 팝업을 닫을 까닭** — 열린 뒤 바뀐 것만 본다(이미 심사 중에 열었으면 그 심사로는 안 닫는다).
+ * 새 콜 심사 · 도착 감지 → 저장 없이 닫음(적던 것은 남음) · 연 칸의 상태나 일어난 시각이 바뀜 → 팝업 안에서 저장됨.
+ * 정차 배지는 `recorded_at` 만 바꿔서 닫지 않는다.
+ */
+export function popupCloseReasonOf(atOpen: StepPopupWatch, now: StepPopupWatch): '새 콜 심사' | '도착 감지' | '저장됨' | null {
+    if (now.interrupt !== atOpen.interrupt) return '새 콜 심사';
+    if (now.arrivalTick != null && now.arrivalTick !== atOpen.arrivalTick) return '도착 감지';
+    if ((now.status ?? null) !== (atOpen.status ?? null) || (now.occurredAt ?? null) !== (atOpen.occurredAt ?? null)) return '저장됨';
+    return null;
 }
 
 // ─────────────────────────── 상 · 하차 줄 ───────────────────────────

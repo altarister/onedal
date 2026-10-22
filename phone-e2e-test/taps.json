@@ -217,16 +217,16 @@
       "x": null,
       "y": null,
       "check": "any",
-      "from": "글자로 찾아 손 누름(find.mjs · 71 «가») — 단계 시트는 높이 · 착불 칸에 따라 자리가 바뀜 · 그 단계가 현재일 때만 진짜 <button>(StepSheetMock.tsx:762-772 · 착불 :738)",
-      "text": "🏁 하차 완료"
+      "from": "글자로 찾아 손 누름(find.mjs · 정확히 같은 글자) — 콜 카드 단계 장의 바로 저장 단추(StepSummary · 그 단계가 생긴 칸에만 단추) · 고치기는 «통화 · 이슈 · 수정»이 여는 팝업",
+      "text": "=하차 완료"
     },
     "s23.step.cod.received": {
       "phone": "S23",
       "x": null,
       "y": null,
       "check": "any",
-      "from": "글자로 찾아 손 누름(find.mjs · 71 «가») — 단계 시트는 높이 · 착불 칸에 따라 자리가 바뀜 · 그 단계가 현재일 때만 진짜 <button>(StepSheetMock.tsx:762-772 · 착불 :738)",
-      "text": "받았음"
+      "from": "글자로 찾아 손 누름(find.mjs · 정확히 같은 글자) — 콜 카드 단계 장의 바로 저장 단추(StepSummary · 그 단계가 생긴 칸에만 단추) · 고치기는 «통화 · 이슈 · 수정»이 여는 팝업",
+      "text": "=받았음"
     },
     "s23.filter.dest.sido.gyeonggi": {
       "phone": "S23",
@@ -249,8 +249,8 @@
       "x": null,
       "y": null,
       "check": "any",
-      "from": "글자로 찾아 손 누름(find.mjs · 71 «가») — 단계 시트는 높이 · 착불 칸에 따라 자리가 바뀜 · 그 단계가 현재일 때만 진짜 <button>(StepSheetMock.tsx:762-772 · 착불 :738)",
-      "text": "📦 상차 완료"
+      "from": "글자로 찾아 손 누름(find.mjs · 정확히 같은 글자) — 콜 카드 단계 장의 바로 저장 단추(StepSummary · 그 단계가 생긴 칸에만 단추) · 고치기는 «통화 · 이슈 · 수정»이 여는 팝업",
+      "text": "=상차 완료"
     },
     "a24.hwamul24.detail.confirm": {
       "phone": "A24",
@@ -365,8 +365,8 @@
       "x": null,
       "y": null,
       "check": "any",
-      "text": "📍 도착",
-      "from": "글자로 찾아 손 누름 — 단계 시트 도착 단계의 «📍 도착»(StepSheetMock.tsx:641 · 그 단계가 현재일 때만 진짜 <button>) · 사용설명서 2장"
+      "text": "=도착",
+      "from": "글자로 찾아 손 누름(find.mjs · 정확히 같은 글자) — 콜 카드 단계 장의 바로 저장 단추(StepSummary · 그 단계가 생긴 칸에만 단추) · 고치기는 «통화 · 이슈 · 수정»이 여는 팝업"
     },
     "s23.step.nav.call.pickup": {
       "phone": "S23",
@@ -381,8 +381,8 @@
       "x": null,
       "y": null,
       "check": "any",
-      "text": "=통화 스킵",
-      "from": "글자로 찾아 손 누름 — 상차지 통화 단계의 «통화 스킵»(StepSheetMock.tsx:588 · 시험은 실제 통화가 없어 스킵) · 이 단계가 현재여야 다음 «📍 도착»이 진짜 단추"
+      "text": "=스킵",
+      "from": "글자로 찾아 손 누름(find.mjs · 정확히 같은 글자) — 콜 카드 단계 장의 바로 저장 단추(StepSummary · 그 단계가 생긴 칸에만 단추) · 고치기는 «통화 · 이슈 · 수정»이 여는 팝업"
     },
     "s23.step.nav.call.dropoff": {
       "phone": "S23",

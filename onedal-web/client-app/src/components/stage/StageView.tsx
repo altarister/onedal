@@ -52,6 +52,7 @@ import { socket } from '../../lib/socket';
 import { ROUTE_PRIORITIES, isPriorityLocked } from '../../lib/routePriority';
 import NaviQr from '../dashboard/NaviQr';
 import JudgmentSeat, { UnreadableSeat } from '../dashboard/JudgmentSeat';
+import { interruptStepPopup, dropDraftsOf } from '../../stores/stepDraftStore';
 
 /**
  * 🎭 **무대 — 지도 배경 + 3단 시트.** 관제 화면(`/`)이 그리는 유일한 화면이다.
@@ -266,6 +267,16 @@ export default function StageView(props: Props) {
     useEffect(() => { if (seatKey) feed({ type: 'judge' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [seatKey]);
+    /* ✏️ 새 판정(또는 ⚪)이 뜨면 열린 단계 수정 팝업은 저장 없이 비킨다 — 적던 것은 남는다(`stepDraftStore`) */
+    useEffect(() => { if (seatKey) interruptStepPopup(); }, [seatKey]);
+    /* ✍️ 운행 목록에서 빠진 콜(안전취소 시간 초과 · 방출 · 하차 완료 등)의 적던 것은 버린다 */
+    const liveIds = liveRoute.map(o => o.id).join(',');
+    const prevLiveIds = useRef<string[]>([]);
+    useEffect(() => {
+        const now = liveIds ? liveIds.split(',') : [];
+        prevLiveIds.current.filter(id => !now.includes(id)).forEach(dropDraftsOf);
+        prevLiveIds.current = now;
+    }, [liveIds]);
 
     useEffect(() => { feed({ type: 'signal' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
