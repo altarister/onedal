@@ -247,45 +247,42 @@ function CardNow() {
     );
 }
 
-/** 정리안 — 같은 두 덩어리 · 운행 중 먼발치에 읽을 것만 위로 · 같은 말은 한 번 · 드문 것은 한 줄로 접음 */
+/** 정리안 — 기사님이 한 줄씩 쓰신 차례 그대로(10-22) · 정거장 덩어리를 누르면 그곳에 전화 */
 function CardNew() {
     /* 📞 덩어리 전체가 전화 단추 — 누르면 그 정거장에 전화(목업은 화면 아래에 적기만) */
     const [called, setCalled] = useState('');
-    const stop = (n: number, kind: string, name: string, addr: string, promise: string, eta: string, slack: number, label: string) => (
+    const stop = (n: number, kind: string, name: string, addr: string, promise: string, eta: string, slack: number) => (
         <button type="button" onClick={() => setCalled(`📞 ${kind} · ${name} 에 전화 — 목업이라 걸지 않습니다`)}
-            className="w-full text-left flex items-center gap-2 py-2 border-b border-border/60 last:border-0 active:bg-success/10 rounded-md">
-            <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-black text-white ${kind === '상차' ? 'bg-danger' : 'bg-info'}`}>{n}</span>
-            <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-black">{kind} · {name}</div>
-                <div className="text-[12px] text-text-primary/80 break-keep leading-snug">{addr}</div>
-                <div className="text-[12px] text-text-muted">{label} {promise} · 예상 <b className="text-success">{eta}</b> <span className="text-success">({slack}분 여유)</span></div>
+            className="w-full text-left flex flex-col gap-0.5 py-2 border-b border-border/60 last:border-0 active:bg-success/10 rounded-md">
+            <div className="flex items-center gap-1.5 text-[15px] font-black">
+                <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-black text-white ${kind === '상차' ? 'bg-danger' : 'bg-info'}`}>{n}</span>
+                {kind} · {name}
             </div>
+            <div className="text-[12.5px] text-text-primary/85 break-keep leading-snug">{addr}</div>
+            <div className="text-[12.5px] text-text-muted">약속 {promise} · 예상 <b className="text-success">{eta}</b> <span className="text-success">({slack}분 여유)</span></div>
         </button>
     );
     return (
-        <div className="px-3 py-2 flex flex-col gap-2 text-[13px]">
-            <div className="text-[11px] text-text-muted">서랍 상태 줄 · 칩 줄은 그대로(카드 밖)</div>
-            <BlockTag t="콜 정보" tone="text-info" />
-            <div className="flex items-center gap-2">
-                <span className="text-[16px] font-black">초월읍 → 신둔면</span>
+        <div className="px-3 py-2 flex flex-col gap-1.5 text-[13px]">
+            {/* 1. 몇 번째 확정 콜 · 경로 · 잡은 길 · 판정 점수 · 요금 */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+                <b className="text-[15px]">3.</b>
+                <span className="text-[15px] font-black">초월읍 → 신둔면</span>
                 <span className="px-1.5 rounded bg-surface-alt text-[11px]">✋ 직접</span>
-                <b className="ml-auto text-[19px] text-success">1.0만원</b>
+                <span className="px-1.5 rounded bg-success text-white text-[11px] font-bold">보통 41</span>
+                <b className="ml-auto text-[18px] text-success">1.0만원</b>
             </div>
             <div className="rounded-lg border border-border-card px-2.5">
-                {stop(1, '상차', '초월읍 모다아울렛', '경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점', '약속 14:41', '14:26', 15, '')}
-                {stop(2, '하차', '신둔면', '경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점', '마감 15:28', '15:02', 26, '')}
+                {stop(1, '상차', '초월읍 모다아울렛', '경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점', '14:41', '14:26', 15)}
+                {stop(2, '하차', '신둔농협하나로마트', '경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점', '15:28', '15:02', 26)}
             </div>
-            <div className="-mt-1 text-[11px] text-text-muted">상차 · 하차 덩어리를 누르면 그곳에 전화{called ? <> — <b className="text-success">{called}</b></> : null}</div>
-            <div className="flex gap-2 items-start">
-                <span className="shrink-0 px-2 py-1 rounded-md bg-warning/15 text-warning font-black text-[12px]">📦 마대 1개</span>
-                <div className="text-[13px] leading-snug line-clamp-2">*카고 입니다. 세금계산서필 14:16상차. 마스크 카톤마대 1개명세서폐기.</div>
-            </div>
-            <div className="flex items-center gap-3 text-[12px] text-text-muted">
-                <span>🏢 고양퀵서비스 📞</span>
-                <span className="ml-auto">▸ 더 보기 — 배송 주행 · 버퍼 · 판정 근거 · 방출/취소</span>
+            {called && <div className="text-[11px] font-bold text-success">{called}</div>}
+            <div className="leading-snug"><span className="text-text-muted">적요 :</span> *카고 입니다. 세금계산서필 14:16상차. 마스크 카톤마대 1개명세서폐기.</div>
+            <div className="flex items-center gap-3 text-[13px]">
+                <button type="button" onClick={() => setCalled('📞 고양퀵서비스(사무실) 에 전화 — 목업이라 걸지 않습니다')} className="font-bold">🏢 고양퀵서비스</button>
+                <span className="ml-auto text-text-muted">▸ 더보기</span>
             </div>
             <div className="h-px bg-border my-1" />
-            <BlockTag t="단계 정보" tone="text-success" />
             <div className="flex items-center gap-2">
                 <span className="flex gap-1">{[0,1,2,3,4,5].map(i => <span key={i} className={`w-5 h-2 rounded-full ${i === 0 ? 'bg-warning' : i === 1 ? 'bg-info' : 'bg-border'}`} />)}</span>
                 <b className="text-[15px]">2/6 하차지 통화</b>
@@ -294,10 +291,6 @@ function CardNew() {
             <div className="rounded-lg border border-border-card p-2.5 flex flex-col gap-2">
                 <div className="text-[14px]">약속 15:28 <span className="text-[11px] text-text-muted">· 🚚 차종 기본값</span></div>
                 <div className="flex gap-2"><span className="flex-1 py-3 rounded-md bg-surface-alt text-center font-black text-[15px]">스킵</span><span className="flex-[2] py-3 rounded-md bg-info text-white text-center font-black text-[15px]">통화</span></div>
-            </div>
-            <div className="mt-2 rounded-md bg-surface-alt/50 p-2 text-[11px] text-text-muted leading-snug">
-                <b className="text-text-primary">바뀐 것</b> — 콜 정보: 정거장 줄마다 전체 주소 한 줄 · 정거장 덩어리를 누르면 전화(📞 단추 없음) · 콜 번호 · 잡은 시각(초) · 판정 점수 뺌 · 버퍼 칩 · 데드라인 칩 · 배송 주행은 «더 보기»로(정거장 줄의 «여유 · 마감»이 같은 말) · 사무실 한 줄 · 접힌 줄 둘을 한 줄로.
-                단계 정보: 머리 세 줄 → 한 줄(점 · n/6 · 이름 · 지금 할 것) · 출처 글을 바르게(물려받은 값은 «통화에서 온 값»이라 하지 않음) · 주 단추를 크게.
             </div>
         </div>
     );
