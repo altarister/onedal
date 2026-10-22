@@ -37,7 +37,7 @@ describe('👀 결재석 미리보기 칸 — 누르기', () => {
         const { default: JudgmentSeat } = await import('./JudgmentSeat');
         const onDecision = vi.fn();
         act(() => root.render(
-            <ThemeProvider><JudgmentSeat route={PREVIEW as never} onDecision={onDecision} processingId={null} setProcessingId={() => {}} /></ThemeProvider>,
+            <ThemeProvider><JudgmentSeat route={PREVIEW as never} confirmedActive={0} onDecision={onDecision} processingId={null} setProcessingId={() => {}} /></ThemeProvider>,
         ));
         const line = [...host.querySelectorAll('div')].find(d => d.textContent === '👀 미리보기 — 폰에서 수락 · 넘기기를 하시면 바뀝니다');
         expect(line).toBeTruthy();
