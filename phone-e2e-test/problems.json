@@ -1029,17 +1029,16 @@
      "id": "fbcaa9",
      "who": "관제웹",
      "writer": "스크립트",
-     "where": "맥(서버 로그)",
-     "task": "서버 기록 «{re}»",
-     "desc": "관제웹이 서버로 보낸 화면 로그 줄(roadmap)",
-     "evidence": "팝업이 열렸다(CallStepTrack logRoadmapEvent)",
-     "target": {
-      "sec": 20
-     },
+     "where": "S23",
+     "task": "S23 «{text}» 보임",
+     "desc": "관제앱 화면 글자(find.mjs) — 팝업 머리 «n/6 · 단계명»(StepEditPopup) — 팝업 열림 · 닫힘 roadmap 줄은 서버 중계 무늬(RELAY_KEEP) 밖이라 서버 기록에 안 남는다 · 화면으로 본다",
+     "evidence": "팝업이 열렸다 — 머리 «1/6 · 상차지 통화»",
+     "target": null,
      "onFail": "continue",
-     "run": "wait_srv",
+     "run": "see",
      "args": {
-      "re": "단계 수정 팝업 열림.*상차지 통화"
+      "text": "1/6 · 상차지 통화",
+      "sec": 10
      }
     },
     {
@@ -1089,17 +1088,17 @@
      "id": "fb93a9",
      "who": "관제웹",
      "writer": "스크립트",
-     "where": "맥(서버 로그)",
-     "task": "서버 기록 «{re}»",
-     "desc": "관제웹이 서버로 보낸 화면 로그 줄(roadmap)",
-     "evidence": "✕ 로 저장 없이 닫혔다",
-     "target": {
-      "sec": 20
-     },
+     "where": "S23",
+     "task": "S23 «{text}» 안 보임",
+     "desc": "관제앱 화면 글자(find.mjs) — 팝업 머리 «n/6 · 단계명»(StepEditPopup) — 팝업 열림 · 닫힘 roadmap 줄은 서버 중계 무늬(RELAY_KEEP) 밖이라 서버 기록에 안 남는다 · 화면으로 본다",
+     "evidence": "✕ 로 저장 없이 닫혔다 — 팝업 머리가 사라짐",
+     "target": null,
      "onFail": "continue",
-     "run": "wait_srv",
+     "run": "see",
      "args": {
-      "re": "단계 수정 팝업 닫힘.*상차지 통화 — 닫기"
+      "text": "1/6 · 상차지 통화",
+      "sec": 10,
+      "gone": true
      }
     },
     {
@@ -1276,17 +1275,16 @@
      "id": "7758b9",
      "who": "관제웹",
      "writer": "스크립트",
-     "where": "맥(서버 로그)",
-     "task": "서버 기록 «{re}»",
-     "desc": "관제웹이 서버로 보낸 화면 로그 줄(roadmap)",
-     "evidence": "적다 만 칸을 다시 연다",
-     "target": {
-      "sec": 20
-     },
+     "where": "S23",
+     "task": "S23 «{text}» 보임",
+     "desc": "관제앱 화면 글자(find.mjs) — 팝업 머리 «n/6 · 단계명»(StepEditPopup) — 팝업 열림 · 닫힘 roadmap 줄은 서버 중계 무늬(RELAY_KEEP) 밖이라 서버 기록에 안 남는다 · 화면으로 본다",
+     "evidence": "적다 만 칸을 다시 연다 — 팝업 머리",
+     "target": null,
      "onFail": "continue",
-     "run": "wait_srv",
+     "run": "see",
      "args": {
-      "re": "단계 수정 팝업 열림.*상차지 통화"
+      "text": "1/6 · 상차지 통화",
+      "sec": 10
      }
     },
     {
@@ -1308,15 +1306,15 @@
      "writer": "스크립트",
      "where": "A24",
      "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
-     "desc": "팝업이 열린 채 새 콜 — 알람 모드라 원달앱이 상세를 열면 미리보기 · 결재석",
+     "desc": "팝업이 열린 채 새 콜 — 알람 모드라 원달앱이 상세를 열면 미리보기 · 결재석 · 상차지는 필터 상차 목록 안(곤지암 41 → 이천 중리동 — 잡은 두 콜과 다른 길이라 «본 콜»로 안 걸림) — 목록 밖(신둔면)이면 원달앱이 상세를 안 열어 미리보기가 안 뜬다(S05a 판 2)",
      "evidence": "시뮬 콜이 들어간다",
      "target": null,
      "onFail": "continue",
      "run": "call",
      "args": {
       "net": "insung",
-      "pick": "woori",
-      "drop": "dest:near:3",
+      "pick": "gonjiam41",
+      "drop": "jungri",
       "fare": 30000,
       "veh": "filter",
       "tag": "popup_interrupt",
@@ -1327,17 +1325,17 @@
      "id": "313ef8",
      "who": "관제웹",
      "writer": "스크립트",
-     "where": "맥(서버 로그)",
-     "task": "서버 기록 «{re}»",
-     "desc": "관제웹이 서버로 보낸 화면 로그 줄(roadmap)",
-     "evidence": "새 콜 심사가 오면 저장 없이 닫힌다(interruptStepPopup)",
-     "target": {
-      "sec": 40
-     },
+     "where": "S23",
+     "task": "S23 «{text}» 안 보임",
+     "desc": "관제앱 화면 글자(find.mjs) — 팝업 머리 «n/6 · 단계명»(StepEditPopup) — 팝업 열림 · 닫힘 roadmap 줄은 서버 중계 무늬(RELAY_KEEP) 밖이라 서버 기록에 안 남는다 · 화면으로 본다",
+     "evidence": "새 콜 심사가 오면 저장 없이 닫힌다(interruptStepPopup) — 기사님은 팝업을 안 닫았다",
+     "target": null,
      "onFail": "continue",
-     "run": "wait_srv",
+     "run": "see",
      "args": {
-      "re": "단계 수정 팝업 닫힘.*상차지 통화 — 새 콜 심사"
+      "text": "1/6 · 상차지 통화",
+      "sec": 40,
+      "gone": true
      }
     },
     {
