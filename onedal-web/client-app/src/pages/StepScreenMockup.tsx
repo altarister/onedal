@@ -249,11 +249,12 @@ function CardNow() {
 
 /** 정리안 — 같은 두 덩어리 · 운행 중 먼발치에 읽을 것만 위로 · 같은 말은 한 번 · 드문 것은 한 줄로 접음 */
 function CardNew() {
-    const stop = (n: number, kind: string, name: string, promise: string, eta: string, slack: number, label: string) => (
+    const stop = (n: number, kind: string, name: string, addr: string, promise: string, eta: string, slack: number, label: string) => (
         <div className="flex items-center gap-2 py-1.5 border-b border-border/60 last:border-0">
             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-black text-white ${kind === '상차' ? 'bg-danger' : 'bg-info'}`}>{n}</span>
             <div className="min-w-0 flex-1">
                 <div className="text-[15px] font-black">{kind} · {name}</div>
+                <div className="text-[12px] text-text-primary/80 break-keep leading-snug">{addr}</div>
                 <div className="text-[12px] text-text-muted">{label} {promise} · 예상 <b className="text-success">{eta}</b> <span className="text-success">({slack}분 여유)</span></div>
             </div>
             <span className="shrink-0 px-2.5 py-2 rounded-lg border border-success/50 bg-success/10 text-success text-[13px] font-black">📞</span>
@@ -269,8 +270,8 @@ function CardNew() {
                 <b className="ml-auto text-[19px] text-success">1.0만원</b>
             </div>
             <div className="rounded-lg border border-border-card px-2.5">
-                {stop(1, '상차', '초월읍 모다아울렛', '약속 14:41', '14:26', 15, '')}
-                {stop(2, '하차', '신둔면', '마감 15:28', '15:02', 26, '')}
+                {stop(1, '상차', '초월읍 모다아울렛', '경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점', '약속 14:41', '14:26', 15, '')}
+                {stop(2, '하차', '신둔면', '경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점', '마감 15:28', '15:02', 26, '')}
             </div>
             <div className="flex gap-2 items-start">
                 <span className="shrink-0 px-2 py-1 rounded-md bg-warning/15 text-warning font-black text-[12px]">📦 마대 1개</span>
@@ -292,7 +293,7 @@ function CardNew() {
                 <div className="flex gap-2"><span className="flex-1 py-3 rounded-md bg-surface-alt text-center font-black text-[15px]">스킵</span><span className="flex-[2] py-3 rounded-md bg-info text-white text-center font-black text-[15px]">통화</span></div>
             </div>
             <div className="mt-2 rounded-md bg-surface-alt/50 p-2 text-[11px] text-text-muted leading-snug">
-                <b className="text-text-primary">바뀐 것</b> — 콜 정보: 콜 번호 · 잡은 시각(초) · 판정 점수 뺌 · 버퍼 칩 · 데드라인 칩 · 배송 주행은 «더 보기»로(정거장 줄의 «여유 · 마감»이 같은 말) · 정거장 줄마다 📞 · 사무실 한 줄 · 접힌 줄 둘을 한 줄로.
+                <b className="text-text-primary">바뀐 것</b> — 콜 정보: 정거장 줄마다 전체 주소 한 줄 · 콜 번호 · 잡은 시각(초) · 판정 점수 뺌 · 버퍼 칩 · 데드라인 칩 · 배송 주행은 «더 보기»로(정거장 줄의 «여유 · 마감»이 같은 말) · 정거장 줄마다 📞 · 사무실 한 줄 · 접힌 줄 둘을 한 줄로.
                 단계 정보: 머리 세 줄 → 한 줄(점 · n/6 · 이름 · 지금 할 것) · 출처 글을 바르게(물려받은 값은 «통화에서 온 값»이라 하지 않음) · 주 단추를 크게.
             </div>
         </div>
