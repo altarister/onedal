@@ -145,6 +145,17 @@ class SessionManager {
     }
 
     /**
+     * 🔢 **서버로 가는 콜은 번호가 있다** — 보내는 두 곳(/confirm · /detail)이 이것을 거친다(`OrderIdGuardTest`).
+     * 번호가 비었으면(픽커 목록엔 번호가 없다) 지금 콜 번호를 붙인다 — 한 콜 안에서는 늘 같은 번호다.
+     * 번호가 있으면 그대로(인성 · 화물24시 목록 번호).
+     */
+    fun withOrderId(order: SimplifiedOfficeOrder): SimplifiedOfficeOrder {
+        if (order.id.isNotEmpty()) return order
+        ensureOrderId()
+        return order.copy(id = currentOrderId)
+    }
+
+    /**
      * 모든 세션 상태를 초기화합니다.
      * 리스트(LIST) 복귀, 2차 필터 실패, 판결 집행 완료 시 호출됩니다.
      *

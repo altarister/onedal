@@ -1872,6 +1872,7 @@ class HijackService : AccessibilityService(), ScanContext {
      */
     override fun sendConfirmOnce(order: SimplifiedOfficeOrder, rawScreenStr: String) {
         if (session.isDetailScrapSent) return
+        val order = session.withOrderId(order)   // 🔢 번호 없는 콜을 서버로 보내지 않는다
 
         // ✅ 앱이 계약 버튼을 누르는 콜만 AUTO, 나머지는 전부 MANUAL
         val actualMatchType = session.clickOrigin
@@ -1916,6 +1917,7 @@ class HijackService : AccessibilityService(), ScanContext {
      * 같은 요청을 두 벌로 적으면 한쪽만 고쳐져 갈라지므로 여기 하나만 둔다.
      */
     override fun sendDetail(order: SimplifiedOfficeOrder) {
+        val order = session.withOrderId(order)   // 🔢 /confirm 과 같은 번호
         run {
             val payload = DispatchDetailedRequest(
                 step = "DETAILED",
