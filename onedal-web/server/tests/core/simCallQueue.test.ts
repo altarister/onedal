@@ -25,6 +25,13 @@ describe('개별콜 — 받는 콜 모양', () => {
     });
 
     /* 🔀 받을 배차망 — 시뮬이 배차망마다 칸을 들고 있어(38 F36) «누가 받나»가 시험의 사실이 되게. 없으면 보이는 칸이 받는다(옛 호출) */
+    it('🔴 randomTime(무작위 상차 시각 · 예약)을 읽는다 — 시험 도구는 false · 참거짓이 아니면 거절', () => {
+        const off = readSimCallInput(body({ randomTime: false }));
+        expect(off.ok && off.call.randomTime).toBe(false);
+        const none = readSimCallInput(body());
+        expect(none.ok && 'randomTime' in none.call).toBe(false);
+        expect(readSimCallInput(body({ randomTime: 'no' })).ok).toBe(false);
+    });
     it('🔴 받을 배차망(net)을 읽는다 — 서버 · 원달앱과 같은 이름', () => {
         expect(readSimCallInput(body({ net: 'kakaopicker' }))).toEqual({ ok: true, call: body({ net: 'kakaopicker' }) });
         expect(readSimCallInput(body({ net: 'insung', vehicleType: '다마스' }))).toEqual({ ok: true, call: body({ net: 'insung', vehicleType: '다마스' }) });
@@ -179,8 +186,9 @@ describe('🔴 세 곳이 같은 말을 한다 — 현황판 · 서버 · 시뮬
 
     it('콜 칸 — 상차지 · 하차지 · 요금 (+ 차종 · 받을 배차망)', () => {
         expect(fieldsOf(board, 'SimCallBody')).toEqual(['dropoff', 'fare', 'pickup']);
-        expect(fieldsOf(server, 'SimCallInput')).toEqual(['dropoff', 'fare', 'net', 'pickup', 'vehicleType']);
-        expect(fieldsOf(sim, 'InjectedCall')).toEqual(['dropoff', 'fare', 'net', 'pickup', 'seq', 'vehicleType']);
+        /* randomTime — 시험 도구(phone-e2e-test)만 싣는다 · 현황판 개별콜 입력에는 없다(무작위 그대로) */
+        expect(fieldsOf(server, 'SimCallInput')).toEqual(['dropoff', 'fare', 'net', 'pickup', 'randomTime', 'vehicleType']);
+        expect(fieldsOf(sim, 'InjectedCall')).toEqual(['dropoff', 'fare', 'net', 'pickup', 'randomTime', 'seq', 'vehicleType']);
     });
 
     it('답 칸 — 번호 · 회차 · 콜 (서버 답 ↔ 시뮬레이터가 받는 묶음)', () => {

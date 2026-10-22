@@ -34,6 +34,8 @@ export interface ForcedPair {
     vehicleType?: string;
     /** 배차망만 아는 칸 — 문제지(`PresetProblem.netFields`)에서 입히기 함수로 그대로 넘긴다. 공통 코드는 안 읽는다 */
     netFields?: Record<string, string | number | boolean>;
+    /** 🎲 상차 시각 · 예약을 무작위로 붙이나 — 없으면 켬(`SimGeneratorConfig.randomTime` 과 같은 뜻 · 시험 콜은 끈다) */
+    randomTime?: boolean;
 }
 
 /**
@@ -52,6 +54,12 @@ const PICKUP_SOON_SPAN = 50;
 const RESERVED_RATE = 0.15;      // 예약콜 비율
 const RESERVED_MIN = 120;        // 예약콜 — 지금 + 2~5시간
 const RESERVED_SPAN = 180;
+/**
+ * 🎲 **무작위를 끈 콜(시험 콜)** — 예약 없이 «지금 + 20분» · 하차는 상차 + 90분 · 상차는 오늘 안(자정을 넘으면 오늘 23:59).
+ * 정해진 시험이 돌리는 시각에 따라 «낼»(내일 예약)이 되어 필터에서 떨어지던 것(10-22 23:16 S04 «@낼0시15») — 문제지가 정한 대로만 나오게.
+ */
+const FIXED_PICKUP_MIN = 20;
+const FIXED_DELIVERY_MIN = 90;
 
 /**
  * 🎲 난수를 밖에서 받는다.
@@ -66,6 +74,8 @@ export interface SimGeneratorConfig {
   maxPickupKm: number;
   minFare: number;
   targetRegion?: string;
+  /** 🎲 상차 시각 · 예약(15%)을 무작위로 붙이나 — 없으면 켬(평소 시뮬) · 끄면 «오늘 · 예약 없음 · 지금 + 20분»(시험) */
+  randomTime?: boolean;
 }
 
 /** 공통 칸만 채운 콜 — 요금은 배차망이 정하므로 아직 없다 (지어낸 0 을 넣지 않는다 · 규칙 ④) */
@@ -85,6 +95,16 @@ export interface CallOptions {
  * 🔴 상차지·하차지가 **맨 앞**이다 — 그래서 배차망별 칸의 난수가 바뀌어도 같은 씨앗이면
  *    주소·좌표·거리가 똑같다 (`tests/commonFields.test.ts` 가 씨앗마다 스냅숏으로 문다).
  */
+/** 🎲 무작위를 끈 콜의 상차 · 하차 — 상차는 오늘 안(자정을 넘으면 오늘 23:59 · 그래도 지금보다 앞이면 지금) */
+export function fixedTimesOf(now: Date): { pickupAt: Date; dropoffAt: Date } {
+  let pickupAt = new Date(now.getTime() + FIXED_PICKUP_MIN * 60_000);
+  if (pickupAt.getDate() !== now.getDate()) {
+    const endOfDay = new Date(now); endOfDay.setHours(23, 59, 0, 0);
+    pickupAt = endOfDay.getTime() > now.getTime() ? endOfDay : now;
+  }
+  return { pickupAt, dropoffAt: new Date(pickupAt.getTime() + FIXED_DELIVERY_MIN * 60_000) };
+}
+
 export function generateBaseCall(config: SimGeneratorConfig, forced?: ForcedPair, rng: RandomSource = Math.random): CallDraft | null {
   const pick = pickWith(rng);
   const { driverLon, driverLat, maxPickupKm, targetRegion } = config;
@@ -140,12 +160,15 @@ export function generateBaseCall(config: SimGeneratorConfig, forced?: ForcedPair
    * 상차는 지금부터 재고, 하차는 그 상차에서 잰다 — 둘의 간격이 뒤집히지 않는다.
    * 날짜째 싣는다(`pickupAt` · `deliveryAt`) — 화면이 HH:MM 에서 날짜를 짐작하지 않게(`callDay`).
    */
-  const isReserved = rng() < RESERVED_RATE;
-  const pickupOffsetMin = isReserved
-    ? RESERVED_MIN + Math.floor(rng() * RESERVED_SPAN)
-    : PICKUP_SOON_MIN + Math.floor(rng() * PICKUP_SOON_SPAN);
-  const pickupAt = new Date(Date.now() + pickupOffsetMin * 60_000);
-  const dropoffAt = new Date(pickupAt.getTime() + (60 + Math.floor(rng() * 120)) * 60_000);
+  const randomTime = forced?.randomTime ?? config.randomTime ?? true;
+  const { pickupAt, dropoffAt } = randomTime ? (() => {
+    const isReserved = rng() < RESERVED_RATE;
+    const pickupOffsetMin = isReserved
+      ? RESERVED_MIN + Math.floor(rng() * RESERVED_SPAN)
+      : PICKUP_SOON_MIN + Math.floor(rng() * PICKUP_SOON_SPAN);
+    const p = new Date(Date.now() + pickupOffsetMin * 60_000);
+    return { pickupAt: p, dropoffAt: new Date(p.getTime() + (60 + Math.floor(rng() * 120)) * 60_000) };
+  })() : fixedTimesOf(new Date());
   const hhmm = (d: Date) =>
     `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 

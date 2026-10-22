@@ -30,6 +30,8 @@ export interface InjectedCall {
     vehicleType?: string;
     /** 🔀 받을 배차망 — 서버 · 원달앱과 같은 이름(이 파일은 이름을 모른다 · 글자로만 맞춘다). 없으면 보이는 칸이 받는다 */
     net?: string;
+    /** 🎲 상차 시각 · 예약을 무작위로 붙이나 — 시험 도구는 false(오늘 · 예약 없음) · 없으면 켬 */
+    randomTime?: boolean;
 }
 
 /** 서버 `GET /api/sim/calls` 의 답 — 짝: 서버 `simCallQueue.ts` 의 `SimCallBatch` */
@@ -64,6 +66,7 @@ export function toInjectedForced(c: InjectedCall): ForcedPair {
         dropoff: placeOf(c.dropoff),
         fare: c.fare,
         ...(c.vehicleType ? { vehicleType: c.vehicleType } : {}),
+        ...(typeof c.randomTime === 'boolean' ? { randomTime: c.randomTime } : {}),
     };
 }
 

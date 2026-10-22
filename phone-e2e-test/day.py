@@ -273,7 +273,7 @@ def do_call(c):
     if DRY: log(f'  📦 {c["net"]} {pick[0]} → {drop[0]} · {c["fare"]} · {veh} · {c.get("tag")} · bind {c.get("bind")}'); return
     n = app_mark(); sm = srv_mark(); fare = c['fare'] + (run.fare_bump() // 1000 % 10) * 1000   # 끝수 0~9천 원 — 시나리오 요금 차(높음/낮음)를 안 뒤집게
     body = {'pickup': dict(zip(('addressDetail', 'region', 'lon', 'lat'), pick)), 'dropoff': dict(zip(('addressDetail', 'region', 'lon', 'lat'), drop)), 'fare': fare, 'vehicleType': veh,
-            'net': run.SIM_CODE[c['net']]}   # 🔀 받을 배차망 — 시뮬은 배차망마다 칸을 들고 있어 «누가 받나»가 시험의 사실이 되게(71 «가»)
+            'net': run.SIM_CODE[c['net']], 'randomTime': False}   # 🎲 시험 콜은 «오늘 · 예약 없음» — 돌리는 시각에 따라 «낼»이 붙어 필터에서 떨어지지 않게(10-22 23:16 S04) · 🔀 받을 배차망 — 시뮬은 배차망마다 칸을 들고 있어 «누가 받나»가 시험의 사실이 되게(71 «가»)
     r = urllib.request.urlopen(urllib.request.Request('http://localhost:4000/api/sim/calls', json.dumps(body).encode(), {'Content-Type': 'application/json'}))
     log(f'📦 {c.get("tag")} {pick[0]} → {drop[0]} · {fare} · {veh} · {r.read().decode()[:40]}')
     if c.get('bind'): DROPS[c['bind']] = drop[1]; FARES[c['bind']] = fare

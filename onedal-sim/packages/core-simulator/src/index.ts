@@ -13,7 +13,7 @@ export type {
 } from './types';
 
 // 콜 생성기
-export { generateBaseCall, findMockEntry, MOCK_DATA, pickWith } from './generator';
+export { generateBaseCall, findMockEntry, MOCK_DATA, pickWith, fixedTimesOf } from './generator';
 export { distanceFare, pickFreightFields, FREIGHT_OPTIONS } from './freight';
 export type { FreightFields } from './freight';
 export type { SimGeneratorConfig, ForcedPair, MockEntry, RandomSource, CallDraft, CallOptions } from './generator';

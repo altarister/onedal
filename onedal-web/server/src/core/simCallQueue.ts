@@ -52,6 +52,8 @@ export interface SimCallInput {
     vehicleType?: string;
     /** 🔀 받을 배차망 — 시뮬이 배차망마다 칸을 들고 있다(38 F36). 없으면 그 순간 보이는 배차망이 받는다 */
     net?: TargetAppType;
+    /** 🎲 상차 시각 · 예약을 무작위로 붙이나 — 시험 도구는 false(오늘 · 예약 없음 · 시뮬 generator.fixedTimesOf) · 없으면 시뮬 기본(켬) */
+    randomTime?: boolean;
 }
 
 export interface QueuedSimCall extends SimCallInput {
@@ -131,6 +133,10 @@ export function readSimCallInput(body: unknown): { ok: true; call: SimCallInput 
     if (b.net !== undefined) {
         if (!isTargetApp(b.net)) return { ok: false, error: '모르는 배차망이다 (insung · hwamul24 · kakaopicker)' };
         call.net = b.net;
+    }
+    if (b.randomTime !== undefined) {
+        if (typeof b.randomTime !== 'boolean') return { ok: false, error: 'randomTime 은 참 · 거짓이다' };
+        call.randomTime = b.randomTime;
     }
     return { ok: true, call };
 }
