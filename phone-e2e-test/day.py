@@ -352,17 +352,19 @@ def color_of(b):
     m = re.findall(r'🎨 \[판정\] (\S+) 잴 수 없음([^\n]*)', t)
     return (m[0][0], '?', m[0][1]) if len(m) == 1 else None
 
-def dismiss_preview(b):
-    """👀 결재석 미리보기 칸 본문을 눌러 치운다(기사님이 하는 것 · JudgmentSeat «미리보기 — 눌러서 치우기») — 안 보이면 ⚪ · 누른 뒤에도 남으면 ⚪(판 5 S12)"""
-    end = time.time() + 10; r = None
-    while time.time() < end:
-        r = json.loads(run.sh('node', os.path.join(HERE, 'find.mjs'), S23, 'leaf:눌러서 치우기', str(run.MENU_Y), check=False).strip().splitlines()[-1])
-        if r['state'] == 'ok': break
-        time.sleep(1)
-    if not r or r['state'] != 'ok': raise ToolStop(f'⚪ 시험 도구 — {b} 결재석 미리보기 칸을 못 찾음({(r or {}).get("state")})')
-    run.tap_if(S23, r['x'], r['y'], run.any_px, f'{b} 결재석 미리보기 치우기'); time.sleep(1.5)
-    if s23_sees('눌러서 치우기'): shot(S23, f'preview_left_{b}'); raise ToolStop(f'⚪ 시험 도구 — {b} 미리보기를 눌렀는데 그대로 있음')
-    log(f'  👀 {b} 결재석 미리보기 치움')
+def preview_until_phone_leaves(b):
+    """👀 미리보기는 관제앱에서 닫지 않는다(JudgmentSeat «폰에서 수락 · 넘기기를 하시면 바뀝니다») — 결재석 칸이 그대로인지 보고,
+       기사님이 스캔폰 상세를 나가는 손(뒤로)을 한 뒤 서버 «미리보기 정리 · 상세 이탈»과 칸이 사라지는지 본다 · 안 보이면 ⚪"""
+    end = time.time() + 10
+    while time.time() < end and not s23_sees('폰에서 수락'): time.sleep(1)
+    if not s23_sees('폰에서 수락'): raise ToolStop(f'⚪ 시험 도구 — {b} 결재석 미리보기 칸을 못 찾음')
+    m = srv_mark()
+    adb(A24, 'shell', 'input', 'keyevent', '4'); log(f'  👀 {b} 스캔폰 상세 나감(뒤로)')
+    wait_for('srv', m, r'미리보기 정리 · 상세 이탈', 15, f'{b} 서버 미리보기 정리')
+    end = time.time() + 10
+    while time.time() < end and s23_sees('폰에서 수락'): time.sleep(1)
+    if s23_sees('폰에서 수락'): shot(S23, f'preview_left_{b}'); raise ToolStop(f'⚪ {b} 폰이 상세를 나갔는데 결재석 미리보기가 그대로 있음')
+    log(f'  👀 {b} 결재석 미리보기 — 폰이 나가자 사라짐')
 
 CONFIRM = {'insung': 'a24.insung.detail.confirm', 'hwamul24': 'a24.hwamul24.detail.confirm'}   # 손 확정 단추(인성 «확정» · 화물24시 «배차신청»)
 CLOSE = {'insung': 'a24.insung.detail.close'}   # 손 확정 뒤 KEEP 이 오면 기사님이 누르는 «닫기»(화물24시는 신청 뒤 같은 화면에 머문다 — 누를 닫기가 없고 다음 장면이 시뮬레이터를 목록으로 다시 연다)
@@ -387,7 +389,7 @@ def decide(v):
     blue = want == 'keep'   # 색으로 거르지 않는다 — 시나리오가 잡기로 한 콜은 잡는다(기사님 «합짐은 🔵만 그런 거 없어 · 그냥 시험이니까 진행해» · 71)
     if how == 'view':
         note(CUR[0], f'{b} 판정(보기만)', True, f'{c[0]} {c[1]}점 · 안 누름')
-        if v.get('dismiss'): dismiss_preview(b)
+        if v.get('leave'): preview_until_phone_leaves(b)
         return
     if how == 'auto':
         seat('keep' if blue else 'reject', {'bind': b})

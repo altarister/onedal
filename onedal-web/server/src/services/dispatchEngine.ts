@@ -756,6 +756,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
          * 👀 **확정 전에 거절한 미리보기는 «끝난 콜»로 남기지 않는다** (38 F40) — 화면 이탈 정리(forceCancelEvaluatingOrder)와 같은 끝:
          *    메모리에서 지우고 · 장부에 안 적고 · 관제웹엔 «자동 정리» 신호(isManual 없음 — 진행 목록에서 지우고 장부를 다시 읽음).
          *    연습 콜은 지금처럼 메모리에 SAFE_CANCEL 로 남겨 서랍에 «🐥 연습 끝»으로 그린다(장부엔 없음).
+         *    오는 길: 폰 결재 보고(orders.ts) · 긴급 리셋 — 관제웹 클릭은 없다(미리보기는 보기만).
          */
         const dropsFromView = wasPreview && !isSimulatedOrder;
 

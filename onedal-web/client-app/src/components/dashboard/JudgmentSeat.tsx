@@ -283,14 +283,10 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                 </div>
                 {header}
                 {noticeRow}
-                {/* 👀 미리보기는 **누르면 치운다** — 배차망엔 아무 일도 안 생기고(안 잡은 콜) 취소 한도도 안 깎인다. 펼치기는 안 쓴다 (운전 중 두 손짓은 못 기억한다) */}
-                <div className="relative z-10 tabular-nums cursor-pointer" style={{ padding: '5px 16px 11px 21px' }}
-                     onClick={() => {
-                         /* 🧾 **어느 버튼에서 온 결재인지 남긴다** — 서버 로그에는 «[Socket] 취소 전달» 한 줄만 남아
-                            «누가 눌렀나»를 못 가렸다 (누른 적 없는 취소가 «수동»으로 기록된 건). */
-                         if (route.isPreview) { logRoadmapEvent("결재", "웹", "심사석 — 미리보기 카드를 눌러 치움", "관제대시보드"); onDecision?.(route.id, 'SAFE_CANCEL'); }
-                         else if (judged) setOpen(o => !o);
-                     }}>
+                {/* 👀 **미리보기는 보기만 한다** (기사님: *"미리보기는 스캔앱이 주도하는 콜이라 보여지는 것뿐 — 관제앱에서 닫지 않는다"*).
+                    닫히는 것은 스캔폰이 알린 사실뿐이다 — 상세를 나감 · 수락 · 폰 끊김(서버 clearPreview). 펼치기도 안 쓴다 (운전 중 두 손짓은 못 기억한다) */}
+                <div className={`relative z-10 tabular-nums ${judged && !route.isPreview ? 'cursor-pointer' : ''}`} style={{ padding: '5px 16px 11px 21px' }}
+                     onClick={() => { if (judged && !route.isPreview) setOpen(o => !o); }}>
                     {judged ? (<>
                         {/* 🔴 **글 판과 버튼 판이 같은 치수를 쓴다** (기사님 확정 · 화면 디자인) — 시급 26 · 경로 13.5 · 행동 15 */}
                         <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-.5px', lineHeight: 1.15 }}>
@@ -352,7 +348,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     {/* 👀 미리보기 — 무엇을 하면 되는지 한 줄. 남은 시간은 배경이 말한다 (숫자를 세려고 매초 다시 그리지 않는다) */}
                     {route.isPreview && (
                         <div style={{ marginTop: 6, fontSize: 12, fontWeight: 800, color: 'var(--color-text-muted)' }}>
-                            👀 미리보기 — 눌러서 치우기 · 폰에서 상세를 닫으면 사라집니다
+                            👀 미리보기 — 폰에서 수락 · 넘기기를 하시면 바뀝니다
                         </div>
                     )}
                 </div>

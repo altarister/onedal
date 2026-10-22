@@ -65,8 +65,4 @@ describe('🧾 결재 버튼은 어느 버튼인지 로그를 남긴다', () => 
         expect(src).toContain('심사석 — KEEP(오른쪽) 버튼 클릭');
     });
 
-    /** 🔴 미리보기는 취소 한도를 안 깎지만, «카드를 눌러 치웠다»도 흔적이 있어야 한다 */
-    it('미리보기 «눌러서 치우기»도 남긴다', () => {
-        expect(read('components/dashboard/JudgmentSeat.tsx')).toContain('미리보기 카드를 눌러 치움');
-    });
 });
