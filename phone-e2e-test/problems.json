@@ -1137,16 +1137,15 @@
      "who": "스크립트",
      "writer": "스크립트",
      "where": "S23",
-     "task": "S23 «{text}» 안 보임",
+     "task": "S23 «{text}» 보임",
      "desc": "관제앱 화면 글자(find.mjs)",
-     "evidence": "다른 콜(C1b) 단추엔 ✍️ 없음 — 초안이 콜마다 따로(열쇠 orderId:step)",
+     "evidence": "다른 콜(C1b) 단추는 ✍️ 없는 «통화» — 초안이 콜마다 따로(열쇠 orderId:step) · «통화 ✍️ 안 보임»으로 보면 화면 밖에 남은 C1 카드 단추가 걸린다(판 8)",
      "target": null,
      "onFail": "continue",
      "run": "see",
      "args": {
-      "text": "=통화 ✍️",
-      "sec": 10,
-      "gone": true
+      "text": "=통화",
+      "sec": 10
      }
     },
     {
