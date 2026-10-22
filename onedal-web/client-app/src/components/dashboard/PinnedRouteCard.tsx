@@ -716,15 +716,15 @@ export default function PinnedRouteCard({
                                         </div>
                                         {/* 🏢 사무실(누르면 사무실 전화) · ▸ 더보기 — 접힌 채로도 DOM 에 있어 검사 · 폰 시험이 글자로 찾는다.
                                             🔴 펼쳐 두면 폰에서 세로로 길어져 단계가 자리를 못 받는다 */}
-                                        <details className="group">
+                                        <details className="group/more">
                                         <summary className="list-none cursor-pointer select-none flex items-center gap-3 text-[13px]">
                                             {quickPhone ? (
                                                 <a href={telHref(quickPhone)} onClick={e => { e.stopPropagation(); e.preventDefault(); callNow(quickPhone); }}
                                                    className="min-w-0 truncate font-bold text-info">🏢 {quickClean}</a>
                                             ) : quickName ? <span className="min-w-0 truncate text-text-muted">🏢 {quickClean}</span> : null}
                                             <span className="ml-auto shrink-0 text-text-muted font-bold">
-                                                <span className="group-open:hidden">▸ 더보기</span>
-                                                <span className="hidden group-open:inline">▾ 접기</span>
+                                                <span className="group-open/more:hidden">▸ 더보기</span>
+                                                <span className="hidden group-open/more:inline">▾ 접기</span>
                                             </span>
                                         </summary>
                                         <div className="mt-1.5 flex flex-col gap-1.5 rounded-lg border border-border-card bg-surface-alt/30 px-2.5 py-2 text-[11.5px]">
