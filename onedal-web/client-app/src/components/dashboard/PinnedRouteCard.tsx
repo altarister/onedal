@@ -713,14 +713,14 @@ export default function PinnedRouteCard({
                                                 {memoText || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
                                             </span>
                                         </div>
-                                        {/* 🏢 사무실(누르면 사무실 전화) · ▸ 더보기 — 접힌 채로도 DOM 에 있어 검사 · 폰 시험이 글자로 찾는다.
+                                        {/* 🏢 사무실(누르면 사무실 전화) — 픽커는 콜사 없이 카카오가 주는 콜이라 «카카오 픽커» · ▸ 더보기 — 접힌 채로도 DOM 에 있어 검사 · 폰 시험이 글자로 찾는다.
                                             🔴 펼쳐 두면 폰에서 세로로 길어져 단계가 자리를 못 받는다 */}
                                         <details className="group/more">
                                         <summary className="list-none cursor-pointer select-none flex items-center gap-3 text-[13px]">
                                             {quickPhone ? (
                                                 <a href={telHref(quickPhone)} onClick={e => { e.stopPropagation(); e.preventDefault(); callNow(quickPhone); }}
                                                    className="min-w-0 truncate font-bold text-info">🏢 {quickClean}</a>
-                                            ) : <span className="min-w-0 truncate text-text-muted">🏢 {quickName ? quickClean : '콜사 정보 없음'}</span>}
+                                            ) : <span className="min-w-0 truncate text-text-muted">🏢 {quickName ? quickClean : route.targetApp === 'kakaopicker' ? '카카오 픽커' : '콜사 정보 없음'}</span>}
                                             <span className="ml-auto shrink-0 text-text-muted font-bold">
                                                 <span className="group-open/more:hidden">▸ 더보기</span>
                                                 <span className="hidden group-open/more:inline">▾ 접기</span>

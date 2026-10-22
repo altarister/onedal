@@ -107,6 +107,10 @@ describe('📍 잡은 뒤 카드 — 머리 경로 · 상 · 하차 덩어리', 
         const other = { ...tl('dropoff'), orderId: 'c2', promisedUntil: new Date(at + 6 * 60_000).toISOString(), etaMs: at };
         expect(text(draw({ timeline: [tl('pickup'), tl('dropoff'), other] }))).not.toContain('경로 최소');
     });
+    it('콜사가 없으면 «콜사 정보 없음» · 픽커 콜은 «카카오 픽커»(콜사가 원래 없다)', () => {
+        expect(text(draw())).toContain('🏢 콜사 정보 없음');
+        expect(text(draw({ route: { ...ROUTE, targetApp: 'kakaopicker' } }))).toContain('🏢 카카오 픽커');
+    });
     it('심사 중 카드는 그대로 — 머리에 잡은 시각 · 차종 · 덩어리 없음', () => {
         const route = { ...ROUTE, status: 'ORDER_SECURED_EVALUATING', vehicleType: '1t' };
         const html = draw({ route });
