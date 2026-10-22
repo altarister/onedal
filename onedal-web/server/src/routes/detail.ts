@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder, EmergencyAlert } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, missingAlwaysOf, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, missingAlwaysOf, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -23,6 +23,8 @@ import type { SafeCancelWarning } from "@onedal/shared";
 import { decide } from "../state/decisions";
 import { isAppTooOld } from "../state/phoneStatus";
 
+/** 🧾 «늘 있던 칸이 없다»를 찍은 날 — (배차망 | 빠진 칸 묶음) → 날짜(KST) */
+const missingAlwaysLogged = new Map<string, string>();
 const router = Router();
 
 router.post("/", async (req, res) => {
@@ -107,7 +109,13 @@ router.post("/", async (req, res) => {
             pendingOrder = { ...pendingOrder, ...detailRecordOf(targetApp, rawText) };
             /* 🧾 늘 있던 칸이 이 상세에 없으면 한 줄 — 배차망 화면이 바뀌었을 수 있다(58 ② · 리뉴얼 신호 · 판정은 그대로) */
             const missingAlways = missingAlwaysOf(targetApp, 'detail', rawText);
-            if (missingAlways.length) slog('화면', `🧾 [늘 있던 칸이 없다] ${targetApp} 상세 — ${missingAlways.join(' · ')} · 화면이 바뀌었나(리뉴얼) · 콜 ${realOrderId}`);
+            /* 같은 배차망 · 같은 빠짐은 하루 한 번 — 리뉴얼이면 모든 콜이 같은 빠짐을 내 로그를 덮는다(원달앱 미등록 화면 보고와 같은 결) · 빠진 묶음이 달라지면 새 사건 */
+            const missingKey = `${targetApp}|${missingAlways.join('·')}`;
+            const today = kstDateText(Date.now()) ?? '';
+            if (missingAlways.length && missingAlwaysLogged.get(missingKey) !== today) {
+                missingAlwaysLogged.set(missingKey, today);
+                slog('화면', `🧾 [늘 있던 칸이 없다] ${targetApp} 상세 — ${missingAlways.join(' · ')} · 화면이 바뀌었나(리뉴얼) · 콜 ${realOrderId} · 오늘 같은 빠짐은 다시 안 찍는다`);
+            }
 
             /**
              * 🏠 **상차·하차는 원달앱이 올린 전체 주소 그대로다** (기사님 «상세 데이터엔 짧은 주소가 아니고 전체 주소»).
