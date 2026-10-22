@@ -1,6 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import detailRouter from '../../src/routes/detail';
+import ordersRouter from '../../src/routes/orders';
 import { activeDevices } from '../../src/state/deviceRegistry';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
@@ -20,11 +21,13 @@ const handlerOf = (router: any, path: string) => {
     const layer = router.stack.find((l: any) => l.route?.path === path && l.route.methods.post);
     return layer.route.stack[layer.route.stack.length - 1].handle;
 };
-const detail = async (id: string, targetApp: string) => {
+const ORDER = (id: string) => ({ id, type: 'MANUAL_CLICK', pickup: '경기 성남시 수정구 신촌동', dropoff: '서울 광진구 자양2동', fare: 10830, rawText: '' });
+const post = async (router: any, path: string, body: any) => {
     const res: any = { status: () => res, json: () => res };
-    await handlerOf(detailRouter, '/')({ app, body: { step: 'DETAILED', deviceId: DEV, targetApp, matchType: 'MANUAL', isPreview: true,
-        order: { id, type: 'MANUAL_CLICK', pickup: '경기 성남시 수정구 신촌동', dropoff: '서울 광진구 자양2동', fare: 10830, rawText: '' } } }, res);
+    await handlerOf(router, path)({ app, body }, res);
 };
+const detail = (id: string, targetApp?: string) => post(detailRouter, '/', { step: 'DETAILED', deviceId: DEV, targetApp, matchType: 'MANUAL', isPreview: true, order: ORDER(id) });
+const confirm = (id: string, targetApp: string) => post(ordersRouter, '/confirm', { step: 'BASIC', deviceId: DEV, targetApp, matchType: 'MANUAL', isPreview: true, order: ORDER(id) });
 let savedKey: string | undefined;
 
 beforeAll(() => {
@@ -50,7 +53,12 @@ describe('🌐 상세만 온 콜의 배차망', () => {
         await detail('MANUAL-detail-only', 'kakaopicker');
         expect((getUserSession(U).pendingOrdersData.get('MANUAL-detail-only') as any)?.targetApp).toBe('kakaopicker');
     });
-    it('모르는 값이면 기본 배차망(지어내지 않고 값 표준 한 벌)', async () => {
+    it('🔴 /confirm 이 기억한 배차망은 /detail 이 값 없이 와도 그대로', async () => {
+        await confirm('MANUAL-remembered', 'kakaopicker');
+        await detail('MANUAL-remembered');
+        expect((getUserSession(U).pendingOrdersData.get('MANUAL-remembered') as any)?.targetApp).toBe('kakaopicker');
+    });
+    it('기억도 없고 모르는 값이면 기본 배차망(지어내지 않고 값 표준 한 벌)', async () => {
         await detail('MANUAL-detail-odd', 'nope');
         expect((getUserSession(U).pendingOrdersData.get('MANUAL-detail-odd') as any)?.targetApp).toBe('insung');
     });

@@ -96,8 +96,9 @@ router.post("/", async (req, res) => {
         });
 
         const rawTargetApp = (payload as any).targetApp;
-        const targetApp = isTargetApp(rawTargetApp) ? rawTargetApp : DEFAULT_TARGET_APP;   // 값 표준은 shared 한 벌
-        /* 🌐 배차망은 콜에도 남긴다 — /confirm 기억이 없는 길(재시작 뒤 · 번호 없이 온 콜)에서 판정에만 넘기면 확정 행이 빈 값이 된다 */
+        /* 값 표준은 shared 한 벌 · 보고에 없거나 모르는 값이면 기억(/confirm 이 남긴 것)이 이긴다 — 없을 때만 기본 */
+        const targetApp = isTargetApp(rawTargetApp) ? rawTargetApp : isTargetApp(pendingOrder.targetApp) ? pendingOrder.targetApp : DEFAULT_TARGET_APP;
+        /* 🌐 배차망은 콜에도 남긴다 — /confirm 기억이 없는 길(재시작 뒤 · 번호 없이 온 콜)에서 판정에만 넘기면 확정 행이 빈 값이 된다 · 기억 · 판정 · 저장이 같은 값 */
         pendingOrder = { ...pendingOrder, targetApp };
 
         const rawText = pendingOrder.rawText;
