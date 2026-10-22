@@ -594,6 +594,62 @@
       "expect": {
         "page": "^픽커 배송 완료"
       }
+    },
+    "s23.call.c1brow": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "^2 곤지",
+      "from": "글자로 찾아 손 누름(find.mjs · 정확 · 머리 · 이름표 글자만 — 포함 글자로 누르면 카드 덩어리를 눌러 전화가 걸릴 수 있다) — 시트의 콜 한 줄 — C1b(S05 곤지암 487 → 관고동) · 경로 순서 2번(10-22 23:48 S23 사진)"
+    },
+    "s23.step.card.call": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "=통화",
+      "from": "글자로 찾아 손 누름(find.mjs · 정확 · 머리 · 이름표 글자만 — 포함 글자로 누르면 카드 덩어리를 눌러 전화가 걸릴 수 있다) — 콜 카드 단계 장의 팝업 여는 단추(StepSummary · callCardViews btn call)"
+    },
+    "s23.step.card.call.draft": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "=통화 ✍️",
+      "from": "글자로 찾아 손 누름(find.mjs · 정확 · 머리 · 이름표 글자만 — 포함 글자로 누르면 카드 덩어리를 눌러 전화가 걸릴 수 있다) — 적다 만 것이 있으면 단추 글자 끝에 ✍️(callCardViews.ts btn)"
+    },
+    "s23.step.popup.forklift": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "^지게차",
+      "from": "글자로 찾아 손 누름(find.mjs · 정확 · 머리 · 이름표 글자만 — 포함 글자로 누르면 카드 덩어리를 눌러 전화가 걸릴 수 있다) — 수정 팝업 시트의 상차방법 칩(StepSheetMock 상차방법 «지게차 N분»)"
+    },
+    "s23.step.popup.close": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "in:1/6 · 상차지 통화>aria:닫기",
+      "from": "글자로 찾아 손 누름(find.mjs · 정확 · 머리 · 이름표 글자만 — 포함 글자로 누르면 카드 덩어리를 눌러 전화가 걸릴 수 있다) — 수정 팝업 머리 «n/6 · 상차지 통화» 안의 ✕(StepEditPopup aria 닫기) — 서랍 닫기와 같은 이름표라 머리 안으로 묶음"
+    },
+    "s23.step.popup.save": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "=통화 완료",
+      "from": "글자로 찾아 손 누름(find.mjs · 정확 · 머리 · 이름표 글자만 — 포함 글자로 누르면 카드 덩어리를 눌러 전화가 걸릴 수 있다) — 수정 팝업 바닥 고정 단추(StepSheetMock 통화 칸 «통화 완료»)"
+    },
+    "s23.card.more": {
+      "phone": "S23",
+      "x": null,
+      "y": null,
+      "check": "any",
+      "text": "leaf:▸ 더보기",
+      "from": "글자로 찾아 손 누름(find.mjs · 정확 · 머리 · 이름표 글자만 — 포함 글자로 누르면 카드 덩어리를 눌러 전화가 걸릴 수 있다) — 잡은 뒤 카드 «🏢 사무실 · ▸ 더보기» 접힘 머리(PinnedRouteCard details/summary)"
     }
   }
 }

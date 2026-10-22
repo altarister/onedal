@@ -538,6 +538,16 @@ def act(a):
         tap(v)
     elif k in ('keep', 'reject'): seat(k, v)
     elif k == 'keep_server': keep_server(v)
+    elif k == 'see':   # {text · sec · gone} — S23 화면에 그 글자가 N초 안에 보이나(gone 이면 안 보이게 되나) · 글자는 find.mjs 문법(앞붙임 없으면 «see:» 포함 글자)
+        spec = v['text'] if re.match(r'^(see:|aria:|=|\^|in:|leaf:|title:)', v['text']) else f'see:{v["text"]}'
+        want = not v.get('gone'); sec = v.get('sec', 10)
+        if DRY: log(f'  👀 S23 «{spec}» {"보임" if want else "안 보임"} {sec}초 안'); return
+        end = time.time() + sec
+        while (json.loads(run.sh('node', os.path.join(HERE, 'find.mjs'), S23, spec, str(run.MENU_Y), check=False).strip().splitlines()[-1])['state'] == 'ok') != want:
+            if time.time() > end:
+                shot(S23, f'see_{CUR[0]}')
+                raise Stop(f'S23 «{v["text"]}» {"안 보임" if want else "그대로 보임"} ({sec}초)')
+            time.sleep(1)
     elif k == 'mark_srv':   # 서버 기록 기준점을 지금으로 — 뒤 wait_srv 가 이 뒤에 선 줄만 본다(같은 줄이 장면 앞쪽에 먼저 찍혀도 헷갈리지 않게 · 105판 S02)
         if DRY: log('  📍 서버 기준점'); return
         PENDING['smark2'] = srv_mark()
