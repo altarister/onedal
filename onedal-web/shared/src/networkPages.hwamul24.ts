@@ -96,17 +96,17 @@ export const HWAMUL24_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "clock", "where": "하차 배지 앞 시각", "sample": "06:32 (등록 시각인지 모름)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse — postTime"}
     ],
     "detail": [
-      {"field": "orderNo", "where": "머리", "sample": "화물번호:3-9483-2159", "seen": "REAL", "handling": "UNUSED"},
-      {"field": "clock", "where": "머리", "sample": "등록시간:05:18분", "seen": "REAL", "handling": "UNUSED"},
-      {"field": "pickup", "where": "상차지 칸", "sample": "경기 군포 부곡동 [당상][수] 5Km", "seen": "REAL", "handling": "UNUSED", "usedAt": "목록 값을 쓴다"},
-      {"field": "dropoff", "where": "하차지 칸", "sample": "서울 중구 을지로6가 [당착][수]", "seen": "REAL", "handling": "UNUSED", "usedAt": "목록 값을 쓴다"},
-      {"field": "deliveryDistance", "where": "하차지 칸 오른쪽", "sample": "36Km", "seen": "REAL", "handling": "UNUSED"},
-      {"field": "memo", "where": "화물정보 칸", "sample": "지금상 당착 59박스 수/수-A [독차]", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «화물정보» 다음 «톤수» 앞(배지 «독차» 포함) · 원달앱은 이 칸을 안 읽는다", "read": "화물정보\\s+(?!톤수)([\\s\\S]*?)(?=\\s+톤수|$)"},
-      {"field": "vehicleType", "where": "톤수 · 차종 · 적재중량", "sample": "1톤 · 전체 · 1톤", "seen": "REAL", "handling": "UNUSED"},
-      {"field": "tags", "where": "운행방법", "sample": "편도", "seen": "REAL", "handling": "UNUSED"},
-      {"field": "fare", "where": "운송료 · 부가세 · 수납금액", "sample": "60,000 · 6,000 · 65,144", "seen": "REAL", "handling": "READ", "usedAt": "목록 줄을 못 찾은 손 상세는 PageFieldRead(PreConfirmSequence)", "read": "운송료\\s*:?\\s*([\\d,]+)", "note": "💰 목록 요금과 같은 «운송료»만 — 실물은 «운송료» · «60,000» 이 다른 노드, 시뮬은 «60,000원» (부가세 · 수납금액은 안 읽음)"},
-      {"field": "payment", "where": "결제방법", "sample": "카드", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) · 관제웹 결제 칸(서버 pageFieldOf) — «카드» · «착불» · 원달앱은 이 칸을 안 읽는다", "read": "결제방법\\s+(?!\\S*\\s*:)(\\S+)"},
-      {"field": "commission", "where": "수수료 줄", "sample": "수수료 = (운송료+부가세) x1.298%", "seen": "REAL", "handling": "UNUSED"}
+      {"field": "orderNo", "where": "머리", "sample": "화물번호:3-9483-2159", "seen": "REAL", "handling": "UNUSED", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜)"}},
+      {"field": "clock", "where": "머리", "sample": "등록시간:05:18분", "seen": "REAL", "handling": "UNUSED", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · 등록시간 «05:18분» 꼴"}},
+      {"field": "pickup", "where": "상차지 칸", "sample": "경기 군포 부곡동 [당상][수] 5Km", "seen": "REAL", "handling": "UNUSED", "usedAt": "목록 값을 쓴다", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · 동 단위와 번지 · 건물 단위가 섞임 · 배지 «당상» 3/3"}},
+      {"field": "dropoff", "where": "하차지 칸", "sample": "서울 중구 을지로6가 [당착][수]", "seen": "REAL", "handling": "UNUSED", "usedAt": "목록 값을 쓴다", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · 배지 «당착» 3/3"}},
+      {"field": "deliveryDistance", "where": "하차지 칸 오른쪽", "sample": "36Km", "seen": "REAL", "handling": "UNUSED", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜)"}},
+      {"field": "memo", "where": "화물정보 칸", "sample": "지금상 당착 59박스 수/수-A [독차]", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «화물정보» 다음 «톤수» 앞(배지 «독차» 포함) · 원달앱은 이 칸을 안 읽는다", "read": "화물정보\\s+(?!톤수)([\\s\\S]*?)(?=\\s+톤수|$)", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · 「독차」 배지 3/3"}},
+      {"field": "vehicleType", "where": "톤수 · 차종 · 적재중량", "sample": "1톤 · 전체 · 1톤", "seen": "REAL", "handling": "UNUSED", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜)"}},
+      {"field": "tags", "where": "운행방법", "sample": "편도", "seen": "REAL", "handling": "UNUSED", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · 편도 · 왕복"}},
+      {"field": "fare", "where": "운송료 · 부가세 · 수납금액", "sample": "60,000 · 6,000 · 65,144", "seen": "REAL", "handling": "READ", "usedAt": "목록 줄을 못 찾은 손 상세는 PageFieldRead(PreConfirmSequence)", "read": "운송료\\s*:?\\s*([\\d,]+)", "note": "💰 목록 요금과 같은 «운송료»만 — 실물은 «운송료» · «60,000» 이 다른 노드, 시뮬은 «60,000원» (부가세 · 수납금액은 안 읽음)", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · 운송료 3/3 · 부가세 · 수납금액은 1/3(카드 결제 콜) — 나머지 둘은 «수수료 0 · 합계금액»"}},
+      {"field": "payment", "where": "결제방법", "sample": "카드", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) · 관제웹 결제 칸(서버 pageFieldOf) — «카드» · «착불» · 원달앱은 이 칸을 안 읽는다", "read": "결제방법\\s+(?!\\S*\\s*:)(\\S+)", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · 카드 · 인수증"}},
+      {"field": "commission", "where": "수수료 줄", "sample": "수수료 = (운송료+부가세) x1.298%", "seen": "REAL", "handling": "UNUSED", "presence": "ONCE", "presenceEvidence": {"seen": 1, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · «수수료 = (운송료+부가세) x1.298%» 줄은 카드 결제 한 콜에만"}}
     ],
     "confirm": [
       {"field": "stage", "where": "배차신청 뒤 화면", "sample": "(실물 캡처 없음)", "seen": "UNKNOWN", "handling": "UNUSED"}

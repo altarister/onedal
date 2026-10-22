@@ -61,6 +61,7 @@ object InsungPages {
             FieldSpec(PageField.MEMO, "본문 «적요상세» 줄", "적요상세 10시전하차 착불", Seen.SIM, Handling.READ, "서버 적요(detailMemo) — 팝업이 없을 때 · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""적요상세(?!/)[ \t]+([^\n]+)"""), part = "body"),
             FieldSpec(PageField.PICKUP_DISTANCE, "적요 칸 둘째 줄", "현위치 → 상차지(직선)23.5KM", Seen.REAL, Handling.UNUSED),
+            /* 실물: 확정 전 상세 0/3 · 확정 뒤 5/5 — 확정 뒤에만 나온다(같은 콜 신한로직스로 확인) */
             FieldSpec(PageField.DELIVERY_DISTANCE, "적요 칸 셋째 줄", "상차지 → 하차지(직선)35.9KM", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "출발지 상세 팝업 «위치»", "경기 용인시 처인구 양지면 …", Seen.SIM, Handling.READ, "InsungPopupAddress · 서버 원문 칸 읽기(위치 — 이름표만 있는 줄이면 다음 줄 값)",
                 read = Regex("""\[출발지상세\](?:(?!\[도착지상세\])[\s\S])*?\n위치[ \t]*:?[ \t]*(?:\n[ \t]*)?([^\n]+)""")),
@@ -68,6 +69,7 @@ object InsungPages {
                 read = Regex("""\[도착지상세\](?:(?!\[출발지상세\])[\s\S])*?\n위치[ \t]*:?[ \t]*(?:\n[ \t]*)?([^\n]+)""")),
             FieldSpec(PageField.CLOCK, "출발지 줄 가운데", "김유정 / 20시/양지면(용인", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.CONTACT, "위치 팝업", "고객 · 부서 · 담당 · 전화1 · 전화2", Seen.SIM, Handling.UNUSED, "서버가 원문으로 받는다"),
+            /* 실물 머리 줄은 확정 전 3/3 «이름[전화]» · 확정 뒤 5/5 «이름-전화» — 지금 읽는 법은 «-» 모양만 맞다(확정 전은 틀리게 읽힘 · seen 은 SIM 그대로) */
             FieldSpec(PageField.CONTACT, "상세 머리 줄 «배차사-전화» 앞", "고양퀵서비스-031-932-7722", Seen.SIM, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""^\s*([^\n]+?)-(?=\d)"""), part = "dispatcher"),
             FieldSpec(PageField.CONTACT, "상세 머리 줄 «배차사-전화» 뒤", "031-932-7722", Seen.SIM, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다",
