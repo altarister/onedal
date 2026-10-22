@@ -1,6 +1,6 @@
 /**
  * 누가: onedal-f5 (기사님 «플러그인스에 있는 값을 서버가 같이 써야» · onedal-69 «가»)
- * 언제: shared/src/networkPages.ts(배차망 화면 정의 표 — 칸 · 페이지 목록)를 고친 뒤
+ * 언제: shared/src/networkPages.<배차망>.ts(배차망 화면 정의 표의 배차망 몫 — 칸 · 페이지 목록)를 고친 뒤
  * 어디서: onedal-web — `pnpm gen:pages`
  * 무엇을: 표의 배차망 셋(칸 정의 · 페이지 목록 · 차종 낱말)을 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt)으로 굳힌다
  * 왜: 배차망마다 다른 것을 shared 한 곳에만 둔다 — 서버는 표를 바로 읽고 원달앱은 뽑은 코드를 읽는다 · 같은지는 원달앱 NetworkPagesPairTest 가 문다
@@ -12,11 +12,15 @@ import { fileURLToPath } from 'url';
 const here = dirname(fileURLToPath(import.meta.url));
 const fail = (msg) => { console.error(`❌ ${msg}`); process.exit(1); };
 
-const src = readFileSync(join(here, '../shared/src/networkPages.ts'), 'utf8');
-const body = src.match(/\/\*JSON\*\/([\s\S]*?)\/\*JSON\*\//)?.[1];
-if (!body) fail('networkPages.ts 에서 JSON 표시 사이를 못 찾았다');
-let table;
-try { table = JSON.parse(body); } catch (e) { fail(`networkPages.ts 의 JSON 이 깨졌다 — ${e.message}`); }
+/* 🗂️ 배차망마다 한 파일(networkPages.<배차망>.ts)의 JSON 표시 사이를 읽어 한 표로 */
+const table = {};
+for (const net of ['insung', 'hwamul24', 'kakaopicker']) {
+    const name = `networkPages.${net}.ts`;
+    const src = readFileSync(join(here, '../shared/src', name), 'utf8');
+    const body = src.match(/\/\*JSON\*\/([\s\S]*?)\/\*JSON\*\//)?.[1];
+    if (!body) fail(`${name} 에서 JSON 표시 사이를 못 찾았다`);
+    try { table[net] = JSON.parse(body); } catch (e) { fail(`${name} 의 JSON 이 깨졌다 — ${e.message}`); }
+}
 
 /* 낱말 → 코틀린 enum 이름 — 원달앱 core/PageField.kt 가 원천(shared pageFields 와 짝 검사가 이미 묶는다) */
 const app = join(here, '../../onedal-app/app/src/main/java/com/onedal/app');
@@ -158,7 +162,7 @@ import com.onedal.app.core.StandardScreen
 /**
 ${about}
  *
- * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (\`cd onedal-web && pnpm gen:pages\`). 원천은 \`onedal-web/shared/src/networkPages.ts\` 의 «${net}» — 서버도 같은 표를 읽는다.
+ * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (\`cd onedal-web && pnpm gen:pages\`). 원천은 \`onedal-web/shared/src/networkPages.${net}.ts\` — 서버도 같은 표를 읽는다.
  */
 object ${obj} {
     val pages: PageSpecs = mapOf(

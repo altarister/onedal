@@ -12,15 +12,20 @@ import java.io.File
 
 /**
  * 🔗 **짝 — 원달앱 화면 정의 세 벌과 shared 배차망 정의 표가 같다** (기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
- * 원천은 `onedal-web/shared/src/networkPages.ts` 한 장이고, 원달앱 `…Pages.kt` 셋은 `pnpm gen:pages` 가 뽑은 생성 파일이다.
+ * 원천은 `onedal-web/shared/src/networkPages.ts`(공통) + 배차망마다 한 파일(`networkPages.<배차망>.ts`)이고, 원달앱 `…Pages.kt` 셋은 `pnpm gen:pages` 가 뽑은 생성 파일이다.
  * 표를 고치고 안 뽑으면(또는 Pages.kt 를 손으로 고치면) 여기서 빨갛다 — 칸 · 자리 글 · 견본 · 본 곳 · 읽나 · 읽는 곳 · 읽는 법 · 페이지 목록의 기준 페이지 · 단추까지 견준다.
  */
 class NetworkPagesPairTest {
+    /** 배차망마다 한 파일(`networkPages.<배차망>.ts`)의 JSON 표시 사이를 읽어 한 표로 — 뽑는 스크립트(gen-pages.mjs)와 같은 읽기 */
     private val table: JsonObject by lazy {
-        val ts = File("../../onedal-web/shared/src/networkPages.ts").readText()
-        val body = Regex("""/\*JSON\*/([\s\S]*?)/\*JSON\*/""").find(ts)?.groupValues?.get(1)
-            ?: error("networkPages.ts 에서 /*JSON*/ 표시 사이를 못 찾았다")
-        JsonParser.parseString(body).asJsonObject
+        JsonObject().apply {
+            for (net in listOf("insung", "hwamul24", "kakaopicker")) {
+                val ts = File("../../onedal-web/shared/src/networkPages.$net.ts").readText()
+                val body = Regex("""/\*JSON\*/([\s\S]*?)/\*JSON\*/""").find(ts)?.groupValues?.get(1)
+                    ?: error("networkPages.$net.ts 에서 /*JSON*/ 표시 사이를 못 찾았다")
+                add(net, JsonParser.parseString(body).asJsonObject)
+            }
+        }
     }
 
     private fun rowsOf(pages: PageSpecs): List<List<String?>> =

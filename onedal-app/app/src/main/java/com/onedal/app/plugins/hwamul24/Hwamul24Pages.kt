@@ -18,7 +18,7 @@ import com.onedal.app.core.StandardScreen
  * 📄 **화물24시 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/화물24시).
  * ⚠️ 실물 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처가 근거다. 시뮬 상세 화면은 실물과 모양이 달라(머리 «배차내역») 상세까지 못 간다.
  *
- * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/networkPages.ts` 의 «hwamul24» — 서버도 같은 표를 읽는다.
+ * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/networkPages.hwamul24.ts` — 서버도 같은 표를 읽는다.
  */
 object Hwamul24Pages {
     val pages: PageSpecs = mapOf(
