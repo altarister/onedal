@@ -19,7 +19,7 @@
 | `onedal-sim/`               | 배차망 시뮬레이터 — 앱폰이 읽을 가짜 배차망 화면               | Vite 7, React 19                                |
 | `onedal-map/`               | 지도 공장 — 콜 필터 그물이 쓰는 읍면동 폴리곤을 만든다         | Node · Python 스크립트                          |
 
-앱이 아닌 자리: `phone-e2e-test/` 실폰 e2e — 장면마다 체크 줄을 다 적은 문제지(`problems.json`)로 판마다 결과지(`out/result_*.json`, git 밖)를 만들고, 관제웹 dev 서버 `/e2e-test/phone/` 장면 표에서 체크한다. 실행기(`runner.py`)가 폰 조작 · 기다림 · 확인(`day.py` · `run.py` · `find.mjs` · 누를 자리 `taps.json`)으로 A24 · S23 두 폰을 돌리고, 장소 표 · 하루 경로는 `day1.json` · `onedal-day1-all.gpx` · `ex_images/` 실물 캡처 · `reviews/` 코드리뷰 보고서 · `.claude/skills/` 프로젝트 스킬 · `.claude/hooks/` Claude Code 훅 — 계획 우선(`plan-first.mjs`, 등록은 `.claude/settings.json`)
+앱이 아닌 자리: `phone-e2e-test/` 실폰 e2e — 장면마다 체크 줄을 다 적은 문제지(`problems.json`)로 판마다 결과지(`out/result_*.json`, git 밖)를 만들고, 관제웹 dev 서버 `/e2e-test/phone/` 장면 표에서 체크한다. 실행기(`runner.py`)가 폰 조작 · 기다림 · 확인(`day.py` · `run.py` · `find.mjs` · 누를 자리 `taps.json`)으로 A24 · S23 두 폰을 돌리고, 장소 표 · 하루 경로는 `day1.json` · `onedal-day1-all.gpx` · `ex_images/` 실물 캡처 · `reviews/` 코드리뷰 보고서 · `기준/` 기능별 기준 문서(기능마다 한 장 — 처음 보는 에이전트가 그 장만 읽고 고칠 수 있게) · 루트 `라이브_체크리스트.md` 라이브 전 최종 확인 목록 · `.claude/skills/` 프로젝트 스킬 · `.claude/hooks/` Claude Code 훅 — 계획 우선(`plan-first.mjs`, 등록은 `.claude/settings.json`)
 
 통신: 원달앱 → 서버는 REST(`POST /api/scrap` — 화면 · 콜 보고), 서버 → 원달앱은 **관제앱을 거친 블루투스 공급**(서버 → 관제앱 Socket.IO `/supply` → 블루투스 → 원달앱: 필터 · 모드 · 결재 · 빨리 접기 — 틀은 shared `bleProtocol.ts`).
 서버 ↔ 관제웹은 Socket.IO. 원달앱은 소켓을 쓰지 않는다. (모바일 웹소켓 끊김을 피하려는 의도된 설계)
