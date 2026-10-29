@@ -4744,6 +4744,399 @@
    ]
   },
   {
+   "id": "S30",
+   "say": "인성플렉스(시뮬) 기준 페이지 걷기 · 알람 미리보기 · 닫기",
+   "phone": "A24",
+   "expect": "시뮬 인성플렉스 홈 «출근하기» → 목록(신규)을 원달앱이 «📄 [페이지] 플렉스 홈 → HOME» · «플렉스 목록(신규) → LIST»로 읽고, 넣은 콜 줄 왼쪽 끝을 눌러 «🚪 [상세 진입] {요금}원» · «플렉스 상세(확정 전) → DETAIL_PRE_CONFIRM» · 서버가 판정 색을 매기고(기록만) · 상세 대기 시간(isflex_alarm_detail_sec 30초) 뒤 원달앱이 «닫기»로 목록에 돌아온다 · «…원 수행하기»는 안 누른다",
+   "wrong": "원달앱이 홈 · 목록 · 상세를 다른 페이지로 읽음 · 콜 줄을 못 눌러 상세가 안 열림 · 상세에서 안 돌아옴(대기 시간이 픽커 칸으로 떨어짐) · 원달앱이 «수행하기»를 누름(실물이면 계약)",
+   "onFail": "tool",
+   "limitSec": 300,
+   "purpose": "인성플렉스 기준 페이지(홈 · 목록 · 상세)를 원달앱이 알아보고, 알람 모드에서 상세를 열었다가 제 대기 시간 뒤 닫고 돌아오는가",
+   "needs": [],
+   "checks": [
+    {
+     "id": "c82b63",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S30"
+     }
+    },
+    {
+     "id": "a6d1a4",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "원달앱 모드를 «{mode}»로",
+     "desc": "관제앱 모드 단추를 글자로 찾아 누름 · 이미 그 모드면 안 누름",
+     "evidence": "원달앱이 받은 모드가 {mode}",
+     "target": null,
+     "onFail": "continue",
+     "run": "mode",
+     "args": {
+      "mode": "ALARM"
+     }
+    },
+    {
+     "id": "39fa5b",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬레이터 새로 열기 — {net} 홈 → «출근하기» → 목록(신규)",
+     "desc": "시뮬 껍데기 앱을 닫았다 다시 켬 → 설정 화면 «인성플렉스» 탭 → «개별콜» → «화면으로 시작» → 홈 «출근하기»(run.py HOME_BTN · taps a24.isflex.home.list 자리)",
+     "evidence": "원달앱 기록 «[페이지] 플렉스 …»",
+     "target": null,
+     "onFail": "stop",
+     "run": "sim",
+     "args": {
+      "net": "isflex",
+      "fresh": true
+     }
+    },
+    {
+     "id": "39a1a6",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "시뮬을 새로 연 뒤 홈을 «페이지»로 알아봄",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[페이지\\] 플렉스 홈 → HOME"
+     }
+    },
+    {
+     "id": "84e343",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "«출근하기» 뒤 목록(신규)",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[페이지\\] 플렉스 목록\\(신규\\) → LIST"
+     }
+    },
+    {
+     "id": "2f5384",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 인성플렉스 개별콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 «승용차»로 못 박음(기사님은 인성플렉스에 «승용/소형»으로 등록 — 시뮬 차종 칸에 «승용/소형»으로 그려지고 원달앱은 차종 표로 승용차에 맞춘다) · 상차 · 하차는 서버 필터(목적지 이천시)의 상차 · 하차 목록 안 · 요금은 최소 금액(6천) 위 · 운행 km × 기사님 차종 단가(1t 1000원/km) 위",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "isflex",
+      "pick": "moda",
+      "drop": "gwango",
+      "fare": 30000,
+      "veh": "승용차",
+      "tag": "isflex",
+      "bind": "F1"
+     }
+    },
+    {
+     "id": "d806c1",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "원달앱이 F1 줄 왼쪽 끝을 눌러 상세를 열었다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "상세 진입\\] {fare:F1}원"
+     }
+    },
+    {
+     "id": "b8a205",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "상세를 «상세(확정 전)»으로 읽었다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[페이지\\] 플렉스 상세\\(확정 전\\) → DETAIL_PRE_CONFIRM"
+     }
+    },
+    {
+     "id": "b17467",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 기준점 표시",
+     "desc": "이 뒤에 찍힌 원달앱 기록만 본다 — 목록(신규)은 장면 앞쪽에 이미 찍혀 있어 상세 뒤로 기준을 옮긴다",
+     "evidence": "원달앱 로그의 기준 줄을 잡았다",
+     "target": null,
+     "onFail": "continue",
+     "run": "mark",
+     "args": {
+      "what": "app"
+     }
+    },
+    {
+     "id": "e85f15",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "맥(서버 판정)",
+     "task": "{bind} 판정 색 읽기(보기만)",
+     "desc": "서버 «🎨 [판정]» 줄에서 그 콜 색을 적기만 하고 아무것도 안 누른다(결재석 · 스캔폰 모두)",
+     "evidence": "서버 판정 색(그 콜)",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "F1",
+      "how": "view",
+      "sec": 60
+     }
+    },
+    {
+     "id": "1e090a",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "상세 대기 시간(isflex_alarm_detail_sec 30초) + 15초 안에 원달앱이 «닫기»로 목록에 돌아왔다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 45
+     },
+     "onFail": "continue",
+     "run": "wait_app",
+     "args": {
+      "re": "\\[페이지\\] 플렉스 목록\\(신규\\) → LIST"
+     }
+    },
+    {
+     "id": "09d273",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록에 «{re}» 줄이 없어야 함",
+     "desc": "원달앱이 «…원 수행하기»를 안 눌렀다(알람 · 계약 단추 없음)",
+     "evidence": "기준점 뒤 원달앱 로그",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "none_app",
+      "re": "손 수락\\]"
+     }
+    },
+    {
+     "id": "bbef58",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
+   "id": "S31",
+   "say": "인성플렉스(시뮬) 알람 미리보기 → 손 수락",
+   "phone": "A24",
+   "expect": "원달앱이 콜 상세를 열면 시험 스크립트가 기사님 대신 시뮬 «…원 수행하기»를 누른다(누르기 전 앞 화면이 실물 insung.quickflex 면 멈춤) → 원달앱 «✋ [손 수락] 상세(확정 전) → 진행중(한 건)» → 서버 «Two-Track MANUAL] 기사님 직접 터치 콜» · 바로 KEEP · 결재 처리 완료 · 안전취소 없음",
+   "wrong": "원달앱이 손 수락을 못 알아봄(진행중 화면을 모름) · 서버가 KEEP 대신 결재석에 다시 올림 · 판결 CANCEL(안전취소)이 돎",
+   "onFail": "tool",
+   "limitSec": 300,
+   "purpose": "인성플렉스 상세에서 기사님이 손으로 «수행하기»를 누르면 원달앱 · 서버가 기사님 직접 콜로 바로 KEEP 하는가",
+   "needs": [],
+   "checks": [
+    {
+     "id": "f9866a",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S31"
+     }
+    },
+    {
+     "id": "ea7c40",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "원달앱 모드를 «{mode}»로",
+     "desc": "관제앱 모드 단추를 글자로 찾아 누름 · 이미 그 모드면 안 누름",
+     "evidence": "원달앱이 받은 모드가 {mode}",
+     "target": null,
+     "onFail": "continue",
+     "run": "mode",
+     "args": {
+      "mode": "ALARM"
+     }
+    },
+    {
+     "id": "79b58f",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬 배차망을 {net}(으)로",
+     "desc": "시뮬 «배차망 바꿈» 신호(다시 켜지 않음) · 이미 그 목록이면 그대로",
+     "evidence": "원달앱이 그 배차망 목록을 연다",
+     "target": null,
+     "onFail": "continue",
+     "run": "sim",
+     "args": {
+      "net": "isflex"
+     }
+    },
+    {
+     "id": "84ebf0",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 인성플렉스 개별콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 «승용차»로 못 박음(기사님은 인성플렉스에 «승용/소형»으로 등록 — 시뮬 차종 칸에 «승용/소형»으로 그려지고 원달앱은 차종 표로 승용차에 맞춘다) · 상차 · 하차는 서버 필터(목적지 이천시)의 상차 · 하차 목록 안 · 요금은 최소 금액(6천) 위 · 운행 km × 기사님 차종 단가(1t 1000원/km) 위",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "isflex",
+      "pick": "cw1021",
+      "drop": "jungri",
+      "fare": 35000,
+      "veh": "승용차",
+      "tag": "isflex",
+      "bind": "F2"
+     }
+    },
+    {
+     "id": "c71fa3",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "{net} 상세에서 «…원 수행하기» → KEEP",
+     "desc": "원달앱이 그 콜 상세를 연 뒤 시뮬 «…원 수행하기»를 누름(taps a24.isflex.detail.accept · 🔴 시뮬만 — 누르기 전 run.guard 가 앞 창이 실물 insung.quickflex 면 멈춤) · 판정 색은 기록만 · 수행하기 뒤 시뮬이 진행중 탭으로 가므로 «닫기»는 안 누름",
+     "evidence": "서버 «결재 처리 완료» 줄(30초)",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "F2",
+      "how": "hand",
+      "net": "isflex",
+      "sec": 60,
+      "want": "keep"
+     }
+    },
+    {
+     "id": "56de93",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "원달앱이 손 수락으로 알아봤다(HijackService.kt «✋ [손 수락]»)",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "✋ \\[손 수락\\] 상세\\(확정 전\\) → 진행중\\(한 건\\)"
+     }
+    },
+    {
+     "id": "77e018",
+     "who": "서버",
+     "writer": "스크립트",
+     "where": "맥(서버 로그)",
+     "task": "서버 기록 «{re}»",
+     "desc": "서버가 기사님 직접 콜로 보고 바로 KEEP(routes/detail.ts «Two-Track MANUAL»)",
+     "evidence": "장면 시작 뒤 서버 로그에 «{re}» 줄",
+     "target": {
+      "sec": 30
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "server",
+      "re": "Two-Track MANUAL\\] 기사님 직접 터치 콜"
+     }
+    },
+    {
+     "id": "edf375",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록에 «{re}» 줄이 없어야 함",
+     "desc": "안전취소가 안 돌았다",
+     "evidence": "장면 안 원달앱 로그",
+     "target": null,
+     "onFail": "continue",
+     "run": "check",
+     "args": {
+      "kind": "none_app",
+      "re": "판결 CANCEL"
+     }
+    },
+    {
+     "id": "afb0df",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
    "id": "S99",
    "say": "끝 정리 — 필터를 S01 이 떠 둔 기사님 필터(목적지 · 제외 지역 · 최저)로 되돌리고 · 모드는 시작 값과 다를 때만 되돌림 · 귀가는 이번 판에 스크립트가 켰을 때만 끔 · JoyStick 끄기(에이전트)",
    "phone": "both",

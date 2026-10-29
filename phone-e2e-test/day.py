@@ -48,6 +48,7 @@ def sub(rx):
 def check_of(name, x, y):
     if name == 'any': return run.any_px
     if name == 'teal': return run.teal
+    if name == 'blue': return run.blue
     if name == 'not_white': return run.not_white
     if name == 'seat_up': return run.seat_up
     if name == 'bright': return lambda c, px: max(c) > 150
@@ -368,14 +369,14 @@ def preview_until_phone_leaves(b):
     while time.time() < end and not s23_sees('폰에서 수락'): time.sleep(1)
     if not s23_sees('폰에서 수락'): raise ToolStop(f'⚪ 시험 도구 — {b} 결재석 미리보기 칸을 못 찾음')
     m = srv_mark()
-    adb(A24, 'shell', 'input', 'keyevent', '4'); log(f'  👀 {b} 스캔폰 상세 나감(뒤로)')
+    run.guard(A24); adb(A24, 'shell', 'input', 'keyevent', '4'); log(f'  👀 {b} 스캔폰 상세 나감(뒤로)')   # 뒤로 키도 지킴이 뒤 — 실물 픽커 · 인성플렉스 앞이면 멈춤
     wait_for('srv', m, r'미리보기 정리 · 상세 이탈', 15, f'{b} 서버 미리보기 정리')
     end = time.time() + 10
     while time.time() < end and s23_sees('폰에서 수락'): time.sleep(1)
     if s23_sees('폰에서 수락'): shot(S23, f'preview_left_{b}'); raise ToolStop(f'⚪ {b} 폰이 상세를 나갔는데 결재석 미리보기가 그대로 있음')
     log(f'  👀 {b} 결재석 미리보기 — 폰이 나가자 사라짐')
 
-CONFIRM = {'insung': 'a24.insung.detail.confirm', 'hwamul24': 'a24.hwamul24.detail.confirm'}   # 손 확정 단추(인성 «확정» · 화물24시 «배차신청»)
+CONFIRM = {'insung': 'a24.insung.detail.confirm', 'hwamul24': 'a24.hwamul24.detail.confirm', 'isflex': 'a24.isflex.detail.accept'}   # 손 확정 단추(인성 «확정» · 화물24시 «배차신청» · 인성플렉스 «…원 수행하기» — 시뮬만: 누르기 전 tap_if → guard 가 실물 insung.quickflex 앞 화면이면 멈춤)
 CLOSE = {'insung': 'a24.insung.detail.close'}   # 손 확정 뒤 KEEP 이 오면 기사님이 누르는 «닫기»(화물24시는 신청 뒤 같은 화면에 머문다 — 누를 닫기가 없고 다음 장면이 시뮬레이터를 목록으로 다시 연다)
 
 def decide(v):

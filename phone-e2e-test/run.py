@@ -80,14 +80,19 @@ def pixels(dev):
 
 FOCUS_OK = {A24: ('com.onedal.simulator',), S23: ('kr.co.onedal.dashboard',)}
 PICKER_PKG = 'com.kakaomobility.flexer'
+ISFLEX_PKG = 'insung.quickflex'   # 실물 인성플렉스 — «…원 수행하기» 자리를 실물에 누르면 계약이다
+REAL_PKGS = {PICKER_PKG: '픽커', ISFLEX_PKG: '인성플렉스'}   # 앞 화면이면 아무것도 안 누르고 멈추는 실물 배차망 앱
+def real_front(cur):
+    """앞 창이 실물 배차망 앱이면 그 이름 · 아니면 None"""
+    return next((name for pkg, name in REAL_PKGS.items() if pkg in cur), None)
 def focus_of(dev):
     f = adb(dev, 'shell', 'dumpsys', 'window', check=False)
     m = re.search(r'mCurrentFocus=Window\{\S+ \S+ ([^}]+)\}', f)
     return m.group(1) if m else '?'
 def picker_watch():
-    """A24 앞 화면이 실물 카카오 픽커면 아무것도 안 누르고 멈춤(71 · 사진)"""
-    cur = focus_of(A24)
-    if PICKER_PKG in cur: shot(A24, 'picker_front'); raise Stop(f'A24 앞 화면이 실물 픽커: {cur} — 아무것도 안 누르고 멈춤(사진)')
+    """A24 앞 화면이 실물 배차망 앱(픽커 · 인성플렉스)이면 아무것도 안 누르고 멈춤(71 · 사진)"""
+    cur = focus_of(A24); real = real_front(cur)
+    if real: shot(A24, 'real_front'); raise Stop(f'A24 앞 화면이 실물 {real}: {cur} — 아무것도 안 누르고 멈춤(사진)')
 def guard(dev):
     """앞 창이 알림 · 권한 창 · 실물 픽커면 사진 찍고 멈춤"""
     cur = focus_of(dev)
@@ -108,7 +113,7 @@ def guard(dev):
     if dev == S23 and cur == 'NotificationShade':   # 잠금이 아닌데 알림 서랍이 내려와 있음 — 걷기만 한다 · 알림은 누르지 않는다
         shot(dev, 'shade'); adb(dev, 'shell', 'cmd', 'statusbar', 'collapse'); time.sleep(1)
         cur = focus_of(dev); log(f'🔔 S23 알림 서랍 걷음 — 앞 창 {cur}')
-    if PICKER_PKG in cur: shot(dev, 'picker_front'); raise Stop(f'앞 화면이 실물 픽커: {cur} — 안 누르고 멈춤(사진)')
+    if real_front(cur): shot(dev, 'real_front'); raise Stop(f'앞 화면이 실물 {real_front(cur)}: {cur} — 안 누르고 멈춤(사진)')
     if any(k in cur for k in ('Dialog', 'permission', 'Permission', 'Alert', 'Chooser')) or not any(p in cur for p in FOCUS_OK[dev]):
         shot(dev, 'guard_stop'); raise Stop(f'앞 창이 예상 밖: {cur} — 멈춤(사진)')
 
@@ -125,6 +130,7 @@ def tap_if(dev, x, y, pred, what):
 
 # 색 판별(70판 raw 값 · 1080x2340)
 teal = lambda c, px: c[0] < 90 and c[1] > 130 and c[2] > 120             # 인성 상세 «확정» (38,166,154)
+blue = lambda c, px: c[0] < 60 and c[2] > 140 and c[2] - c[1] > 50      # 시뮬 인성플렉스 상세 «…원 수행하기» (11,92,173) — «닫기» (51,51,51)와 갈린다
 keep_card = lambda c, px: c[2] - c[0] > 40 and (lambda r: r[2] - r[0] < 35)(px(140, 1950))   # 결재석 KEEP 칸 (66,92,136) · 거절 (31,41,62)
 not_white = lambda c, px: not (c[0] > 240 and c[1] > 240 and c[2] > 240)
 any_px = lambda c, px: True
