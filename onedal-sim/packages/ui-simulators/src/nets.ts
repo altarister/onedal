@@ -1,7 +1,7 @@
 /**
  * 🌐 **배차망을 전부 아는 곳**
  *
- * 공통 코드(core-simulator)는 배차망을 모르고, 배차망 폴더(insung · hwamul24 · kakaopicker)는 서로를 모른다.
+ * 공통 코드(core-simulator)는 배차망을 모르고, 배차망 폴더(insung · hwamul24 · kakaopicker · isflex)는 서로를 모른다.
  * 둘을 함께 알아야 하는 것은 여기에만 둔다 — 서버의 PluginFactory · 원달앱의 TargetApp.kt 와 같은 자리다.
  *
  * 배차망 하나가 채울 칸은 `SimNet` 인터페이스가 정한다. 새 배차망을 붙일 때
@@ -24,15 +24,19 @@ import { Hwamul24SimScreen } from './hwamul24/Hwamul24SimScreen';
 import { InsungHomeScreen } from './insung/InsungHomeScreen';
 import { Hwamul24HomeScreen } from './hwamul24/Hwamul24HomeScreen';
 import { PickerSimScreen } from './kakaopicker/PickerSimScreen';
+import type { IsflexCall } from './isflex/isflexCall';
+import { toIsflexCall } from './isflex/isflexCall';
+import { IsflexSimScreen } from './isflex/IsflexSimScreen';
+import { IsflexHomeScreen } from './isflex/IsflexHomeScreen';
 
 /** 시뮬레이터 리스트·잡은 콜이 담는 콜 — 배차망마다 칸이 다르다 */
-export type SimCall = InsungCall | Hwamul24Call | PickerCall;
+export type SimCall = InsungCall | Hwamul24Call | PickerCall | IsflexCall;
 
 /**
  * 주소(`?net=`)에 쓰는 배차망 이름 — 서버·원달앱과 같은 값이다.
  * 시뮬레이터는 `shared` 를 일부러 안 가져다 쓰므로 코드로 묶지 않고 값만 맞춘다.
  */
-export type NetKey = 'insung' | 'hwamul24' | 'kakaopicker';
+export type NetKey = 'insung' | 'hwamul24' | 'kakaopicker' | 'isflex';
 
 /**
  * 배차 화면이 배차망 화면에 넘기는 것 — 콜 목록 · 고른 콜 · 공통 동작.
@@ -92,7 +96,7 @@ export interface SimNet {
   /**
    * 🔙 상세를 열 때 방문 기록에 한 칸 남기나.
    * 원달앱은 알람으로 상세에 들어간 뒤 30초 무응답이면 «뒤로 가기»를 누른다. 상세가 방문 기록에 없으면
-   * 그 한 번에 설정 화면까지 나가 버린다 — 세 배차망 모두 남긴다.
+   * 그 한 번에 설정 화면까지 나가 버린다 — 모든 배차망이 남긴다.
    */
   detailInHistory: boolean;
   /**
@@ -136,10 +140,23 @@ export const SIM_NETS: Record<NetKey, SimNet> = {
     presetBook: PICKER_PRESET_BOOK,
     detailInHistory: true,
   },
+  isflex: {
+    key: 'isflex',
+    label: '인성플렉스',
+    toCall: toIsflexCall,
+    // 흰 바탕 · 테두리 없음 — 실물 사진(파란 머리 · 흰 목록)을 흉내 낸다
+    frameClassName: 'w-full h-dvh bg-white overflow-hidden relative font-sans text-black',
+    Screen: IsflexSimScreen,
+    setupColors: { toggle: 'bg-[#0b5cad] text-white', start: 'bg-gradient-to-r from-[#0b5cad] to-[#08427d] shadow-blue-900/40' },
+    // 원 단위라 인성 · 화물24시 문제지를 함께 쓴다 — 정답(인성 콜 필터 기준)이 인성플렉스 차종에서도 맞는지는 1차 시험 뒤에 본다
+    presetBook: SHARED_PRESET_BOOK,
+    detailInHistory: true,
+    Home: IsflexHomeScreen,
+  },
 };
 
 /** 설정 화면에 늘어놓는 순서 */
-export const SIM_NET_LIST: SimNet[] = [SIM_NETS.insung, SIM_NETS.hwamul24, SIM_NETS.kakaopicker];
+export const SIM_NET_LIST: SimNet[] = [SIM_NETS.insung, SIM_NETS.hwamul24, SIM_NETS.kakaopicker, SIM_NETS.isflex];
 
 /**
  * 주소의 `?net=` → 배차망. 🔴 **모르는 값·없는 값은 `null` 이다** — 부르는 쪽이 멈추고 알린다.

@@ -46,3 +46,17 @@ export { PickerDispatchBoard, formatPickerDistance, formatPickerFare, visibleCar
 export { PickerSimScreen, pickerTakenAfterMs, PICKER_TOAST_MS } from './kakaopicker/PickerSimScreen';
 export { PickerOngoingScreen } from './kakaopicker/PickerOngoingScreen';
 export type { PickerOngoingStep } from './kakaopicker/PickerOngoingScreen';
+
+// 인성플렉스 — 콜 칸 · 화면 글자 · 홈 · 배차 화면 (기획서 61 4단계)
+export { toIsflexCall, ISFLEX_POINT, ISFLEX_SAMPLE_ROW, ISFLEX_MEMO_SAMPLES, isflexAcceptLabel, isflexDetailKm, isflexDropoffLabel, isflexDropoffPoint, isflexFare, isflexFareWon, isflexListKm, isflexPickupLabel, isflexPickupPoint, isflexRowTexts, isflexRunKm, isflexTitle } from './isflex/isflexCall';
+export type { IsflexCall, IsflexVehicleKind } from './isflex/isflexCall';
+export { IsflexHomeScreen } from './isflex/IsflexHomeScreen';
+export { IsflexSimScreen, isflexAcceptBlocked } from './isflex/IsflexSimScreen';
+export { IsflexOrderBoard, isflexShownCalls } from './isflex/IsflexOrderBoard';
+export { IsflexCallDetailScreen } from './isflex/IsflexCallDetailScreen';
+export { IsflexOngoingScreen } from './isflex/IsflexOngoingScreen';
+export type { IsflexOngoingStep } from './isflex/IsflexOngoingScreen';
+export { IsflexMenuScreens } from './isflex/IsflexMenuScreens';
+export type { IsflexMenu } from './isflex/IsflexMenuScreens';
+export { IsflexDistanceSheet, IsflexSizeSheet } from './isflex/IsflexSheets';
+export { IsflexPopup } from './isflex/IsflexPopups';

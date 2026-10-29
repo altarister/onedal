@@ -1,4 +1,4 @@
-import type { PickerCall, SimCall } from '@altari/ui-simulators';
+import type { IsflexCall, PickerCall, SimCall } from '@altari/ui-simulators';
 
 /**
  * 🧪 **검사용 고정 콜 둘** — 손으로 채웠다 (0단계 0-1 에서 screens.test.tsx 에 만든 것을 0-2 ⑤ 에서 여기로 옮겼다)
@@ -100,4 +100,73 @@ export const pickerWalk: PickerCall = {
     id: 'picker_walk',
     pickerTags: ['도보'],
     orderNo: '260914090000004',
+};
+
+/**
+ * 🛵 **인성플렉스 고정 콜 넷** — 실물 상세 08 · 10 · 12 의 콜을 본떴다(D 는 칩 거르기용 승용/소형).
+ * isflexA: 역삼동 → 대치동 · 26.7km · 약 2.3km · 8,500 · 착불 (08)
+ * isflexB: 수원 이의동 → 중구 쌍림동 · 24.4km · 약 31.0km · 21,252 · 과적 · 낼08:20/ · 10:20전/ (10)
+ * isflexC: 파주 동패동 → 영종 운서동 · 61.0km · 약 38.8km · 10,626 · 적요 없음 · 결제 없음 (12)
+ */
+const isflexPlace = (addressDetail: string, region: string) => [{ customerName: '플렉스 고정', phone1: '010-0000-0003', region, addressDetail }];
+export const isflexA: IsflexCall = {
+    id: 'isflex_a',
+    pickups: [{ code: '', name: '역삼동', fullName: '서울 / 강남구 / 역삼동', centroid: [127.036, 37.5] }],
+    dropoffs: [{ code: '', name: '대치동', fullName: '서울 / 강남구 / 대치동', centroid: [127.06, 37.5] }],
+    pickupDetails: isflexPlace('서울 강남구 테헤란로 152', '역삼동'),
+    dropoffDetails: isflexPlace('서울 강남구 삼성로 212', '대치동'),
+    pickupDistanceKm: 26.7,
+    distanceKm: 2.3,
+    pickupAt: '2026-09-14T09:30:00+09:00',
+    deliveryAt: '2026-09-14T11:00:00+09:00',
+    fare: 8500,
+    isMatchingRoute: true,
+    net: 'isflex',
+    vehicleKind: '오토바이',
+    vehicleWord: '오토',
+    reservePrefix: '',
+    deadlinePrefix: '',
+    pickupDong: '역삼동',
+    dropoffDong: '대치동',
+    tags: [],
+    memo: '1박스 3층 계단물건 있음',
+    paymentType: '착불',
+};
+export const isflexB: IsflexCall = {
+    ...isflexA,
+    id: 'isflex_b',
+    pickupDetails: isflexPlace('경기 수원시 영통구 광교중앙로 140', '이의동'),
+    dropoffDetails: isflexPlace('서울 중구 퇴계로 100', '쌍림동'),
+    pickupDistanceKm: 24.4,
+    distanceKm: 31.0,
+    fare: 21252,
+    reservePrefix: '낼08:20/',
+    deadlinePrefix: '10:20전/',
+    pickupDong: '수원이의동',
+    dropoffDong: '쌍림동',
+    tags: ['과적'],
+    memo: '과적 아이스박스1(제품샘플)-착지시간꼭엄수',
+    paymentType: undefined,
+};
+export const isflexC: IsflexCall = {
+    ...isflexA,
+    id: 'isflex_c',
+    pickupDetails: isflexPlace('경기 파주시 동패로 10', '동패동'),
+    dropoffDetails: isflexPlace('인천 영종구 운서동 2850', '운서동'),
+    pickupDistanceKm: 61.0,
+    distanceKm: 38.8,
+    fare: 10626,
+    pickupDong: '동패동',
+    dropoffDong: '운서동',
+    memo: '없음',
+    paymentType: undefined,
+};
+export const isflexD: IsflexCall = {
+    ...isflexA,
+    id: 'isflex_d',
+    pickupDistanceKm: 3.2,
+    vehicleKind: '승용/소형',
+    vehicleWord: '승용/소형',
+    fare: 12000,
+    paymentType: '선불',
 };

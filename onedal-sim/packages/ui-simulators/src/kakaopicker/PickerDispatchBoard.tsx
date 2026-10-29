@@ -19,6 +19,7 @@
  *    `pickerDumpCheck.mjs` 검사 ⑥ 이 폰 화면에서 이것을 본다 (픽커는 네이티브 앱이라 실물은 덩어리가 따로 온다).
  */
 import React from 'react';
+import { visibleRowRange } from '@altari/core-simulator';
 import type { PickerCall, PickerKind } from './pickerCall';
 import { formatPickerRegion, formatPickerAddressLine, minutesLeftAt, pickerKindOf, pickerTagChipClass } from './pickerCall';
 import type { PickerOngoingStep } from './PickerOngoingScreen';
@@ -65,10 +66,7 @@ export const PICKER_CARD_HEIGHT = 58;
  * 칸 높이를 모르면(`viewportHeight` 0 — 서버 렌더·검사) 전부 그린다.
  */
 export function visibleCardRange(scrollTop: number, viewportHeight: number, count: number, cardHeight = PICKER_CARD_HEIGHT): [number, number] {
-  if (viewportHeight <= 0) return [0, count];
-  const first = Math.min(count, Math.ceil(scrollTop / cardHeight));
-  const last = Math.min(count, Math.max(first, Math.floor((scrollTop + viewportHeight) / cardHeight)));
-  return [first, last];
+  return visibleRowRange(scrollTop, viewportHeight, count, cardHeight);
 }
 
 const TABS = ['퀵 배송', '도보배송', '대리', '한차배송'];

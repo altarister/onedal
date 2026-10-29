@@ -17,6 +17,7 @@ import {
     toHwamul24Call,
     toInsungCall,
     toPickerCall,
+    toIsflexCall,
     PICKER_PRESET_BOOK,
 } from '@altari/ui-simulators';
 import { SHARED_PRESET_BOOK } from '@altari/core-simulator';
@@ -123,6 +124,7 @@ describe('배차망 목록 — 한 곳에서만', () => {
         expect(SIM_NETS.insung.toCall).toBe(toInsungCall);
         expect(SIM_NETS.hwamul24.toCall).toBe(toHwamul24Call);
         expect(SIM_NETS.kakaopicker.toCall).toBe(toPickerCall);
+        expect(SIM_NETS.isflex.toCall).toBe(toIsflexCall);
     });
 
     it('설정 화면 색 — 예전에 설정 화면이 직접 고르던 클래스 그대로 (0-3 에서 옮겼다)', () => {
@@ -130,29 +132,31 @@ describe('배차망 목록 — 한 곳에서만', () => {
         expect(SIM_NETS.hwamul24.setupColors).toEqual({ toggle: 'bg-[#c62828] text-white', start: 'bg-gradient-to-r from-[#c62828] to-[#8e1b1b] shadow-red-900/40' });
     });
 
-    it('설정 화면 순서와 이름 — 인성콜 · 화물24시 (예전 목록 그대로) · 픽커 (2단계 2-2 에서 붙였다)', () => {
-        expect(SIM_NET_LIST.map(n => [n.key, n.label])).toEqual([['insung', '인성콜'], ['hwamul24', '화물24시'], ['kakaopicker', '픽커']]);
+    it('설정 화면 순서와 이름 — 인성콜 · 화물24시 (예전 목록 그대로) · 픽커 (2단계 2-2 에서 붙였다) · 인성플렉스 (기획서 61 4단계)', () => {
+        expect(SIM_NET_LIST.map(n => [n.key, n.label])).toEqual([['insung', '인성콜'], ['hwamul24', '화물24시'], ['kakaopicker', '픽커'], ['isflex', '인성플렉스']]);
     });
 
-    it('🔙 방문 기록 — 세 배차망 모두 상세를 남긴다(원달앱 «뒤로»가 준비 화면으로 안 튕기게)', () => {
+    it('🔙 방문 기록 — 모든 배차망이 상세를 남긴다(원달앱 «뒤로»가 준비 화면으로 안 튕기게)', () => {
         expect(SIM_NET_LIST.map(n => [n.key, n.detailInHistory])).toEqual([
-            ['insung', true], ['hwamul24', true], ['kakaopicker', true],
+            ['insung', true], ['hwamul24', true], ['kakaopicker', true], ['isflex', true],
         ]);
     });
 
-    it('🏠 첫 화면 — 인성 · 화물24시는 배차망 설정에 홈이 있고, 픽커는 제 화면 안에 홈이 있어 비운다', () => {
-        expect(SIM_NET_LIST.map(n => [n.key, !!n.Home])).toEqual([['insung', true], ['hwamul24', true], ['kakaopicker', false]]);
+    it('🏠 첫 화면 — 인성 · 화물24시 · 인성플렉스는 배차망 설정에 홈이 있고, 픽커는 제 화면 안에 홈이 있어 비운다', () => {
+        expect(SIM_NET_LIST.map(n => [n.key, !!n.Home])).toEqual([['insung', true], ['hwamul24', true], ['kakaopicker', false], ['isflex', true]]);
     });
 
     it('🎯 문제지 책 — 인성·화물24시는 지금 문제지(원 단위)를 함께 쓰고, 픽커는 제 문제지(P 단위)를 쓴다 (3단계 3-2)', () => {
         expect(SIM_NETS.insung.presetBook).toBe(SHARED_PRESET_BOOK);
         expect(SIM_NETS.hwamul24.presetBook).toBe(SHARED_PRESET_BOOK);
         expect(SIM_NETS.kakaopicker.presetBook).toBe(PICKER_PRESET_BOOK);
+        expect(SIM_NETS.isflex.presetBook).toBe(SHARED_PRESET_BOOK);
     });
 
     it('🔴 ?net= 해석 — 모르는 값·없는 값·옛 이름은 null (부르는 쪽이 멈추거나 넘긴다 · 0-4)', () => {
         expect(simNetOf('hwamul24')?.key).toBe('hwamul24');
         expect(simNetOf('insung')?.key).toBe('insung');
+        expect(simNetOf('isflex')?.key).toBe('isflex');
         expect(simNetOf(null)).toBeNull();
         expect(simNetOf('')).toBeNull();
         expect(simNetOf('abc')).toBeNull();

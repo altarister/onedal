@@ -3,24 +3,31 @@
   "taps": {
     "a24.sim.tab.insung": {
       "phone": "A24",
-      "x": 690,
-      "y": 135,
+      "x": 610,
+      "y": 158,
       "check": "any",
-      "from": "70판 · run.py SIM_TAB"
+      "from": "10-30 A24 사진 050137_sim_setup(머리 단추 넷 · 오른쪽 정렬)"
     },
     "a24.sim.tab.hwamul24": {
       "phone": "A24",
-      "x": 846,
-      "y": 135,
+      "x": 734,
+      "y": 158,
       "check": "any",
-      "from": "70판 · run.py SIM_TAB"
+      "from": "10-30 A24 사진 050137_sim_setup(머리 단추 넷 · 오른쪽 정렬)"
     },
     "a24.sim.tab.picker": {
       "phone": "A24",
-      "x": 989,
-      "y": 135,
+      "x": 849,
+      "y": 158,
       "check": "any",
-      "from": "70판 · run.py SIM_TAB"
+      "from": "10-30 A24 사진 050137_sim_setup(머리 단추 넷 · 오른쪽 정렬)"
+    },
+    "a24.sim.tab.isflex": {
+      "phone": "A24",
+      "x": 970,
+      "y": 158,
+      "check": "any",
+      "from": "10-30 A24 사진 050137_sim_setup(머리 단추 넷 · 오른쪽 정렬)"
     },
     "a24.sim.individual": {
       "phone": "A24",
@@ -665,6 +672,30 @@
       "y": 2074,
       "check": "any",
       "from": "유심 없는 S23 의 끊김 창 «긴급 전화만 가능합니다» 확인 단추(삼성 incallui DisconnectCauseDialog · 10-23 00:33 사진) — 뒤로는 안 먹음 · day.py call_end 가 ENTER · 가운데 키를 먼저 누르고 안 닫히면 여기"
+    },
+    "a24.isflex.home.list": {
+      "phone": "A24",
+      "x": 300,
+      "y": 1264,
+      "check": "any",
+      "from": "10-30 A24 사진 050254_isflex_home «출근하기»(글자 피해 왼쪽 · 색 0b4ea2)",
+      "expect": {
+        "page": "^플렉스 홈"
+      }
+    },
+    "a24.isflex.detail.accept": {
+      "phone": "A24",
+      "x": 450,
+      "y": 2065,
+      "check": "any",
+      "from": "10-30 A24 시뮬 상세 «…원 수행하기»(글자 피해 왼쪽 · 색 0b5cad) — 시뮬만 · 손 수락 장면"
+    },
+    "a24.isflex.detail.close": {
+      "phone": "A24",
+      "x": 90,
+      "y": 2065,
+      "check": "any",
+      "from": "10-30 A24 시뮬 상세 «닫기»(글자 피해 왼쪽 · 색 333333)"
     }
   }
 }

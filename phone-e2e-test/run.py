@@ -204,8 +204,8 @@ def sim_call(fare, vehicle, pickup=('경기 광주시 초월읍 경충대로 907
 # 시뮬레이터는 개별콜 목록이 열려 있으면 서버 대기열을 3초마다 물어 넣은 콜을 띄운다(server simCallQueue).
 # 그래서 «이미 그 배차망 목록이면 다시 켜지 않는다» · 콜을 넣은 뒤 원달앱이 그 콜을 6초 안에 못 읽을 때만 다시 켠다(`call_seen`).
 # 다시 켜는 것은 원달앱에게도 «페이지가 바뀌는» 소음이라 횟수를 센다(`SIM_REOPENS` · 판 보고).
-SIM_TAB = {'insung': (690, 135), 'hwamul24': (846, 135), 'picker': (989, 135)}
-SIM_LABEL = {'insung': '인성콜', 'hwamul24': '화물24시', 'picker': '픽커'}   # 원달앱 «📄 [페이지] {배차망} … → {화면}»의 배차망 이름(HijackService.kt)
+SIM_TAB = {'insung': (610, 158), 'hwamul24': (734, 158), 'picker': (849, 158), 'isflex': (970, 158)}   # 시뮬 설정 머리 배차망 단추 넷(오른쪽 정렬 · 두 줄 높이 102~214) — 10-30 A24 사진 050137_sim_setup
+SIM_LABEL = {'insung': '인성콜', 'hwamul24': '화물24시', 'picker': '픽커', 'isflex': '플렉스'}   # 원달앱 «📄 [페이지] {배차망} … → {화면}»의 배차망 이름(HijackService.kt)
 SIM_REOPENS = []   # (시각, 배차망, 까닭)
 
 def sim_on_list(net):
@@ -215,8 +215,8 @@ def sim_on_list(net):
     return f'[페이지] {SIM_LABEL[net]} ' in t and t.rstrip().endswith('→ LIST')
 
 HOME_MISSED = [None]   # 원달앱이 홈을 못 알아봐 시험 스크립트가 단추 색으로 넘긴 배차망 — 부른 쪽이 🔴 로 적는다(넘긴 것은 다음 칸을 보려는 것뿐)
-HOME_BTN = {'insung': ((300, 916), (89, 132, 176)), 'picker': ((538, 2088), (74, 116, 218))}   # 시뮬 배차망 홈의 «목록으로» 단추 자리 · 색 — 화물24시는 흰 단추라 색으로 못 가려 뺌
-SIM_CODE = {'insung': 'insung', 'hwamul24': 'hwamul24', 'picker': 'kakaopicker'}   # 서버 · 원달앱 · 시뮬 배차망 이름
+HOME_BTN = {'insung': ((300, 916), (89, 132, 176)), 'picker': ((538, 2088), (74, 116, 218)), 'isflex': ((300, 1264), (11, 78, 162))}   # 시뮬 배차망 홈의 «목록으로» 단추 자리 · 색 — 화물24시는 흰 단추라 색으로 못 가려 뺌
+SIM_CODE = {'insung': 'insung', 'hwamul24': 'hwamul24', 'picker': 'kakaopicker', 'isflex': 'isflex'}   # 서버 · 원달앱 · 시뮬 배차망 이름
 
 def sim_switch(net):
     """🔀 시뮬이 배차 화면에 떠 있으면 다시 켜지 않고 «배차망 바꿔» 신호로만 바꾼다(38 F36 · 71 «가») — 앞 배차망의 잡은 콜 · 연 상세가 남는다.
@@ -248,7 +248,7 @@ def sim_switch(net):
                 if sim_on_list(net): shot(A24, f'sim_{net}'); return True
         if f'[페이지] {SIM_LABEL[net]} ' in since:
             if '→ LIST' not in app_since(a).split(f'[페이지] {SIM_LABEL[net]} ')[-1].split('\n')[0]:
-                home = {'insung': (300, 916), 'hwamul24': (281, 541), 'picker': (538, 2088)}[net]
+                home = {'insung': (300, 916), 'hwamul24': (281, 541), 'picker': (538, 2088), 'isflex': (300, 1264)}[net]
                 if 'com.onedal.simulator' in focus_of(A24):
                     tap_if(A24, *home, any_px, f'{net} 홈 → 목록(처음 본 배차망)'); time.sleep(3)
                     if sim_on_list(net): shot(A24, f'sim_{net}'); return True
@@ -279,7 +279,7 @@ def sim_open(net, why='처음', no_reopen=False, fresh=False):
     tap_if(A24, *SIM_TAB[net], any_px, f'시뮬 탭 {net}'); time.sleep(1)
     tap_if(A24, 883, 316, any_px, '개별콜'); time.sleep(1)
     tap_if(A24, 538, 2112, any_px, '화면으로 시작'); time.sleep(3)
-    home = {'insung': (300, 916), 'hwamul24': (281, 541), 'picker': (538, 2088)}[net]
+    home = {'insung': (300, 916), 'hwamul24': (281, 541), 'picker': (538, 2088), 'isflex': (300, 1264)}[net]
     tap_if(A24, *home, any_px, f'{net} 홈 → 목록'); time.sleep(3)
     shot(A24, f'sim_{net}')
 

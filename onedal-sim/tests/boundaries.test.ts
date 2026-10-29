@@ -9,14 +9,14 @@ import { describe, expect, it } from 'vitest';
  *
  * 규칙:
  *   ① 공통 코드(core-simulator/src)는 배차망 이름을 모른다
- *   ② 배차망 폴더(insung · hwamul24 · kakaopicker)는 서로를 import 하지 않는다
+ *   ② 배차망 폴더(insung · hwamul24 · kakaopicker · isflex)는 서로를 import 하지 않는다
  *   ③ ui-simulators 에서 배차망 폴더를 import 하는 곳은 nets.ts · index.ts 뿐이다
  *   ④ 앱 껍데기(src)는 배차망 이름을 모른다 — 옛 주소를 받는 App.tsx 만 예외
  *
  * 주석은 뺀다 — 규칙이 막는 것은 **코드**다 (주석은 설명이라 배차망 이름을 적어도 된다).
  * 소스는 Vite 의 `import.meta.glob`(?raw)으로 읽는다 — 시뮬레이터 tsconfig 에 Node 타입을 들이지 않으려고.
  */
-const NAMES = /inseong|insung|hwamul24|kakaopicker|Inseong|Insung|Hwamul24|Picker|인성|화물24|픽커/;
+const NAMES = /inseong|insung|hwamul24|kakaopicker|isflex|Inseong|Insung|Hwamul24|Picker|Isflex|인성|화물24|픽커|플렉스/;
 
 const raw = (files: Record<string, string>) =>
     Object.fromEntries(Object.entries(files).filter(([path]) => !/\.test\.tsx?$/.test(path)));
@@ -50,7 +50,7 @@ describe('배차망을 아는 곳 — 정해진 자리만', () => {
     });
 
     it('② 배차망 폴더는 서로를 import 하지 않는다', () => {
-        const nets = ['insung', 'hwamul24', 'kakaopicker'];
+        const nets = ['insung', 'hwamul24', 'kakaopicker', 'isflex'];
         const crossing = Object.entries(UI).flatMap(([path, src]) => {
             const own = nets.find(n => path.includes(`/src/${n}/`));
             if (!own) return [];
@@ -61,8 +61,8 @@ describe('배차망을 아는 곳 — 정해진 자리만', () => {
 
     it('③ 배차망 폴더를 import 하는 곳은 nets.ts · index.ts 뿐이다', () => {
         const importers = Object.entries(UI)
-            .filter(([path]) => !/\/src\/(insung|hwamul24|kakaopicker)\//.test(path))
-            .filter(([, src]) => importsOf(src).some(p => /(^|\/)(insung|hwamul24|kakaopicker)\//.test(p)))
+            .filter(([path]) => !/\/src\/(insung|hwamul24|kakaopicker|isflex)\//.test(path))
+            .filter(([, src]) => importsOf(src).some(p => /(^|\/)(insung|hwamul24|kakaopicker|isflex)\//.test(p)))
             .map(([path]) => path.replace(/^.*\/ui-simulators\/src\//, ''))
             .sort();
         expect(importers).toEqual(['index.ts', 'nets.ts']);

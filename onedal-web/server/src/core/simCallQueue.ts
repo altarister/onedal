@@ -138,7 +138,7 @@ export function readSimCallInput(body: unknown): { ok: true; call: SimCallInput 
         call.vehicleType = vehicleType;
     }
     if (b.net !== undefined) {
-        if (!isTargetApp(b.net)) return { ok: false, error: '모르는 배차망이다 (insung · hwamul24 · kakaopicker)' };
+        if (!isTargetApp(b.net)) return { ok: false, error: '모르는 배차망이다 (insung · hwamul24 · kakaopicker · isflex)' };
         call.net = b.net;
     }
     if (b.randomTime !== undefined) {
