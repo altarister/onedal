@@ -55,7 +55,7 @@ class ModeTablePairTest {
     @Test
     fun `배차망마다 «자동 확정 있음»이 플러그인의 쓸 수 있는 모드와 같다 — 서버가 «확정할 수 있는 폰»을 이 표로 센다`() {
         val nets = table["networks"].asJsonObject
-        for (code in listOf("insung", "hwamul24", "kakaopicker")) {
+        for (code in listOf("insung", "hwamul24", "kakaopicker", "isflex")) {
             val want = "AUTO" in com.onedal.app.plugins.DispatchPluginRegistry.get(code).availableModes
             assertEquals(code, want, nets[code].asJsonObject["autoContract"].asBoolean)
         }

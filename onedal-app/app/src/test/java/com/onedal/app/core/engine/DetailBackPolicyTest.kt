@@ -20,8 +20,9 @@ import org.junit.Test
 class DetailBackPolicyTest {
     private val filter = FilterConfig()
 
-    @Test fun `상세 대기 시간을 따로 주는 배차망은 픽커뿐 — 인성 · 화물24시는 안전취소 시간을 쓴다(WaitTimes)`() {
+    @Test fun `상세 대기 시간을 따로 주는 배차망은 픽커 · 인성플렉스 — 인성 · 화물24시는 안전취소 시간을 쓴다(WaitTimes)`() {
         assertNotNull(KakaoPickerPlugin().getDetailBackTimeoutMs(filter))
+        assertNotNull(com.onedal.app.plugins.isflex.IsflexPlugin().getDetailBackTimeoutMs(filter))
         assertNull(InsungPlugin().getDetailBackTimeoutMs(filter))
         assertNull(Hwamul24Plugin().getDetailBackTimeoutMs(filter))
     }

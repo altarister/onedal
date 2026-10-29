@@ -197,8 +197,8 @@ class MainViewModel {
         val f = try {
             json?.let { com.onedal.app.core.FilterStore.parse(it) }
         } catch (e: Exception) { null }
-            ?: return "서버 값을 아직 못 받았습니다 — 기본 인성 30초 · 화물24시 30초 · 픽커 상세 30초"
-        return "인성 ${f.safeCancelSecInsung}초 · 화물24시 ${f.safeCancelSecHwamul24}초 · 픽커 상세 ${f.pickerAlarmDetailSec}초"
+            ?: return "서버 값을 아직 못 받았습니다 — 기본 인성 30초 · 화물24시 30초 · 픽커 상세 30초 · 플렉스 상세 30초"
+        return "인성 ${f.safeCancelSecInsung}초 · 화물24시 ${f.safeCancelSecHwamul24}초 · 픽커 상세 ${f.pickerAlarmDetailSec}초 · 플렉스 상세 ${f.isflexAlarmDetailSec}초"
     }
 
     fun saveLocalIp(context: Context, ip: String) {

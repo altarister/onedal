@@ -5,7 +5,7 @@ package com.onedal.app.core
  * (서버 `POST /api/logs/app` · 서버 로그 파일에 `📱 [원달앱 …]` 줄).
  *
  * 🔴 **누른 버튼 줄은 기록이 꺼져 있어도 늘** 남긴다(세 배차망 공통). 화면 글자 전문은 켜진 동안만.
- * 🔴 **언제 켜나 · 무엇을 누르면 끄나는 배차망이 정한다** — 플러그인 칸 `traceStartsOnClick` · `traceEndButton` · `afterScreenRead`(지금 픽커만 · 실물 앱일 때).
+ * 🔴 **언제 켜나 · 무엇을 누르면 끄나는 배차망이 정한다** — 플러그인 칸 `traceStartsOnClick` · `traceEndButton` · `afterScreenRead`(픽커 · 인성플렉스 · 실물 앱일 때).
  *    퀵 화면(실물 17-1 · 17-2 · 22-1)은 사진만으로 원달앱이 읽는 글자를 못 맞추고, 밖에서는 logcat 을 볼 수 없어서 둔다.
  * 🔴 **끄는 때** — 끝 버튼(`endButtons`)을 누른 줄까지 남기고, 아니면 켠 지 5시간.
  *
@@ -35,6 +35,12 @@ class AppTrace(
         const val CLICK_LABEL_MAX = 200
         /** 🔴 글자가 비어도 남긴다 — 버리면 «누름 알림이 안 온다»와 «글자가 비었다»를 못 가른다 (04:5x 라이브 누름 0건) */
         const val NO_LABEL = "〈글자 없음〉"
+
+        /**
+         * 📱 **홈에서 목록으로 들어오면 켠다** — 실물 배차망 앱일 때만(`live`). 앱을 띄운 뒤 붙으면 «시작» 누름 알림을 놓칠 수 있어 화면 차례로도 켠다.
+         * 켜는 자리(직전 화면 기억 · 켜기)는 배차망 플러그인이 각자 든다(픽커 · 인성플렉스 `afterScreenRead`).
+         */
+        fun startsFromHome(live: Boolean, previousWasHome: Boolean, nowList: Boolean): Boolean = live && previousWasHome && nowList
 
         /** 누른 칸 글자 — 알림 글자 → 설명(content-desc) → 누른 칸 안의 글자 순서로 처음 비지 않은 것 · 모두 비면 null */
         fun clickLabelOf(eventTexts: List<CharSequence?>?, contentDescription: CharSequence?, nodeTexts: List<String>): String? =

@@ -71,7 +71,7 @@ interface IDispatchAppPlugin {
     fun traceStartReasonOnClick(packageName: String?, label: String?): String? = null
 
     /**
-     * 🖥️ **화면을 읽은 뒤 이 배차망이 할 일** — 운행 기록 켜기 · 화면 글자 남기기 · 운행 단계 로그(지금 픽커만).
+     * 🖥️ **화면을 읽은 뒤 이 배차망이 할 일** — 운행 기록 켜기 · 화면 글자 남기기(픽커 · 인성플렉스) · 운행 단계 로그(픽커).
      * 지금 고른 배차망과 무관하게 모든 배차망 칸이 불린다 — 칸이 패키지(앱 이름)로 제 화면인지 가린다.
      */
     fun afterScreenRead(scan: com.onedal.app.core.engine.ScanContext, detected: com.onedal.app.models.ScreenContext, rawScreenStr: String, packageName: String?) {}

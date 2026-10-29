@@ -176,7 +176,8 @@ object KakaoPickerKeywords {
     fun traceStartsOnClick(live: Boolean, label: String?): Boolean = live && label?.trim() == TRACE_START_BUTTON
 
     /** 누름 알림을 놓쳤을 때 — 홈에서 리스트로 들어오면 켠다 */
-    fun traceStartsFromHome(live: Boolean, previousWasHome: Boolean, nowList: Boolean): Boolean = live && previousWasHome && nowList
+    fun traceStartsFromHome(live: Boolean, previousWasHome: Boolean, nowList: Boolean): Boolean =
+        com.onedal.app.core.AppTrace.startsFromHome(live, previousWasHome, nowList)
 
     /** 켜는 때 — 상세를 떠나 목록이 아닌 화면으로 갔을 때(미리보기를 안 보낸 콜도) 또는 수락 후 표식이 보일 때 */
     fun traceShouldStart(live: Boolean, afterDetail: AfterDetail?, acceptedScreen: Boolean): Boolean =

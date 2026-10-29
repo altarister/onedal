@@ -10,6 +10,7 @@ import org.junit.Test
  */
 class TargetAppSourceTest {
     @Test fun `실물 픽커 앱은 real`() = assertEquals("real", TargetApp.sourceOf("com.kakaomobility.flexer"))
+    @Test fun `실물 인성플렉스 앱은 real`() = assertEquals("real", TargetApp.sourceOf("insung.quickflex"))
     @Test fun `시뮬레이터 앱은 sim`() = assertEquals("sim", TargetApp.sourceOf(TargetApp.SIMULATOR_PACKAGE))
     @Test fun `크롬 웹 시뮬은 sim`() = assertEquals("sim", TargetApp.sourceOf("com.android.chrome"))
     @Test fun `처음 보는 앱도 sim`() = assertEquals("sim", TargetApp.sourceOf("com.sec.android.app.sbrowser"))

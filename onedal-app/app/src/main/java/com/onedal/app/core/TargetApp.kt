@@ -52,6 +52,9 @@ object TargetApp {
     /** 실제 카카오T픽커 앱의 이름 (0830 실측) — 배차망을 정하는 데는 쓰지 않는다 (`isKakaoPickerApp`) */
     const val KAKAOPICKER_PACKAGE = "com.kakaomobility.flexer"
 
+    /** 실제 인성플렉스 앱의 이름 — 배차망을 정하는 데는 쓰지 않는다 (실물 덤프 ex_images/인성플렉스) */
+    const val ISFLEX_PACKAGE = "insung.quickflex"
+
     /**
      * 🧪 배차망 시뮬레이터 앱의 이름 — 설정 화면 «테스트 가상 콜 화면 열기»가 켠다.
      * 🔴 배차망을 정하는 데 쓰지 않는다 — 시뮬레이터는 세 배차망을 한 앱으로 띄운다 (`networksOnScreen`).
@@ -59,7 +62,7 @@ object TargetApp {
     const val SIMULATOR_PACKAGE = "com.onedal.simulator"
 
     /** 🏷️ 실물 배차망 앱 이름 — 여기 있을 때만 보고가 real 이다. 실물 인성·화물24시는 설치하는 날 이 줄에 더한다 */
-    private val REAL_NETWORK_PACKAGES = setOf(KAKAOPICKER_PACKAGE)
+    private val REAL_NETWORK_PACKAGES = setOf(KAKAOPICKER_PACKAGE, ISFLEX_PACKAGE)
 
     /**
      * 🏷️ **이 화면의 보고는 실물인가 시뮬인가** — 통계·뉴스레터는 real 만 센다 (`TargetAppSourceTest`).

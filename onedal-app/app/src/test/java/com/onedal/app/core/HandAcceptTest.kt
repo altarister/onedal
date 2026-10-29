@@ -34,4 +34,12 @@ class HandAcceptTest {
         fun named(n: String) = screens.first { it.name == n }
         assertTrue(HandAccept.of(named("화물상세정보"), named("배차신청 뒤 화물상세정보"), wasPreview = true, heldUnfilled = false))
     }
+
+    /** 인성플렉스 «…원 수행하기» 뒤 화면은 실물이 없어 시뮬이 지어낸 «진행중(한 건)» — 실물 첫날 그 글자로 바꾼다 */
+    @Test fun `🔴 인성플렉스 정의 표 - 상세(확정 전) → 진행중(한 건) = 손 수락 · 목록으로 돌아오면 아니다`() {
+        val screens = com.onedal.app.plugins.isflex.IsflexPages.screens
+        fun named(n: String) = screens.first { it.name == n }
+        assertTrue(HandAccept.of(named("상세(확정 전)"), named("진행중(한 건)"), wasPreview = true, heldUnfilled = false))
+        assertFalse(HandAccept.of(named("상세(확정 전)"), named("목록(신규)"), wasPreview = true, heldUnfilled = false))
+    }
 }

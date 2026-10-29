@@ -24,37 +24,37 @@ import com.onedal.app.core.StandardScreen
 object IsflexPages {
     val pages: PageSpecs = mapOf(
         Page.LIST to listOf(
-            FieldSpec(PageField.PICKUP_DISTANCE, "목록 줄 맨 왼쪽(칸 머리 «출발지까지 (km)» — 줄바꿈 든 한 글자)", "24.3", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
-            FieldSpec(PageField.VEHICLE_TYPE, "거리 아래", "오토", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
-            FieldSpec(PageField.PICKUP, "출발지 칸 — «@» + (예약 앞글자) + 동", "@낼08:20/수원이의동 · @역삼동", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
-            FieldSpec(PageField.RESERVATION, "출발지 «@» 뒤 앞글자", "낼08:20/ · 낼8:30) · 낼09시/ · 낼06:50)", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
-            FieldSpec(PageField.DELIVERY_DISTANCE, "출발지 아래", "약 30.1km", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
-            FieldSpec(PageField.DROPOFF, "도착지 칸 — (마감 앞글자) + 동", "10:20전/쌍림동 · 구리수택동", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
+            FieldSpec(PageField.PICKUP_DISTANCE, "목록 줄 맨 왼쪽(칸 머리 «출발지까지 (km)» — 줄바꿈 든 한 글자)", "24.3", Seen.REAL, Handling.READ, "IsflexParser"),
+            FieldSpec(PageField.VEHICLE_TYPE, "거리 아래", "오토", Seen.REAL, Handling.READ, "IsflexParser"),
+            FieldSpec(PageField.PICKUP, "출발지 칸 — «@» + (예약 앞글자) + 동", "@낼08:20/수원이의동 · @역삼동", Seen.REAL, Handling.READ, "IsflexParser"),
+            FieldSpec(PageField.RESERVATION, "출발지 «@» 뒤 앞글자", "낼08:20/ · 낼8:30) · 낼09시/ · 낼06:50)", Seen.REAL, Handling.READ, "IsflexParser"),
+            FieldSpec(PageField.DELIVERY_DISTANCE, "출발지 아래", "약 30.1km", Seen.REAL, Handling.READ, "IsflexParser"),
+            FieldSpec(PageField.DROPOFF, "도착지 칸 — (마감 앞글자) + 동", "10:20전/쌍림동 · 구리수택동", Seen.REAL, Handling.READ, "IsflexParser"),
             /* 판정 시한에 넣지 않는다 — 기록만 */
-            FieldSpec(PageField.CLOCK, "도착지 앞 마감 앞글자", "10:20전/", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
-            FieldSpec(PageField.FARE, "수입 칸(«원» 없음)", "21,252", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
-            FieldSpec(PageField.PAYMENT, "수입 아래 작은 테두리 글자", "선불 · 착불", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
+            FieldSpec(PageField.CLOCK, "도착지 앞 마감 앞글자", "10:20전/", Seen.REAL, Handling.READ, "IsflexParser"),
+            FieldSpec(PageField.FARE, "수입 칸(«원» 없음)", "21,252", Seen.REAL, Handling.READ, "IsflexParser"),
+            FieldSpec(PageField.PAYMENT, "수입 아래 작은 테두리 글자", "선불 · 착불", Seen.REAL, Handling.READ, "IsflexParser"),
             /* 실물 8건에는 없다 · 안내 그림 img_guide3_1 에만 */
             FieldSpec(PageField.BILLING, "수입 아래 배지(안내 그림)", "계산서", Seen.UNKNOWN, Handling.UNUSED),
             /* 실물 8건에는 없다 · 안내 그림 img_guide3_1 에만 — 차종 바로 뒤에 오면 차종 글자에 섞일 수 있다 */
             FieldSpec(PageField.TAGS, "차종 아래 배지(안내 그림)", "급 · 왕 · 빈 · 경", Seen.UNKNOWN, Handling.UNUSED),
         ),
         Page.DETAIL to listOf(
-            FieldSpec(PageField.PICKUP_DISTANCE, "지도 아래 «출발지까지» 다음", "출발지까지 26.7km", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser 는 아직 빈 껍데기",
+            FieldSpec(PageField.PICKUP_DISTANCE, "지도 아래 «출발지까지» 다음", "출발지까지 26.7km", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
                 read = Regex("""출발지까지\s+([\d.]+)km""")),
-            FieldSpec(PageField.VEHICLE_TYPE, "거리 다음", "오토", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser 는 아직 빈 껍데기",
+            FieldSpec(PageField.VEHICLE_TYPE, "거리 다음", "오토", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
                 read = Regex("""출발지까지\s+[\d.]+km\s+(\S+)""")),
             FieldSpec(PageField.TAGS, "차종 뒤 세로 구분선 다음", "과적", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) · 상세 자료 구분 칸(detailRecordOf)",
                 read = Regex("""출발지까지\s+[\d.]+km\s+\S+\s+(\S+(?:\s+\S+)*?)\s+출발\s+(?:@|약\s)""")),
-            FieldSpec(PageField.RESERVATION, "출발 주소 둘째 «@» 뒤 앞글자", "낼8:30)", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
+            FieldSpec(PageField.RESERVATION, "출발 주소 둘째 «@» 뒤 앞글자", "낼8:30)", Seen.REAL, Handling.READ, "IsflexParser"),
             /* 주소가 두 줄이면 «약 N km»가 주소 앞에 온다(실물 10) */
-            FieldSpec(PageField.PICKUP, "«출발» 다음 — «@시도 시군구 @(예약)동»", "@서울 서초구 @낼8:30)방배동", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser 는 아직 빈 껍데기",
+            FieldSpec(PageField.PICKUP, "«출발» 다음 — «@시도 시군구 @(예약)동»", "@서울 서초구 @낼8:30)방배동", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
                 read = Regex("""(?:^|\s)출발\s+(?:약\s+[\d.]+km\s+)?(\S[\s\S]*?)(?:\s+약\s+[\d.]+km)?\s+도착\s""")),
-            FieldSpec(PageField.DELIVERY_DISTANCE, "출발 주소 아래", "약 2.3km", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser 는 아직 빈 껍데기",
+            FieldSpec(PageField.DELIVERY_DISTANCE, "출발 주소 아래", "약 2.3km", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
                 read = Regex("""(?:^|\s)출발\s[\s\S]*?약\s+([\d.]+)km""")),
             /* 판정 시한에 넣지 않는다 — 기록만 */
-            FieldSpec(PageField.CLOCK, "도착 주소 동 앞 마감 앞글자", "10:20전/", Seen.REAL, Handling.READ, "IsflexParser — 아직 빈 껍데기라 안 읽는다"),
-            FieldSpec(PageField.DROPOFF, "«도착» 다음 — «시도 시군구 (마감)동»", "서울 강남구 대치동", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser 는 아직 빈 껍데기",
+            FieldSpec(PageField.CLOCK, "도착 주소 동 앞 마감 앞글자", "10:20전/", Seen.REAL, Handling.READ, "IsflexParser"),
+            FieldSpec(PageField.DROPOFF, "«도착» 다음 — «시도 시군구 (마감)동»", "서울 강남구 대치동", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
                 read = Regex("""(?:^|\s)도착\s+([\s\S]+?)\s+적요상세(?:\s|${'$'})""")),
             FieldSpec(PageField.MEMO, "«적요상세» 다음(빈 적요는 «없음»)", "1박스 3층 계단물건 있음", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «적요상세» 다음 결제 · «총 수입» 앞 · «없음»은 못 읽음(빈 적요)",
                 read = Regex("""적요상세\s+(?!없음\s+(?:선불|착불|총 수입)(?:\s|${'$'}))([\s\S]*?)(?=\s+(?:선불|착불|총 수입)(?:\s|${'$'}))""")),

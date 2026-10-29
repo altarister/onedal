@@ -19,7 +19,7 @@ import java.util.Locale
 /**
  * 🚚 배차망 탭 화면
  *
- * 원달이 지원하는 3대 배차망(인성데이타, 화물24시, 카카오픽커)의
+ * 원달이 지원하는 4대 배차망(인성데이타, 화물24시, 카카오픽커, 인성플렉스)의
  * 고유 동작 모드, 단가/알람 판정 수식, 대기 시간 및 특수 수순을
  * 배차망별로 명확하게 분리하여 보여줍니다.
  */
@@ -27,10 +27,10 @@ import java.util.Locale
 fun NetworksScreen(viewModel: MainViewModel) {
     val filterConfig = viewModel.getFilterConfig()
     val filter = viewModel.getParsedFilter()
-    var selectedNetwork by remember { mutableStateOf(0) } // 0: 인성, 1: 화물24시, 2: 카카오픽커
+    var selectedNetwork by remember { mutableStateOf(0) } // 0: 인성, 1: 화물24시, 2: 카카오픽커, 3: 인성플렉스
 
-    val networkNames = listOf("인성콜", "화물24시", "카카오픽커")
-    val networkIcons = listOf("🔵", "🟠", "🟡")
+    val networkNames = listOf("인성콜", "화물24시", "카카오픽커", "인성플렉스")
+    val networkIcons = listOf("🔵", "🟠", "🟡", "🟣")
 
     Column(
         modifier = Modifier
@@ -38,7 +38,7 @@ fun NetworksScreen(viewModel: MainViewModel) {
             .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // ── 1. 상단 배차망 선택 탭 (3개 분할) ──
+        // ── 1. 상단 배차망 선택 탭 (4개 분할) ──
         TabRow(
             selectedTabIndex = selectedNetwork,
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -66,11 +66,12 @@ fun NetworksScreen(viewModel: MainViewModel) {
             0 -> InsungDetailCard(filterConfig = filterConfig)
             1 -> Hwamul24DetailCard(filterConfig = filterConfig)
             2 -> KakaoPickerDetailCard(filterConfig = filterConfig, parsedFilter = filter)
+            3 -> IsflexDetailCard(filterConfig = filterConfig, parsedFilter = filter)
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // ── 3. 3대 배차망 한눈에 비교 카드 ──
+        // ── 3. 4대 배차망 한눈에 비교 카드 ──
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
@@ -78,7 +79,7 @@ fun NetworksScreen(viewModel: MainViewModel) {
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
-                    text = "📊 3대 배차망 동작 요약 비교",
+                    text = "📊 4대 배차망 동작 요약 비교",
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
@@ -104,6 +105,13 @@ fun NetworksScreen(viewModel: MainViewModel) {
                     badge = "🔔 알람전용",
                     color = Color(0xFFF57F17),
                     desc = "최소 금액 ${NumberFormat.getNumberInstance(Locale.KOREA).format(filter.minFare)}원 · 요금·상차·도착·예약 · 상세복귀 ${filterConfig?.pickerAlarmDetailSec ?: 30}초"
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                ComparisonRow(
+                    label = "인성플렉스",
+                    badge = "🔔 알람전용",
+                    color = Color(0xFF6A1B9A),
+                    desc = "최소 금액 ${NumberFormat.getNumberInstance(Locale.KOREA).format(filter.minFare)}원 · 단가(운행 거리) · 적요 · 꼬리표 제외어 · 상세복귀 ${filterConfig?.isflexAlarmDetailSec ?: 30}초"
                 )
             }
         }
@@ -331,6 +339,82 @@ private fun KakaoPickerDetailCard(
             DetailBullet("차종 처리: 픽커는 크기 구분만 있으므로 [${KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE} (${KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG})] 로 본다")
             DetailBullet("화면 판독: 주소가 노드 트리에 없어 상단 스냅샷 OCR(PickerDetailOcrParser) 탑재")
             DetailBullet("패키지 식별: flexer 키워드 포함 앱 감지")
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 4. 인성플렉스 상세 카드
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun IsflexDetailCard(
+    filterConfig: com.onedal.app.models.FilterConfig?,
+    parsedFilter: MainViewModel.ParsedFilter
+) {
+    val numberFormat = remember { NumberFormat.getNumberInstance(Locale.KOREA) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F3FB)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // 헤더
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🟣", fontSize = 18.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "인성플렉스 (플렉스)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                }
+                Surface(
+                    color = Color(0xFFF3E5F5),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = "🔔 알람전용",
+                        color = Color(0xFF6A1B9A),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = Color(0xFFE1BEE7))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 판정 수식 & 하한
+            Text(text = "💰 단가 및 수락 판정", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = Color(0xFF6A1B9A))
+            Spacer(modifier = Modifier.height(4.dp))
+            DetailBullet("판정 축: 예약 · 차종 · 도착 · 최저 요금 · 단가 · 상차 목록 · 제외어")
+            DetailBullet("최저 요금 하한: ${numberFormat.format(parsedFilter.minFare)}원")
+            DetailBullet("단가: 운행 거리(«약 N km»)를 읽어 켜짐 — 기사님 차종 단가(설정창 차종 · 못 받으면 콜 차종 «오토»의 오토바이 단가)")
+            DetailBullet("제외어: 적요 · 꼬리표만 봄")
+            DetailBullet("수집 방식: 접근성 노드 텍스트 직접")
+
+            // 차종별 단가표
+            filterConfig?.ratePerKm?.takeIf { it.isNotEmpty() }?.let { rates ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "📋 서버 연동 차종별 단가표 (원/km)", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall, color = Color(0xFF37474F))
+                Spacer(modifier = Modifier.height(4.dp))
+                RatesGrid(rates = rates)
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = Color(0xFFE1BEE7))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 시간 & 안전 규칙
+            Text(text = "⏱️ 시간 & 안전 규칙", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = Color(0xFF6A1B9A))
+            Spacer(modifier = Modifier.height(4.dp))
+            DetailBullet("상세 복귀 대기: ${filterConfig?.isflexAlarmDetailSec ?: 30}초 (isflexAlarmDetailSec)")
+            DetailBullet("안전취소: 🚫 미지원 (원달앱은 «…원 수행하기»를 누르지 않음 · 확정 뒤 무르기는 회원사 전화)")
+            DetailBullet("패키지 식별: quickflex 키워드 포함 앱 감지")
         }
     }
 }

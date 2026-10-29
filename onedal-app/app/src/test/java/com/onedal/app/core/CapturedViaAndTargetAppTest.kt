@@ -20,10 +20,12 @@ class CapturedViaAndTargetAppTest {
      * 픽커의 화면 판별 낱말(배차망 정의 표의 상세 글자)은 «수락하기»라, 수락 칸이 그것을 쓰면 곧 계약 버튼이 된다.
      */
     @Test
-    fun `픽커는 자동 모드도 수락 칸도 없다 - 인성·화물24시는 둘 다 있다`() {
-        val picker = com.onedal.app.plugins.DispatchPluginRegistry.get(TargetApp.KAKAOPICKER)
-        assertEquals(null, picker.acceptButtons)
-        assertEquals(false, "AUTO" in picker.availableModes)
+    fun `픽커 · 인성플렉스는 자동 모드도 수락 칸도 없다 - 인성·화물24시는 둘 다 있다`() {
+        for (code in listOf(TargetApp.KAKAOPICKER, TargetApp.ISFLEX)) {
+            val p = com.onedal.app.plugins.DispatchPluginRegistry.get(code)
+            assertEquals(code, null, p.acceptButtons)
+            assertEquals(code, false, "AUTO" in p.availableModes)
+        }
         for (code in listOf(TargetApp.INSUNG, TargetApp.HWAMUL24)) {
             val p = com.onedal.app.plugins.DispatchPluginRegistry.get(code)
             assertEquals(true, !p.acceptButtons.isNullOrEmpty())
