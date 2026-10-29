@@ -113,9 +113,12 @@ object IsflexPages {
         "개인이동수단" to null,
     )
 
-    /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 2단계에서 인성과 안 섞이는 묶음을 채운다) · 묶음 안 글자가 전부 보이면 이 배차망 */
+    /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 목록(«출발지까지» + «수입») · 상세(«총 수입» + «수행하기») · 홈(«현재 선택된 배송 수단») · 진행중 빈 화면(«진행중인 오더가 없습니다») — 실물 02 · 08 · 01 · 04 에 있고 인성 화면에는 없는 글자 묶음. 공지 띠 · «AI 배차 대기중»은 글이 바뀌거나 사라져 쓰지 않는다) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(
-
+        listOf("출발지까지", "수입"),
+        listOf("총 수입", "수행하기"),
+        listOf("현재 선택된 배송 수단"),
+        listOf("진행중인 오더가 없습니다"),
     )
 
     /** ⚙️ 배차망 규칙(shared modes · packageKeywords · safeCancelSec · detailBackSec — 자동이 없다 — «…원 수행하기»가 곧 계약이고 확정 뒤 임의 취소가 안 되며 취소마다 다음 확정이 10초 막혀 원달앱이 누르지 않는다 · 안전취소가 없다 · 상세 머묾 시간 칸은 아직 없다 · 패키지 글자는 «quickflex»(«insung» 은 인성 표가 이미 실물 insung.quickflex 에 건다)) · 시간은 값이 아니라 설정 칸 이름(FilterConfig.secOf) */

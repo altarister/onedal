@@ -25,6 +25,7 @@ import java.io.File
  *   픽커   : ex_images/카카오픽커/실물_2026/ 02(리스트) · 06(상세) · 16·17(수락 뒤) · 01(홈)
  *   화물24시: ex_images/화물24시/ 36(리스트) · 18(상세)
  *   인성   : onedal-sim 인성 화면 · 홈은 ex_images/인성/인성홈.png (목록 · 상세 실물은 아직 못 봤다)
+ *   인성플렉스: ex_images/인성플렉스/ 02(목록) · 08(상세) · 01(홈) · 04(진행중 빈) 실물 xml 에서 옮긴 글자(손으로 적은 노드 목록)
  * ⚠️ 주소·동호수·전화번호는 옮기지 않았다 (실물 11~32 는 레포에 안 올리기로 한 자료다).
  */
 class NetworkByScreenTest {
@@ -73,6 +74,26 @@ class NetworkByScreenTest {
     private val insungList = listOf("신규", "완료", "빠른설정", "출발지", "도착지", "차종", "요금", "경안동", "초월읍", "다", "3.5")
     private val insungDetail = listOf("출발지", "도착지", "요금 : 35,000(신용)", "적요상세", "확정")
 
+    // ── 인성플렉스 (실물 xml) ──
+    private val isflexList = listOf(
+        "퇴근하기", "목록", "지도", "신규", "진행중", "AI 배차 대기중",
+        "전체", "도보", "개인이동수단", "오토바이", "승용/소형",
+        "출발지까지\n(km)", "출발지", "도착지", "수입",
+        "24.3", "오토", "@낼08:20/수원이의동", "약 30.1km", "10:20전/쌍림동", "21,252",
+    )
+    private val isflexDetail = listOf(
+        "@역삼동 → 대치동", "Google 지도", "출발지까지", "26.7km", "오토",
+        "출발", "@서울 강남구 @역삼동", "약 2.3km", "도착", "서울 강남구 대치동",
+        "적요상세", "1박스 3층 계단물건 있음", "착불", "총 수입", "8,500원", "닫기", "8,500원 \n수행하기",
+    )
+    private val isflexHome = listOf(
+        "[퀵서비스협회x안전보건공단 교육 이수 인증 이벤트]", "모두보기",
+        "현재 선택된 배송 수단", "승용/소형", "변경", "출근하기", "로지웨이(주)", "개인정보 처리방침",
+    )
+    private val isflexMyOrdersEmpty = listOf("퇴근하기", "목록", "지도", "신규", "진행중", "진행중인 오더가 없습니다")
+    /** 08 상세의 적요에 «요금» 한 낱말을 더했다 — 실물 글자에 낱말 하나 더함 · 지어낸 화면 아님 */
+    private val isflexDetailMemoFare = isflexDetail.map { if (it == "1박스 3층 계단물건 있음") "1박스 3층 계단물건 있음 요금" else it }
+
     // ── 배차망이 아닌 화면 (실측 로그) ──
     private val lockScreen = listOf("잠금해제 패턴을 그리세요", "긴급 전화")
     private val launcher = listOf("셀 1 추가됨", "카카오톡", "설정")
@@ -81,6 +102,7 @@ class NetworkByScreenTest {
         TargetApp.KAKAOPICKER to listOf(pickerList, pickerDetail, pickerHome, pickerToPickup, pickerAtPickup),
         TargetApp.HWAMUL24 to listOf(hwamul24List, hwamul24Detail, hwamul24AfterApply, hwamul24Home),
         TargetApp.INSUNG to listOf(insungList, insungDetail, insungHome),
+        TargetApp.ISFLEX to listOf(isflexList, isflexDetail, isflexHome, isflexMyOrdersEmpty),
     )
 
     @Test
@@ -113,6 +135,29 @@ class NetworkByScreenTest {
                     setOf(net), TargetApp.networksOnScreen(screen))
             }
         }
+    }
+
+    @Test
+    fun `🔴 인성 화면은 인성플렉스로 바뀌지 않는다`() {
+        listOf(insungList, insungDetail, insungHome).forEach { screen ->
+            assertFalse(TargetApp.ISFLEX in TargetApp.networksOnScreen(screen))
+            assertNull(NetworkSwitchGate.switchTargetFor(TargetApp.networkOfScreen(screen), TargetApp.INSUNG))
+        }
+    }
+
+    @Test
+    fun `🔴 인성플렉스 화면은 인성플렉스로 간다 - 목록 · 상세 · 홈 · 진행중 빈`() {
+        listOf(isflexList, isflexDetail, isflexHome, isflexMyOrdersEmpty).forEach { screen ->
+            assertFalse(TargetApp.INSUNG in TargetApp.networksOnScreen(screen))
+            assertEquals(TargetApp.ISFLEX, NetworkSwitchGate.switchTargetFor(TargetApp.networkOfScreen(screen), TargetApp.INSUNG))
+        }
+    }
+
+    @Test
+    fun `🔴 적요에 요금이 든 인성플렉스 상세는 두 배차망 표식에 다 걸려 갈아타지 않는다`() {
+        assertEquals(setOf(TargetApp.INSUNG, TargetApp.ISFLEX), TargetApp.networksOnScreen(isflexDetailMemoFare))
+        assertNull(NetworkSwitchGate.switchTargetFor(TargetApp.networkOfScreen(isflexDetailMemoFare), TargetApp.INSUNG))
+        assertNull(NetworkSwitchGate.switchTargetFor(TargetApp.networkOfScreen(isflexDetailMemoFare), TargetApp.ISFLEX))
     }
 
     @Test
