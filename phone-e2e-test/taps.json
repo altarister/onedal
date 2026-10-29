@@ -656,8 +656,8 @@
       "x": null,
       "y": null,
       "check": "any",
-      "text": "aria:상차 * 전화",
-      "from": "글자로 찾아 손 누름 — 콜 카드 상차 덩어리(StopDetailBlock <a aria-label «상차 이름 전화»>) · 누르면 그 번호로 바로 건다(DirectCall) · 시험 콜 번호는 기사님 휴대폰(day.py TEST_PHONE) · 이름은 담당자 칸이 먼저라 시뮬 콜은 «*»"
+      "text": "aria:상차 시험 상차지 전화",
+      "from": "글자로 찾아 손 누름 — 콜 카드 상차 덩어리(StopDetailBlock <a aria-label «상차 이름 전화»>) · 누르면 그 번호로 바로 건다(DirectCall) · 시험 콜 번호는 기사님 휴대폰(day.py TEST_PHONE) · 이름은 담당자 칸이 먼저(시험 콜은 담당자 «시험 상차지»를 싣는다)"
     },
     "s23.incall.restricted.ok": {
       "phone": "S23",

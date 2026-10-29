@@ -18,9 +18,9 @@ const body = (over: Record<string, unknown> = {}) => ({ pickup: place('초월읍
 const call = (): SimCallInput => (readSimCallInput(body()) as { ok: true; call: SimCallInput }).call;
 
 describe('개별콜 — 받는 콜 모양', () => {
-    it('맞는 콜을 받는다 · 차종·상호는 있어도 없어도 된다', () => {
+    it('맞는 콜을 받는다 · 차종·상호·담당자는 있어도 없어도 된다', () => {
         expect(readSimCallInput(body())).toEqual({ ok: true, call: body() });
-        const withMore = body({ vehicleType: '다마스', pickup: { ...place('초월읍'), customerName: '모다아울렛' } });
+        const withMore = body({ vehicleType: '다마스', pickup: { ...place('초월읍'), customerName: '모다아울렛', contactName: '점장' } });
         expect(readSimCallInput(withMore)).toEqual({ ok: true, call: withMore });
     });
 
@@ -49,6 +49,7 @@ describe('개별콜 — 받는 콜 모양', () => {
         ['요금이 글자', body({ fare: '50000' })],
         ['차종이 빈칸', body({ vehicleType: ' ' })],
         ['상호가 빈칸', body({ pickup: { ...place('초월읍'), customerName: '' } })],
+        ['담당자가 빈칸', body({ pickup: { ...place('초월읍'), contactName: '' } })],
         ['모르는 배차망', body({ net: 'picker' })],
     ])('🔴 받지 않고 무엇이 틀렸는지 말한다 — 채우지 않는다 (규칙 ④): %s', (_why, b) => {
         const r = readSimCallInput(b);
@@ -180,7 +181,7 @@ describe('🔴 세 곳이 같은 말을 한다 — 현황판 · 서버 · 시뮬
         const core = ['addressDetail', 'lat', 'lon', 'region'];
         expect(fieldsOf(board, 'SimPlaceDraft')).toEqual(core);
         /* 상호·전화는 서버·시뮬만 주고받는다 — 현황판 개별콜 입력에는 그 칸이 없다 */
-        expect(fieldsOf(server, 'SimPlace').filter(k => k !== 'customerName' && k !== 'phone1')).toEqual(core);
+        expect(fieldsOf(server, 'SimPlace').filter(k => k !== 'customerName' && k !== 'contactName' && k !== 'phone1')).toEqual(core);
         expect(fieldsOf(sim, 'InjectedPlace')).toEqual(fieldsOf(server, 'SimPlace'));
     });
 

@@ -35,6 +35,8 @@ export interface SimPlace {
     lat: number;
     /** 상호 — 없으면 시뮬레이터 상세에 안 보인다 */
     customerName?: string;
+    /** 담당자 — 시뮬레이터 상세의 담당 칸. 없으면 «*» 로 떠서 관제웹 정거장 이름이 «*» 가 된다(관제웹은 담당자 → 상호 순으로 이름을 고른다) */
+    contactName?: string;
     /**
      * 전화 — 시뮬레이터 상세의 «전화1» 칸. 🔴 **실물 콜에는 늘 있다** — 없으면 상세에 `*` 로 떠서
      * 원달앱·관제웹 어디서도 전화를 걸 수 없는, 실물에 없는 콜이 된다.
@@ -106,6 +108,11 @@ function readPlace(v: unknown, what: string): SimPlace | string {
         const customerName = textOf(p.customerName, 60);
         if (!customerName) return `${what} 상호가 비었다`;
         out.customerName = customerName;
+    }
+    if (p.contactName !== undefined) {
+        const contactName = textOf(p.contactName, 30);
+        if (!contactName) return `${what} 담당자가 비었다`;
+        out.contactName = contactName;
     }
     if (p.phone1 !== undefined) {
         const phone1 = textOf(p.phone1, 20);

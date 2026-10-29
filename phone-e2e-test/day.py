@@ -266,7 +266,7 @@ def place(key, ref=None):
     raise ToolStop(f'⚪ 시험 도구 — 장소 «{key}» 없음')
 
 # 📞 시험 콜의 상차 · 하차 번호는 기사님 휴대폰 둘 — 덩어리를 눌러 실제로 걸려도 된다(기사님 «둘다 내 번호라 통화버튼을 클릭 해도 된다»)
-TEST_PHONE = {'pickup': {'customerName': '시험 상차지', 'phone1': '010-2684-8748'}, 'dropoff': {'customerName': '시험 하차지', 'phone1': '010-5865-8748'}}
+TEST_PHONE = {'pickup': {'customerName': '시험 상차지', 'contactName': '시험 상차지', 'phone1': '010-2684-8748'}, 'dropoff': {'customerName': '시험 하차지', 'contactName': '시험 하차지', 'phone1': '010-5865-8748'}}   # 담당자도 싣는다 — 관제웹 정거장 이름은 담당자 → 상호 순이라 없으면 «*»
 
 def call_state():
     """S23 통화 상태 — 0 쉼 · 1 울림 · 2 거는 중/통화 중(telephony.registry mCallState)"""
