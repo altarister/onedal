@@ -57,7 +57,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
         fun ourVehicleOf(raw: String?): String? = raw?.trim()?.substringBefore('/')?.let { Hwamul24Pages.vehicleWords[it] }
 
-        private val RULES = ListJudge.Rules(vehicleOf = ::ourVehicleOf, blacklistTextOf = { it.rawText ?: "" }, logHead = "24시", netCode = com.onedal.app.core.TargetApp.HWAMUL24)
+        private val RULES = ListJudge.Rules(vehicleOf = ::ourVehicleOf, blacklistTextOf = { it.rawText ?: "" }, logHead = "24시", netCode = com.onedal.app.core.TargetApp.HWAMUL24,
+            rateVehicleOf = { order, _ -> order.vehicleType })   // 💰 단가는 콜 화면 차종으로
 
         /** 🧪 판정 — 몸통은 배차망 공통 `ListJudge` · 제외어는 적요가 든 원문 전체에서 찾는다 */
         fun judge(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Verdict =

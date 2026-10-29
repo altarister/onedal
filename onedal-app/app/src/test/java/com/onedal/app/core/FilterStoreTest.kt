@@ -104,6 +104,15 @@ class FilterStoreTest {
         assertNull(f.reservedPickupGroups)
     }
 
+    /** 🚚 기사님 차종 — 서버가 실은 글자 그대로 · 없음 · 빈 글자 · null 은 null(목록 판정이 콜 화면 차종으로 단가를 본다) */
+    @Test fun `기사님 차종 - 실린 글자 그대로 · 없거나 비면 null`() {
+        assertEquals("1t", of("""{"driverVehicleType":"1t"}""").driverVehicleType)
+        assertEquals("승용차", of("""{"driverVehicleType":" 승용차 "}""").driverVehicleType)
+        assertNull(of("""{}""").driverVehicleType)
+        assertNull(of("""{"driverVehicleType":""}""").driverVehicleType)
+        assertNull(of("""{"driverVehicleType":null}""").driverVehicleType)
+    }
+
     private val root = "src/main/java/com/onedal/app"
     private fun mainFiles() = File(root).walkTopDown().filter { it.isFile && it.extension == "kt" && it.name != "FilterStore.kt" }
 

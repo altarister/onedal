@@ -413,6 +413,11 @@ data class FilterConfig(
      * 비어 있으면(서버가 구버전이거나 미응답) minFare 판정으로 동작한다 — 오프라인 안전망.
      */
     val ratePerKm: Map<String, Int> = emptyMap(),
+    /**
+     * 🚚 **기사님 차종**(서버 DB `user_settings.vehicle_type` · 관제웹 설정창 차종) — 목록 판정이 단가에 쓸 차종을 고를 때 읽는다(`ListJudge.Rules.rateVehicleOf`).
+     *    키가 없거나 비면 null — 그때는 콜 화면 차종으로 단가를 본다(옛 서버 · 설정 행 없음). 허용 차종 축과는 따로다.
+     */
+    val driverVehicleType: String? = null,
     val destinationCity: String = "",
     val destinationRadiusKm: Double = 10.0,   // 🔴 소수로 받는다 — 위 pickupRadiusKm 과 같은 까닭
     val excludedKeywords: List<String> = emptyList(),

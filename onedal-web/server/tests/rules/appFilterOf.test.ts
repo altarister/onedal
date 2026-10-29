@@ -62,6 +62,8 @@ function oldAssembly(session: any, userId: string, deviceId: string) {
     if (session.activeFilter.goalCity) appFilter.destinationCity = session.activeFilter.goalCity;
     appFilter.evaluatingNow = !!session.deviceEvaluatingMap.get(deviceId);
     Object.assign(appFilter, readWaitTimes(userId));
+    const driverVehicle = db.prepare(`SELECT vehicle_type FROM user_settings WHERE user_id = ?`).get(userId)?.vehicle_type;
+    if (driverVehicle) appFilter.driverVehicleType = driverVehicle;
     if (session.isBootstrapping) appFilter.isActive = false;
     if (capacityFullHold(session.activeFilter)) appFilter.isActive = false;
     if (!session.isRestored) appFilter.isActive = false;
@@ -153,6 +155,31 @@ describe('📋 앱 필터 — 상차 목록 · 하차 목록 두 모음', () => 
     it('🔴 앱 필터에 경로 순서 숫자(orderKm) 칸이 없다', async () => {
         const { out } = await report(false);
         expect(out.dispatchEngineArgs).not.toHaveProperty('orderKm');
+    });
+});
+
+/**
+ * 🚚 **기사님 차종이 공급에 실린다** — 원천은 DB `user_settings.vehicle_type`(관제웹 설정창 차종) 한 칸.
+ *    원달앱 목록 판정이 단가에 쓸 차종을 고를 때 읽는다 · 칸이 없으면 원달앱은 콜 화면 차종으로 단가를 본다.
+ */
+describe('🚚 앱 필터 — 기사님 차종', () => {
+    const setVehicle = (v: string | null) => db.prepare(`UPDATE user_settings SET vehicle_type = ? WHERE user_id = ?`).run(v, U);
+    afterAll(() => setVehicle('1t'));
+    beforeEach(() => { clearUserSession(U); const s = getUserSession(U); s.activeFilter = { ...s.activeFilter, isActive: true }; });
+    it('🔴 DB 기본값(1t)이 공급에 실린다', async () => {
+        setVehicle('1t');
+        const { out } = await report(false);
+        expect(out.dispatchEngineArgs.driverVehicleType).toBe('1t');
+    });
+    it('🔴 설정창에서 차종을 바꾸면 공급 칸도 그 값이다', async () => {
+        setVehicle('승용차');
+        const { out } = await report(false);
+        expect(out.dispatchEngineArgs.driverVehicleType).toBe('승용차');
+    });
+    it('🔴 차종이 비면 칸이 없다 — 1t 로 채우지 않는다', async () => {
+        setVehicle('');
+        const { out } = await report(false);
+        expect(out.dispatchEngineArgs).not.toHaveProperty('driverVehicleType');
     });
 });
 

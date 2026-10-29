@@ -6,12 +6,11 @@ import com.onedal.app.core.engine.FareFloor
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
-import com.onedal.app.plugins.insung.InsungParser
 
 /**
  * 🧪 **목록 줄 판정 — 배차망이 달라도 같은 축 · 같은 차례** (예약 → 차종 → 도착지 → 요금 → 상차 목록 · 거리 → 제외어).
  * 누름(`shouldClick`)과 장부의 까닭(`withVerdict`)이 **같은 분기**를 쓴다 — 따로 세면 «누름은 요금, 장부는 지역»으로 갈라진다.
- * 배차망마다 다른 것은 `Rules` 넷뿐이다 — 차종 표 · 제외어를 볼 글 · 로그 머리 · 한 번만 남기는 로그 열쇠의 배차망 코드.
+ * 배차망마다 다른 것은 `Rules` 다섯뿐이다 — 차종 표 · 단가에 쓰는 차종 · 제외어를 볼 글 · 로그 머리 · 한 번만 남기는 로그 열쇠의 배차망 코드.
  * 인성 판정(`InsungParser.judge`)은 도착지를 상세 글로 다시 보는 갈래와 차종 비교가 달라 이 함수를 쓰지 않는다.
  * 같은 판정 두 벌이 아니라 인자가 둘 더 필요한 판정이다 — 인성이 들어오려면 `Rules` 에 도착지를 볼 글 · 차종 정규화를 품은 `vehicleOf`.
  */
@@ -23,17 +22,21 @@ object ListJudge {
     data class Verdict(val passed: Boolean, val axis: String)
 
     /**
-     * 배차망 몫 넷.
+     * 배차망 몫 다섯.
      * - `vehicleOf` — 화면 차종 글자 → 우리 차종(표에 없으면 null = 차종 모름)
      * - `blacklistTextOf` — 제외어를 찾아볼 글
      * - `logHead` — 판정 로그 머리 «🔍 [○○ 필터]»의 ○○
      * - `netCode` — 한 번만 남기는 로그(`LogOnce`)의 열쇠 앞머리 · 배차망끼리 같은 상차 · 하차 · 요금 콜의 로그가 서로를 지우지 않게
+     * - `rateVehicleOf` — 단가표(`FareFloor.rateOf`)에 넣을 차종 글자. 화물24시는 콜 화면 차종(`order.vehicleType`),
+     *   인성플렉스가 기사님 차종(`FilterConfig.driverVehicleType`)을 넘긴다(5단계). null 이면 단가 조건만 빠지고 최소 금액은 남는다.
+     *   차종 축(허용 차종 · `vehicleOf`)과는 따로다 — 이 값은 단가만 고른다
      */
     data class Rules(
         val vehicleOf: (String?) -> String?,
         val blacklistTextOf: (SimplifiedOfficeOrder) -> String,
         val logHead: String,
         val netCode: String,
+        val rateVehicleOf: (SimplifiedOfficeOrder, FilterConfig) -> String? = { order, _ -> order.vehicleType },
     )
 
     fun judge(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null, rules: Rules): Verdict {
@@ -99,8 +102,8 @@ object ListJudge {
          *    안전망을 빼지 않으려는 폴백이다 (규칙 ②). 배송거리를 읽게 되는 순간
          *    이 판정이 **저절로 켜진다.**
          */
-        // 단가 조회는 인성과 **같은 함수**를 쓴다 — 차종 별칭 규칙이 두 벌이 되면 망마다 값이 갈린다
-        val rateFloor = order.vehicleType?.let { vt -> InsungParser.resolveRate(filter.ratePerKm, vt) }
+        // 단가 조회는 인성과 **같은 함수**를 쓴다 — 차종 별칭 규칙이 두 벌이 되면 망마다 값이 갈린다 · 어느 차종 글자인지는 배차망이 고른다(`Rules.rateVehicleOf`)
+        val rateFloor = rules.rateVehicleOf(order, filter)?.let { vt -> FareFloor.rateOf(filter.ratePerKm, vt) }
         val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && order.deliveryDistance != null
         val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
                         (!useRateModel || order.fare >= order.deliveryDistance!! * rateFloor!!) &&

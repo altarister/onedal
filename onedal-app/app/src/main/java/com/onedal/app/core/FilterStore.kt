@@ -84,6 +84,7 @@ object FilterStore {
             maxFare = whole(value("maxFare")) ?: d.maxFare,
             ratePerKm = value("ratePerKm")?.takeIf { it.isJsonObject }?.asJsonObject?.entrySet()
                 ?.associate { (k, v) -> k to (whole(v) ?: 0) } ?: emptyMap(),
+            driverVehicleType = text(value("driverVehicleType"))?.trim()?.ifEmpty { null },
             destinationCity = text(value("destinationCity")) ?: d.destinationCity,
             destinationRadiusKm = number(value("destinationRadiusKm")) ?: d.destinationRadiusKm,
             excludedKeywords = strings(value("excludedKeywords")),

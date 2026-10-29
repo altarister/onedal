@@ -183,28 +183,6 @@ class InsungParser(private val context: Context) : IScrapParser {
         }
 
         /**
-         * 차종 → 단가(원/km). **두 파서가 함께 쓴다** — 24시도 같은 단가표를 본다.
-         * 🔴 복제하지 않는다 (규칙 ③): 차종 별칭 규칙이 두 벌이 되면 망마다 다른 값이 나온다.
-         * ⚠️ 자리가 `InsungParser` 인 것은 역사일 뿐이다. 파서가 셋이 되면 중립 자리로 옮긴다
-         */
-        internal fun resolveRate(rates: Map<String, Int>, parsedVehicle: String): Int? {
-            if (rates.isEmpty()) return null
-            val p = parsedVehicle.lowercase(Locale.getDefault())
-            for ((key, rate) in rates) {
-                val matched = when (key.lowercase(Locale.getDefault())) {
-                    "1t" -> p.contains("1") || p.contains("t") || p.contains("톤")
-                    "다마스" -> p.contains("다")
-                    "라보" -> p.contains("라")
-                    "오토바이" -> p.contains("오") || p.contains("바")
-                    "승용차" -> p.contains("승")
-                    else -> p.contains(key.lowercase(Locale.getDefault())) || key.lowercase(Locale.getDefault()).contains(p)
-                }
-                if (matched) return rate
-            }
-            return null
-        }
-
-        /**
          * 🚚 **차종을 «담고 있나»가 아니라 «같은가»로 본다** (기사님 실측).
          *
          * «담고 있나»로 보면 이렇게 된다:
@@ -338,7 +316,7 @@ class InsungParser(private val context: Context) : IScrapParser {
              *
              * 콜할인율가 "전부"면 서버가 단가를 0 으로 내려 보낸다 → `fare >= 거리 × 0` 은 항상 참.
              */
-            val rateFloor = order.vehicleType?.let { vt -> resolveRate(filter.ratePerKm, vt) }
+            val rateFloor = order.vehicleType?.let { vt -> FareFloor.rateOf(filter.ratePerKm, vt) }
             val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && order.deliveryDistance != null
 
             val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&

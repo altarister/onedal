@@ -31,6 +31,18 @@ class FareFloorTest {
         assertFalse(FareFloor.passes(19999, 20000))
     }
 
+    /** 💰 차종 글자 → 단가 — 화면 낱말(«오» · «승» · «다» · «1t»)과 기사님 차종 글자(«1t» · «승용차»)가 같은 표로 풀린다 */
+    @Test
+    fun `차종 글자를 단가표의 차종으로 푼다 - 표가 비면 null`() {
+        val rates = mapOf("오토바이" to 700, "승용차" to 900, "다마스" to 800, "1t" to 1000)
+        assertEquals(700, FareFloor.rateOf(rates, "오토"))
+        assertEquals(900, FareFloor.rateOf(rates, "승"))
+        assertEquals(900, FareFloor.rateOf(rates, "승용차"))
+        assertEquals(800, FareFloor.rateOf(rates, "다"))
+        assertEquals(1000, FareFloor.rateOf(rates, "1t"))
+        assertEquals(null, FareFloor.rateOf(emptyMap(), "1t"))
+    }
+
     private fun insungFilter(minFare: Int) = FilterConfig(
         isActive = true,
         isSharedMode = true,
