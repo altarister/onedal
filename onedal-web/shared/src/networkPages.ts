@@ -4,11 +4,12 @@ import type { VehicleType } from './vehicles';
 import { INSUNG_PAGES } from './networkPages.insung';
 import { HWAMUL24_PAGES } from './networkPages.hwamul24';
 import { KAKAO_PICKER_PAGES } from './networkPages.kakaopicker';
+import { ISFLEX_PAGES } from './networkPages.isflex';
 
 /**
  * 📄 **배차망 화면 정의 — 한 곳** (기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
- * 배차망(인성 · 화물24시 · 카카오 픽커)마다 «어느 화면 · 어느 칸이 · 어디에 · 어떤 글자로 오고 · 읽나 안 읽나 · 어떻게 읽나»를 여기 한 장에만 적는다.
- * 🔴 **원천이다 — 여기를 고친다.** 원달앱 `plugins/…/…Pages.kt` 셋은 `cd onedal-web && pnpm gen:pages` 가 이 표에서 뽑은 생성 파일이고,
+ * 배차망(인성 · 화물24시 · 카카오 픽커 · 인성플렉스)마다 «어느 화면 · 어느 칸이 · 어디에 · 어떤 글자로 오고 · 읽나 안 읽나 · 어떻게 읽나»를 여기 한 장에만 적는다.
+ * 🔴 **원천이다 — 여기를 고친다.** 원달앱 `plugins/…/…Pages.kt` 는 `cd onedal-web && pnpm gen:pages` 가 이 표에서 뽑은 생성 파일이고,
  *    원달앱 `NetworkPagesPairTest` 가 둘이 같은지 문다. 서버는 이 상수를 바로 읽는다.
  * 칸 이름은 `pageFields` 의 낱말(SCREEN_PAGES · PAGE_FIELDS)이다. `read` 는 정규식 원문 글자 — JS 와 코틀린이 같은 뜻으로 읽는 문법만 쓴다(1번 묶음이 값 · 노드 글을 한 칸 띄어 이은 줄에 댄다).
  * 🧾 **늘 있음 / 있다 없다 — 분류 규칙(세 배차망 같음 · 칸의 `presence` · `presenceEvidence`)**
@@ -16,7 +17,7 @@ import { KAKAO_PICKER_PAGES } from './networkPages.kakaopicker';
  *    · 보인 콜 전부에 있음 = 늘 있음(ALWAYS) · 일부에 있음 = 있다 없다(SOMETIMES) · 한 건에만 = 한 번만(ONCE)
  *    · 실물 캡처가 없거나 `seen` 이 REAL 이 아니면 = 모름(UNKNOWN) — 시뮬레이터 화면으로 늘 있음을 매기지 않는다
  *    · 늘 있음 칸이 안 보이면 리뉴얼을 의심한다(58) · 있다 없다 칸은 여러 건 잇달아 안 보일 때만
- * 🗂️ **공통은 여기, 배차망 몫은 배차망마다 한 파일** — `networkPages.insung.ts` · `networkPages.hwamul24.ts` · `networkPages.kakaopicker.ts`(배차망이 늘면 파일 하나와 아래 `NETWORK_PAGES` 한 줄을 더한다).
+ * 🗂️ **공통은 여기, 배차망 몫은 배차망마다 한 파일** — `networkPages.insung.ts` · `networkPages.hwamul24.ts` · `networkPages.kakaopicker.ts` · `networkPages.isflex.ts`(배차망이 늘면 파일 하나와 아래 `NETWORK_PAGES` 한 줄을 더한다).
  *    배차망 파일의 몸통은 JSON 표시 주석 둘(별표 주석 «JSON») 사이의 엄격한 JSON 이다 — 뽑는 스크립트(mjs)와 원달앱 검사가 그 사이를 그대로 읽는다. 표시를 지우지 않는다.
  */
 export interface NetworkFieldSpec {
@@ -201,6 +202,7 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = {
     insung: INSUNG_PAGES,
     hwamul24: HWAMUL24_PAGES,
     kakaopicker: KAKAO_PICKER_PAGES,
+    isflex: ISFLEX_PAGES,
 };
 
 const SEEN_RANK = { UNKNOWN: 0, SIM: 1, REAL: 2 } as const;

@@ -88,6 +88,7 @@ describe('주소 다듬기 (addressCut)', () => {
         insung: a => a.replace(/\(.*?\)$/g, '').trim(),
         hwamul24: a => a.split(',')[0].trim(),
         kakaopicker: a => a.trim(),
+        isflex: a => a.trim(),
     };
     const SAMPLES = ['서울 강남구 역삼동 123 (역삼빌딩)', '가 (나) 다 (라)', '경기 군포 부곡동, 101동 1호', ' 용산 한남 ', '경기 광주시 경안동', '(앞괄호) 서울 중구', '', ',앞쉼표'];
     it('배차망마다 칸이 있고 · 공통 문법 · 기준 답과 같은 답', () => {
@@ -199,6 +200,7 @@ describe('정의 표 — 화면 단추 글자', () => {
     it('배차망마다 잡기 전 상세(detail) 단추 줄은 하나 — 수락 · 물러남 글자가 있다(원달앱이 누를지는 플러그인이 정한다)', () => {
         const want: Record<string, Buttons> = {
             insung: { accept: '확정', filterOut: '취소' }, hwamul24: { accept: '배차신청', filterOut: '돌아가기' }, kakaopicker: { accept: '수락하기', filterOut: '넘기기' },
+            isflex: { accept: '수행하기', filterOut: '닫기' },
         };
         for (const net of Object.keys(NETWORK_PAGES)) {
             const rows = rowsOf(net, 'detail');
@@ -223,6 +225,7 @@ describe('정의 표 — 화면 줄의 기준 칸', () => {
         insung: { '확정 뒤 상세': ['confirm', 'myorder'] },
         hwamul24: { '배차내역 상세 · 화주정보 탭': ['myorder'], '배차내역 상세 · 결제정보 탭': ['myorder'], '배차내역 상세 · 화물정보 탭': ['myorder'], '화물배차정보요약': ['myorder'] },
         kakaopicker: { '수락 후 오더 전체': ['myorder'] },
+        isflex: { '내 오더 콜': ['myorder'] },
     };
     const screensOf = (net: string) => (NETWORK_PAGES as any)[net].screens as Array<{ name: string; standard: string | null; bases?: string[] }>;
     it('한 배차망 안에서 화면 줄 이름은 하나뿐 — 원달앱이 이름으로 화면 줄을 찾아 기준 칸을 읽는다(ScreenWords.pageOf)', () => {

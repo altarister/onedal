@@ -4,6 +4,7 @@ import android.content.Context
 import com.onedal.app.core.TargetApp
 import com.onedal.app.plugins.hwamul24.Hwamul24Plugin
 import com.onedal.app.plugins.insung.InsungPlugin
+import com.onedal.app.plugins.isflex.IsflexPlugin
 import com.onedal.app.plugins.kakaopicker.KakaoPickerPlugin
 
 /**
@@ -24,6 +25,7 @@ object DispatchPluginRegistry {
         register(KakaoPickerPlugin(context))
         register(InsungPlugin(context))
         register(Hwamul24Plugin(context))
+        register(IsflexPlugin(context))
         hasContext = true
     }
 
@@ -35,6 +37,7 @@ object DispatchPluginRegistry {
         register(KakaoPickerPlugin(null))
         register(InsungPlugin(null))
         register(Hwamul24Plugin(null))
+        register(IsflexPlugin(null))
     }
 
     fun register(plugin: IDispatchAppPlugin) {

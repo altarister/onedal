@@ -100,10 +100,16 @@ export const PICKER_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel
     RUN_DONE: { label: "배송 완료", color: GREEN },
 };
 
+/** 🟣 인성플렉스 — 배차망 공통 이름표만(홈 · 진행중 · 상세 · 확정 이름표는 아직 없다 — 원달앱이 인성플렉스 화면을 보내기 전에 채운다) */
+const ISFLEX_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel>> = {
+    ...COMMON,
+};
+
 const BY_NETWORK: Record<TargetAppType, Partial<Record<ScreenContextType, ScreenLabel>>> = {
     insung: INSUNG_SCREEN_LABELS,
     hwamul24: HWAMUL24_SCREEN_LABELS,
     kakaopicker: PICKER_SCREEN_LABELS,
+    isflex: ISFLEX_SCREEN_LABELS,
 };
 
 /**

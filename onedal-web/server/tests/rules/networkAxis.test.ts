@@ -13,8 +13,8 @@ import { isTargetApp, isCapturedVia, TARGET_APPS, DEFAULT_TARGET_APP } from '@on
  */
 describe('«어느 배차망» 축', () => {
 
-    it('값 표준은 shared 한 벌 — 셋이고, 모르는 값은 기본값으로 거른다', () => {
-        expect([...TARGET_APPS]).toEqual(['insung', 'hwamul24', 'kakaopicker']);
+    it('값 표준은 shared 한 벌 — 넷이고, 모르는 값은 기본값으로 거른다', () => {
+        expect([...TARGET_APPS]).toEqual(['insung', 'hwamul24', 'kakaopicker', 'isflex']);
         expect(DEFAULT_TARGET_APP).toBe('insung');
         expect(isTargetApp('kakaopicker')).toBe(true);
         expect(isTargetApp('모르는앱')).toBe(false);

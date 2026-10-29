@@ -5,6 +5,7 @@ import com.onedal.app.core.engine.ScreenDetector
 import com.onedal.app.plugins.IDispatchAppPlugin
 import com.onedal.app.plugins.hwamul24.Hwamul24Plugin
 import com.onedal.app.plugins.insung.InsungPlugin
+import com.onedal.app.plugins.isflex.IsflexPlugin
 import com.onedal.app.plugins.kakaopicker.KakaoPickerPlugin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -27,7 +28,7 @@ class ScreenTableDetectTest {
     }
 
     private val plugins: Map<String, IDispatchAppPlugin> =
-        mapOf("insung" to InsungPlugin(), "hwamul24" to Hwamul24Plugin(), "kakaopicker" to KakaoPickerPlugin())
+        mapOf("insung" to InsungPlugin(), "hwamul24" to Hwamul24Plugin(), "kakaopicker" to KakaoPickerPlugin(), "isflex" to IsflexPlugin())
 
     /** 원달앱이 이 화면을 무엇으로 보나 — 건너뛰는 화면(로딩 · 자동터치 동의)은 «SKIP» */
     private fun classify(network: String, text: String): String {
@@ -35,8 +36,8 @@ class ScreenTableDetectTest {
         return if (read.skip) "SKIP" else read.context.name
     }
 
-    @Test fun `문제지가 있다 - 세 배차망 · 바뀌는 줄과 안 바뀌는 줄`() {
-        assertEquals(setOf("insung", "hwamul24", "kakaopicker"), cases.map { it.network }.toSet())
+    @Test fun `문제지가 있다 - 네 배차망 · 바뀌는 줄과 안 바뀌는 줄`() {
+        assertEquals(setOf("insung", "hwamul24", "kakaopicker", "isflex"), cases.map { it.network }.toSet())
         assertTrue(cases.any { it.was != it.expect })
         assertTrue(cases.count { it.was == it.expect } > 100)
     }

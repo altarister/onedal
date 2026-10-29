@@ -12,6 +12,7 @@ object TargetApp {
     const val INSUNG = "insung"
     const val HWAMUL24 = "hwamul24"
     const val KAKAOPICKER = "kakaopicker"
+    const val ISFLEX = "isflex"
 
     /** 🎛️ 모드 이름 한 벌 — 관제웹이 보내는 값. 배차망마다 쓸 수 있는 모드는 여기서 파생한다 (`availableModes`) */
     val ALL_MODES: Set<String> = setOf("AUTO", "MANUAL", "SIMULATION", "ALARM")

@@ -2,7 +2,7 @@
  * 누가: onedal-f5 (기사님 «플러그인스에 있는 값을 서버가 같이 써야» · onedal-69 «가»)
  * 언제: shared/src/networkPages.<배차망>.ts(배차망 화면 정의 표의 배차망 몫 — 칸 · 페이지 목록)를 고친 뒤
  * 어디서: onedal-web — `pnpm gen:pages`
- * 무엇을: 표의 배차망 셋(칸 정의 · 페이지 목록 · 차종 낱말)을 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt)으로 굳힌다
+ * 무엇을: 표의 배차망마다(칸 정의 · 페이지 목록 · 차종 낱말)를 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt · isflex/IsflexPages.kt)으로 굳힌다
  * 왜: 배차망마다 다른 것을 shared 한 곳에만 둔다 — 서버는 표를 바로 읽고 원달앱은 뽑은 코드를 읽는다 · 같은지는 원달앱 NetworkPagesPairTest 가 문다
  */
 import { readFileSync, writeFileSync, readdirSync } from 'fs';
@@ -101,6 +101,7 @@ const TARGETS = [
     ['insung', 'plugins/insung/InsungPages.kt', 'com.onedal.app.plugins.insung', 'InsungPages'],
     ['hwamul24', 'plugins/hwamul24/Hwamul24Pages.kt', 'com.onedal.app.plugins.hwamul24', 'Hwamul24Pages'],
     ['kakaopicker', 'plugins/kakaopicker/KakaoPickerPages.kt', 'com.onedal.app.plugins.kakaopicker', 'KakaoPickerPages'],
+    ['isflex', 'plugins/isflex/IsflexPages.kt', 'com.onedal.app.plugins.isflex', 'IsflexPages'],
 ];
 
 if (JSON.stringify(TARGETS.map(([n]) => n).sort()) !== JSON.stringify([...NETWORKS].sort())) fail('생성 대상(TARGETS) ≠ TARGET_APPS — 배차망을 더하면 생성 파일 자리도 적는다');

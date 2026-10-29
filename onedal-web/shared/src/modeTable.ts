@@ -159,7 +159,8 @@ export const MODE_TABLE: ModeTable = /*JSON*/{
     "networks": {
         "insung": { "autoContract": true },
         "hwamul24": { "autoContract": true },
-        "kakaopicker": { "autoContract": false }
+        "kakaopicker": { "autoContract": false },
+        "isflex": { "autoContract": false }
     }
 }/*JSON*/ as ModeTable;
 

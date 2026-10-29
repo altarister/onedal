@@ -3,6 +3,7 @@ package com.onedal.app.core
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.hwamul24.Hwamul24Pages
 import com.onedal.app.plugins.insung.InsungPages
+import com.onedal.app.plugins.isflex.IsflexPages
 import com.onedal.app.plugins.kakaopicker.KakaoPickerPages
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -22,7 +23,7 @@ class PageFieldReadTest {
     /** 🧾 공통 문제지 — 서버 jest 가 3단계에 같은 줄을 푼다(`onedal-web/shared/src/pageReadCases.json`) */
     private val cases = com.google.gson.JsonParser.parseString(File("../../onedal-web/shared/src/pageReadCases.json").readText())
         .asJsonObject["cases"].asJsonArray.map { it.asJsonObject }
-    private val pagesOf = mapOf("insung" to InsungPages.pages, "hwamul24" to Hwamul24Pages.pages, "kakaopicker" to KakaoPickerPages.pages)
+    private val pagesOf = mapOf("insung" to InsungPages.pages, "hwamul24" to Hwamul24Pages.pages, "kakaopicker" to KakaoPickerPages.pages, "isflex" to IsflexPages.pages)
 
     @Test fun `공통 문제지 - 배차망별 화면 글에서 칸 값을 정의대로 읽는다`() {
         assertTrue("문제지가 비었다", cases.isNotEmpty())

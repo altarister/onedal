@@ -9,7 +9,7 @@
  *    앱 쪽 한 곳은 `core/TargetApp.kt` 이고, 값이 어긋나면 서버 수신이 기본값으로
  *    떨어져 로그에 남는다)
  */
-export const TARGET_APPS = ["insung", "hwamul24", "kakaopicker"] as const;
+export const TARGET_APPS = ["insung", "hwamul24", "kakaopicker", "isflex"] as const;
 export type TargetAppType = typeof TARGET_APPS[number];
 export const DEFAULT_TARGET_APP: TargetAppType = "insung";
 
@@ -22,4 +22,5 @@ export const TARGET_APP_LABEL: Record<TargetAppType, string> = {
     insung: "인성",
     hwamul24: "24시",
     kakaopicker: "픽커",
+    isflex: "플렉스",
 };

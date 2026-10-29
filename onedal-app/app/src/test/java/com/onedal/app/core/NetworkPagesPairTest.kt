@@ -4,6 +4,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.onedal.app.plugins.hwamul24.Hwamul24Pages
 import com.onedal.app.plugins.insung.InsungPages
+import com.onedal.app.plugins.isflex.IsflexPages
 import com.onedal.app.plugins.kakaopicker.KakaoPickerPages
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -11,13 +12,13 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🔗 **짝 — 원달앱 화면 정의 세 벌과 shared 배차망 정의 표가 같다** (기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
- * 원천은 `onedal-web/shared/src/networkPages.ts`(공통) + 배차망마다 한 파일(`networkPages.<배차망>.ts`)이고, 원달앱 `…Pages.kt` 셋은 `pnpm gen:pages` 가 뽑은 생성 파일이다.
+ * 🔗 **짝 — 원달앱 화면 정의(배차망마다 한 벌)와 shared 배차망 정의 표가 같다** (기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
+ * 원천은 `onedal-web/shared/src/networkPages.ts`(공통) + 배차망마다 한 파일(`networkPages.<배차망>.ts`)이고, 원달앱 `…Pages.kt` 는 `pnpm gen:pages` 가 뽑은 생성 파일이다.
  * 표를 고치고 안 뽑으면(또는 Pages.kt 를 손으로 고치면) 여기서 빨갛다 — 칸 · 자리 글 · 견본 · 본 곳 · 읽나 · 읽는 곳 · 읽는 법 · 페이지 목록의 기준 페이지 · 단추까지 견준다.
  */
 class NetworkPagesPairTest {
     /** 배차망마다 한 파일(`networkPages.<배차망>.ts`)의 JSON 표시 사이를 읽어 한 표로 — 뽑는 스크립트(gen-pages.mjs)와 같은 읽기 */
-    private val networks = listOf(TargetApp.INSUNG, TargetApp.HWAMUL24, TargetApp.KAKAOPICKER)
+    private val networks = listOf(TargetApp.INSUNG, TargetApp.HWAMUL24, TargetApp.KAKAOPICKER, TargetApp.ISFLEX)
     private val table: JsonObject by lazy {
         JsonObject().apply {
             for (net in networks) {
@@ -55,6 +56,7 @@ class NetworkPagesPairTest {
     @Test fun `인성 화면 정의는 표와 같다`() = assertEquals(rowsOf("insung"), rowsOf(InsungPages.pages))
     @Test fun `화물24시 화면 정의는 표와 같다`() = assertEquals(rowsOf("hwamul24"), rowsOf(Hwamul24Pages.pages))
     @Test fun `카카오 픽커 화면 정의는 표와 같다`() = assertEquals(rowsOf("kakaopicker"), rowsOf(KakaoPickerPages.pages))
+    @Test fun `인성플렉스 화면 정의는 표와 같다`() = assertEquals(rowsOf("isflex"), rowsOf(IsflexPages.pages))
 
     /** 🚚 차종 낱말 → 우리 차종 — 표의 vehicleWords 와 생성 파일의 vehicleWords 가 같다(없으면 둘 다 빈 지도) */
     private fun wordsOf(network: String): Map<String, String?> =
@@ -65,6 +67,7 @@ class NetworkPagesPairTest {
     @Test fun `인성 차종 낱말은 표와 같다`() = assertEquals(wordsOf("insung"), InsungPages.vehicleWords)
     @Test fun `화물24시 차종 낱말은 표와 같다`() = assertEquals(wordsOf("hwamul24"), Hwamul24Pages.vehicleWords)
     @Test fun `카카오 픽커 차종 낱말은 표와 같다`() = assertEquals(wordsOf("kakaopicker"), KakaoPickerPages.vehicleWords)
+    @Test fun `인성플렉스 차종 낱말은 표와 같다`() = assertEquals(wordsOf("isflex"), IsflexPages.vehicleWords)
 
     /** 🖥️ 페이지 목록 — 표의 screens 와 생성 파일 screens 를 같은 글 모양으로 펴서 견준다(차례가 판별 차례라 차례까지) */
     private fun matchText(m: ScreenMatch): String =
@@ -94,6 +97,7 @@ class NetworkPagesPairTest {
     @Test fun `인성 페이지 목록은 표와 같다`() = assertEquals(screensOf("insung"), screensOf(InsungPages.screens))
     @Test fun `화물24시 페이지 목록은 표와 같다`() = assertEquals(screensOf("hwamul24"), screensOf(Hwamul24Pages.screens))
     @Test fun `카카오 픽커 페이지 목록은 표와 같다`() = assertEquals(screensOf("kakaopicker"), screensOf(KakaoPickerPages.screens))
+    @Test fun `인성플렉스 페이지 목록은 표와 같다`() = assertEquals(screensOf("isflex"), screensOf(IsflexPages.screens))
 
     /** 🧭 배차망을 가르는 글자 묶음 — 표의 networkMarkers 와 생성 파일이 같다 */
     private fun markersOf(network: String): List<List<String>> =
@@ -103,6 +107,7 @@ class NetworkPagesPairTest {
         assertEquals(markersOf("insung"), InsungPages.networkMarkers)
         assertEquals(markersOf("hwamul24"), Hwamul24Pages.networkMarkers)
         assertEquals(markersOf("kakaopicker"), KakaoPickerPages.networkMarkers)
+        assertEquals(markersOf("isflex"), IsflexPages.networkMarkers)
     }
 
     /** 🧭 우리 기준 페이지 이름 · 차례 — shared STANDARD_SCREENS 와 core/PageSpec.kt StandardScreen 이 같다 */
@@ -113,8 +118,8 @@ class NetworkPagesPairTest {
         assertEquals(Regex("""'(\w+)'""").findAll(block).map { it.groupValues[1] }.toList(), StandardScreen.values().map { it.name })
     }
 
-    @Test fun `세 Pages_kt 는 생성 파일이다 - 손으로 고치지 않는다`() {
-        for (p in listOf("insung/InsungPages.kt", "hwamul24/Hwamul24Pages.kt", "kakaopicker/KakaoPickerPages.kt")) {
+    @Test fun `Pages_kt 는 생성 파일이다 - 손으로 고치지 않는다`() {
+        for (p in listOf("insung/InsungPages.kt", "hwamul24/Hwamul24Pages.kt", "kakaopicker/KakaoPickerPages.kt", "isflex/IsflexPages.kt")) {
             assertTrue("$p 가 생성 파일 머리를 안 단다 — cd onedal-web && pnpm gen:pages",
                 File("src/main/java/com/onedal/app/plugins/$p").readText().contains("생성 파일이다 — 손으로 고치지 않는다"))
         }
