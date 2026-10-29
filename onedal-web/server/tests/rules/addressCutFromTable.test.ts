@@ -4,13 +4,14 @@ import { addressOf } from '@onedal/shared';
 
 /**
  * 🏠 **카카오에 묻기 전 주소 다듬기 — 배차망 정의 표 한 곳** (판정 무변화).
- *    정의 표의 배차망 단위 칸 addressCut 으로 다듬은 답이 아래 기준 답(BASE)과 글자까지 같다 — 인성 «끝의 (건물명)» · 화물24시 «첫 쉼표 뒤» · 픽커 자르기만.
+ *    정의 표의 배차망 단위 칸 addressCut 으로 다듬은 답이 아래 기준 답(BASE)과 글자까지 같다 — 인성 «끝의 (건물명)» · 화물24시 «첫 쉼표 뒤» · 픽커 · 인성플렉스 자르기만.
  *    서버는 배차망 플러그인을 두지 않는다 — 배차망마다 다른 것은 정의 표에만 있다.
  */
-const BASE: Record<'insung' | 'hwamul24' | 'kakaopicker', (raw: string) => string> = {
+const BASE: Record<'insung' | 'hwamul24' | 'kakaopicker' | 'isflex', (raw: string) => string> = {
     insung: raw => raw.replace(/\(.*?\)$/g, '').trim(),
     hwamul24: raw => raw.split(',')[0].trim(),
     kakaopicker: raw => raw.trim(),
+    isflex: raw => raw.trim(),
 };
 const SAMPLES = [
     '경기 용인시 처인구 양지면 남평로 12 (양지물류)',

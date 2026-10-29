@@ -34,6 +34,7 @@ describe('개별콜 — 받는 콜 모양', () => {
     });
     it('🔴 받을 배차망(net)을 읽는다 — 서버 · 원달앱과 같은 이름', () => {
         expect(readSimCallInput(body({ net: 'kakaopicker' }))).toEqual({ ok: true, call: body({ net: 'kakaopicker' }) });
+        expect(readSimCallInput(body({ net: 'isflex' }))).toEqual({ ok: true, call: body({ net: 'isflex' }) });
         expect(readSimCallInput(body({ net: 'insung', vehicleType: '다마스' }))).toEqual({ ok: true, call: body({ net: 'insung', vehicleType: '다마스' }) });
     });
 

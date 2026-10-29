@@ -21,8 +21,8 @@ describe('💸 첫짐 하한 — 원달앱이 걸렀나', () => {
     it('🔴 손으로 연 픽커 콜 · 최소 금액 밑 → «첫짐 하한 미달»', () => {
         expect(run('kakaopicker', {}).reasons.some(r => FLOOR.test(r))).toBe(true);
     });
-    it('🔴 원달앱이 연 콜(openedByApp) → 다시 안 센다 — 세 배차망 같은 사실로', () => {
-        for (const app of ['insung', 'hwamul24', 'kakaopicker']) {
+    it('🔴 원달앱이 연 콜(openedByApp) → 다시 안 센다 — 네 배차망 같은 사실로', () => {
+        for (const app of ['insung', 'hwamul24', 'kakaopicker', 'isflex']) {
             const out = run(app, { openedByApp: true });
             expect([app, out.reasons.some(r => FLOOR.test(r))]).toEqual([app, false]);
             expect(out.pros).toContain('요금은 앱이 이미 걸렀다 (최소 금액)');

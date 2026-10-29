@@ -19,11 +19,12 @@ beforeEach(() => {
 });
 
 describe('💰 배차망별 요금 기준', () => {
-    it('🔴 인성 · 화물24시 · 픽커가 같은 콜에 같은 적정가 · 하한가', () => {
-        const [insung, hwamul24, picker] = ['insung', 'hwamul24', 'kakaopicker'].map(app => (new OrderEvaluator(app) as any).loadPricing(order, 'u', 0));
+    it('🔴 인성 · 화물24시 · 픽커 · 인성플렉스가 같은 콜에 같은 적정가 · 하한가', () => {
+        const [insung, hwamul24, picker, isflex] = ['insung', 'hwamul24', 'kakaopicker', 'isflex'].map(app => (new OrderEvaluator(app) as any).loadPricing(order, 'u', 0));
         expect(insung).not.toBeNull();
         expect(hwamul24).toEqual(insung);
         expect(picker).toEqual(insung);
+        expect(isflex).toEqual(insung);
     });
     it('🔴 배차망별 요금 보정(applyPricingExceptions)이 서버 src 에 없다', () => {
         const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true })
