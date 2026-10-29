@@ -399,12 +399,13 @@ data class FilterConfig(
     val minFare: Int = 30000,
     /**
      * ⏱️ **배차망별 대기 시간 (초)** — 원천 DB(user_settings) → 블루투스 공급 (기사님 확정).
-     * 인성·화물24시는 안전취소 시간, 픽커는 확정 전 상세를(누가 열었든) 띄워 두는 시간이다 — 읽는 곳은 `WaitTimes` 한 곳.
+     * 인성·화물24시는 안전취소 시간, 픽커 · 인성플렉스는 확정 전 상세를(누가 열었든) 띄워 두는 시간이다(둘은 칸이 따로) — 읽는 곳은 `WaitTimes` 한 곳.
      * 기본값은 서버가 죽었을 때만 쓰인다 (서버 DB 기본값과 같다).
      */
     val safeCancelSecInsung: Int = 30,
     val safeCancelSecHwamul24: Int = 30,
     val pickerAlarmDetailSec: Int = 30,
+    val isflexAlarmDetailSec: Int = 30,
     val maxFare: Int = 1000000,
     /**
      * 차종별 하한 단가(원/km) — 단가 판정 모델.
@@ -452,6 +453,7 @@ data class FilterConfig(
         "safeCancelSecInsung" -> safeCancelSecInsung
         "safeCancelSecHwamul24" -> safeCancelSecHwamul24
         "pickerAlarmDetailSec" -> pickerAlarmDetailSec
+        "isflexAlarmDetailSec" -> isflexAlarmDetailSec
         null -> null
         else -> {
             /* 표의 칸 이름이 여기 없다 — 표와 FilterConfig 가 어긋났다(그 배차망 안전취소 · 머묾 타이머가 안 걸린다) */

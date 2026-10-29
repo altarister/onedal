@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, whoConfirmed, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -269,10 +269,12 @@ router.post("/confirm", (req, res) => {
              * 🔴 **미리보기에는 안전취소 타이머를 걸지 않는다.** 안전취소는 **잡은 콜**을 위약금 없이 무르는
              *    장치다 (규칙 ②). 미리보기는 아직 안 잡은 콜이라 무를 것이 없고, 시간으로 끄면 폰 화면과
              *    어긋난다 — 끄는 기준은 하나여야 한다 (`devices.leftDetail`).
-             * ⏱️ 배차망별 값: 인성 · 화물24시는 안전취소 시간, 픽커는 상세 대기 시간. 셋 다 DB 기본 30초.
+             * ⏱️ 배차망별 값: 인성 · 화물24시는 안전취소 시간, 픽커 · 인성플렉스는 저마다의 상세 대기 시간(정의 표 `detailBackSec`).
+             *    둘 다 없는 배차망은 픽커 값. 모두 DB 기본 30초.
              */
             if ((pendingOrder as any).isPreview) {
-                const holdSec = cancelSec ?? readWaitTimes(userId).pickerAlarmDetailSec;
+                const waits = readWaitTimes(userId);
+                const holdSec = cancelSec ?? detailBackSecOf(waits, pendingOrder.targetApp) ?? waits.pickerAlarmDetailSec;
                 pendingOrder.judgeUntil = Date.now() + holdSec * 1000;
                 slog('콜단계', `👀 [미리보기] ${pendingOrder.id} — 남은 판정 시간 ${holdSec}초 (표시용 · 끄는 것은 폰 화면이 정한다)`);
             } else if (cancelSec != null && whoConfirmed({ ...(payload as any), type: payload.order?.type }) === 'APP') {   // ✋ 원달앱이 확정한 콜만 — 손 확정은 결재가 없다(29 P2 · 27 17 «가»)

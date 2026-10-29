@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SecuredOrder, CallTarget, DecisionStatus } from '@onedal/shared';
-import { safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, manwonText } from '@onedal/shared';
+import { safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, manwonText } from '@onedal/shared';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { verdictOf, type Color } from '@onedal/shared';
 import { reservedBadgeOf } from '../../lib/reservedLine';
@@ -142,10 +142,11 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
      */
     /**
      * ⏱️ **길이는 서버가 고른 배차망별 값이다** (`judgeUntil`).
-     *    인성 · 화물24시는 안전취소 시간, 픽커는 상세 대기 시간 — 여기서 배차망을 다시 가르지 않는다 (규칙 ③).
+     *    인성 · 화물24시는 안전취소 시간, 픽커 · 인성플렉스는 저마다의 상세 대기 시간 — 여기서 배차망을 다시 가르지 않는다 (규칙 ③).
+     *    `judgeUntil` 이 없을 때만 그 콜 배차망의 상세 대기 칸(정의 표 `detailBackSec`)으로 센다 · 그 칸이 없는 배차망은 픽커 값.
      * 🔴 **이 배경이 다 차도 카드는 안 사라진다** — 끄는 것은 폰의 화면 상태 하나다.
      */
-    const pickerHoldSec = useSettingsStore(st => st.pickerAlarmDetailSec);
+    const detailHoldSec = useSettingsStore(st => detailBackSecOf(st, route.targetApp) ?? st.pickerAlarmDetailSec);
     const judged = !!v.color;
     const c = v.color ? SOAK[v.color] : null;
     const hourly = route.judgment?.axes?.find(a => a.key === 'money')?.value;
@@ -192,7 +193,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const capturedAtMs = route.capturedAt ? Date.parse(route.capturedAt) : NaN;
     const judgedAtMs = useMemo(() => (judged ? Date.now() : null), [judged, route.id]);
     const drainWindow = route.isPreview && Number.isFinite(capturedAtMs)
-        ? { start: capturedAtMs, end: route.judgeUntil ?? capturedAtMs + (pickerHoldSec + SERVER_CLEANUP_EXTRA_SEC) * 1000 }
+        ? { start: capturedAtMs, end: route.judgeUntil ?? capturedAtMs + (detailHoldSec + SERVER_CLEANUP_EXTRA_SEC) * 1000 }
         : !route.isPreview && judgedAtMs != null && cancelSec != null
             ? { start: judgedAtMs, end: judgedAtMs + cancelSec * 1000 } : null;
     const drain = drainWindow && <DrainOverlay startMs={drainWindow.start} endMs={drainWindow.end} />;

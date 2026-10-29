@@ -350,9 +350,9 @@ describe('⏱️ 미리보기 타이머 — 표시만', () => {
         expect(body).not.toMatch(/forceCancelEvaluatingOrder/);
     });
 
-    it('🔴 남은 판정 시간은 배차망별 값이다 — 인성 · 화물24시는 안전취소 시간, 픽커는 상세 대기 시간', () => {
+    it('🔴 남은 판정 시간은 배차망별 값이다 — 인성 · 화물24시는 안전취소 시간, 픽커 · 인성플렉스는 저마다의 상세 대기 시간', () => {
         const src = codeOf('routes/orders.ts');
         expect(src).toMatch(/safeCancelSecOf/);
-        expect(src).toMatch(/pickerAlarmDetailSec/);
+        expect(src).toMatch(/detailBackSecOf/);
     });
 });

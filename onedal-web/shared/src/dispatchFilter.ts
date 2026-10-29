@@ -1,4 +1,5 @@
 import type { CapacityConfidence } from './vehicles';
+import { DEFAULT_WAIT_TIMES, type WaitTimes } from './waitTimes';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 1] 기사 행동 상태 — 기사님이 직접 버튼을 눌러 전환
@@ -252,8 +253,8 @@ export const APP_FILTER_KEYS = [
     'reservationMode',
     /* 📅 내일 이후 예약 콜 상차 — scrap 이 조립할 때 얹는다(기본 반경 · 집 둘레 동 목록 · 시군구 묶음) · 원달앱 FilterStore 가 읽는다 */
     'reservedPickupRadiusKm', 'reservedPickupKeywords', 'reservedPickupGroups',
-    /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings */
-    'safeCancelSecInsung', 'safeCancelSecHwamul24', 'pickerAlarmDetailSec',
+    /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings · 칸 이름은 기본값 묶음에서 따온다 */
+    ...(Object.keys(DEFAULT_WAIT_TIMES) as (keyof WaitTimes)[]),
     /**
      * 🔒 **지금 심사 중인 콜이 있나** — «잠김»의 까닭을 가르는 사실 (기사님 · 실주행 오송읍).
      *

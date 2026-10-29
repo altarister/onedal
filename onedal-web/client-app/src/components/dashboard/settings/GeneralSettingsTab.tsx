@@ -40,6 +40,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
         safeCancelSecInsung: data.safeCancelSecInsung ?? DEFAULT_WAIT_TIMES.safeCancelSecInsung,
         safeCancelSecHwamul24: data.safeCancelSecHwamul24 ?? DEFAULT_WAIT_TIMES.safeCancelSecHwamul24,
         pickerAlarmDetailSec: data.pickerAlarmDetailSec ?? DEFAULT_WAIT_TIMES.pickerAlarmDetailSec,
+        isflexAlarmDetailSec: data.isflexAlarmDetailSec ?? DEFAULT_WAIT_TIMES.isflexAlarmDetailSec,
       };
       loadedWaitTimes.current = loaded;
       setWaitTimes(loaded);
@@ -79,6 +80,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
         safeCancelSecInsung: waitSecOrNull(waitTimes.safeCancelSecInsung) ?? prev.safeCancelSecInsung,
         safeCancelSecHwamul24: waitSecOrNull(waitTimes.safeCancelSecHwamul24) ?? prev.safeCancelSecHwamul24,
         pickerAlarmDetailSec: waitSecOrNull(waitTimes.pickerAlarmDetailSec) ?? prev.pickerAlarmDetailSec,
+        isflexAlarmDetailSec: waitSecOrNull(waitTimes.isflexAlarmDetailSec) ?? prev.isflexAlarmDetailSec,
       };
       // 노선·반경은 여기서 보내지 않는다 — 편집 자리는 🔍 필터 국면 탭 하나다 (두 화면에서 고치면 값이 두 벌로 갈라진다)
       await apiClient.put('/settings', {

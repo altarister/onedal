@@ -10,11 +10,12 @@ import { DEFAULT_WAIT_TIMES, type WaitTimes } from "@onedal/shared";
  */
 export function readWaitTimes(userId: string): WaitTimes {
     const row = db.prepare(
-        "SELECT safe_cancel_sec_insung, safe_cancel_sec_hwamul24, picker_alarm_detail_sec FROM user_settings WHERE user_id = ?"
-    ).get(userId) as { safe_cancel_sec_insung?: number; safe_cancel_sec_hwamul24?: number; picker_alarm_detail_sec?: number } | undefined;
+        "SELECT safe_cancel_sec_insung, safe_cancel_sec_hwamul24, picker_alarm_detail_sec, isflex_alarm_detail_sec FROM user_settings WHERE user_id = ?"
+    ).get(userId) as { safe_cancel_sec_insung?: number; safe_cancel_sec_hwamul24?: number; picker_alarm_detail_sec?: number; isflex_alarm_detail_sec?: number } | undefined;
     return {
         safeCancelSecInsung: row?.safe_cancel_sec_insung ?? DEFAULT_WAIT_TIMES.safeCancelSecInsung,
         safeCancelSecHwamul24: row?.safe_cancel_sec_hwamul24 ?? DEFAULT_WAIT_TIMES.safeCancelSecHwamul24,
         pickerAlarmDetailSec: row?.picker_alarm_detail_sec ?? DEFAULT_WAIT_TIMES.pickerAlarmDetailSec,
+        isflexAlarmDetailSec: row?.isflex_alarm_detail_sec ?? DEFAULT_WAIT_TIMES.isflexAlarmDetailSec,
     };
 }

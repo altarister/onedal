@@ -3,6 +3,7 @@ package com.onedal.app.core
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.plugins.hwamul24.Hwamul24Plugin
 import com.onedal.app.plugins.insung.InsungPlugin
+import com.onedal.app.plugins.isflex.IsflexPlugin
 import com.onedal.app.plugins.kakaopicker.KakaoPickerPlugin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -15,7 +16,7 @@ import org.junit.Test
  * 못 잡는 것: 표를 일부러 바꾼 경우(그때는 이 검사도 함께 고친다 — 운행 동작이 바뀌는 일이라 기사님께 먼저).
  */
 class NetworkRulesFromTableTest {
-    private val filter = FilterConfig(safeCancelSecInsung = 41, safeCancelSecHwamul24 = 42, pickerAlarmDetailSec = 43)
+    private val filter = FilterConfig(safeCancelSecInsung = 41, safeCancelSecHwamul24 = 42, pickerAlarmDetailSec = 43, isflexAlarmDetailSec = 44)
 
     @Test
     fun `되는 모드 — 픽커만 자동이 없다`() {
@@ -39,5 +40,13 @@ class NetworkRulesFromTableTest {
         assertNull(InsungPlugin().getDetailBackTimeoutMs(filter))
         assertNull(Hwamul24Plugin().getDetailBackTimeoutMs(filter))
         assertEquals(43_000L, KakaoPickerPlugin().getDetailBackTimeoutMs(filter))
+    }
+
+    @Test
+    fun `인성플렉스가 자기 칸을 읽는다 — 픽커 칸으로 떨어지지 않는다`() {
+        assertEquals(TargetApp.ALL_MODES - "AUTO", IsflexPlugin().availableModes)
+        assertEquals(listOf("quickflex"), IsflexPlugin().packageKeywords)
+        assertNull(IsflexPlugin().getSafeCancelMs(filter))
+        assertEquals(44_000L, IsflexPlugin().getDetailBackTimeoutMs(filter))
     }
 }

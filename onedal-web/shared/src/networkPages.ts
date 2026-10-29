@@ -77,7 +77,7 @@ export interface NetworkPageSpec {
     modes: Array<'AUTO' | 'MANUAL' | 'SIMULATION' | 'ALARM'>;
     packageKeywords: string[];
     safeCancelSec: 'safeCancelSecInsung' | 'safeCancelSecHwamul24' | null;
-    detailBackSec: 'pickerAlarmDetailSec' | null;
+    detailBackSec: 'pickerAlarmDetailSec' | 'isflexAlarmDetailSec' | null;
     /** 그 규칙의 까닭 한 줄 */
     rulesWhy: string;
     /**

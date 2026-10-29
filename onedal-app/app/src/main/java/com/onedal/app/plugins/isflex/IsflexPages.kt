@@ -121,11 +121,11 @@ object IsflexPages {
         listOf("진행중인 오더가 없습니다"),
     )
 
-    /** ⚙️ 배차망 규칙(shared modes · packageKeywords · safeCancelSec · detailBackSec — 자동이 없다 — «…원 수행하기»가 곧 계약이고 확정 뒤 임의 취소가 안 되며 취소마다 다음 확정이 10초 막혀 원달앱이 누르지 않는다 · 안전취소가 없다 · 상세 머묾 시간 칸은 아직 없다 · 패키지 글자는 «quickflex»(«insung» 은 인성 표가 이미 실물 insung.quickflex 에 건다)) · 시간은 값이 아니라 설정 칸 이름(FilterConfig.secOf) */
+    /** ⚙️ 배차망 규칙(shared modes · packageKeywords · safeCancelSec · detailBackSec — 자동이 없다 — «…원 수행하기»가 곧 계약이고 확정 뒤 임의 취소가 안 되며 취소마다 다음 확정이 10초 막혀 원달앱이 누르지 않는다 · 안전취소가 없다 · 상세 머묾 시간은 자기 칸(isflexAlarmDetailSec — 픽커 칸과 따로) · 패키지 글자는 «quickflex»(«insung» 은 인성 표가 이미 실물 insung.quickflex 에 건다)) · 시간은 값이 아니라 설정 칸 이름(FilterConfig.secOf) */
     val modes: Set<String> = setOf("MANUAL", "SIMULATION", "ALARM")
     val packageKeywords: List<String> = listOf("quickflex")
     val safeCancelSecKey: String? = null
-    val detailBackSecKey: String? = null
+    val detailBackSecKey: String? = "isflexAlarmDetailSec"
 
     /** 🖥️ 페이지 전부 — 차례가 판별 차례 · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(

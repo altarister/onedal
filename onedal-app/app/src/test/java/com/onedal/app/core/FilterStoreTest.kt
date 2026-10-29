@@ -79,15 +79,17 @@ class FilterStoreTest {
         assertEquals(1000000, f.maxFare)
         assertEquals(30, f.safeCancelSecInsung)
         assertEquals(30, f.pickerAlarmDetailSec)
+        assertEquals(30, f.isflexAlarmDetailSec)
         assertEquals("", f.destinationCity)
     }
 
     @Test fun `서버가 보내는 값 그대로 — 소수 반경 · 기다림 · 선점 중 · 내일 상차`() {
-        val f = of("""{"pickupRadiusKm":4.55,"safeCancelSecInsung":45,"pickerAlarmDetailSec":60,"evaluatingNow":true,"isSharedMode":true,
+        val f = of("""{"pickupRadiusKm":4.55,"safeCancelSecInsung":45,"pickerAlarmDetailSec":60,"isflexAlarmDetailSec":50,"evaluatingNow":true,"isSharedMode":true,
             "reservedPickupRadiusKm":7.5,"reservedPickupKeywords":["가락동"],"reservedPickupGroups":{"송파구":["가락동"]}}""")
         assertEquals(4.55, f.pickupRadiusKm, 0.0)
         assertEquals(45, f.safeCancelSecInsung)
         assertEquals(60, f.pickerAlarmDetailSec)
+        assertEquals(50, f.isflexAlarmDetailSec)
         assertTrue(f.evaluatingNow)
         assertTrue(f.isSharedMode)
         assertEquals(7.5, f.reservedPickupRadiusKm!!, 0.0)

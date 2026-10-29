@@ -82,6 +82,7 @@ export async function loadScreenSettings(force = false): Promise<void> {
             safeCancelSecInsung: data?.safeCancelSecInsung ?? DEFAULT_WAIT_TIMES.safeCancelSecInsung,
             safeCancelSecHwamul24: data?.safeCancelSecHwamul24 ?? DEFAULT_WAIT_TIMES.safeCancelSecHwamul24,
             pickerAlarmDetailSec: data?.pickerAlarmDetailSec ?? DEFAULT_WAIT_TIMES.pickerAlarmDetailSec,
+            isflexAlarmDetailSec: data?.isflexAlarmDetailSec ?? DEFAULT_WAIT_TIMES.isflexAlarmDetailSec,
             loaded: true,
         });
     } catch {

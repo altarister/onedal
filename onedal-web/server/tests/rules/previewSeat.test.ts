@@ -12,8 +12,8 @@ const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
 const src = codeOnly(readFileSync(SEAT, 'utf8'));
 
 describe('👀 미리보기 심사석', () => {
-    it('🔴 남은 시간을 «픽커 상세 대기 + 정리 여유»로 센다 — 서버가 치우는 그 시각이다', () => {
-        expect(src).toMatch(/pickerAlarmDetailSec/);
+    it('🔴 남은 시간을 «그 배차망 상세 대기 + 정리 여유»로 센다 — 서버가 치우는 그 시각이다', () => {
+        expect(src).toMatch(/detailBackSecOf/);
         expect(src).toMatch(/SERVER_CLEANUP_EXTRA_SEC/);
     });
 

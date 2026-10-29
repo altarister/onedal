@@ -80,6 +80,7 @@ object FilterStore {
             safeCancelSecInsung = whole(value("safeCancelSecInsung")) ?: d.safeCancelSecInsung,
             safeCancelSecHwamul24 = whole(value("safeCancelSecHwamul24")) ?: d.safeCancelSecHwamul24,
             pickerAlarmDetailSec = whole(value("pickerAlarmDetailSec")) ?: d.pickerAlarmDetailSec,
+            isflexAlarmDetailSec = whole(value("isflexAlarmDetailSec")) ?: d.isflexAlarmDetailSec,
             maxFare = whole(value("maxFare")) ?: d.maxFare,
             ratePerKm = value("ratePerKm")?.takeIf { it.isJsonObject }?.asJsonObject?.entrySet()
                 ?.associate { (k, v) -> k to (whole(v) ?: 0) } ?: emptyMap(),

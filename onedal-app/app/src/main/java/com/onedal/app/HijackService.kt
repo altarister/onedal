@@ -305,7 +305,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     override fun scheduleDetailBack() {
         if (detailBack.armed) return            // 이미 걸려 있다 — 상세 글자가 바뀔 때마다 새로 걸지 않는다
-        // ⏱️ 몇 초 뒤인가는 서버가 정한다 (DB user_settings.picker_alarm_detail_sec)
+        // ⏱️ 몇 초 뒤인가는 서버가 정한다 (배차망 정의 표 detailBackSec 가 가리키는 DB user_settings 칸)
         val delayMs = com.onedal.app.core.engine.WaitTimes.detailBackMs(savedFilter(), currentTargetApp)
         // 🔎 누가 열었나 — 기록만 한다 (나중에 `grep "상세 대기"` 로 «손으로 연 상세도 돌아왔나»를 본다)
         val now = android.os.SystemClock.elapsedRealtime()

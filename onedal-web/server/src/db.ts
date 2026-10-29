@@ -310,12 +310,20 @@ ensureColumns('user_settings', {
     motion_hold_sec: 'INTEGER DEFAULT 10',
     /**
      * ⏱️ **배차망별 대기 시간** (기사님 확정).
-     * 인성·화물24시는 안전취소 시간, 픽커는 확정 전 상세를(누가 열었든) 띄워 두는 시간 — 뜻이 달라 칸을 가른다.
+     * 인성·화물24시는 안전취소 시간, 픽커 · 인성플렉스는 확정 전 상세를(누가 열었든) 띄워 두는 시간 — 뜻이 달라 칸을 가른다.
+     * 픽커와 인성플렉스도 칸을 따로 둔다 — 화면과 손 흐름이 달라 한 값을 같이 쓰지 않는다.
      * 인성 취소 가능 시간은 1분이고 30초는 기사님이 둔 여유다 (상한은 걸지 않는다 — 기사님 확정).
      */
     safe_cancel_sec_insung: 'INTEGER DEFAULT 30',
     safe_cancel_sec_hwamul24: 'INTEGER DEFAULT 30',
-    picker_alarm_detail_sec: 'INTEGER DEFAULT 30' });
+    picker_alarm_detail_sec: 'INTEGER DEFAULT 30',
+    /**
+     * ⏱️ **인성플렉스 상세 대기(초)** — 알람으로 연 확정 전 상세를 이만큼 띄워 둔 뒤 원달앱이 «닫기»로 목록에 돌아온다.
+     * 값: 기본 30 — 픽커 상세 대기와 같은 값에서 시작 · 시점: 원달앱이 블루투스 공급(필터)으로 받는다 ·
+     * 화면: 관제웹 설정창 «⏱️ 배차망별 안전 대기 시간» · 읽는 곳: 원달앱 상세 대기 · 서버 미리보기 남은 시간 · 관제웹 결재석 시간 막대
+     * (어느 칸인지는 배차망 정의 표 `detailBackSec` — 셋 다 shared `detailBackSecOf` · 원달앱 `FilterConfig.secOf` 로 고른다).
+     */
+    isflex_alarm_detail_sec: 'INTEGER DEFAULT 30' });
 
 // ═══════════════════════════════════════
 // [5] 콜 콜 잡기용 필터 정보

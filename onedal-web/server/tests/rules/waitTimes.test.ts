@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
-    APP_FILTER_KEYS, SAFE_CANCEL_SEC_DEFAULT, PICKER_ALARM_DETAIL_SEC_DEFAULT, SERVER_CLEANUP_EXTRA_SEC,
-    DEFAULT_WAIT_TIMES, safeCancelSecOf, waitSecOrNull,
+    APP_FILTER_KEYS, SAFE_CANCEL_SEC_DEFAULT, PICKER_ALARM_DETAIL_SEC_DEFAULT, ISFLEX_ALARM_DETAIL_SEC_DEFAULT, SERVER_CLEANUP_EXTRA_SEC,
+    DEFAULT_WAIT_TIMES, safeCancelSecOf, detailBackSecOf, waitSecOrNull, type WaitTimes,
 } from '@onedal/shared';
 
 /**
@@ -26,15 +26,17 @@ const APP = join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal
 const read = (abs: string) => readFileSync(abs, 'utf8');
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-const KEYS = ['safeCancelSecInsung', 'safeCancelSecHwamul24', 'pickerAlarmDetailSec'] as const;
+/* 칸 이름은 기본값 묶음에서 따온다 — 칸이 늘면 아래 검사가 저절로 그 칸도 본다 */
+const KEYS = Object.keys(DEFAULT_WAIT_TIMES) as (keyof WaitTimes)[];
 
 describe('배차망별 대기 시간 — ② 값 (shared 한 곳)', () => {
 
-    it('기본은 인성 30초 · 화물24시 30초 · 픽커 알람 상세 30초 · 서버 정리는 +5초', () => {
+    it('기본은 인성 30초 · 화물24시 30초 · 픽커 알람 상세 30초 · 인성플렉스 상세 30초 · 서버 정리는 +5초', () => {
         expect(SAFE_CANCEL_SEC_DEFAULT).toBe(30);
         expect(PICKER_ALARM_DETAIL_SEC_DEFAULT).toBe(30);
+        expect(ISFLEX_ALARM_DETAIL_SEC_DEFAULT).toBe(30);
         expect(SERVER_CLEANUP_EXTRA_SEC).toBe(5);
-        expect(DEFAULT_WAIT_TIMES).toEqual({ safeCancelSecInsung: 30, safeCancelSecHwamul24: 30, pickerAlarmDetailSec: 30 });
+        expect(DEFAULT_WAIT_TIMES).toEqual({ safeCancelSecInsung: 30, safeCancelSecHwamul24: 30, pickerAlarmDetailSec: 30, isflexAlarmDetailSec: 30 });
     });
 
     /**
@@ -58,24 +60,34 @@ describe('배차망별 대기 시간 — ② 값 (shared 한 곳)', () => {
     });
 
     it('🔴 뜻이 다른 둘을 한 값으로 쓰지 않는다 — 픽커는 안전취소가 없다 (수락하기가 곧 계약)', () => {
-        const w = { safeCancelSecInsung: 45, safeCancelSecHwamul24: 20, pickerAlarmDetailSec: 90 };
+        const w = { safeCancelSecInsung: 45, safeCancelSecHwamul24: 20, pickerAlarmDetailSec: 90, isflexAlarmDetailSec: 44 };
         expect(safeCancelSecOf(w, 'insung')).toBe(45);
         expect(safeCancelSecOf(w, 'hwamul24')).toBe(20);
         expect(safeCancelSecOf(w, 'kakaopicker')).toBeNull();
+        expect(safeCancelSecOf(w, 'isflex')).toBeNull();
         // 모르는 배차망은 기본 배차망(인성)으로 — 서버가 targetApp 을 기본값으로 받는 규칙과 같다
         expect(safeCancelSecOf(w, undefined)).toBe(45);
+    });
+
+    it('🔴 인성플렉스는 자기 상세 대기 칸을 읽는다 — 픽커 값으로 떨어지지 않는다', () => {
+        const w = { safeCancelSecInsung: 45, safeCancelSecHwamul24: 20, pickerAlarmDetailSec: 90, isflexAlarmDetailSec: 44 };
+        expect(detailBackSecOf(w, 'isflex')).toBe(44);
+        expect(detailBackSecOf(w, 'kakaopicker')).toBe(90);
+        expect(detailBackSecOf(w, 'insung')).toBeNull();
+        expect(detailBackSecOf(w, 'hwamul24')).toBeNull();
     });
 });
 
 describe('배차망별 대기 시간 — ① 스키마 · ③ 시점', () => {
 
-    it('① DB 칸 셋이 기존 DB 에도 붙는다 (ensureColumns) — 기본값은 DB DEFAULT', () => {
+    it('① DB 칸 넷이 기존 DB 에도 붙는다 (ensureColumns) — 기본값은 DB DEFAULT', () => {
         const db = codeOnly(read(join(SERVER, 'db.ts')));
         const ensured = db.slice(db.indexOf("ensureColumns('user_settings'"));
         const block = ensured.slice(0, ensured.indexOf('});'));
         expect(block).toMatch(/safe_cancel_sec_insung:\s*'INTEGER DEFAULT 30'/);
         expect(block).toMatch(/safe_cancel_sec_hwamul24:\s*'INTEGER DEFAULT 30'/);
         expect(block).toMatch(/picker_alarm_detail_sec:\s*'INTEGER DEFAULT 30'/);
+        expect(block).toMatch(/isflex_alarm_detail_sec:\s*'INTEGER DEFAULT 30'/);
     });
 
     it('③ 설정 경로가 내주고 받아 적는다 — 설정 행이 없던 계정(INSERT 갈래)에서도', () => {
@@ -86,7 +98,7 @@ describe('배차망별 대기 시간 — ① 스키마 · ③ 시점', () => {
         }
     });
 
-    it('③ 원달앱에 보내는 응답에 셋이 실린다 — 표에도 있다', () => {
+    it('③ 원달앱에 보내는 응답에 대기 시간 칸이 다 실린다 — 표에도 있다', () => {
         for (const k of KEYS) expect((APP_FILTER_KEYS as readonly string[]).includes(k)).toBe(true);
         const appFilter = codeOnly(read(join(SERVER, 'state/appFilter.ts')));   // 폰 문(scrap)이 싣는 필터를 만드는 곳
         expect(appFilter).toMatch(/readWaitTimes\(/);

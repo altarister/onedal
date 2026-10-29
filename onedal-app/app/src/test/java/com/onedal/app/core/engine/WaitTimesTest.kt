@@ -35,19 +35,21 @@ class WaitTimesTest {
     }
 
     @Test
-    fun `서버 응답이 없을 때 - 인성 30초 · 화물24시 30초 · 픽커 30초 (서버 DB 기본값과 같다)`() {
+    fun `서버 응답이 없을 때 - 인성 30초 · 화물24시 30초 · 픽커 30초 · 인성플렉스 30초 (서버 DB 기본값과 같다)`() {
         val f = FilterConfig()
         assertEquals(30_000L, WaitTimes.safeCancelMs(f, TargetApp.INSUNG))
         assertEquals(30_000L, WaitTimes.safeCancelMs(f, TargetApp.HWAMUL24))
         assertEquals(30_000L, WaitTimes.pickerAlarmDetailMs(f))
+        assertEquals(30, f.isflexAlarmDetailSec)
     }
 
     @Test
     fun `🔴 서버가 보낸 이름 그대로 받는다 - 이름이 어긋나면 조용히 기본값으로 돈다`() {
-        val json = """{"safeCancelSecInsung":40,"safeCancelSecHwamul24":25,"pickerAlarmDetailSec":75}"""
+        val json = """{"safeCancelSecInsung":40,"safeCancelSecHwamul24":25,"pickerAlarmDetailSec":75,"isflexAlarmDetailSec":55}"""
         val f = Gson().fromJson(json, FilterConfig::class.java)
         assertEquals(40_000L, WaitTimes.safeCancelMs(f, TargetApp.INSUNG))
         assertEquals(25_000L, WaitTimes.safeCancelMs(f, TargetApp.HWAMUL24))
         assertEquals(75_000L, WaitTimes.pickerAlarmDetailMs(f))
+        assertEquals(55, f.isflexAlarmDetailSec)
     }
 }
