@@ -102,7 +102,10 @@ def guard(dev):
         for key in ('KEYCODE_ENTER', 'KEYCODE_DPAD_CENTER'):   # 기본 단추(확인)에 초점 · 누름 — 좌표는 안 누른다
             if focus_of(dev) == 'com.android.systemui': adb(dev, 'shell', 'input', 'keyevent', key); time.sleep(1)
         cur = focus_of(dev); log(f'🔔 S23 시스템 창 닫음(기본 단추 키) — 앞 창 {cur}')
-    if dev == S23 and cur == 'NotificationShade':   # 알림 서랍이 내려와 있음(알림 · 손 스침) — 걷기만 한다 · 알림은 누르지 않는다
+    if dev == S23 and cur in ('NotificationShade', 'Bouncer') and 'isKeyguardShowing=true' in adb(dev, 'shell', 'dumpsys', 'window', check=False):
+        # 잠금 화면도 앞 창 이름이 NotificationShade(비밀번호 칸은 Bouncer)다 — 비밀번호는 기사님 손이라 풀지 않고 멈춘다(10-29 22:12)
+        shot(dev, 'locked'); raise Stop('S23 화면이 잠겨 있음 — 기사님이 풀어 주시면 이어 갑니다(화면 꺼짐 시간을 길게)')
+    if dev == S23 and cur == 'NotificationShade':   # 잠금이 아닌데 알림 서랍이 내려와 있음 — 걷기만 한다 · 알림은 누르지 않는다
         shot(dev, 'shade'); adb(dev, 'shell', 'cmd', 'statusbar', 'collapse'); time.sleep(1)
         cur = focus_of(dev); log(f'🔔 S23 알림 서랍 걷음 — 앞 창 {cur}')
     if PICKER_PKG in cur: shot(dev, 'picker_front'); raise Stop(f'앞 화면이 실물 픽커: {cur} — 안 누르고 멈춤(사진)')
