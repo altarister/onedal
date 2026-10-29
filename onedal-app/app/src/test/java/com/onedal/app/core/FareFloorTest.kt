@@ -67,7 +67,7 @@ class FareFloorTest {
 
     @Test
     fun `세 파서가 요금 축에서 FareFloor 를 부른다 - 제 식으로 되돌아가지 않는다`() {
-        for (f in listOf("insung/InsungParser.kt", "hwamul24/Hwamul24Parser.kt", "kakaopicker/KakaoPickerParser.kt")) {
+        for (f in listOf("insung/InsungParser.kt", "ListJudge.kt", "kakaopicker/KakaoPickerParser.kt")) {
             val src = codeOnly("$plugins/$f")
             assertTrue("$f 가 FareFloor.passes 를 부르지 않는다", src.contains("FareFloor.passes("))
             assertFalse("$f 에 제 요금 하한 식이 남아 있다", Regex("""fare\s*>=\s*(filter\.)?minFare""").containsMatchIn(src))

@@ -119,7 +119,7 @@ describe('배선 — 서버·앱이 같은 규칙을 쓴다', () => {
         const base = '../../../../onedal-app/app/src/main/java/com/onedal/app/plugins';
         expect(read(`${base}/RegionMatch.kt`)).toMatch(/regionMatch\.ts 의 \*\*미러\*\*/);
         expect(read(`${base}/insung/InsungParser.kt`).match(/RegionMatch\.anyHit\(/g)!.length).toBeGreaterThanOrEqual(2);
-        expect(read(`${base}/hwamul24/Hwamul24Parser.kt`)).toMatch(/RegionMatch\.anyHit\(/);
+        expect(read(`${base}/ListJudge.kt`)).toMatch(/RegionMatch\.anyHit\(/);
     });
 
     it('🔴 🏘️ 이름이 같은 다른 지역 동 — 앱 미러가 서버 shared 와 같은 이름·인자를 갖는다 (문제지 regionMatchCases.json)', () => {
