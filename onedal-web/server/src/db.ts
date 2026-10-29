@@ -318,7 +318,7 @@ ensureColumns('user_settings', {
     safe_cancel_sec_hwamul24: 'INTEGER DEFAULT 30',
     picker_alarm_detail_sec: 'INTEGER DEFAULT 30',
     /**
-     * ⏱️ **인성플렉스 상세 대기(초)** — 알람으로 연 확정 전 상세를 이만큼 띄워 둔 뒤 원달앱이 «닫기»로 목록에 돌아온다.
+     * ⏱️ **인성플렉스 상세 대기 시간 (초)** — 알람으로 연 확정 전 상세를 이만큼 띄워 둔 뒤 원달앱이 «닫기»로 목록에 돌아온다.
      * 값: 기본 30 — 픽커 상세 대기와 같은 값에서 시작 · 시점: 원달앱이 블루투스 공급(필터)으로 받는다 ·
      * 화면: 관제웹 설정창 «⏱️ 배차망별 안전 대기 시간» · 읽는 곳: 원달앱 상세 대기 · 서버 미리보기 남은 시간 · 관제웹 결재석 시간 막대
      * (어느 칸인지는 배차망 정의 표 `detailBackSec` — 셋 다 shared `detailBackSecOf` · 원달앱 `FilterConfig.secOf` 로 고른다).

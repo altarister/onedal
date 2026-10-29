@@ -17,7 +17,7 @@ const STEP_LABELS: Record<AppStep, string> = { download: '앱 받기', install: 
 
 /** 기사 폰은 두 대다 — 앱마다 어느 폰인지 적는다. 판 · 크기는 서버가 준다 */
 const APPS: Record<DownloadLink['app'], { name: string; phone: string; what: string }> = {
-    scanner: { name: '원달앱', phone: '배차망 폰', what: '배차망 앱(인성 · 화물24시 · 픽커)이 깔린 폰에 — 화면을 읽고 알림을 울린다' },
+    scanner: { name: '원달앱', phone: '배차망 폰', what: '배차망 앱(인성 · 화물24시 · 픽커 · 인성플렉스)이 깔린 폰에 — 화면을 읽고 알림을 울린다' },
     dashboard: { name: '관제앱', phone: '운전석 폰', what: '거치대의 폰에 — 콜 결재(KEEP/CANCEL) · 위치 · 판정 화면' },
 };
 const mb = (bytes: number) => `${Math.max(1, Math.round(bytes / 1024 / 1024))} MB`;

@@ -29,7 +29,7 @@ const TAB_META: Record<TabType, TabMeta> = {
     icon: "⚙️",
     label: "기본",
     domain: "운영 환경",
-    desc: "내 차종, 홈 주소 및 3대 배차망(인성·화물24시·픽커)별 고유 안전 대기 시간을 설정합니다."
+    desc: "내 차종, 홈 주소 및 4대 배차망(인성·화물24시·픽커·인성플렉스)별 고유 안전 대기 시간을 설정합니다."
   },
   screen: {
     id: "screen",

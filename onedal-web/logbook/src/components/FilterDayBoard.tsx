@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
 import axios from 'axios';
-import { COLOR_DOT, wonText, type FilterDayRow as FilterDay, type FilterDaysReply } from '@onedal/shared';
+import { COLOR_DOT, TARGET_APP_LABEL, wonText, type FilterDayRow as FilterDay, type FilterDaysReply, type TargetAppType } from '@onedal/shared';
 
 /**
  * 📊 **설정과 성과** (기사님 확정 — 운행일지에)
@@ -78,7 +78,7 @@ function FilterDayRow({ d, open, onToggle }: { d: FilterDay; open: boolean; onTo
     const first = d.settings?.first;
     const cancelsText = Object.entries(d.cancels).length
         ? Object.entries(d.cancels).map(([app, n]) =>
-            `${app === 'insung' ? '인성' : app === 'hwamul24' ? '24시' : app} ${n}`).join(' · ')
+            `${TARGET_APP_LABEL[app as TargetAppType] ?? app} ${n}`).join(' · ')
         : '0';
     const colorsText = Object.entries(d.colors)
         .map(([c, n]) => `${COLOR_EMOJI[c] ?? c}${n}`).join(' ') || '—';

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { deviceScreenBadge, screenLabelOf } from './screenLabels';
+import { NETWORK_PAGES } from './networkPages';
 
 /**
  * 🖥️ **폰 상태 바 — 6번(화면 켜짐)과 9번(화면명)은 배지 하나다**
@@ -169,3 +170,21 @@ describe('배지 — 배차망 페이지 이름 · 덧칸', () => {
     });
 });
 
+/** 🟣 인성플렉스 정의 표가 내는 화면 값마다 이름표가 있다 — 원달앱이 그 화면을 보내도 «⚠️ 미등록 팝업» 빨간 깜빡임이 아니다 */
+describe('인성플렉스 화면 이름표', () => {
+    it('정의 표의 화면 값(모름 빼고) 전부 이름이 있다', () => {
+        const standards = new Set(NETWORK_PAGES.isflex.screens.map(p => p.standard).filter(s => s !== 'UNKNOWN'));
+        expect(standards.size).toBeGreaterThan(0);
+        for (const s of standards) {
+            const label = screenLabelOf('isflex', s as any)?.label;
+            expect(label, s).toBeTruthy();
+            expect(label, s).not.toBe('⚠️ 미등록 팝업');
+            expect(label, s).not.toBe('알 수 없는 화면');
+        }
+    });
+
+    it('낱말은 인성플렉스 화면 그대로 — 잡은 콜 목록은 «진행중»', () => {
+        expect(screenLabelOf('isflex', 'MY_ORDERS')?.label).toBe('진행중');
+        expect(screenLabelOf('isflex', 'HOME')?.label).toBe('홈');
+    });
+});

@@ -194,6 +194,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
               { key: 'safeCancelSecInsung', label: '인성 안전취소 시간 (초)', hint: '인성 취소 가능 시간 1분 이내 권장' },
               { key: 'safeCancelSecHwamul24', label: '화물24시 안전취소 시간 (초)', hint: '화물24시 오잡기 안전 취소 대기 시간' },
               { key: 'pickerAlarmDetailSec', label: '픽커 상세 대기 시간 (초)', hint: '상세 화면 진입 후 목록으로 자동 복귀하는 시간' },
+              { key: 'isflexAlarmDetailSec', label: '인성플렉스 상세 대기 시간 (초)', hint: '상세 화면 진입 후 목록으로 자동 복귀하는 시간' },
             ] as { key: keyof WaitTimes; label: string; hint: string }[]).map(({ key, label, hint }) => (
               <div key={key} className="space-y-0.5">
                 <div className="flex items-center justify-between">

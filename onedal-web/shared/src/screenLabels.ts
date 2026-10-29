@@ -100,9 +100,17 @@ export const PICKER_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel
     RUN_DONE: { label: "배송 완료", color: GREEN },
 };
 
-/** 🟣 인성플렉스 — 배차망 공통 이름표만(홈 · 진행중 · 상세 · 확정 이름표는 아직 없다 — 원달앱이 인성플렉스 화면을 보내기 전에 채운다) */
+/**
+ * 🟣 인성플렉스 — 픽커와 같은 꼴. 낱말은 인성플렉스 화면 그대로(«진행중» 탭).
+ *    수락 뒤 운행 화면은 원달앱이 읽지 않는다(알람 전용) — 그래서 운행 이름표가 없다.
+ */
 const ISFLEX_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel>> = {
     ...COMMON,
+    HOME: { label: "홈", color: GRAY },
+    /** 📋 잡은 콜 목록(«진행중» 탭) — 목록이라 콜 리스트와 같은 색 */
+    MY_ORDERS: { label: "진행중", color: GREEN },
+    DETAIL_PRE_CONFIRM: { label: "상세페이지", color: BLUE },
+    DETAIL_CONFIRMED: { label: "확정페이지", color: AMBER },
 };
 
 const BY_NETWORK: Record<TargetAppType, Partial<Record<ScreenContextType, ScreenLabel>>> = {
