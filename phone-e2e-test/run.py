@@ -102,6 +102,9 @@ def guard(dev):
         for key in ('KEYCODE_ENTER', 'KEYCODE_DPAD_CENTER'):   # 기본 단추(확인)에 초점 · 누름 — 좌표는 안 누른다
             if focus_of(dev) == 'com.android.systemui': adb(dev, 'shell', 'input', 'keyevent', key); time.sleep(1)
         cur = focus_of(dev); log(f'🔔 S23 시스템 창 닫음(기본 단추 키) — 앞 창 {cur}')
+    if dev == S23 and cur == 'NotificationShade':   # 알림 서랍이 내려와 있음(알림 · 손 스침) — 걷기만 한다 · 알림은 누르지 않는다
+        shot(dev, 'shade'); adb(dev, 'shell', 'cmd', 'statusbar', 'collapse'); time.sleep(1)
+        cur = focus_of(dev); log(f'🔔 S23 알림 서랍 걷음 — 앞 창 {cur}')
     if PICKER_PKG in cur: shot(dev, 'picker_front'); raise Stop(f'앞 화면이 실물 픽커: {cur} — 안 누르고 멈춤(사진)')
     if any(k in cur for k in ('Dialog', 'permission', 'Permission', 'Alert', 'Chooser')) or not any(p in cur for p in FOCUS_OK[dev]):
         shot(dev, 'guard_stop'); raise Stop(f'앞 창이 예상 밖: {cur} — 멈춤(사진)')
