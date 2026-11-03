@@ -70,6 +70,8 @@ onedal-web/server/local.db.backup-*
 #    ⚠️ 01~10 은 이 규칙 이전에 이미 추적 중이라 그대로 남는다 (ignore 는 추적본에 안 걸린다).
 #    파서를 고칠 때 쓰는 문제지는 이미지가 아니라 `intel.rawDetailText` 다.
 ex_images/카카오픽커/실물_2026/
+# 인성설명서 영상 캡처(사진만 · 약 15MB) — 정의 표 근거 칸에 경로로만 적고 이력에는 안 넣는다. 자막 글(.md)은 ignore 하지도 커밋하지도 않는다
+ex_images/인성/인성설명서/*.jpg
 
 
 # 실폰 e2e 결과지(phone-e2e-test) — 판마다 하나 · 최근 5개

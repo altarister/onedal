@@ -199,7 +199,7 @@ object InsungPages {
         ScreenSpec(
             "신규 콜 목록",
             StandardScreen.LIST,
-            listOf(ScreenMatch(all = listOf("신규", "빠른설정"))),
+            listOf(ScreenMatch(all = listOf("신규", "빠른설정"), none = listOf("장터게시판"))),
             false,
             listOf(
                 OverlaySpec("로딩 토스트", OverlayKind.TOAST, listOf(ScreenMatch(any = listOf("오더 조회", "기다려 주십"))), "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", Seen.UNKNOWN, listOf(), toCollect = "캡처", action = OverlayAction.SKIP),
@@ -207,18 +207,17 @@ object InsungPages {
                 OverlaySpec("빈 목록 안내", OverlayKind.BANNER, listOf(ScreenMatch(any = listOf("대기 중인 오더가 없"))), "지금 신규 콜이 없다", Seen.UNKNOWN, listOf(), toCollect = "캡처"),
             ),
             Seen.REAL,
-            listOf("ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png"),
+            listOf("ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png", "ex_images/인성/인성설명서/영상_0441.jpg", "ex_images/인성/인성설명서/영상_1313.jpg", "ex_images/인성/인성설명서/영상_1719.jpg"),
             base = "newList",
         ),
         ScreenSpec(
             "완료 탭",
             StandardScreen.MY_ORDERS,
-            listOf(ScreenMatch(all = listOf("완료", "신규"), none = listOf("빠른설정"))),
+            listOf(ScreenMatch(all = listOf("완료", "장터게시판"))),
             true,
             emptyList(),
-            Seen.UNKNOWN,
-            listOf(),
-            toCollect = "캡처 · 메시지함 · GPS 탭과 가를 글자(지금 글자는 그 탭에도 맞는다)",
+            Seen.REAL,
+            listOf("ex_images/인성/인성설명서/영상_1633.jpg"),
             base = "myList",
         ),
         ScreenSpec(

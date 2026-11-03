@@ -225,29 +225,30 @@ export const SimDispatchBoard = ({
         <div className="flex-1 py-1.5 text-center bg-[#0052a3] text-gray-300">GPS</div>
       </div>
 
-      {/* 서브 툴바 */}
-      {activeTab === 'ALL' && (
-        <div className="flex bg-[#e4e4e4] border-b border-gray-400 text-xs text-gray-700 h-7 items-center px-1 gap-1">
-          <button className="bg-[#0052a3] text-white px-3 py-0.5 border border-gray-500 text-[10px] font-bold" onClick={onSettingsClick}>
-            원터치
-          </button>
-          <button className="bg-[#0052a3] text-white px-3 py-0.5 border border-gray-500 text-[10px] font-bold" onClick={onSettingsClick}>
-            그룹공지
-          </button>
-          <button className="bg-gray-200 px-3 py-0.5 border border-gray-400 text-[10px] font-bold text-gray-700">
-            장터게시판
-          </button>
+      {/* 서브 툴바 — 실물(인성설명서 영상): 신규 탭은 «원터치 · 그룹공지 · 잠금 · 빠른설정», 완료 탭은 «잠금» 자리에 «장터게시판» */}
+      <div className="flex bg-[#e4e4e4] border-b border-gray-400 text-xs text-gray-700 h-7 items-center px-1 gap-1">
+        <button className="bg-[#0052a3] text-white px-3 py-0.5 border border-gray-500 text-[10px] font-bold" onClick={onSettingsClick}>
+          원터치
+        </button>
+        <button className="bg-[#0052a3] text-white px-3 py-0.5 border border-gray-500 text-[10px] font-bold" onClick={onSettingsClick}>
+          그룹공지
+        </button>
+        {activeTab === 'ALL' ? (
           <button
             className={`px-3 py-0.5 border border-gray-400 text-[10px] font-bold ${isTimerPaused ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-700'}`}
             onClick={onToggleTimer}
           >
             {isTimerPaused ? '잠금해제' : '잠금'}
           </button>
-          <button className="bg-[#facc15] text-black px-3 py-0.5 border border-gray-500 text-[10px] font-bold" onClick={onSettingsClick}>
-            빠른설정
+        ) : (
+          <button className="bg-gray-200 px-3 py-0.5 border border-gray-400 text-[10px] font-bold text-gray-700">
+            장터게시판
           </button>
-        </div>
-      )}
+        )}
+        <button className="bg-[#facc15] text-black px-3 py-0.5 border border-gray-500 text-[10px] font-bold" onClick={onSettingsClick}>
+          빠른설정
+        </button>
+      </div>
 
       {/* 리스트 헤더 (신규 탭 전용) */}
       {activeTab === 'ALL' && (

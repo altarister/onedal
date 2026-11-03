@@ -42,7 +42,7 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
   ],
   "slotNotes": {
     "newCall": {"toCollect": "배차수신(투터치 — 인성설명서 0526) · 지도형 상세(인성설명서 0948) 를 정의 표에 넣을 것"},
-    "myList": {"toCollect": "완료 탭 실물 글자는 인성설명서 1633 으로 봄 — 표의 알아보는 글자를 고칠 것"},
+    "myList": {"toCollect": "메시지함 · GPS 탭에도 «장터게시판» 이 있는지 — 영상에 안 나옴"},
     "RUN_TO_PICKUP": {"toCollect": "확정 뒤 상세의 «상태 : 배송» 줄이 상차 · 하차 뒤 어떻게 바뀌나 모을 것(인성설명서 자막 17:45 «픽업하시고 완료하시면은 이 상태가 바뀔 거예요») · 단계마다 화면이 따로 있는지는 모른다(지금 정의 표에는 따로 없다 — 같은 확정 뒤 상세)"},
     "RUN_AT_PICKUP": {"toCollect": "상차지로 가는 중과 같다 — 확정 뒤 상세의 «상태 :» 줄 변화를 모을 것"},
     "RUN_TO_DROPOFF": {"toCollect": "상차지로 가는 중과 같다 — 확정 뒤 상세의 «상태 :» 줄 변화를 모을 것"},
@@ -61,12 +61,12 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
       {"name": "확정 실패 팝업", "kind": "POPUP", "match": [{"any": ["시간이 지나", "실패"], "none": ["적요상세"]}], "meaning": "확정이 안 됐다 — 적요 글의 «실패» · «시간이 지나»와 가를 머리 글자가 필요하다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 팝업 머리 글자"}
     ]},
     {"name": "홈 «인성퀵화면분할»", "standard": "HOME", "match": [{"all": ["인성퀵화면분할"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/인성홈.png"], "overlays": []},
-    {"name": "신규 콜 목록", "standard": "LIST", "match": [{"all": ["신규", "빠른설정"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png"], "overlays": [
+    {"name": "신규 콜 목록", "standard": "LIST", "match": [{"all": ["신규", "빠른설정"], "none": ["장터게시판"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png", "ex_images/인성/인성설명서/영상_0441.jpg", "ex_images/인성/인성설명서/영상_1313.jpg", "ex_images/인성/인성설명서/영상_1719.jpg"], "overlays": [
       {"name": "로딩 토스트", "kind": "TOAST", "match": [{"any": ["오더 조회", "기다려 주십"]}], "meaning": "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", "action": "SKIP", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"},
       {"name": "메뉴 드롭다운", "kind": "POPUP", "match": [], "meaning": "목록 머리 «메뉴»를 누르면 펼쳐진다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
       {"name": "빈 목록 안내", "kind": "BANNER", "match": [{"any": ["대기 중인 오더가 없"]}], "meaning": "지금 신규 콜이 없다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
     ]},
-    {"name": "완료 탭", "standard": "MY_ORDERS", "match": [{"all": ["완료", "신규"], "none": ["빠른설정"]}], "listReturn": true, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 메시지함 · GPS 탭과 가를 글자(지금 글자는 그 탭에도 맞는다)", "overlays": []},
+    {"name": "완료 탭", "standard": "MY_ORDERS", "match": [{"all": ["완료", "장터게시판"]}], "listReturn": true, "seen": "REAL", "evidence": ["ex_images/인성/인성설명서/영상_1633.jpg"], "overlays": []},
     {"name": "메시지함 탭", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
     {"name": "GPS 탭", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
     {"name": "게시판", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},

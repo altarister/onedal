@@ -120,7 +120,7 @@ describe('배차망 페이지 목록 (screens)', () => {
     const ROOT = join(__dirname, '../../..');
     const all = Object.entries(NETWORK_PAGES).flatMap(([net, spec]) => spec.screens.map(s => ({ net, s })));
     /* 수락 뒤 픽커 캡처 폴더는 .gitignore 가 막는다 — 다른 기계에는 파일이 없다 */
-    const ignored = (p: string) => p.startsWith('ex_images/카카오픽커/실물_2026/');
+    const ignored = (p: string) => p.startsWith('ex_images/카카오픽커/실물_2026/') || p.startsWith('ex_images/인성/인성설명서/');
 
     it('배차망마다 페이지가 있고 · 한 배차망 안에서 이름이 겹치지 않는다', () => {
         for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
