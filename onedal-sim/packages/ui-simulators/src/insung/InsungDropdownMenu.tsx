@@ -19,7 +19,7 @@ export const InsungDropdownMenu: React.FC<DropdownMenuProps> = ({ onClose }) => 
         
         {/* Header */}
         <div className="bg-[#1a202c] text-white text-[13px] font-bold py-2 px-3 border-b border-gray-600">
-          엘비스 Ver. 1.3.2
+          엘비스 Ver. 1.4.5
         </div>
 
         {/* Menu Items */}
@@ -35,18 +35,13 @@ export const InsungDropdownMenu: React.FC<DropdownMenuProps> = ({ onClose }) => 
           </button>
           
           <button className="flex items-center space-x-3 px-4 py-2 hover:bg-gray-600 border-b border-gray-700 text-left" onClick={onClose}>
-            <span className="w-5 text-center">👥</span>
-            <span>고객검색</span>
-          </button>
-          
-          <button className="flex items-center space-x-3 px-4 py-2 hover:bg-gray-600 border-b border-gray-700 text-left" onClick={onClose}>
             <span className="w-5 text-center">⚙️</span>
             <span>환경설정</span>
           </button>
           
           <button className="flex items-center space-x-3 px-4 py-2 hover:bg-gray-600 border-b border-gray-700 text-left" onClick={onClose}>
             <span className="w-5 text-center">🔄</span>
-            <span>업데이트안내</span>
+            <span>업데이트공지</span>
           </button>
           
           <button className="flex items-center space-x-3 px-4 py-2 bg-gray-600 border-l-4 border-red-600 border-b border-gray-700 text-left" onClick={onClose}>

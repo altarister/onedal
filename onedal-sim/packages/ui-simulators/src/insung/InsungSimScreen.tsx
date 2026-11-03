@@ -10,9 +10,12 @@ import { SimDispatchBoard } from './SimDispatchBoard';
 import { InsungCallDetailScreen } from './InsungCallDetailScreen';
 import { InsungOngoingDetailScreen } from './InsungOngoingDetailScreen';
 import { InsungDropdownMenu } from './InsungDropdownMenu';
+import { InsungNoticeDialog } from './InsungNoticeDialog';
 
 export const InsungSimScreen = (p: NetScreenProps) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [orderLocked, setOrderLocked] = useState(false);
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
   // ── 상세 보기 ──
   if (p.selectedCall) {
@@ -45,18 +48,29 @@ export const InsungSimScreen = (p: NetScreenProps) => {
         streamingCalls={p.streamingCalls}
         confirmedCalls={p.confirmedCalls}
         activeTab={p.activeTab}
-        onTabSelect={p.setActiveTab}
-        onCallClick={p.openCall}
+        onTabSelect={(tab) => {
+          // 실물: 잡은 콜이 없을 때 «완료» 를 누르면 완료 탭으로 안 넘어가고 목록 위에 알림이 뜬다(영상 1611)
+          if (tab === 'CONFIRMED' && p.confirmedCalls.length === 0) setNotice({ title: '오더 상세', message: '자료가 존재하지 않습니다' });
+          else p.setActiveTab(tab);
+        }}
+        onCallClick={(call) => {
+          // 실물: 오더 선택 잠금이 켜져 있으면 콜을 눌러도 상세가 안 열리고 알림이 뜬다(영상 1328)
+          if (orderLocked) setNotice({ title: '알림', message: '오더 선택 잠금 상태 입니다' });
+          else p.openCall(call);
+        }}
         onStartClick={p.goSetup}
         onSettingsClick={p.goSetup}
         onMenuClick={() => setShowMenu(true)}
         isTimerPaused={p.isTimerPaused}
         onToggleTimer={p.toggleTimer}
+        isOrderLocked={orderLocked}
+        onToggleOrderLock={() => setOrderLocked(!orderLocked)}
         isFetchingOrder={p.isFetchingOrder}
         selectedCallId={p.selectedCallId}
         maxPickupKm={p.maxPickupKm}
       />
       {showMenu && <InsungDropdownMenu onClose={() => setShowMenu(false)} />}
+      {notice && <InsungNoticeDialog title={notice.title} message={notice.message} onClose={() => setNotice(null)} />}
     </div>
   );
 };

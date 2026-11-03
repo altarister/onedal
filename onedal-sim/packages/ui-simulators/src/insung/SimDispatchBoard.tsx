@@ -20,6 +20,9 @@ interface SimBoardProps {
   onMenuClick: () => void;
   isTimerPaused: boolean;
   onToggleTimer: () => void;
+  /** 🔒 실물 «잠금» — 오더 선택 잠금(켜면 단추가 «해제» · 콜을 눌러도 상세가 안 열린다 · 영상 1328). 안 넘기면 잠금 없음 */
+  isOrderLocked?: boolean;
+  onToggleOrderLock?: () => void;
   isFetchingOrder: boolean;
   selectedCallId: string | null;
   maxPickupKm: number;
@@ -192,6 +195,8 @@ export const SimDispatchBoard = ({
   onMenuClick,
   isTimerPaused,
   onToggleTimer,
+  isOrderLocked = false,
+  onToggleOrderLock,
   isFetchingOrder,
   selectedCallId,
   maxPickupKm
@@ -235,10 +240,10 @@ export const SimDispatchBoard = ({
         </button>
         {activeTab === 'ALL' ? (
           <button
-            className={`px-3 py-0.5 border border-gray-400 text-[10px] font-bold ${isTimerPaused ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-700'}`}
-            onClick={onToggleTimer}
+            className={`px-3 py-0.5 border border-gray-500 text-[10px] font-bold ${isOrderLocked ? 'bg-green-700 text-white' : 'bg-[#facc15] text-black'}`}
+            onClick={onToggleOrderLock}
           >
-            {isTimerPaused ? '잠금해제' : '잠금'}
+            {isOrderLocked ? '해제' : '잠금'}
           </button>
         ) : (
           <button className="bg-gray-200 px-3 py-0.5 border border-gray-400 text-[10px] font-bold text-gray-700">
@@ -303,6 +308,14 @@ export const SimDispatchBoard = ({
           </button>
           <button className="bg-[#facc15] text-black px-2 py-0.5 border border-gray-500 text-[10px] font-bold">전체</button>
           <button className="bg-[#facc15] text-black px-2 py-0.5 border border-gray-500 text-[10px] font-bold">리셋</button>
+          {/* 🔧 시뮬레이터 전용 — 흘러드는 콜 타이머를 멈춘다(실물에 없다). 원달앱 접근성 글에 안 읽히게 aria-hidden: 실물에 없는 글자가 낱말 표에 쌓이지 않게 */}
+          <button
+            aria-hidden="true"
+            className={`px-2 py-0.5 border border-gray-500 text-[10px] font-bold ${isTimerPaused ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+            onClick={onToggleTimer}
+          >
+            {isTimerPaused ? '재개' : '정지'}
+          </button>
         </div>
       )}
 

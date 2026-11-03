@@ -63,8 +63,9 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
     {"name": "홈 «인성퀵화면분할»", "standard": "HOME", "match": [{"all": ["인성퀵화면분할"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/인성홈.png"], "overlays": []},
     {"name": "신규 콜 목록", "standard": "LIST", "match": [{"all": ["신규", "빠른설정"], "none": ["장터게시판"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png", "ex_images/인성/인성설명서/영상_0441.jpg", "ex_images/인성/인성설명서/영상_1313.jpg", "ex_images/인성/인성설명서/영상_1719.jpg"], "overlays": [
       {"name": "로딩 토스트", "kind": "TOAST", "match": [{"any": ["오더 조회", "기다려 주십"]}], "meaning": "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", "action": "SKIP", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"},
-      {"name": "메뉴 드롭다운", "kind": "POPUP", "match": [], "meaning": "목록 머리 «메뉴»를 누르면 펼쳐진다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
-      {"name": "빈 목록 안내", "kind": "BANNER", "match": [{"any": ["대기 중인 오더가 없"]}], "meaning": "지금 신규 콜이 없다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
+      {"name": "메뉴 드롭다운", "kind": "POPUP", "match": [{"all": ["업무종료", "프로그램종료", "메뉴닫기"]}], "meaning": "아래 «메뉴»를 누르면 목록을 오른쪽에서 덮는다 — 머리 «엘비스 Ver. …» · 당일정산 · 업무종료 · 환경설정 · 업데이트공지 · 기사정보 · 프로그램종료 · 메뉴닫기", "seen": "REAL", "evidence": ["ex_images/인성/인성설명서/영상_0544.jpg"]},
+      {"name": "잠금 팝업", "kind": "POPUP", "match": [{"all": ["오더 선택 잠금 상태"]}], "meaning": "오더 선택 잠금이 켜져 있어 콜을 눌러도 상세가 안 열린다 — «확인» 으로 닫는다", "seen": "REAL", "evidence": ["ex_images/인성/인성설명서/영상_1328.jpg"]},
+      {"name": "자료 없음 팝업", "kind": "POPUP", "match": [{"all": ["오더 상세", "자료가 존재하지 않습니다"]}], "meaning": "잡은 콜이 없을 때 «완료» 를 누르면 목록 위에 뜬다 — 완료 탭으로 안 넘어간다. «확인» 으로 닫는다", "seen": "REAL", "evidence": ["ex_images/인성/인성설명서/영상_1611.jpg"]}
     ]},
     {"name": "완료 탭", "standard": "MY_ORDERS", "match": [{"all": ["완료", "장터게시판"]}], "listReturn": true, "seen": "REAL", "evidence": ["ex_images/인성/인성설명서/영상_1633.jpg"], "overlays": []},
     {"name": "메시지함 탭", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
@@ -72,6 +73,8 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
     {"name": "게시판", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
     {"name": "환경설정", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
     {"name": "당일정산", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
+    {"name": "업데이트공지", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "메뉴(영상 0544)에서 눌러 가는 화면 — 캡처 · 알아보는 글자", "overlays": []},
+    {"name": "기사정보", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "메뉴(영상 0544)에서 눌러 가는 화면 — 캡처 · 알아보는 글자", "overlays": []},
     {"name": "전표", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
     {"name": "탁송", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (상세 바닥 «탁송» 버튼 뒤)", "overlays": []},
     {"name": "카드 승인", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (확정 뒤 상세 «카드 승인» 버튼 뒤)", "overlays": []},
