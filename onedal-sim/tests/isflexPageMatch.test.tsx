@@ -57,7 +57,7 @@ const pagesOf = (text: string) => table.screens.filter(s => s.match.some(m => fi
 const overlaysOf = (text: string) => table.screens.flatMap(s => s.overlays ?? []).filter(o => o.match.some(m => fits(text, m))).map(o => o.name);
 const markerHits = (text: string, markers: string[][]) => markers.filter(g => g.every(w => text.includes(w)));
 const readField = (text: string, field: string) => {
-    const row = table.pages.detail.find(r => r.field === field && r.read && !r.part);
+    const row = table.pages.newCall.find(r => r.field === field && r.read && !r.part);
     return row ? text.match(new RegExp(row.read!))?.[1] : undefined;
 };
 

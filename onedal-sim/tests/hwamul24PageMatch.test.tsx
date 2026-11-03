@@ -31,7 +31,7 @@ const fits = (text: string, m: Match) =>
 /** 표 차례대로 대어 처음 맞는 페이지 — 알아보는 글자가 빈 줄(아직 모름)은 안 맞는다 */
 const pagesOf = (text: string) => table.screens.filter(s => s.match.some(m => fits(text, m))).map(s => s.name);
 const readField = (text: string, field: string) => {
-    const row = table.pages.detail.find(r => r.field === field && r.read && !r.part);
+    const row = table.pages.newCall.find(r => r.field === field && r.read && !r.part);
     return row ? text.match(new RegExp(row.read!))?.[1] : undefined;
 };
 
