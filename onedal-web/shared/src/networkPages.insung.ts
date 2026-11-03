@@ -42,7 +42,7 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
     {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "action": "FILL_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처", "slot": "memo"}
   ],
   "slotNotes": {
-    "newCall": {"toCollect": "배차수신(투터치 — 인성설명서 0526) · 지도형 상세(인성설명서 0948) 를 정의 표에 넣을 것"},
+    "newCall": {"toCollect": "배차수신 · 지도형 두 꼴을 원달앱이 처리하는 길 — 지금은 이름만 알아보고(화면 종류를 비움) 아무것도 안 한다 · 두 꼴이면 콜을 못 잡는다"},
     "myCall": {"toCollect": "신용 콜의 총액을 읽을 자리(확정 뒤 상세는 금액 줄이 «실운임 :» 수수료 뺀 값뿐이라 지금은 못 읽는다) · 내 콜 화면 머리 오른쪽 «27:23» 숫자의 뜻(인성설명서 1743) · 목록 보라색 줄의 뜻(인성설명서 1719)"},
     "newList": {"toCollect": "목록 차종 «용/소» 의 뜻 — 기사님: 용달/소형 같음 · 확인 필요 · 그 콜 상세 원문의 차종 글로 확인(인성설명서 영상 1719)"},
     "myList": {"toCollect": "메시지함 · GPS 탭에도 «장터게시판» 이 있는지 — 영상에 안 나옴"},
@@ -64,6 +64,8 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
       {"name": "확정 실패 팝업", "kind": "POPUP", "match": [{"any": ["시간이 지나", "실패"], "none": ["적요상세"]}], "meaning": "확정이 안 됐다 — 적요 글의 «실패» · «시간이 지나»와 가를 머리 글자가 필요하다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 팝업 머리 글자"}
     ]},
     {"name": "홈 «인성퀵화면분할»", "standard": "HOME", "match": [{"all": ["인성퀵화면분할"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/인성홈.png"], "overlays": []},
+    {"name": "배차수신 화면", "standard": null, "match": [{"all": ["배차 하시겠습니까"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/인성설명서/영상_0526.jpg"], "toCollect": "기준 페이지는 새 콜 화면 — 원달앱이 처리 길(상세 채우기 · 확정)을 타지 않게 화면 종류를 비워 둔다 · 기사님 인성 설정이 원터치가 아닐 때(투터치) 뜨는 «예 / 아니오» 화면", "overlays": []},
+    {"name": "지도형 상세", "standard": null, "match": [{"all": ["닫기", "수행하기", "출발지까지"], "none": ["총 수입"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/인성설명서/영상_0948.jpg"], "toCollect": "기준 페이지는 새 콜 화면 — 원달앱이 처리 길을 타지 않게 화면 종류를 비워 둔다 · 인성플렉스 상세(총 수입 + 수행하기)와 같은 «닫기 / 수행하기» 틀이라 «총 수입이 없다»로 가른다 · 글자에 배차망 표식이 없어 원달앱은 직전 배차망에 기댄다", "overlays": []},
     {"name": "신규 콜 목록", "standard": "LIST", "match": [{"all": ["신규", "빠른설정"], "none": ["장터게시판"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png", "ex_images/인성/인성설명서/영상_0441.jpg", "ex_images/인성/인성설명서/영상_1313.jpg", "ex_images/인성/인성설명서/영상_1719.jpg"], "overlays": [
       {"name": "로딩 토스트", "kind": "TOAST", "match": [{"any": ["오더 조회", "기다려 주십"]}], "meaning": "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", "action": "SKIP", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"},
       {"name": "메뉴 드롭다운", "kind": "POPUP", "match": [{"all": ["업무종료", "프로그램종료", "메뉴닫기"]}], "meaning": "아래 «메뉴»를 누르면 목록을 오른쪽에서 덮는다 — 머리 «엘비스 Ver. …» · 당일정산 · 업무종료 · 환경설정 · 업데이트공지 · 기사정보 · 프로그램종료 · 메뉴닫기", "seen": "REAL", "evidence": ["ex_images/인성/인성설명서/영상_0544.jpg"]},

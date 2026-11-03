@@ -18,13 +18,13 @@ import java.io.File
  * 줄마다 `expect`(표 판별)와 같아야 한다. `was`(옛 판별)와 다른 줄이 2단계에서 바뀌는 화면 전부다 — 그 밖은 0.
  */
 class ScreenTableDetectTest {
-    /** `overlay` 는 선택 — 있으면 그 화면 위에 뜬 덧칸(팝업 · 층)의 이름까지 맞아야 한다(없으면 화면 종류만 본다) */
-    private data class Case(val network: String, val why: String, val text: String, val was: String, val expect: String, val overlay: String?)
+    /** `page` 는 선택 — 있으면 맞은 화면 줄의 이름까지 맞아야 한다(화면 종류를 비운 줄은 종류만 보면 UNKNOWN 이라 줄이 없어도 초록이다) · `overlay` 는 선택 — 있으면 그 화면 위에 뜬 덧칸(팝업 · 층)의 이름까지 맞아야 한다(없으면 화면 종류만 본다) */
+    private data class Case(val network: String, val why: String, val text: String, val was: String, val expect: String, val overlay: String?, val page: String?)
 
     private val cases: List<Case> by lazy {
         val json = JsonParser.parseString(File("../../onedal-web/shared/src/screenCases.json").readText()).asJsonObject
         json["cases"].asJsonArray.map { it.asJsonObject }.map {
-            Case(it["network"].asString, it["why"].asString, it["text"].asString, it["was"].asString, it["expect"].asString, it["overlay"]?.asString)
+            Case(it["network"].asString, it["why"].asString, it["text"].asString, it["was"].asString, it["expect"].asString, it["overlay"]?.asString, it["page"]?.asString)
         }
     }
 
@@ -46,10 +46,12 @@ class ScreenTableDetectTest {
     @Test fun `모든 줄이 표 판별대로 읽힌다`() {
         val wrong = cases.mapNotNull { c ->
             val got = classify(c.network, c.text)
-            val gotOverlay = ScreenDetector().detect(c.text, plugins.getValue(c.network).screens).overlay
+            val read = ScreenDetector().detect(c.text, plugins.getValue(c.network).screens)
+            val gotOverlay = read.overlay
             when {
                 got != c.expect -> "${c.network} ${c.why} — 기대 ${c.expect} · 지금 $got (옛 ${c.was}) · ${c.text.take(80)}"
                 c.overlay != null && gotOverlay != c.overlay -> "${c.network} ${c.why} — 기대 덧칸 ${c.overlay} · 지금 $gotOverlay · ${c.text.take(80)}"
+                c.page != null && read.page != c.page -> "${c.network} ${c.why} — 기대 화면 줄 ${c.page} · 지금 ${read.page} · ${c.text.take(80)}"
                 else -> null
             }
         }
