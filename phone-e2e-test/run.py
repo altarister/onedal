@@ -262,8 +262,9 @@ def sim_switch(net):
         time.sleep(1)
     return False
 
-def sim_open(net, why='처음', no_reopen=False, fresh=False):
-    """그 배차망 목록이 이미 열려 있으면 그대로 · 아니면 다시 켜서 탭 → 개별콜 → 화면으로 시작 → 홈 → 목록"""
+def sim_open(net, why='처음', no_reopen=False, fresh=False, stop_home=False):
+    """그 배차망 목록이 이미 열려 있으면 그대로 · 아니면 다시 켜서 탭 → 개별콜 → 화면으로 시작 → 홈 → 목록
+       stop_home 이면 홈에서 멈춘다 — 홈을 알아보는지 본 뒤 장면이 «출근하기»를 따로 누른다(S30)"""
     # 🧹 판 첫 열기는 깨끗이 다시 켠다 — 시뮬은 배차망을 바꿀 때 다시 안 켜서(b852fdc4) 앞 판 콜이 목록에 남는데, R0 는 서버 회차를 0 으로 되돌려 시뮬이 새 판을 모른다(81판 S06: 80판 6만원 콜을 열었음)
     if fresh: why = '판 첫 열기 — 앞 판 콜 지움'
     elif why == '처음':
@@ -285,6 +286,7 @@ def sim_open(net, why='처음', no_reopen=False, fresh=False):
     tap_if(A24, *SIM_TAB[net], any_px, f'시뮬 탭 {net}'); time.sleep(1)
     tap_if(A24, 883, 316, any_px, '개별콜'); time.sleep(1)
     tap_if(A24, 538, 2112, any_px, '화면으로 시작'); time.sleep(3)
+    if stop_home: shot(A24, f'sim_{net}_home'); return
     home = {'insung': (300, 916), 'hwamul24': (281, 541), 'picker': (538, 2088), 'isflex': (300, 1264)}[net]
     tap_if(A24, *home, any_px, f'{net} 홈 → 목록'); time.sleep(3)
     shot(A24, f'sim_{net}')

@@ -48,7 +48,9 @@ def do_item(c):
     k, a = c['run'], c['args']
     one = {'mark': 'what', 'tap': 'name', 'tap_if_cod': 'name', 'mode': 'mode', 'ble': 'state', 'sleep': 'sec', 'photo': 'phone'}
     if k in one: return {k: a[one[k]]}
-    if k == 'sim': return {k: {'net': a['net'], 'fresh': True} if a.get('fresh') else a['net']}
+    if k == 'sim':
+        flags = {x: True for x in ('fresh', 'stopHome') if a.get(x)}
+        return {k: {'net': a['net'], **flags} if flags else a['net']}
     if k in ('wait_app', 'wait_srv'): return {k: {'re': a['re'], 'sec': c['target']['sec']}}
     return {k: dict(a)}
 

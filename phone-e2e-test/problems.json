@@ -4789,15 +4789,16 @@
      "who": "스크립트",
      "writer": "스크립트",
      "where": "A24",
-     "task": "시뮬레이터 새로 열기 — {net} 홈 → «출근하기» → 목록(신규)",
-     "desc": "시뮬 껍데기 앱을 닫았다 다시 켬 → 설정 화면 «인성플렉스» 탭 → «개별콜» → «화면으로 시작» → 홈 «출근하기»(run.py HOME_BTN · taps a24.isflex.home.list 자리)",
+     "task": "시뮬레이터 새로 열기 — {net} 홈까지",
+     "desc": "시뮬 껍데기 앱을 닫았다 다시 켬 → 설정 화면 «인성플렉스» 탭 → «개별콜» → «화면으로 시작» → 홈에서 멈춤(«출근하기»는 홈 확인 뒤 따로 누름)",
      "evidence": "원달앱 기록 «[페이지] 플렉스 …»",
      "target": null,
      "onFail": "stop",
      "run": "sim",
      "args": {
       "net": "isflex",
-      "fresh": true
+      "fresh": true,
+      "stopHome": true
      }
     },
     {
@@ -4806,7 +4807,7 @@
      "writer": "스크립트",
      "where": "A24",
      "task": "원달앱 기록 «{re}»",
-     "desc": "시뮬을 새로 연 뒤 홈을 «페이지»로 알아봄",
+     "desc": "시뮬 홈에 선 동안 원달앱이 홈을 «페이지»로 알아봄",
      "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
      "target": {
       "sec": 20
@@ -4816,6 +4817,21 @@
      "args": {
       "src": "app",
       "re": "\\[페이지\\] 플렉스 홈 → HOME"
+     }
+    },
+    {
+     "id": "b3e7c1",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "단추: {name}",
+     "desc": "시뮬 인성플렉스 홈 «출근하기»(taps.json · 원달앱이 홈으로 읽었을 때만 누름)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "a24.isflex.home.list"
      }
     },
     {

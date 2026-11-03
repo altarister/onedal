@@ -468,7 +468,7 @@ def act(a):
         if not DRY: tidy_s23('A24')
         run.set_mode(v)
     elif k == 'sim':   # «picker» 또는 {net · noReopen} — noReopen 이면 신호로 못 바꿀 때 다시 켜지 않고 ⚪
-        if isinstance(v, dict): run.sim_open(v['net'], no_reopen=v.get('noReopen', False), fresh=v.get('fresh', False))
+        if isinstance(v, dict): run.sim_open(v['net'], no_reopen=v.get('noReopen', False), fresh=v.get('fresh', False), stop_home=v.get('stopHome', False))
         else: run.sim_open(v)
     elif k == 'call': do_call(v)
     elif k == 'tap':
