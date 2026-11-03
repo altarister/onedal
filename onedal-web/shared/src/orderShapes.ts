@@ -30,7 +30,7 @@ export interface LocationDetailInfo {
     phone2?: string;          // [전화2] 보조 연락처 (예: "031-267-1224", 빈 값일 경우 "*")
     region?: string;          // [출발/도착] 광역 지역명 (예: "경기 화성시", "서울 마포구")
     addressDetail?: string;   // [위치] 상세 주소+건물명 (예: "경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)")
-    requestedTime?: string;   // 상차/하차 예약 시간 (확정 페이지에서 파싱, 예: "13:53")
+    requestedTime?: string;   // 상차/하차 예약 시간 (내 콜 화면에서 파싱, 예: "13:53")
     memo?: string;            // 현장 전달사항 (적요 등에서 추출)
 }
 
