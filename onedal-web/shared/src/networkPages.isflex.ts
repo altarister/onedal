@@ -26,30 +26,29 @@ export const ISFLEX_PAGES: NetworkPageSpec = /*JSON*/{
   "networkMarkers": [["출발지까지", "수입"], ["총 수입", "수행하기"], ["현재 선택된 배송 수단"], ["진행중인 오더가 없습니다"]],
   "networkMarkersWhy": "목록(«출발지까지» + «수입») · 상세(«총 수입» + «수행하기») · 홈(«현재 선택된 배송 수단») · 진행중 빈 화면(«진행중인 오더가 없습니다») — 실물 02 · 08 · 01 · 04 에 있고 인성 화면에는 없는 글자 묶음. 공지 띠 · «AI 배차 대기중»은 글이 바뀌거나 사라져 쓰지 않는다",
   "screens": [
-    {"name": "상세(확정 전)", "standard": "DETAIL_PRE_CONFIRM", "bases": ["detail"], "buttons": {"accept": "수행하기", "filterOut": "닫기"}, "match": [{"all": ["총 수입", "수행하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/08_상세.png", "ex_images/인성플렉스/09_상세_선불.png", "ex_images/인성플렉스/10_상세_3.png", "ex_images/인성플렉스/11_상세_4.png", "ex_images/인성플렉스/12_상세_5.png"], "toCollect": "꼬리표 자리에 «과적» 말고 오는 글자(«급송» · «왕복» · «경유» · 짐 크기 «대박스») · 도착 주소에 «@»가 붙는 콜 · 적요 안에 «선불» · «착불» · «총 수입»이 드는 콜 — 적요 제목 «오더메모» · 요금 제목 «수입»만(«총 수입» 아님)이 보이면 리뉴얼", "overlays": [
+    {"name": "상세(확정 전)", "standard": "DETAIL_PRE_CONFIRM", "buttons": {"accept": "수행하기", "filterOut": "닫기"}, "match": [{"all": ["총 수입", "수행하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/08_상세.png", "ex_images/인성플렉스/09_상세_선불.png", "ex_images/인성플렉스/10_상세_3.png", "ex_images/인성플렉스/11_상세_4.png", "ex_images/인성플렉스/12_상세_5.png"], "toCollect": "꼬리표 자리에 «과적» 말고 오는 글자(«급송» · «왕복» · «경유» · 짐 크기 «대박스») · 도착 주소에 «@»가 붙는 콜 · 적요 안에 «선불» · «착불» · «총 수입»이 드는 콜 — 적요 제목 «오더메모» · 요금 제목 «수입»만(«총 수입» 아님)이 보이면 리뉴얼", "overlays": [
       {"name": "수락 실패 팝업", "kind": "POPUP", "match": [], "meaning": "착불 콜을 적립금이 모자라 수락하지 못했다 — 원달앱은 알아보기만", "seen": "UNKNOWN", "evidence": [], "toCollect": "착불 콜 «수행하기» 뒤 뜨는 팝업 글자"},
       {"name": "확정 제한 팝업", "kind": "POPUP", "match": [], "meaning": "확정 뒤 취소해 다음 확정이 10초 막혔다 — 원달앱은 알아보기만", "seen": "UNKNOWN", "evidence": [], "toCollect": "회원사 취소 뒤 다음 확정 때 뜨는 팝업 글자"}
     ]},
-    {"name": "확정", "standard": "DETAIL_CONFIRMED", "bases": ["confirm"], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "수행하기 직후 화면 — 이 화면으로 오나 · 진행중 탭으로 가나 · 따로 뜨는 확인 화면이 있나", "overlays": []},
-    {"name": "내 오더 콜", "standard": "DETAIL_CONFIRMED", "bases": ["myorder"], "match": [{"all": ["적요상세"], "any": ["픽업완료", "배송완료", "서명받기"], "none": ["수행하기"]}], "listReturn": false, "seen": "SIM", "evidence": ["지어낸 화면 — 시뮬레이터 인성플렉스 «내 오더 콜»(실물 캡처 없음)"], "toCollect": "실물 화면 글자(출발지로 이동 · 배송 · 서명) · 단계 줄 «…까지 출발지로 이동» · 아래 단추 글자 — 요금 제목 «총 수익» · 적요 제목 «오더메모»가 실물에 나오나", "overlays": []},
-    {"name": "목록(신규)", "standard": "LIST", "bases": ["list"], "match": [{"all": ["출발지까지", "수입", "퇴근하기"], "none": ["수행하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/02_목록.png", "ex_images/인성플렉스/07_목록_스크롤.png"], "toCollect": "AI 추천 콜이 실제로 뜬 목록(칸 자리 · «수락» 단추 글자) · 꼬리표 배지(«급» · «왕» · «빈» · «경») · «계산서» 배지 · 차종 «오토» 말고 다른 글자 · 오늘 예약 앞글자 꼴 — 칩 «개인이동장치»(실물은 «개인이동수단»)가 보이면 리뉴얼", "overlays": [
+    {"name": "내 오더 콜", "standard": "DETAIL_CONFIRMED", "match": [{"all": ["적요상세"], "any": ["픽업완료", "배송완료", "서명받기"], "none": ["수행하기"]}], "listReturn": false, "seen": "SIM", "evidence": ["지어낸 화면 — 시뮬레이터 인성플렉스 «내 오더 콜»(실물 캡처 없음)"], "toCollect": "실물 화면 글자(출발지로 이동 · 배송 · 서명) · 단계 줄 «…까지 출발지로 이동» · 아래 단추 글자 — 요금 제목 «총 수익» · 적요 제목 «오더메모»가 실물에 나오나", "overlays": []},
+    {"name": "목록(신규)", "standard": "LIST", "match": [{"all": ["출발지까지", "수입", "퇴근하기"], "none": ["수행하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/02_목록.png", "ex_images/인성플렉스/07_목록_스크롤.png"], "toCollect": "AI 추천 콜이 실제로 뜬 목록(칸 자리 · «수락» 단추 글자) · 꼬리표 배지(«급» · «왕» · «빈» · «경») · «계산서» 배지 · 차종 «오토» 말고 다른 글자 · 오늘 예약 앞글자 꼴 — 칩 «개인이동장치»(실물은 «개인이동수단»)가 보이면 리뉴얼", "overlays": [
       {"name": "오더 목록 거리 설정 시트", "kind": "POPUP", "match": [{"all": ["오더 목록 거리 설정"]}], "meaning": "목록 거리를 고르는 시트 — 떠 있는 동안 뒤 목록 글자가 안 온다 · 원달앱은 아무것도 안 누른다", "seen": "REAL", "evidence": ["ex_images/인성플렉스/05_필터.png"]},
       {"name": "오더 사이즈 설정 시트", "kind": "POPUP", "match": [{"all": ["오더 사이즈 설정"]}], "meaning": "목록 글자 크기 · 여백을 고르는 시트 — 안의 견본 줄은 콜이 아니다 · 떠 있는 동안 뒤 목록 글자가 안 온다 · 원달앱은 아무것도 안 누른다", "seen": "REAL", "evidence": ["ex_images/인성플렉스/06_넓히기.png"]}
     ]},
-    {"name": "지도 보기", "standard": "NETWORK_MENU", "bases": [], "match": [{"all": ["퇴근하기", "Google 지도"], "none": ["수입"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/03_목록_지도.png"], "toCollect": "지도 마커를 누르면 뜨는 화면", "overlays": []},
-    {"name": "진행중(빈)", "standard": "MY_ORDERS", "bases": ["myorders"], "match": [{"all": ["진행중인 오더가 없습니다"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/04_진행중.png"], "overlays": []},
-    {"name": "진행중(한 건)", "standard": "MY_ORDERS", "bases": ["myorders"], "landsAfterAccept": true, "match": [{"all": ["신규", "진행중", "퇴근하기"], "none": ["출발지까지", "진행중인 오더가 없습니다"]}], "listReturn": false, "seen": "SIM", "evidence": ["지어낸 화면 — 시뮬레이터 인성플렉스 «진행중» 탭 한 건(실물 캡처 없음)"], "toCollect": "잡은 콜 줄의 칸 · 글자 · 차례 · 이 화면에 칸 머리(«출발지까지» · «수입») · 칩 · «AI 배차 대기중» · «완료» 글자가 있나", "overlays": []},
-    {"name": "홈", "standard": "HOME", "bases": ["home"], "match": [{"all": ["출근하기", "현재 선택된 배송 수단"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/01_홈.png", "ex_images/인성플렉스/01_홈_2.png"], "toCollect": "«퇴근하기» 뒤 돌아오는 화면 · «변경» 뒤 배송 수단 고르기 화면 글자", "overlays": [
+    {"name": "지도 보기", "standard": "NETWORK_MENU", "match": [{"all": ["퇴근하기", "Google 지도"], "none": ["수입"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/03_목록_지도.png"], "toCollect": "지도 마커를 누르면 뜨는 화면", "overlays": []},
+    {"name": "진행중(빈)", "standard": "MY_ORDERS", "match": [{"all": ["진행중인 오더가 없습니다"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/04_진행중.png"], "overlays": []},
+    {"name": "진행중(한 건)", "standard": "MY_ORDERS", "landsAfterAccept": true, "match": [{"all": ["신규", "진행중", "퇴근하기"], "none": ["출발지까지", "진행중인 오더가 없습니다"]}], "listReturn": false, "seen": "SIM", "evidence": ["지어낸 화면 — 시뮬레이터 인성플렉스 «진행중» 탭 한 건(실물 캡처 없음)"], "toCollect": "잡은 콜 줄의 칸 · 글자 · 차례 · 이 화면에 칸 머리(«출발지까지» · «수입») · 칩 · «AI 배차 대기중» · «완료» 글자가 있나", "overlays": []},
+    {"name": "홈", "standard": "HOME", "match": [{"all": ["출근하기", "현재 선택된 배송 수단"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/01_홈.png", "ex_images/인성플렉스/01_홈_2.png"], "toCollect": "«퇴근하기» 뒤 돌아오는 화면 · «변경» 뒤 배송 수단 고르기 화면 글자", "overlays": [
       {"name": "공지 띠", "kind": "BANNER", "match": [], "meaning": "공지 제목이 돌아가며 바뀐다 — 표식으로 쓰지 않는다", "seen": "REAL", "evidence": ["ex_images/인성플렉스/01_홈.png", "ex_images/인성플렉스/01_홈_2.png"], "toCollect": "바뀌지 않는 알아볼 글자"}
     ]},
-    {"name": "메세지함", "standard": "NETWORK_MENU", "bases": [], "match": [{"all": ["메세지함"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/13_편지.png"], "overlays": []},
-    {"name": "마이플렉스", "standard": "NETWORK_MENU", "bases": [], "match": [{"all": ["마이플렉스", "적립금내역"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/14_사람.png"], "toCollect": "나머지 메뉴(미션 · 보험 · 내 정보 · 배송 수단 · 이용안내) 화면 — 기사님이 연 화면만", "overlays": []},
-    {"name": "적립금 내역", "standard": "NETWORK_MENU", "bases": [], "match": [{"all": ["적립금 내역", "보유 적립금"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/15_적립금.png"], "overlays": []},
-    {"name": "수행내역", "standard": "NETWORK_MENU", "bases": [], "match": [{"all": ["수행내역", "금액은 완료된 건만 표시됩니다"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/16_수행내역.png"], "toCollect": "끝낸 콜이 있을 때의 줄 모양", "overlays": []},
-    {"name": "공지사항", "standard": "NETWORK_MENU", "bases": [], "match": [{"all": ["공지사항", "필수공지"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/17_공지사항.png", "ex_images/인성플렉스/18_공지_운행취소패널티.png"], "overlays": []}
+    {"name": "메세지함", "standard": "NETWORK_MENU", "match": [{"all": ["메세지함"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/13_편지.png"], "overlays": []},
+    {"name": "마이플렉스", "standard": "NETWORK_MENU", "match": [{"all": ["마이플렉스", "적립금내역"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/14_사람.png"], "toCollect": "나머지 메뉴(미션 · 보험 · 내 정보 · 배송 수단 · 이용안내) 화면 — 기사님이 연 화면만", "overlays": []},
+    {"name": "적립금 내역", "standard": "NETWORK_MENU", "match": [{"all": ["적립금 내역", "보유 적립금"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/15_적립금.png"], "overlays": []},
+    {"name": "수행내역", "standard": "NETWORK_MENU", "match": [{"all": ["수행내역", "금액은 완료된 건만 표시됩니다"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/16_수행내역.png"], "toCollect": "끝낸 콜이 있을 때의 줄 모양", "overlays": []},
+    {"name": "공지사항", "standard": "NETWORK_MENU", "match": [{"all": ["공지사항", "필수공지"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/17_공지사항.png", "ex_images/인성플렉스/18_공지_운행취소패널티.png"], "overlays": []}
   ],
   "pages": {
-    "list": [
+    "newList": [
       {"field": "pickupDistance", "where": "목록 줄 맨 왼쪽(칸 머리 «출발지까지 (km)» — 줄바꿈 든 한 글자)", "sample": "24.3", "seen": "REAL", "handling": "READ", "usedAt": "IsflexParser", "presence": "ALWAYS", "presenceEvidence": {"seen": 8, "of": 8, "from": "실물 ex_images/인성플렉스 02 · 07 목록 줄 11개 — 서로 다른 콜 8건"}},
       {"field": "vehicleType", "where": "거리 아래", "sample": "오토", "seen": "REAL", "handling": "READ", "usedAt": "IsflexParser", "presence": "ALWAYS", "presenceEvidence": {"seen": 8, "of": 8, "from": "실물 ex_images/인성플렉스 02 · 07 목록 줄 11개 — 서로 다른 콜 8건 · 모두 «오토»"}},
       {"field": "pickup", "where": "출발지 칸 — «@» + (예약 앞글자) + 동", "sample": "@낼08:20/수원이의동 · @역삼동", "seen": "REAL", "handling": "READ", "usedAt": "IsflexParser", "presence": "ALWAYS", "presenceEvidence": {"seen": 8, "of": 8, "from": "실물 ex_images/인성플렉스 02 · 07 목록 줄 11개 — 서로 다른 콜 8건 · 모두 «@»로 시작"}},
@@ -62,7 +61,7 @@ export const ISFLEX_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "billing", "where": "수입 아래 배지(안내 그림)", "sample": "계산서", "seen": "UNKNOWN", "handling": "UNUSED", "note": "실물 8건에는 없다 · 안내 그림 img_guide3_1 에만"},
       {"field": "tags", "where": "차종 아래 배지(안내 그림)", "sample": "급 · 왕 · 빈 · 경", "seen": "UNKNOWN", "handling": "UNUSED", "note": "실물 8건에는 없다 · 안내 그림 img_guide3_1 에만 — 차종 바로 뒤에 오면 차종 글자에 섞일 수 있다"}
     ],
-    "detail": [
+    "newCall": [
       {"field": "pickupDistance", "where": "지도 아래 «출발지까지» 다음", "sample": "출발지까지 26.7km", "seen": "REAL", "handling": "READ", "usedAt": "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser", "read": "출발지까지\\s+([\\d.]+)km", "presence": "ALWAYS", "presenceEvidence": {"seen": 5, "of": 5, "from": "실물 ex_images/인성플렉스 08~12 확정 전 상세 — 서로 다른 콜 5건"}},
       {"field": "vehicleType", "where": "거리 다음", "sample": "오토", "seen": "REAL", "handling": "READ", "usedAt": "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser", "read": "출발지까지\\s+[\\d.]+km\\s+(\\S+)", "presence": "ALWAYS", "presenceEvidence": {"seen": 5, "of": 5, "from": "실물 ex_images/인성플렉스 08~12 확정 전 상세 — 서로 다른 콜 5건"}},
       {"field": "tags", "where": "차종 뒤 세로 구분선 다음", "sample": "과적", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) · 상세 자료 구분 칸(detailRecordOf)", "read": "출발지까지\\s+[\\d.]+km\\s+\\S+\\s+(\\S+(?:\\s+\\S+)*?)\\s+출발\\s+(?:@|약\\s)", "presence": "ONCE", "presenceEvidence": {"seen": 1, "of": 5, "from": "실물 ex_images/인성플렉스 08~12 확정 전 상세 — 서로 다른 콜 5건 · 10(수원이의동 → 쌍림동)에만"}},
@@ -78,16 +77,13 @@ export const ISFLEX_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "fare", "where": "오른쪽 아래 «…원 수행하기» 단추", "sample": "8,500원 수행하기(줄바꿈 든 한 글자)", "seen": "REAL", "handling": "UNUSED", "read": "([\\d,]+)원\\s*\\n?수행하기", "part": "button", "note": "계약 단추 — 원달앱은 어떤 모드에서도 누르지 않는다", "presence": "ALWAYS", "presenceEvidence": {"seen": 5, "of": 5, "from": "실물 ex_images/인성플렉스 08~12 확정 전 상세 — 서로 다른 콜 5건 · 금액이 «총 수입»과 모두 같다"}},
       {"field": "itemSize", "where": "머리 줄 넷째(안내 그림)", "sample": "대박스", "seen": "UNKNOWN", "handling": "UNUSED", "note": "실물 5건에는 없다 · 안내 그림 img_guide3_2 에만"}
     ],
-    "confirm": [
-      {"field": "stage", "where": "수행하기 직후 화면", "sample": "(실물 캡처 없음)", "seen": "UNKNOWN", "handling": "UNUSED"}
-    ],
-    "myorders": [
+    "myList": [
       {"field": "pickup", "where": "진행중 탭 잡은 콜 줄", "sample": "(실물 캡처 없음)", "seen": "UNKNOWN", "handling": "UNUSED"},
       {"field": "dropoff", "where": "진행중 탭 잡은 콜 줄", "sample": "(실물 캡처 없음)", "seen": "UNKNOWN", "handling": "UNUSED"},
       {"field": "fare", "where": "진행중 탭 잡은 콜 줄", "sample": "(실물 캡처 없음)", "seen": "UNKNOWN", "handling": "UNUSED"},
       {"field": "stage", "where": "진행중 탭 잡은 콜 줄 상태", "sample": "(실물 캡처 없음)", "seen": "UNKNOWN", "handling": "UNUSED"}
     ],
-    "myorder": [
+    "myCall": [
       {"field": "stage", "where": "지도 아래 파란 단계 줄(안내 그림)", "sample": "16:00까지 출발지로 이동", "seen": "UNKNOWN", "handling": "UNUSED"},
       {"field": "pickupDistance", "where": "머리 줄(안내 그림)", "sample": "출발지까지 1.2km", "seen": "UNKNOWN", "handling": "UNUSED"},
       {"field": "vehicleType", "where": "머리 줄(안내 그림)", "sample": "오토바이", "seen": "UNKNOWN", "handling": "UNUSED"},

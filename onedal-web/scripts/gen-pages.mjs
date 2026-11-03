@@ -28,6 +28,13 @@ for (const net of NETWORKS) {
     try { table[net] = JSON.parse(body); } catch (e) { fail(`${name} 의 JSON 이 깨졌다 — ${e.message}`); }
 }
 
+/* 🧭 기준 페이지 사전 — shared pageFields.ts 의 JSON 표시 사이를 읽는다(TS 를 못 부르므로 글자를 그대로). 화면 종류 → 기준 페이지(baseOf)와 부속 팝업 자리 차례(callOverlays)가 여기서 온다 */
+const BOOK = (() => {
+    const body = readFileSync(join(sharedDir, 'pageFields.ts'), 'utf8').match(/\/\*JSON\*\/([\s\S]*?)\/\*JSON\*\//)?.[1];
+    if (!body) fail('pageFields.ts 에서 JSON 표시 사이를 못 찾았다');
+    try { return JSON.parse(body); } catch (e) { fail(`pageFields.ts 의 JSON 이 깨졌다 — ${e.message}`); }
+})();
+
 /* 낱말 → 코틀린 enum 이름 — 원달앱 core/PageField.kt 가 원천(shared pageFields 와 짝 검사가 이미 묶는다) */
 const app = join(here, '../../onedal-app/app/src/main/java/com/onedal/app');
 const pageFieldKt = readFileSync(join(app, 'core/PageField.kt'), 'utf8');
@@ -66,13 +73,15 @@ const kmatch = (at, m) => {
 };
 const kmatches = (at, ms) => ms.length ? `listOf(${ms.map((m) => kmatch(at, m)).join(', ')})` : 'emptyList()';
 const ktail = (o) => [o.toCollect ? `toCollect = ${kstr(o.toCollect)}` : null, o.wordsFrom ? `wordsFrom = ${kstr(o.wordsFrom)}` : null].filter(Boolean);
-const kscreen = (net, s) => {
+const kscreen = (net, s, callFront) => {
     const at = `${net} 페이지 «${s.name}»`;
-    if (s.standard !== null && !STANDARD.includes(s.standard)) fail(`${at} — 모르는 기준 페이지 «${s.standard}» (core/PageSpec.kt StandardScreen 에 없다)`);
+    if (s.standard !== null && !STANDARD.includes(s.standard)) fail(`${at} — 모르는 화면 종류 «${s.standard}» (core/PageSpec.kt StandardScreen 에 없다)`);
     if (!SEEN.includes(s.seen)) fail(`${at} — seen «${s.seen}»`);
-    /* 기준 페이지 = 홈 + 원달앱 Page 낱말(shared BASE_PAGES 와 같은 집합 — PageFieldPairTest 가 Page ↔ SCREEN_PAGES 를 묶는다) · 원달앱은 낱말 목록이라 오타를 여기서 막는다 */
-    if (!Array.isArray(s.bases)) fail(`${at} — bases 칸이 없다`);
-    for (const b of s.bases) if (b !== 'home' && !Object.keys(PAGE).includes(b)) fail(`${at} — 모르는 기준 «${b}» (홈 · core/PageField.kt Page 밖)`);
+    /* 기준 페이지는 화면 종류에서 나온다(사전 baseOf) — 표에 없는 화면 종류면 멈추고 · null 이면 기준 밖이라 base 를 안 적는다.
+       홈 + 원달앱 Page 낱말(shared BASE_PAGES 와 같은 집합 — PageFieldPairTest 가 Page ↔ SCREEN_PAGES 를 묶는다) · 원달앱은 낱말이라 오타를 여기서 막는다 */
+    if (s.standard !== null && !(s.standard in BOOK.baseOf)) fail(`${at} — 사전 baseOf 에 화면 종류 «${s.standard}» 가 없다`);
+    const base = s.standard === null ? null : BOOK.baseOf[s.standard];
+    if (base !== null && base !== 'home' && !Object.keys(PAGE).includes(base)) fail(`${at} — 모르는 기준 «${base}» (홈 · core/PageField.kt Page 밖)`);
     /* 단추 글자 — 넷 낱말만 · 빈 글자 막기 */
     const BUTTON_KEYS = ['accept', 'filterOut', 'keep', 'cancel'];
     const buttons = s.buttons ? Object.entries(s.buttons) : [];
@@ -80,7 +89,8 @@ const kscreen = (net, s) => {
         if (!BUTTON_KEYS.includes(k)) fail(`${at} — 모르는 단추 «${k}» (${BUTTON_KEYS.join(' · ')})`);
         if (typeof v !== 'string' || !v) fail(`${at} — 단추 «${k}» 글자가 비었다`);
     }
-    const overlays = s.overlays.map((o) => {
+    /* 🪟 부속 팝업은 새 콜 화면 · 내 콜 화면 줄 덧칸 맨 앞에(shared withCallOverlays 와 같은 법 · slot 은 안 뽑는다) */
+    const overlays = [...(base === 'newCall' || base === 'myCall' ? callFront : []), ...s.overlays].map((o) => {
         const oat = `${at} 덧칸 «${o.name}»`;
         if (!OVERLAY_KIND.includes(o.kind)) fail(`${oat} — 모르는 갈래 «${o.kind}»`);
         if (!SEEN.includes(o.seen)) fail(`${oat} — seen «${o.seen}»`);
@@ -92,7 +102,7 @@ const kscreen = (net, s) => {
     const args = [kstr(s.name), s.standard === null ? 'null' : `StandardScreen.${s.standard}`, kmatches(at, s.match), String(s.listReturn),
         overlays.length ? `listOf(\n${overlays.join('\n')}\n            )` : 'emptyList()', `Seen.${s.seen}`, klist(s.evidence), ...ktail(s),
         ...(s.landsAfterAccept ? ['landsAfterAccept = true'] : []),
-        ...(s.bases.length ? [`bases = listOf(${s.bases.map((b) => kstr(b)).join(', ')})`] : []),
+        ...(base ? [`base = ${kstr(base)}`] : []),
         ...(buttons.length ? [`buttons = ScreenButtons(${buttons.map(([k, v]) => `${k} = ${kstr(v)}`).join(', ')})`] : [])];
     return `        ScreenSpec(\n            ${args.join(',\n            ')},\n        ),`;
 };
@@ -108,26 +118,20 @@ if (JSON.stringify(TARGETS.map(([n]) => n).sort()) !== JSON.stringify([...NETWOR
 for (const [net, file, pkg, obj] of TARGETS) {
     const spec = table[net];
     if (!spec) fail(`표에 배차망 ${net} 이 없다`);
-    /* 🪞 같은 칸 페이지 — 표에 칸이 비어 있어야 하고(한 벌) 가리키는 페이지 칸을 seen 약한 쪽으로 복사한다(shared fieldsOf 와 같은 답) */
-    const RANK = { UNKNOWN: 0, SIM: 1, REAL: 2 };
-    const same = spec.sameFieldsAs ?? {};
-    for (const [pg, sm] of Object.entries(same)) {
-        if ((spec.pages[pg] ?? []).length) fail(`${net} 같은 칸 페이지 «${pg}» — 표에 칸이 있다(두 벌)`);
-        if (!(spec.pages[sm.as] ?? []).length) fail(`${net} 같은 칸 페이지 «${pg}» → «${sm.as}» — 가리키는 페이지에 칸이 없다`);
-        if (!(sm.seen in RANK)) fail(`${net} 같은 칸 페이지 «${pg}» — seen «${sm.seen}»`);
-    }
-    const rowsOf = (page, rows) => same[page]
-        ? spec.pages[same[page].as].map((r) => (RANK[r.seen] <= RANK[same[page].seen] ? r : { ...r, seen: same[page].seen }))
-        : rows;
+    /* 🪟 부속 팝업 — 사전의 자리 차례(callOverlays 열쇠 차례)로 한 번씩 · 자리가 있는 덧칸은 상세를 채우는 일(FILL_*) */
+    const parts = spec.callOverlays ?? [];
+    const slots = Object.keys(BOOK.callOverlays);
+    if (parts.length && JSON.stringify(parts.map((o) => o.slot).sort()) !== JSON.stringify([...slots].sort())) fail(`${net} callOverlays 의 자리(slot)가 ${slots.join(' · ')} 각각 하나가 아니다`);
+    for (const o of parts) if (!String(o.action ?? '').startsWith('FILL_')) fail(`${net} callOverlays «${o.name}» — 자리가 있는 덧칸은 action 이 FILL_* 여야 한다`);
+    const callFront = slots.flatMap((slot) => parts.filter((o) => o.slot === slot));
     /* 🚫 없는 페이지 — 키는 원달앱 Page 낱말 · 까닭이 있어야 한다 */
     const absent = Object.entries(spec.absentPages ?? {}).map(([pg, a]) => {
         const p = PAGE[pg] ?? fail(`${net} 없는 페이지 «${pg}» — core/PageField.kt Page 에 없다`);
         if (!a.why || !a.evidence) fail(`${net} 없는 페이지 «${pg}» — 까닭 · 근거가 비었다`);
         return `Page.${p} to ${kstr(a.why)}`;
     });
-    const pages = Object.entries(spec.pages).map(([page, rows0]) => {
+    const pages = Object.entries(spec.pages).map(([page, rows]) => {
         const p = PAGE[page] ?? fail(`${net} — 모르는 화면 «${page}» (core/PageField.kt Page 에 없다)`);
-        const rows = rowsOf(page, rows0);
         if (!rows.length) return `        Page.${p} to emptyList<FieldSpec>(),`;
         const lines = rows.map((r) => {
             const f = FIELD[r.field] ?? fail(`${net} ${page} — 모르는 칸 «${r.field}»`);
@@ -196,7 +200,7 @@ ${(spec.networkMarkers ?? fail(`표에 ${net} networkMarkers 가 없다`)).map((
 
     /** 🖥️ 페이지 전부 — 차례가 판별 차례 · 화면 판별(ScreenDetector)이 이 목록만 읽는다 */
     val screens: List<ScreenSpec> = listOf(
-${(spec.screens ?? fail(`표에 ${net} 페이지 목록(screens)이 없다`)).map((s) => kscreen(net, s)).join('\n')}
+${(spec.screens ?? fail(`표에 ${net} 페이지 목록(screens)이 없다`)).map((s) => kscreen(net, s, callFront)).join('\n')}
     )
 }
 `);

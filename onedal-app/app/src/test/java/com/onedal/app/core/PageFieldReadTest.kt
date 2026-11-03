@@ -41,15 +41,15 @@ class PageFieldReadTest {
     }
 
     @Test fun `요금은 쉼표를 떼어 정수 - 문제지 줄과 같은 화면`() {
-        assertEquals(50000, PageFieldRead.fareOf(InsungPages.pages, Page.DETAIL, insungDetail))
-        assertNull(PageFieldRead.fareOf(KakaoPickerPages.pages, Page.DETAIL, listOf("최종 수익 2,387")))
+        assertEquals(50000, PageFieldRead.fareOf(InsungPages.pages, Page.NEW_CALL, insungDetail))
+        assertNull(PageFieldRead.fareOf(KakaoPickerPages.pages, Page.NEW_CALL, listOf("최종 수익 2,387")))
     }
 
     @Test fun `요금이 비었을 때만 채운다 - 앱이 연 콜의 목록 값은 그대로`() {
         val empty = SimplifiedOfficeOrder(id = "o", pickup = "배차값없음", dropoff = "배차값없음", fare = 0, timestamp = "t")
-        assertEquals(50000, PageFieldRead.withFare(empty, InsungPages.pages, Page.DETAIL, insungDetail).fare)
-        assertEquals(30000, PageFieldRead.withFare(empty.copy(fare = 30000), InsungPages.pages, Page.DETAIL, insungDetail).fare)
-        assertEquals(0, PageFieldRead.withFare(empty, KakaoPickerPages.pages, Page.DETAIL, listOf("최종 수익 2,387")).fare)
+        assertEquals(50000, PageFieldRead.withFare(empty, InsungPages.pages, Page.NEW_CALL, insungDetail).fare)
+        assertEquals(30000, PageFieldRead.withFare(empty.copy(fare = 30000), InsungPages.pages, Page.NEW_CALL, insungDetail).fare)
+        assertEquals(0, PageFieldRead.withFare(empty, KakaoPickerPages.pages, Page.NEW_CALL, listOf("최종 수익 2,387")).fare)
     }
 
     @Test fun `공통 길은 배차망 이름으로 가르지 않는다`() {

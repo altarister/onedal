@@ -1,16 +1,15 @@
 package com.onedal.app.core
 
 /**
- * 📄 **배차망 페이지 정의의 공통 이름 — 세 배차망이 같은 낱말**.
- * 짝은 `onedal-web/shared/src/pageFields.ts` (`PageFieldPairTest` 가 낱말과 차례를 문다).
+ * 📄 **배차망 페이지 정의의 공통 이름 — 모든 배차망이 같은 낱말**(칸을 적는 기준 페이지 — 홈은 칸을 안 적어 없다).
+ * 짝은 `onedal-web/shared/src/pageFields.ts` 의 기준 페이지 사전 (`PageFieldPairTest` 가 낱말과 차례를 문다).
  * 배차망마다 다른 것은 «화면 어디서 · 어떤 글자로»뿐 — 그것은 플러그인 폴더의 `…Pages.kt` 가 적는다.
  */
 enum class Page(val word: String) {
-    LIST("list"),           // 목록
-    DETAIL("detail"),       // 상세 (확정 전)
-    CONFIRM("confirm"),     // 확정 (계약 직후)
-    MY_ORDERS("myorders"),  // 내 오더 · 배차내역 · 완료
-    MY_ORDER("myorder"),    // 내 오더 콜 — 탭에서 연 확정된 콜 한 건 · 운행
+    NEW_LIST("newList"),    // 새 콜 목록 — 주인 없는 콜들
+    NEW_CALL("newCall"),    // 새 콜 화면 — 주인 없는 콜 한 건
+    MY_LIST("myList"),      // 내 콜 목록 — 내 콜들 (내 오더 · 배차내역 · 완료)
+    MY_CALL("myCall"),      // 내 콜 화면 — 내 콜 한 건 · 결재 단추 · 운행 단계
 }
 
 /** 📰 모은 글자의 갈래 — 잡음 낱말로 뺀 글자 · 정의에 없어 못 알아본 글자 · 칸이 다 차서 남는 토막 */

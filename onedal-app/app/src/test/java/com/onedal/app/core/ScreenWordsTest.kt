@@ -19,7 +19,7 @@ class ScreenWordsTest {
     private fun words() = ScreenWords.drain()?.words?.map { it.kind to it.word }
 
     @Test fun `값은 이름표로 · 못 알아본 값은 싣지 않는다(정의된 칸이다)`() {
-        ScreenWords.onScreen(Page.LIST)
+        ScreenWords.onScreen(Page.NEW_LIST)
         ScreenWords.add("20km", WordKind.NOISE)
         ScreenWords.add("17.8", WordKind.UNKNOWN)
         assertEquals(listOf("noise" to "<거리>"), words())
@@ -27,7 +27,7 @@ class ScreenWordsTest {
 
     /** ⏱️ 낱말 안의 값도 이름표로 — «15:00까지 픽업»이 시각마다 새 글자가 되어 새 글자 경고의 절반을 채웠다(58 ②-1 · 서버 로그 10-22) */
     @Test fun `낱말 안의 시각 · 거리 · 남은 분 · 금액은 이름표로 - 같은 꼴은 한 낱말`() {
-        ScreenWords.onScreen(Page.DETAIL)
+        ScreenWords.onScreen(Page.NEW_CALL)
         ScreenWords.add("15:00까지 픽업", WordKind.UNKNOWN)
         ScreenWords.add("16:25까지 픽업", WordKind.UNKNOWN)
         ScreenWords.add("배송 9.7km", WordKind.UNKNOWN)
@@ -37,13 +37,13 @@ class ScreenWordsTest {
     }
 
     @Test fun `키 값 줄은 키만`() {
-        ScreenWords.onScreen(Page.DETAIL)
+        ScreenWords.onScreen(Page.NEW_CALL)
         ScreenWords.add("고객 : 홍길동", WordKind.UNKNOWN)
         assertEquals(listOf("unknown" to "고객"), words())
     }
 
     @Test fun `지명과 가게 이름은 모양으로 묶는다 - 잡음 낱말은 그대로`() {
-        ScreenWords.onScreen(Page.LIST)
+        ScreenWords.onScreen(Page.NEW_LIST)
         ScreenWords.add("역삼2", WordKind.EXTRA)
         ScreenWords.add("[태전점]롯데리아", WordKind.UNKNOWN)
         ScreenWords.add("퀵 서포트 모드 1장 받기", WordKind.NOISE)
@@ -51,10 +51,10 @@ class ScreenWordsTest {
     }
 
     @Test fun `같은 글자는 한 번 · 예시 줄은 200자까지`() {
-        ScreenWords.onScreen(Page.LIST)
+        ScreenWords.onScreen(Page.NEW_LIST)
         repeat(3) { ScreenWords.add("당상", WordKind.NOISE, "x".repeat(300)) }
         val r = ScreenWords.drain()!!
-        assertEquals("list", r.page)
+        assertEquals("newList", r.page)
         assertEquals(1, r.words.size)
         assertEquals(200, r.words[0].sample!!.length)
     }
@@ -63,19 +63,19 @@ class ScreenWordsTest {
         ScreenWords.onScreen(null)
         ScreenWords.add("당상", WordKind.NOISE)
         assertNull(ScreenWords.drain())
-        ScreenWords.onScreen(Page.LIST)
+        ScreenWords.onScreen(Page.NEW_LIST)
         ScreenWords.add("당상", WordKind.NOISE)
-        ScreenWords.onScreen(Page.DETAIL)
+        ScreenWords.onScreen(Page.NEW_CALL)
         ScreenWords.add("고객 : 가", WordKind.UNKNOWN)
         assertEquals(listOf("noise" to "당상"), words())
         val next = ScreenWords.drain()!!
-        assertEquals("detail", next.page)
+        assertEquals("newCall", next.page)
         assertEquals(listOf("unknown" to "고객"), next.words.map { it.kind to it.word })
         assertNull("비운 뒤에는 없다", ScreenWords.drain())
     }
 
     @Test fun `시각 콜론은 키 값이 아니다 · 만원은 금액`() {
-        ScreenWords.onScreen(Page.DETAIL)
+        ScreenWords.onScreen(Page.NEW_CALL)
         ScreenWords.add("단기/장기 · 09:30~18:30", WordKind.UNKNOWN)
         ScreenWords.add("11만원", WordKind.NOISE)
         assertEquals(listOf("unknown" to "단기/장기 · 09:30~18:30", "noise" to "<금액>"), words())
@@ -88,14 +88,14 @@ class ScreenWordsTest {
     }
 
     @Test fun `읽는 파서가 없는 화면은 화면 글자를 통째로 모은다 - 키만 · 값은 빼고`() {
-        ScreenWords.onScreen(Page.CONFIRM, listOf("톤수", "1톤", "결제방법 : 카드", "60,000", "한차배송 신청내역 보기",
+        ScreenWords.onScreen(Page.MY_CALL, listOf("톤수", "1톤", "결제방법 : 카드", "60,000", "한차배송 신청내역 보기",
             "1시상차 6박스 카트가지고 고객님앞 갖다주세요"), "원문")
         assertEquals(listOf("unknown" to "톤수", "unknown" to "1톤", "unknown" to "결제방법",
             "unknown" to "한차배송 신청내역 보기", "unknown" to "<문장>"), words())
     }
 
     @Test fun `목록 페이지는 통째로 모으지 않는다 - 목록 글자는 파서만 까닭과 함께 넣는다`() {
-        ScreenWords.onScreen(Page.LIST, listOf("퀵", "리스트 설정", "픽업지"), "원문")
+        ScreenWords.onScreen(Page.NEW_LIST, listOf("퀵", "리스트 설정", "픽업지"), "원문")
         assertNull("화면이 바뀌어 보고가 나가도 목록 글자는 통째로 안 간다", ScreenWords.drain())
         ScreenWords.add("리스트 설정", WordKind.NOISE)
         assertEquals(listOf("noise" to "리스트 설정"), words())
@@ -103,7 +103,7 @@ class ScreenWordsTest {
 
     /** 🔒 실물 서버 낱말 표에 쌓인 줄 — 주소 통째 · 건물 동 번호 · 포인트 · 개수가 콜마다 새 낱말이었다 */
     @Test fun `여러 토막 글자도 토막마다 가린다 - 실물 낱말 표의 줄`() {
-        ScreenWords.onScreen(Page.DETAIL)
+        ScreenWords.onScreen(Page.NEW_CALL)
         ScreenWords.add("픽업지 경기 성남시 분당구 이매2동", WordKind.UNKNOWN)
         ScreenWords.add("105동", WordKind.UNKNOWN)
         ScreenWords.add("29,491 P", WordKind.UNKNOWN)
@@ -113,17 +113,17 @@ class ScreenWordsTest {
     }
 
     @Test fun `예시 줄도 가린다 - 주소 동호수 전화 요금`() {
-        ScreenWords.onScreen(Page.DETAIL)
+        ScreenWords.onScreen(Page.NEW_CALL)
         ScreenWords.add("퀵 비즈 O", WordKind.UNKNOWN, "퀵 비즈 O 105동 18,140 경기 성남시 분당구 이매2동 01012345678 010-1234-5678 넘기기 수락하기")
         assertEquals("퀵 비즈 O <동호수> <숫자> <지역> <전화> <전화> 넘기기 수락하기", ScreenWords.drain()!!.words[0].sample)
     }
 
     /** 📸 사진 판독은 찍고 약 0.5초 뒤 끝난다 — 그 사이 수락·뒤로로 화면이 바뀌어도 상세 글자는 상세 낱말이다 (교차 리뷰) */
     @Test fun `페이지를 주면 지금 화면이 아니라 그 페이지에 넣는다`() {
-        ScreenWords.onScreen(Page.LIST)
-        ScreenWords.add("물품 정보", WordKind.UNKNOWN, page = Page.DETAIL)
+        ScreenWords.onScreen(Page.NEW_LIST)
+        ScreenWords.add("물품 정보", WordKind.UNKNOWN, page = Page.NEW_CALL)
         val r = ScreenWords.drain()!!
-        assertEquals("detail", r.page)
+        assertEquals("newCall", r.page)
         assertEquals(listOf("unknown" to "물품 정보"), r.words.map { it.kind to it.word })
     }
 
@@ -158,15 +158,15 @@ class ScreenWordsTest {
         val insung = com.onedal.app.plugins.insung.InsungPages.screens
         val hwamul = com.onedal.app.plugins.hwamul24.Hwamul24Pages.screens
         val picker = com.onedal.app.plugins.kakaopicker.KakaoPickerPages.screens
-        assertEquals(Page.LIST, pageOf(screen(insung, "신규 콜 목록"), null))
-        assertEquals(Page.DETAIL, pageOf(screen(insung, "확정 전 상세"), "적요 상세 팝업"))
-        assertEquals(Page.CONFIRM, pageOf(screen(insung, "확정 뒤 상세"), null))
+        assertEquals(Page.NEW_LIST, pageOf(screen(insung, "신규 콜 목록"), null))
+        assertEquals(Page.NEW_CALL, pageOf(screen(insung, "확정 전 상세"), "적요 상세 팝업"))
+        assertEquals(Page.MY_CALL, pageOf(screen(insung, "확정 뒤 상세"), null))
         // 출발지 팝업은 확정 전 · 뒤 상세 둘 위에 뜬다 — 주인 화면 줄을 따른다
-        assertEquals(Page.CONFIRM, pageOf(screen(insung, "확정 뒤 상세"), "출발지 상세 팝업"))
-        assertEquals(Page.MY_ORDERS, pageOf(screen(insung, "완료 탭"), null))
-        assertEquals(Page.MY_ORDER, pageOf(screen(hwamul, "배차내역 상세 · 화물정보 탭"), null))
-        assertEquals(Page.MY_ORDER, pageOf(screen(picker, "퀵 픽업 출발하기"), null))
-        assertEquals(Page.MY_ORDER, pageOf(screen(picker, "배송 완료"), null))
+        assertEquals(Page.MY_CALL, pageOf(screen(insung, "확정 뒤 상세"), "출발지 상세 팝업"))
+        assertEquals(Page.MY_LIST, pageOf(screen(insung, "완료 탭"), null))
+        assertEquals(Page.MY_CALL, pageOf(screen(hwamul, "배차내역 상세 · 화물정보 탭"), null))
+        assertEquals(Page.MY_CALL, pageOf(screen(picker, "퀵 픽업 출발하기"), null))
+        assertEquals(Page.MY_CALL, pageOf(screen(picker, "배송 완료"), null))
         assertNull(pageOf(screen(insung, "홈 «인성퀵화면분할»"), null))
         assertNull(pageOf(screen(insung, "환경설정"), null))
         assertNull(pageOf(screen(insung, "확정 전 상세"), "확정 실패 팝업"))

@@ -14,7 +14,7 @@ import java.io.File
 /**
  * 🔗 **짝 — 원달앱 화면 정의(배차망마다 한 벌)와 shared 배차망 정의 표가 같다** (기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
  * 원천은 `onedal-web/shared/src/networkPages.ts`(공통) + 배차망마다 한 파일(`networkPages.<배차망>.ts`)이고, 원달앱 `…Pages.kt` 는 `pnpm gen:pages` 가 뽑은 생성 파일이다.
- * 표를 고치고 안 뽑으면(또는 Pages.kt 를 손으로 고치면) 여기서 빨갛다 — 칸 · 자리 글 · 견본 · 본 곳 · 읽나 · 읽는 곳 · 읽는 법 · 페이지 목록의 기준 페이지 · 단추까지 견준다.
+ * 표를 고치고 안 뽑으면(또는 Pages.kt 를 손으로 고치면) 여기서 빨갛다 — 칸 · 자리 글 · 견본 · 본 곳 · 읽나 · 읽는 곳 · 읽는 법 · 페이지 목록의 기준 페이지 · 부속 팝업 붙이기 · 단추까지 견준다.
  */
 class NetworkPagesPairTest {
     /** 배차망마다 한 파일(`networkPages.<배차망>.ts`)의 JSON 표시 사이를 읽어 한 표로 — 뽑는 스크립트(gen-pages.mjs)와 같은 읽기 */
@@ -30,25 +30,39 @@ class NetworkPagesPairTest {
         }
     }
 
+    /** 🧭 기준 페이지 사전 — shared `pageFields.ts` 의 JSON 표시 사이(화면 종류 → 기준 페이지 · 부속 팝업 자리 차례). TS 를 못 부르므로 뽑는 스크립트와 같은 글자를 읽는다 */
+    private val book: JsonObject by lazy {
+        val ts = File("../../onedal-web/shared/src/pageFields.ts").readText()
+        val body = Regex("""/\*JSON\*/([\s\S]*?)/\*JSON\*/""").find(ts)?.groupValues?.get(1)
+            ?: error("pageFields.ts 에서 /*JSON*/ 표시 사이를 못 찾았다")
+        JsonParser.parseString(body).asJsonObject
+    }
+
+    /** 화면 종류 → 기준 페이지(기준 밖이거나 화면 종류가 없으면 null) — 사전에 없는 화면 종류는 오류 */
+    private fun baseOfScreen(standard: String?): String? {
+        if (standard == null) return null
+        val v = book["baseOf"].asJsonObject[standard] ?: error("사전 baseOf 에 화면 종류 $standard 가 없다")
+        return if (v.isJsonNull) null else v.asString
+    }
+
+    /** 🪟 부속 팝업 — 새 콜 화면 · 내 콜 화면 줄 덧칸 맨 앞에 사전의 자리 차례로 붙는다(shared `withCallOverlays` · 뽑는 스크립트와 같은 법) */
+    private fun callFront(network: String): List<JsonObject> {
+        val parts = table[network].asJsonObject["callOverlays"]?.asJsonArray?.map { it.asJsonObject } ?: emptyList()
+        return book["callOverlays"].asJsonObject.keySet().flatMap { slot -> parts.filter { it["slot"].asString == slot } }
+    }
+
     private fun rowsOf(pages: PageSpecs): List<List<String?>> =
         Page.values().filter { it in pages }.flatMap { page ->
             pages.getValue(page).map { f -> listOf(page.word, f.field.word, f.where, f.sample, f.seen.name, f.handling.name, f.usedAt, f.read?.pattern, f.part) }
         }
 
-    /** 같은 칸 페이지(`sameFieldsAs`)는 가리키는 페이지 칸을 seen 약한 쪽으로 — 뽑기 · shared `fieldsOf` 와 같은 규칙 */
-    private val seenRank = mapOf("UNKNOWN" to 0, "SIM" to 1, "REAL" to 2)
-
     private fun rowsOf(network: String): List<List<String?>> {
         val spec = table[network].asJsonObject
         val pages = spec["pages"].asJsonObject
-        val same = spec["sameFieldsAs"]?.asJsonObject
-        return pages.entrySet().flatMap { (page, rows0) ->
-            val sm = same?.get(page)?.asJsonObject
-            val rows = if (sm != null) pages[sm["as"].asString] else rows0
+        return pages.entrySet().flatMap { (page, rows) ->
             rows.asJsonArray.map { it.asJsonObject }.map { r ->
                 fun s(k: String) = r[k]?.takeIf { !it.isJsonNull }?.asString
-                val seen = s("seen")!!.let { own -> sm?.get("seen")?.asString?.takeIf { seenRank.getValue(it) < seenRank.getValue(own) } ?: own }
-                listOf(page, s("field"), s("where"), s("sample"), seen, s("handling"), s("usedAt") ?: "", s("read"), s("part") ?: "")
+                listOf(page, s("field"), s("where"), s("sample"), s("seen"), s("handling"), s("usedAt") ?: "", s("read"), s("part") ?: "")
             }
         }
     }
@@ -74,7 +88,7 @@ class NetworkPagesPairTest {
         "all=${m.all} any=${m.any} none=${m.none} shape=${m.shape?.pattern} min=${m.shapeMin} max=${m.shapeMax}"
 
     private fun screensOf(screens: List<ScreenSpec>): List<String> = screens.flatMap { s ->
-        listOf("${s.name}|${s.standard?.name}|${s.match.map(::matchText)}|${s.listReturn}|${s.landsAfterAccept}|${s.seen.name}|${s.evidence}|${s.toCollect}|${s.wordsFrom}|${s.bases}|${s.buttons?.let { b -> listOf(b.accept, b.filterOut, b.keep, b.cancel) }}") +
+        listOf("${s.name}|${s.standard?.name}|${s.match.map(::matchText)}|${s.listReturn}|${s.landsAfterAccept}|${s.seen.name}|${s.evidence}|${s.toCollect}|${s.wordsFrom}|${s.base}|${s.buttons?.let { b -> listOf(b.accept, b.filterOut, b.keep, b.cancel) }}") +
             s.overlays.map { o -> "  ${o.name}|${o.kind.name}|${o.match.map(::matchText)}|${o.meaning}|${o.seen.name}|${o.evidence}|${o.toCollect}|${o.wordsFrom}|${o.action?.name ?: ""}" }
     }
 
@@ -88,8 +102,10 @@ class NetworkPagesPairTest {
 
     private fun screensOf(network: String): List<String> = table[network].asJsonObject["screens"].asJsonArray.map { it.asJsonObject }.flatMap { s ->
         val standard = s["standard"].takeIf { !it.isJsonNull }?.asString
-        listOf("${str(s, "name")}|$standard|${matchesOf(s)}|${s["listReturn"].asBoolean}|${s["landsAfterAccept"]?.asBoolean ?: false}|${str(s, "seen")}|${strings(s, "evidence")}|${str(s, "toCollect")}|${str(s, "wordsFrom")}|${strings(s, "bases")}|${s["buttons"]?.asJsonObject?.let { b -> listOf("accept", "filterOut", "keep", "cancel").map { k -> b[k]?.asString } }}") +
-            s["overlays"].asJsonArray.map { it.asJsonObject }.map { o ->
+        val base = baseOfScreen(standard)
+        val front = if (base == "newCall" || base == "myCall") callFront(network) else emptyList()
+        listOf("${str(s, "name")}|$standard|${matchesOf(s)}|${s["listReturn"].asBoolean}|${s["landsAfterAccept"]?.asBoolean ?: false}|${str(s, "seen")}|${strings(s, "evidence")}|${str(s, "toCollect")}|${str(s, "wordsFrom")}|$base|${s["buttons"]?.asJsonObject?.let { b -> listOf("accept", "filterOut", "keep", "cancel").map { k -> b[k]?.asString } }}") +
+            (front + s["overlays"].asJsonArray.map { it.asJsonObject }).map { o ->
                 "  ${str(o, "name")}|${str(o, "kind")}|${matchesOf(o)}|${str(o, "meaning")}|${str(o, "seen")}|${strings(o, "evidence")}|${str(o, "toCollect")}|${str(o, "wordsFrom")}|${str(o, "action")}"
             }
     }

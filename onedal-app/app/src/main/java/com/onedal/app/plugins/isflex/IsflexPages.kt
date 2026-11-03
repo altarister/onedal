@@ -23,7 +23,7 @@ import com.onedal.app.core.StandardScreen
  */
 object IsflexPages {
     val pages: PageSpecs = mapOf(
-        Page.LIST to listOf(
+        Page.NEW_LIST to listOf(
             FieldSpec(PageField.PICKUP_DISTANCE, "목록 줄 맨 왼쪽(칸 머리 «출발지까지 (km)» — 줄바꿈 든 한 글자)", "24.3", Seen.REAL, Handling.READ, "IsflexParser"),
             FieldSpec(PageField.VEHICLE_TYPE, "거리 아래", "오토", Seen.REAL, Handling.READ, "IsflexParser"),
             FieldSpec(PageField.PICKUP, "출발지 칸 — «@» + (예약 앞글자) + 동", "@낼08:20/수원이의동 · @역삼동", Seen.REAL, Handling.READ, "IsflexParser"),
@@ -39,7 +39,7 @@ object IsflexPages {
             /* 실물 8건에는 없다 · 안내 그림 img_guide3_1 에만 — 차종 바로 뒤에 오면 차종 글자에 섞일 수 있다 */
             FieldSpec(PageField.TAGS, "차종 아래 배지(안내 그림)", "급 · 왕 · 빈 · 경", Seen.UNKNOWN, Handling.UNUSED),
         ),
-        Page.DETAIL to listOf(
+        Page.NEW_CALL to listOf(
             FieldSpec(PageField.PICKUP_DISTANCE, "지도 아래 «출발지까지» 다음", "출발지까지 26.7km", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
                 read = Regex("""출발지까지\s+([\d.]+)km""")),
             FieldSpec(PageField.VEHICLE_TYPE, "거리 다음", "오토", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
@@ -70,16 +70,13 @@ object IsflexPages {
             /* 실물 5건에는 없다 · 안내 그림 img_guide3_2 에만 */
             FieldSpec(PageField.ITEM_SIZE, "머리 줄 넷째(안내 그림)", "대박스", Seen.UNKNOWN, Handling.UNUSED),
         ),
-        Page.CONFIRM to listOf(
-            FieldSpec(PageField.STAGE, "수행하기 직후 화면", "(실물 캡처 없음)", Seen.UNKNOWN, Handling.UNUSED),
-        ),
-        Page.MY_ORDERS to listOf(
+        Page.MY_LIST to listOf(
             FieldSpec(PageField.PICKUP, "진행중 탭 잡은 콜 줄", "(실물 캡처 없음)", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.DROPOFF, "진행중 탭 잡은 콜 줄", "(실물 캡처 없음)", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.FARE, "진행중 탭 잡은 콜 줄", "(실물 캡처 없음)", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.STAGE, "진행중 탭 잡은 콜 줄 상태", "(실물 캡처 없음)", Seen.UNKNOWN, Handling.UNUSED),
         ),
-        Page.MY_ORDER to listOf(
+        Page.MY_CALL to listOf(
             FieldSpec(PageField.STAGE, "지도 아래 파란 단계 줄(안내 그림)", "16:00까지 출발지로 이동", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.PICKUP_DISTANCE, "머리 줄(안내 그림)", "출발지까지 1.2km", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.VEHICLE_TYPE, "머리 줄(안내 그림)", "오토바이", Seen.UNKNOWN, Handling.UNUSED),
@@ -141,19 +138,8 @@ object IsflexPages {
             Seen.REAL,
             listOf("ex_images/인성플렉스/08_상세.png", "ex_images/인성플렉스/09_상세_선불.png", "ex_images/인성플렉스/10_상세_3.png", "ex_images/인성플렉스/11_상세_4.png", "ex_images/인성플렉스/12_상세_5.png"),
             toCollect = "꼬리표 자리에 «과적» 말고 오는 글자(«급송» · «왕복» · «경유» · 짐 크기 «대박스») · 도착 주소에 «@»가 붙는 콜 · 적요 안에 «선불» · «착불» · «총 수입»이 드는 콜 — 적요 제목 «오더메모» · 요금 제목 «수입»만(«총 수입» 아님)이 보이면 리뉴얼",
-            bases = listOf("detail"),
+            base = "newCall",
             buttons = ScreenButtons(accept = "수행하기", filterOut = "닫기"),
-        ),
-        ScreenSpec(
-            "확정",
-            StandardScreen.DETAIL_CONFIRMED,
-            emptyList(),
-            false,
-            emptyList(),
-            Seen.UNKNOWN,
-            listOf(),
-            toCollect = "수행하기 직후 화면 — 이 화면으로 오나 · 진행중 탭으로 가나 · 따로 뜨는 확인 화면이 있나",
-            bases = listOf("confirm"),
         ),
         ScreenSpec(
             "내 오더 콜",
@@ -164,7 +150,7 @@ object IsflexPages {
             Seen.SIM,
             listOf("지어낸 화면 — 시뮬레이터 인성플렉스 «내 오더 콜»(실물 캡처 없음)"),
             toCollect = "실물 화면 글자(출발지로 이동 · 배송 · 서명) · 단계 줄 «…까지 출발지로 이동» · 아래 단추 글자 — 요금 제목 «총 수익» · 적요 제목 «오더메모»가 실물에 나오나",
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "목록(신규)",
@@ -178,7 +164,7 @@ object IsflexPages {
             Seen.REAL,
             listOf("ex_images/인성플렉스/02_목록.png", "ex_images/인성플렉스/07_목록_스크롤.png"),
             toCollect = "AI 추천 콜이 실제로 뜬 목록(칸 자리 · «수락» 단추 글자) · 꼬리표 배지(«급» · «왕» · «빈» · «경») · «계산서» 배지 · 차종 «오토» 말고 다른 글자 · 오늘 예약 앞글자 꼴 — 칩 «개인이동장치»(실물은 «개인이동수단»)가 보이면 리뉴얼",
-            bases = listOf("list"),
+            base = "newList",
         ),
         ScreenSpec(
             "지도 보기",
@@ -198,7 +184,7 @@ object IsflexPages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/인성플렉스/04_진행중.png"),
-            bases = listOf("myorders"),
+            base = "myList",
         ),
         ScreenSpec(
             "진행중(한 건)",
@@ -210,7 +196,7 @@ object IsflexPages {
             listOf("지어낸 화면 — 시뮬레이터 인성플렉스 «진행중» 탭 한 건(실물 캡처 없음)"),
             toCollect = "잡은 콜 줄의 칸 · 글자 · 차례 · 이 화면에 칸 머리(«출발지까지» · «수입») · 칩 · «AI 배차 대기중» · «완료» 글자가 있나",
             landsAfterAccept = true,
-            bases = listOf("myorders"),
+            base = "myList",
         ),
         ScreenSpec(
             "홈",
@@ -223,7 +209,7 @@ object IsflexPages {
             Seen.REAL,
             listOf("ex_images/인성플렉스/01_홈.png", "ex_images/인성플렉스/01_홈_2.png"),
             toCollect = "«퇴근하기» 뒤 돌아오는 화면 · «변경» 뒤 배송 수단 고르기 화면 글자",
-            bases = listOf("home"),
+            base = "home",
         ),
         ScreenSpec(
             "메세지함",

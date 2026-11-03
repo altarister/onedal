@@ -28,7 +28,7 @@ class ScreenWordsSpeedTest {
     private val sample = detail.joinToString(" ")
 
     @Test fun `속도 - 화면 한 번에 예시 글은 한 번만 가린다`() {
-        ScreenWords.onScreen(Page.DETAIL, detail, sample)
+        ScreenWords.onScreen(Page.NEW_CALL, detail, sample)
         ScreenWords.maskTokens = 0
         val report = ScreenWords.drain()
         assertTrue("낱말이 모여야 한다", (report?.words?.size ?: 0) > 50)
@@ -37,7 +37,7 @@ class ScreenWordsSpeedTest {
     }
 
     @Test fun `뜻 - 낱말과 예시 모양이 고치기 전과 같다`() {
-        ScreenWords.onScreen(Page.DETAIL, detail, sample)
+        ScreenWords.onScreen(Page.NEW_CALL, detail, sample)
         val report = ScreenWords.drain()!!
         val expectSample = ScreenWords.mask(sample).take(200)
         assertTrue("예시는 화면 글을 가려 자른 것", report.words.all { it.sample == expectSample })

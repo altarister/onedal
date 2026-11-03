@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { NETWORK_PAGES, STANDARD_SCREENS, fieldsOf } from './networkPages';
-import { PAGE_FIELDS, SCREEN_PAGES, BASE_PAGES, type PageField, type ScreenPage } from './pageFields';
+import { PAGE_FIELDS, SCREEN_PAGES, BASE_PAGES, BASE_PAGE_OF, basePageOf, type PageField, type ScreenPage } from './pageFields';
 import { TARGET_APPS, type TargetAppType } from './index';
 import { pageFieldOf, pageFareOf, excludeScanTextOf, missingAlwaysOf } from './pageRead';
 import { VEHICLE_OPTIONS } from './vehicles';
@@ -63,7 +63,7 @@ describe('제외어 찾는 칸 (excludeScan)', () => {
             expect(spec.excludeScan.length, `${net} excludeScan`).toBeGreaterThan(0);
             for (const f of spec.excludeScan) {
                 expect(PAGE_FIELDS, `${net} 칸 ${f}`).toContain(f);
-                expect(spec.pages.detail.some(r => r.field === f && r.handling === 'READ' && r.read !== undefined), `${net} detail ${f} 읽는 법`).toBe(true);
+                expect(spec.pages.newCall.some(r => r.field === f && r.handling === 'READ' && r.read !== undefined), `${net} newCall ${f} 읽는 법`).toBe(true);
             }
         }
     });
@@ -190,125 +190,125 @@ describe('배차망 페이지 목록 (screens)', () => {
 });
 
 /**
- * 🧭 **화면 줄마다 기준 칸 `bases`** — 배차망 화면이 기준 페이지(BASE_PAGES) 가운데 어디에 속하나.
- * 막는 것: 기준 밖이 아닌 화면이 소속 없이 남는 것 · 나누는 법과 다른 소속 · 같은 모양 두 기준의 차례가 바뀌어 화면 낱말이 다른 기준으로 쌓이는 것.
+ * 🧭 **화면 줄의 기준 페이지는 화면 종류에서 나온다** — 정의 표 줄에는 기준 페이지를 적지 않는다(사전 `BASE_PAGE_OF`).
+ * 막는 것: 사전이 화면 종류를 빠뜨리거나 사전 밖 이름을 가리키는 것 · 기준 밖 화면 종류가 소속을 얻는 것 · 배차망에 기준 페이지 줄이 비는 것 · 결재 단추 줄이 둘로 갈라지는 것.
  */
 describe('정의 표 — 화면 단추 글자', () => {
     type Buttons = { accept?: string; filterOut?: string; keep?: string; cancel?: string };
-    const rowsOf = (net: string, base: string) => ((NETWORK_PAGES as any)[net].screens as Array<{ name: string; bases: string[]; buttons?: Buttons }>)
-        .filter(s => s.bases.includes(base) && s.buttons);
-    it('배차망마다 잡기 전 상세(detail) 단추 줄은 하나 — 수락 · 물러남 글자가 있다(원달앱이 누를지는 플러그인이 정한다)', () => {
+    const rowsOf = (net: TargetAppType, base: string) => NETWORK_PAGES[net].screens.filter(s => basePageOf(s.standard) === base && s.buttons);
+    it('배차망마다 잡기 전 새 콜 화면(newCall) 단추 줄은 하나 — 수락 · 물러남 글자가 있다(원달앱이 누를지는 플러그인이 정한다)', () => {
         const want: Record<string, Buttons> = {
             insung: { accept: '확정', filterOut: '취소' }, hwamul24: { accept: '배차신청', filterOut: '돌아가기' }, kakaopicker: { accept: '수락하기', filterOut: '넘기기' },
             isflex: { accept: '수행하기', filterOut: '닫기' },
         };
-        for (const net of Object.keys(NETWORK_PAGES)) {
-            const rows = rowsOf(net, 'detail');
+        for (const net of TARGET_APPS) {
+            const rows = rowsOf(net, 'newCall');
             expect(rows.length, net).toBe(1);
             expect(rows[0].buttons, net).toEqual(want[net]);
         }
     });
-    it('확정(confirm) 단추 줄은 배차망마다 0 또는 1 — 결재 단추가 두 갈래가 되지 않게 · 인성은 닫기 · 취소', () => {
-        for (const net of Object.keys(NETWORK_PAGES)) expect(rowsOf(net, 'confirm').length, net).toBeLessThanOrEqual(1);
-        expect(rowsOf('insung', 'confirm')[0]?.buttons).toEqual({ keep: '닫기', cancel: '취소' });
+    it('내 콜 화면(myCall) 단추 줄은 배차망마다 0 또는 1 — 결재 단추가 두 갈래가 되지 않게 · 인성은 닫기 · 취소', () => {
+        for (const net of TARGET_APPS) expect(rowsOf(net, 'myCall').length, net).toBeLessThanOrEqual(1);
+        expect(rowsOf('insung', 'myCall')[0]?.buttons).toEqual({ keep: '닫기', cancel: '취소' });
     });
 });
 
-describe('정의 표 — 화면 줄의 기준 칸', () => {
-    const OUTSIDE = new Set(['TRANSITION', 'NETWORK_MENU', 'OTHER_APP']);
-    const BY_STANDARD: Record<string, string[]> = {
-        HOME: ['home'], LIST: ['list'], DETAIL_PRE_CONFIRM: ['detail'], DETAIL_CONFIRMED: ['confirm'], MY_ORDERS: ['myorders'],
-        RUN_TO_PICKUP: ['myorder'], RUN_AT_PICKUP: ['myorder'], RUN_TO_DROPOFF: ['myorder'], RUN_AT_DROPOFF: ['myorder'], RUN_DONE: ['myorder'],
-    };
-    /** 나누는 법의 예외 — 같은 모양이면 둘(첫 칸 = 화면만 보고 정하는 뜻) · 내 오더 콜 화면이 확정 화면 값으로 적힌 줄 */
-    const EXCEPT: Record<string, Record<string, string[]>> = {
-        insung: { '확정 뒤 상세': ['confirm', 'myorder'] },
-        hwamul24: { '배차내역 상세 · 화주정보 탭': ['myorder'], '배차내역 상세 · 결제정보 탭': ['myorder'], '배차내역 상세 · 화물정보 탭': ['myorder'], '화물배차정보요약': ['myorder'] },
-        kakaopicker: { '수락 후 오더 전체': ['myorder'] },
-        isflex: { '내 오더 콜': ['myorder'] },
-    };
-    const screensOf = (net: string) => (NETWORK_PAGES as any)[net].screens as Array<{ name: string; standard: string | null; bases?: string[] }>;
-    it('한 배차망 안에서 화면 줄 이름은 하나뿐 — 원달앱이 이름으로 화면 줄을 찾아 기준 칸을 읽는다(ScreenWords.pageOf)', () => {
-        for (const net of Object.keys(NETWORK_PAGES)) {
-            const names = screensOf(net).map(s => s.name);
+describe('정의 표 — 화면 줄의 기준 페이지', () => {
+    const OUTSIDE = new Set<string>(['TRANSITION', 'NETWORK_MENU', 'OTHER_APP']);
+    it('한 배차망 안에서 화면 줄 이름은 하나뿐 — 원달앱이 이름으로 화면 줄을 찾아 기준 페이지를 읽는다(ScreenWords.pageOf)', () => {
+        for (const net of TARGET_APPS) {
+            const names = NETWORK_PAGES[net].screens.map(s => s.name);
             expect(names.filter((n, i) => names.indexOf(n) !== i), net).toEqual([]);
         }
     });
 
-    it('낱말은 BASE_PAGES 것만 · 기준 밖이 아니면 비지 않는다', () => {
-        for (const net of TARGET_APPS) for (const s of screensOf(net)) {
-            const at = `${net} «${s.name}»`;
-            expect(Array.isArray(s.bases), `${at} bases 칸이 없다`).toBe(true);
-            for (const b of s.bases ?? []) expect(BASE_PAGES as readonly string[], `${at} 모르는 기준 ${b}`).toContain(b);
-            const outside = s.standard === null || OUTSIDE.has(s.standard);
-            if (outside) expect(s.bases, `${at} 기준 밖인데 bases 가 있다`).toEqual([]);
-            else expect((s.bases ?? []).length, `${at} 기준 밖이 아닌데 bases 가 비었다`).toBeGreaterThan(0);
+    it('사전은 화면 종류를 하나도 빠뜨리지 않고 · 기준 밖(넘어가는 틀 · 배차망 메뉴 · 다른 앱)만 null · 값은 홈 + 새 네 이름', () => {
+        expect(Object.keys(BASE_PAGE_OF).sort()).toEqual([...STANDARD_SCREENS].sort());
+        for (const [std, base] of Object.entries(BASE_PAGE_OF)) {
+            if (OUTSIDE.has(std)) expect(base, std).toBeNull();
+            else expect(BASE_PAGES as readonly (string | null)[], std).toContain(base);
         }
+        expect([...new Set(Object.values(BASE_PAGE_OF).filter(Boolean))].sort()).toEqual(['home', 'myCall', 'myList', 'newCall', 'newList']);
     });
 
-    it('나누는 법대로 — 예외 줄은 이름으로 · 차례까지', () => {
-        for (const net of TARGET_APPS) for (const s of screensOf(net)) {
-            if (s.standard === null || OUTSIDE.has(s.standard)) continue;
-            const want = EXCEPT[net]?.[s.name] ?? BY_STANDARD[s.standard];
-            expect(s.bases, `${net} «${s.name}» (${s.standard})`).toEqual(want);
-        }
-    });
-
-    it('배차망마다 홈 · 목록 · 상세 · 내 오더 · 내 오더 콜 화면 줄이 하나 이상', () => {
-        for (const net of TARGET_APPS) for (const base of ['home', 'list', 'detail', 'myorders', 'myorder']) {
-            expect(screensOf(net).some((s) => (s.bases ?? []).includes(base)), `${net} ${base}`).toBe(true);
+    it('배차망마다 홈 · 새 콜 목록 · 새 콜 화면 · 내 콜 목록 · 내 콜 화면 줄이 하나 이상', () => {
+        for (const net of TARGET_APPS) for (const base of BASE_PAGES) {
+            expect(NETWORK_PAGES[net].screens.some(s => basePageOf(s.standard) === base), `${net} ${base}`).toBe(true);
         }
     });
 });
 
 /**
- * 🚫🪞 **없는 페이지(`absentPages`) · 같은 칸 페이지(`sameFieldsAs`)** — «비어 있음 = 없다고 확인함»만 참이 되게.
- * 막는 것: 근거 없이 비운 페이지 · 없다면서 그 기준 화면 줄이 있는 것 · 같은 칸을 두 벌 적는 것 · 두 앱이 같은 표를 다르게 읽는 것.
+ * 🚫 **없는 페이지(`absentPages`)** — «비어 있음 = 없다고 확인함»만 참이 되게.
+ * 막는 것: 근거 없이 비운 페이지 · 없다면서 그 기준 화면 줄이 있는 것.
  */
-describe('정의 표 — 없는 페이지 · 같은 칸 페이지', () => {
-    const specOf = (net: string) => (NETWORK_PAGES as any)[net];
-
+describe('정의 표 — 없는 페이지', () => {
     it('없는 페이지는 칸을 적는 페이지 낱말 · 까닭과 근거가 있고 · 칸이 비고 · 그 기준 화면 줄이 없다', () => {
         for (const net of TARGET_APPS) {
-            const spec = specOf(net);
-            for (const [page, a] of Object.entries<any>(spec.absentPages ?? {})) {
+            const spec = NETWORK_PAGES[net];
+            for (const [page, a] of Object.entries(spec.absentPages ?? {})) {
                 const at = `${net} 없는 페이지 ${page}`;
                 expect(SCREEN_PAGES as readonly string[], at).toContain(page);
                 expect(a.why, `${at} 까닭`).toBeTruthy();
                 expect(a.evidence, `${at} 근거`).toBeTruthy();
-                expect(spec.pages[page], `${at} 칸이 있다`).toEqual([]);
-                expect(spec.screens.filter((s: any) => (s.bases ?? []).includes(page)).map((s: any) => s.name), `${at} 그 기준 화면 줄`).toEqual([]);
-                expect(spec.sameFieldsAs?.[page], `${at} 같은 칸 페이지와 함께`).toBeUndefined();
+                expect(spec.pages[page as ScreenPage], `${at} 칸이 있다`).toEqual([]);
+                expect(spec.screens.filter(s => basePageOf(s.standard) === page).map(s => s.name), `${at} 그 기준 화면 줄`).toEqual([]);
             }
         }
-        expect(specOf('kakaopicker').absentPages?.confirm?.why, '픽커 — 수락하면 확정 화면 없이 바로 내 오더').toMatch(/바로 내 오더/);
     });
 
-    it('같은 칸 페이지는 표에 칸이 비고 · 가리키는 페이지는 칸이 있다', () => {
-        for (const net of TARGET_APPS) {
-            const spec = specOf(net);
-            for (const [page, s] of Object.entries<any>(spec.sameFieldsAs ?? {})) {
-                const at = `${net} 같은 칸 ${page} → ${s.as}`;
-                expect(SCREEN_PAGES as readonly string[], at).toContain(page);
-                expect(SCREEN_PAGES as readonly string[], at).toContain(s.as);
-                expect(['REAL', 'SIM', 'UNKNOWN'], `${at} seen`).toContain(s.seen);
-                expect(s.why, `${at} 까닭`).toBeTruthy();
-                expect(spec.pages[page], `${at} 표에 칸이 있다(두 벌)`).toEqual([]);
-                expect(spec.pages[s.as].length, `${at} 가리키는 페이지 칸`).toBeGreaterThan(0);
-            }
-        }
-        expect(specOf('insung').sameFieldsAs?.myorder?.as, '인성 내 오더 콜 = 확정 뒤 상세').toBe('confirm');
-    });
-
-    it('fieldsOf 는 같은 칸 페이지를 따라가고 seen 은 약한 쪽이다', () => {
-        const same = fieldsOf('insung', 'myorder');
-        const confirm = fieldsOf('insung', 'confirm');
-        expect(same.map((r) => `${r.field}|${r.part ?? ''}`)).toEqual(confirm.map((r) => `${r.field}|${r.part ?? ''}`));
-        expect(same.every((r) => r.seen !== 'REAL'), '완료 탭에서 연 모습은 시뮬레이터로만 봤다').toBe(true);
-        expect(fieldsOf('kakaopicker', 'confirm')).toEqual([]);
+    it('fieldsOf 는 그 배차망 · 그 페이지의 칸을 그대로 돌려준다', () => {
+        expect(fieldsOf('insung', 'myCall').map(r => r.field)).toEqual(expect.arrayContaining(['pickup', 'dropoff', 'fare']));
+        expect(fieldsOf('kakaopicker', 'myCall')).toBe(NETWORK_PAGES.kakaopicker.pages.myCall);
     });
 });
 
+/**
+ * 🪟 **콜 한 건 화면 위 부속 팝업(`callOverlays`)** — 한 번 적고, 불러올 때 새 콜 화면 · 내 콜 화면 줄 덧칸 맨 앞에 붙는다.
+ * 같은 붙이기 법을 생성 스크립트와 원달앱 짝 검사도 자기 쪽에서 구현한다 — 여기서는 사전 · 배차망 파일의 글자를 직접 읽어 불러온 결과와 견준다.
+ * 못 잡는 것: 생성 스크립트 · 원달앱 쪽 구현이 같은지(원달앱 `NetworkPagesPairTest` 몫).
+ */
+describe('정의 표 — 부속 팝업(callOverlays)', () => {
+    const jsonOf = (file: string) => JSON.parse(readFileSync(join(__dirname, file), 'utf8').match(/\/\*JSON\*\/([\s\S]*?)\/\*JSON\*\//)![1]);
+    const book = jsonOf('pageFields.ts');
+    const SLOT_ORDER = Object.keys(book.callOverlays);
+
+    it('불러온 덧칸 = 글자 표를 같은 법(해당 줄 덧칸 맨 앞에 자리 차례로 붙이기)으로 읽은 결과', () => {
+        for (const net of TARGET_APPS) {
+            const raw = jsonOf(`networkPages.${net}.ts`);
+            const front = SLOT_ORDER.flatMap((slot) => (raw.callOverlays ?? []).filter((o: any) => o.slot === slot));
+            raw.screens.forEach((s: any, i: number) => {
+                const base = book.baseOf[s.standard] ?? null;
+                const want = base === 'newCall' || base === 'myCall' ? [...front, ...s.overlays] : s.overlays;
+                expect(NETWORK_PAGES[net].screens[i].overlays, `${net} «${s.name}»`).toEqual(want);
+            });
+        }
+    });
+
+    it('같은 배차망 안에서 자리(slot)는 상차지 · 하차지 · 적요가 각각 하나 · 자리가 있는 덧칸은 상세를 채우는 일(FILL_*)이다', () => {
+        for (const net of TARGET_APPS) {
+            const parts = NETWORK_PAGES[net].callOverlays ?? [];
+            if (!parts.length) continue;
+            expect(parts.map(o => o.slot).sort(), net).toEqual([...SLOT_ORDER].sort());
+            for (const o of parts) expect(o.action, `${net} ${o.slot}`).toMatch(/^FILL_/);
+        }
+    });
+
+    it('인성 — 붙인 뒤 두 줄의 덧칸 차례가 팝업 셋이 맨 앞 · 그 줄만의 덧칸이 뒤', () => {
+        const names = (screen: string) => NETWORK_PAGES.insung.screens.find(s => s.name === screen)!.overlays.map(o => o.name);
+        const front = ['출발지 상세 팝업', '도착지 상세 팝업', '적요 상세 팝업'];
+        expect(names('확정 전 상세')).toEqual([...front, '계산서 오더 안내 띠', '확정 확인 팝업', '이미 배차됨 팝업', '확정 실패 팝업']);
+        expect(names('확정 뒤 상세')).toEqual([...front, '취소 확인 팝업', '취소 불가 팝업']);
+    });
+
+    it('팝업을 안 적은 배차망 · 새 콜 화면이나 내 콜 화면이 아닌 줄의 덧칸에는 자리(slot)가 붙지 않는다', () => {
+        for (const net of TARGET_APPS) for (const s of NETWORK_PAGES[net].screens) {
+            const base = basePageOf(s.standard);
+            if (NETWORK_PAGES[net].callOverlays && (base === 'newCall' || base === 'myCall')) continue;
+            expect(s.overlays.filter(o => 'slot' in o), `${net} «${s.name}»`).toEqual([]);
+        }
+    });
+});
 
 /**
  * 🧾 **늘 있음 / 있다 없다 — 분류 규칙대로 적혔나** (59 2단계 · 기사님 «모든 캡처에 있는 것 = 늘 있는 것, 일부에만 있는 것 = 있다 없다»).
@@ -330,10 +330,10 @@ describe('🧾 칸의 늘 있음 / 있다 없다', () => {
         }
     });
     it('🔴 픽커 상세는 칸마다 분류가 있다(실물 캡처로 셌다)', () => {
-        for (const r of NETWORK_PAGES.kakaopicker.pages.detail) expect(r.presence, `kakaopicker detail ${r.field}${r.part ? `.${r.part}` : ''}`).toBeTruthy();
+        for (const r of NETWORK_PAGES.kakaopicker.pages.newCall) expect(r.presence, `kakaopicker newCall ${r.field}${r.part ? `.${r.part}` : ''}`).toBeTruthy();
     });
     it('픽커 상세 — 배송 시각은 늘 있음 · 픽업 시각은 있다 없다(기사님 물음 «~까지 픽업도 사라짐에 드나»의 답)', () => {
-        const at = (part: string) => NETWORK_PAGES.kakaopicker.pages.detail.find(r => r.field === 'clock' && r.part === part)?.presence;
+        const at = (part: string) => NETWORK_PAGES.kakaopicker.pages.newCall.find(r => r.field === 'clock' && r.part === part)?.presence;
         expect(at('dropoff')).toBe('ALWAYS');
         expect(at('pickup')).toBe('SOMETIMES');
     });
@@ -347,10 +347,10 @@ describe('🧾 늘 있던 칸이 없나', () => {
     const ACC = '픽업지 경기 성남시 수정구 신촌동 물품 정보 소형 세 변의 합 100cm ∙ 5kg 이하 최종 수익 10,830 넘기기 수락하기';
     const PHOTO = '[사진]\n퀵 비즈\n서울 광진구 자양2동 배송 9.7km\n18:28까지 배송\nNC이스트폴';
     it('🔴 실물 16:51 픽커 — 접근성 + 판독 줄이면 빠진 것 없음 · 판독 줄이 없으면 배송 시각이 없다', () => {
-        expect(missingAlwaysOf('kakaopicker', 'detail', `${ACC}\n${PHOTO}`)).toEqual([]);
-        expect(missingAlwaysOf('kakaopicker', 'detail', ACC)).toEqual(['clock.dropoff']);
+        expect(missingAlwaysOf('kakaopicker', 'newCall', `${ACC}\n${PHOTO}`)).toEqual([]);
+        expect(missingAlwaysOf('kakaopicker', 'newCall', ACC)).toEqual(['clock.dropoff']);
     });
     it('물품 정보 이름표가 바뀌면(리뉴얼) 그 칸이 빠졌다고 말한다', () => {
-        expect(missingAlwaysOf('kakaopicker', 'detail', `${ACC.replace('물품 정보', '배송 물품')}\n${PHOTO}`)).toEqual(['itemSize']);
+        expect(missingAlwaysOf('kakaopicker', 'newCall', `${ACC.replace('물품 정보', '배송 물품')}\n${PHOTO}`)).toEqual(['itemSize']);
     });
 });

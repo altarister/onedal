@@ -1,4 +1,4 @@
-import { TARGET_APP_LABEL, WORD_KIND_LABEL, anomalyKindOf, anomalyTabsOf, collectCountOf, collectListOf, deviceLabel, type CollectRow, type OpsAnomaly, type OpsScreenWord, type TargetAppType } from '@onedal/shared';
+import { SCREEN_PAGE_LABEL, TARGET_APP_LABEL, WORD_KIND_LABEL, anomalyKindOf, anomalyTabsOf, collectCountOf, collectListOf, deviceLabel, type CollectRow, type OpsAnomaly, type OpsScreenWord, type ScreenPage, type TargetAppType } from '@onedal/shared';
 import { useEffect, useState } from 'react';
 import { api, useOps } from '../api/ops';
 import { statusOf } from '../api/client';
@@ -52,7 +52,7 @@ export default function Anomalies() {
     ];
     const wcols: Column<OpsScreenWord>[] = [
         { key: 'app', label: '배차망', render: w => app(w.targetApp) },
-        { key: 'page', label: '화면', render: w => w.page },
+        { key: 'page', label: '화면', render: w => SCREEN_PAGE_LABEL[w.page as ScreenPage] ?? w.page },
         { key: 'word', label: '글자', render: w => <b>{w.word}</b> },
         { key: 'kind', label: '갈래', render: w => WORD_KIND_LABEL[w.kind] },
         { key: 'at', label: '처음 본 때', render: w => fmtTime(w.firstSeenAt) },

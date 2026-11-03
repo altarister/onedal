@@ -85,7 +85,7 @@ fun ScanContext.handlePreConfirmScreen(
         )
     } else {
         // 캐시 매칭 실패 시 화면에서 파싱 폴백 — 요금은 상세 화면의 요금 칸 정의가 먼저(세 배차망 같은 순서 · 29 X12)
-        val tempOrder = PageFieldRead.fareFirst(scrapParser.parse(screenTexts), plugin.pages, Page.DETAIL, screenTexts)
+        val tempOrder = PageFieldRead.fareFirst(scrapParser.parse(screenTexts), plugin.pages, Page.NEW_CALL, screenTexts)
         tempOrder.copy(
             id = session.currentOrderId.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
             type = "MANUAL_CLICK",
@@ -94,7 +94,7 @@ fun ScanContext.handlePreConfirmScreen(
         )
     }
     /* 💰 요금이 비었으면(손으로 연 상세 · 목록 줄을 못 찾음) 그 배차망의 상세 화면 정의로 읽는다 — 앱이 연 콜의 목록 값은 그대로 (`PageFieldRead`) */
-    val finalOrder = PageFieldRead.withFare(pickedOrder, plugin.pages, Page.DETAIL, screenTexts)
+    val finalOrder = PageFieldRead.withFare(pickedOrder, plugin.pages, Page.NEW_CALL, screenTexts)
 
     if (session.currentOrderId.isEmpty()) {
         session.setOrderId(finalOrder.id)
@@ -194,8 +194,8 @@ fun ScanContext.handlePreConfirmScreen(
     } else {
         // [AUTO 모드이면서 2차 필터 실패] -> 공통 즉시 취소/뒤로가기 회피 기동
         session.isDetailScrapSent = true // 다음 사이클 스킵을 위해 마킹
-        // 🔘 물러날 글자는 그 배차망 잡기 전 상세 기준 페이지의 단추(`buttons.filterOut`) — 없거나 못 찾으면 뒤로
-        val cancelBtnForReject = com.onedal.app.core.buttonsOn(plugin.screens, "detail")?.filterOut
+        // 🔘 물러날 글자는 그 배차망 새 콜 화면 줄의 단추(`buttons.filterOut`) — 없거나 못 찾으면 뒤로
+        val cancelBtnForReject = com.onedal.app.core.buttonsOn(plugin.screens, "newCall")?.filterOut
         AppLogger.d(TAG, LogTag.FILTER, "⚠️ [2차 필터 실패] 상세 정보를 확인한 결과 똥콜(블랙리스트 등)로 판명됨. '${cancelBtnForReject ?: "뒤로"}' 회피 기동!")
 
         AppLogger.roadmap(LogTag.TAP, "상세페이지에서 '${cancelBtnForReject ?: "뒤로"}' 추출 후 클릭", telemetryManager.currentScreenContext.name)

@@ -17,7 +17,7 @@ class PickerScreenWordsTest {
     @After fun clear() { ScreenWords.onScreen(null); while (ScreenWords.drain() != null) Unit }
 
     @Test fun `잡음과 남는 토막이 모이고 쓴 칸은 안 모인다`() {
-        ScreenWords.onScreen(Page.LIST)
+        ScreenWords.onScreen(Page.NEW_LIST)
         val o = KakaoPickerParser(null).parse(listOf("퀵", "소형", "강남", "6.8km", "광주", "송정", "역삼1", "역삼2", "19,404", "카드설정"))
         assertEquals("광주 송정", o.pickup)
         val words = ScreenWords.drain()!!.words.map { it.kind to it.word }

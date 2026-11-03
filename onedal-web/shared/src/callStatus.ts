@@ -8,7 +8,7 @@ import { LET_GO_STATUSES, type LetGoStatus } from './orderStatuses';
 export type OrderStatus =
     // --- [심사 및 결재 단계] ---
     | 'ORDER_PRE_SECURED'          // (패널티 X) 상세화면에서 검토 중 (확정 버튼 누르기 전)
-    | 'ORDER_SECURED_EVALUATING'   // (패널티 O) 확정 화면 진입, 내 콜로 등록됨, 서버 연산 중
+    | 'ORDER_SECURED_EVALUATING'   // (패널티 O) 내 콜 화면 진입, 내 콜로 등록됨, 서버 연산 중
     | 'ORDER_AWAITING_DECISION'    // (패널티 O) 관제탑 결재 대기 (안전취소)
     // --- [확정 이후 단계] ---
     | 'ORDER_CONFIRMED'            // (패널티 O) 관제탑 승인 (내 퀵)

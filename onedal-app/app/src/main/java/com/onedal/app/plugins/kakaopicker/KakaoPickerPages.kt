@@ -24,7 +24,7 @@ import com.onedal.app.core.StandardScreen
  */
 object KakaoPickerPages {
     val pages: PageSpecs = mapOf(
-        Page.LIST to listOf(
+        Page.NEW_LIST to listOf(
             FieldSpec(PageField.FARE, "목록 줄 오른쪽", "16,093", Seen.REAL, Handling.READ, "KakaoPickerParser.parse"),
             FieldSpec(PageField.PICKUP_DISTANCE, "몸통 줄 맨 앞", "4.7km", Seen.REAL, Handling.READ, "KakaoPickerParser.parse"),
             FieldSpec(PageField.ITEM_SIZE, "꼬리표 줄", "중형", Seen.REAL, Handling.READ, "KakaoPickerParser.parse"),
@@ -34,7 +34,7 @@ object KakaoPickerPages {
             FieldSpec(PageField.PICKUP, "몸통 줄 — 시·구 줄임 + 동", "광주 경안", Seen.REAL, Handling.READ, "KakaoPickerParser.parse"),
             FieldSpec(PageField.DROPOFF, "꼬리표 줄 오른쪽 구 + 몸통 줄 오른쪽 동", "용산 한남", Seen.REAL, Handling.READ, "KakaoPickerParser.parse"),
         ),
-        Page.DETAIL to listOf(
+        Page.NEW_CALL to listOf(
             FieldSpec(PageField.TAGS, "시트 맨 위 꼬리표 줄 첫 낱말", "퀵", Seen.REAL, Handling.UNUSED, "",
                 part = "kind"),
             FieldSpec(PageField.TAGS, "시트 맨 위 꼬리표 줄 «퀵» 뒤 — 차례: 급송 → 단거리/반나절 → 승용차 → 예약 → 비즈ⓘ", "퀵 반나절 예약", Seen.REAL, Handling.UNUSED),
@@ -66,15 +66,14 @@ object KakaoPickerPages {
             FieldSpec(PageField.FARE, "배송비 아래 프로모션", "프로모션 1,100P", Seen.REAL, Handling.UNUSED, "",
                 part = "promotion"),
         ),
-        Page.CONFIRM to emptyList<FieldSpec>(),
-        Page.MY_ORDERS to listOf(
+        Page.MY_LIST to listOf(
             FieldSpec(PageField.STAGE, "내 오더 줄 머리", "픽업 준비 14분 남음", Seen.REAL, Handling.READ, "KakaoPickerKeywords.stageOf (단계 낱말만)"),
             FieldSpec(PageField.REMAINING, "내 오더 줄 머리", "14분 남음", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "픽업 배지 옆", "[태전점]롯데리아", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.DROPOFF, "배송지 줄", "배송지: 쌍용 스윗닷홈아파트 304동1002호", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.TAGS, "오른쪽 배지", "도보", Seen.REAL, Handling.UNUSED),
         ),
-        Page.MY_ORDER to listOf(
+        Page.MY_CALL to listOf(
             FieldSpec(PageField.STAGE, "운행 시트 머리", "지금 바로 출발해 주세요 · 픽업이 지연되고 있어요", Seen.REAL, Handling.READ, "KakaoPickerKeywords.stageOf (단계 낱말만)"),
             FieldSpec(PageField.REMAINING, "운행 시트 머리", "준비 13분 · 배송 33분", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "운행 시트 픽업지 · 오더 전체 보기 픽업지", "[태전점]롯데리아", Seen.REAL, Handling.UNUSED),
@@ -86,7 +85,7 @@ object KakaoPickerPages {
     )
 
     /** 🚫 그 배차망에 없는 페이지 → 까닭(shared absentPages — 칸이 빈 것은 «없다고 확인함») */
-    val absentPages: Map<Page, String> = mapOf(Page.CONFIRM to "수락하면 확정 화면 없이 바로 내 오더 — 기사님 확인")
+    val absentPages: Map<Page, String> = emptyMap()
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords) */
     val vehicleWords: Map<String, String?> = emptyMap()
@@ -131,7 +130,7 @@ object KakaoPickerPages {
             ),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/01_홈_출근전.png", "ex_images/카카오픽커/실물_20260913_내가찍음/35_홈_관심일거리팝업_0411.png", "ex_images/카카오픽커/실물_20260913_내가찍음/36_홈_관심일거리팝업_1205.png"),
-            bases = listOf("home"),
+            base = "home",
         ),
         ScreenSpec(
             "배송 완료",
@@ -143,7 +142,7 @@ object KakaoPickerPages {
             ),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/31_배송완료_2387P.jpeg", "ex_images/카카오픽커/실물_2026/32_배송완료_2387P_같은장면.jpeg"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "퀵 배송 완료하기",
@@ -153,7 +152,7 @@ object KakaoPickerPages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/22-1_퀵_배송_완료하기.png"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "퀵 배송 출발하기",
@@ -163,7 +162,7 @@ object KakaoPickerPages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/22-1_퀵_배송_출발하기.png"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "퀵 픽업 완료하기",
@@ -175,7 +174,7 @@ object KakaoPickerPages {
             ),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/17-2_픽업이_지연되고_있어요.jpeg"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "퀵 픽업 출발하기",
@@ -187,7 +186,7 @@ object KakaoPickerPages {
             ),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/17-1_픽업_출발해주세요_지금_바로_출발해_주세요.jpeg", "ex_images/카카오픽커/실물_20260913_내가찍음/37_기사님캡처_1158_요기요2883.jpg", "A24 폰 로그 09-13 11:55:15 · 11:56:32"),
-            bases = listOf("myorder"),
+            base = "myCall",
             buttons = ScreenButtons(cancel = "배정 취소"),
         ),
         ScreenSpec(
@@ -198,7 +197,7 @@ object KakaoPickerPages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/17_픽업시트_밀어서픽업완료.jpeg"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "도보 배송지 도착",
@@ -208,7 +207,7 @@ object KakaoPickerPages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/22_배송시트_밀어서사진촬영.jpeg"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "인증사진 촬영",
@@ -219,7 +218,7 @@ object KakaoPickerPages {
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/25_인증사진촬영_카메라.jpeg"),
             toCollect = "원달앱이 읽는 글자(로그) — 픽커 안 카메라 화면이다",
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "촬영 확인",
@@ -229,7 +228,7 @@ object KakaoPickerPages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/26_촬영확인_문자전송.jpeg"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "문자 전송",
@@ -239,7 +238,7 @@ object KakaoPickerPages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/30_문자전송후_배송완료버튼.jpeg"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "도보 배송 중",
@@ -251,7 +250,7 @@ object KakaoPickerPages {
             ),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/21_배송중_배송시간15분남음.jpeg"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "도보 픽업 이동",
@@ -263,7 +262,7 @@ object KakaoPickerPages {
             ),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/16_픽업이동_준비13분_배송33분.jpeg", "ex_images/카카오픽커/실물_2026/18_픽업이동_준비완료_배송25분.jpeg"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "수락 후 오더 전체",
@@ -274,7 +273,7 @@ object KakaoPickerPages {
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/23_수락후_오더전체_최종수익2387.jpeg"),
             toCollect = "원달앱이 읽는 글자(로그)",
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "도움말",
@@ -296,7 +295,7 @@ object KakaoPickerPages {
             ),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/05_상세_지도_수락하기.png", "ex_images/카카오픽커/실물_2026/06_상세_마감시각_준비시간.jpeg", "ex_images/카카오픽커/실물_2026/07_상세_최종수익분해.jpeg", "ex_images/카카오픽커/실물_2026/08_상세_지도_판교.jpeg", "ex_images/카카오픽커/실물_2026/09_상세_가격오르기전_9693.jpeg", "ex_images/카카오픽커/실물_2026/10_상세_가격오른뒤_11393.jpeg", "ex_images/카카오픽커/실물_2026/10-1_상세_시트(상).jpeg", "ex_images/카카오픽커/실물_2026/10-2_상세_시트(중).jpeg", "ex_images/카카오픽커/실물_2026/10-3_상세_시트(하).jpeg", "ex_images/카카오픽커/실물_2026/33_상세_예약콜_위례_삼성2동.png"),
-            bases = listOf("detail"),
+            base = "newCall",
             buttons = ScreenButtons(accept = "수락하기", filterOut = "넘기기"),
         ),
         ScreenSpec(
@@ -311,7 +310,7 @@ object KakaoPickerPages {
             ),
             Seen.REAL,
             listOf("ex_images/카카오픽커/실물_2026/15_내오더탭_픽업준비14분남음.jpeg", "ex_images/카카오픽커/실물_2026/15-1_내오더_오더없을때.jpeg", "ex_images/카카오픽커/실물_2026/15-2_내오더(도보와퀵차이).png"),
-            bases = listOf("myorders"),
+            base = "myList",
         ),
         ScreenSpec(
             "퀵 배송 오더카드 설정",
@@ -498,7 +497,7 @@ object KakaoPickerPages {
             ),
             Seen.REAL,
             listOf("A24 폰 로그 10-03 09:21:26 (목록 맨 아래 — 구인 광고 «Ad»와 아래 탭만 · 1초 뒤 사진은 이미 내 오더 탭)", "ex_images/카카오픽커/실물_2026/02_리스트_높은가격순_20km.png", "ex_images/카카오픽커/실물_2026/03_리스트_이미배정완료_토스트.png", "ex_images/카카오픽커/실물_2026/11_리스트_추천순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13_리스트_가까운순_20km.jpeg", "ex_images/카카오픽커/실물_2026/13-1_신규_리스트(퀵,중형,반나절,승,예약).jpeg", "ex_images/카카오픽커/실물_2026/13-2_신규_스크롤다운.jpeg (내려감)"),
-            bases = listOf("list"),
+            base = "newList",
         ),
         ScreenSpec(
             "안드로이드 공유 시트",

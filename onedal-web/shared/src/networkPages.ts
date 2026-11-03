@@ -1,5 +1,6 @@
 import type { TargetAppType } from './index';
-import type { PageField, ScreenPage, BasePage } from './pageFields';
+import type { PageField, ScreenPage } from './pageFields';
+import { basePageOf, CALL_OVERLAY_LABEL } from './pageFields';
 import type { VehicleType } from './vehicles';
 import { INSUNG_PAGES } from './networkPages.insung';
 import { HWAMUL24_PAGES } from './networkPages.hwamul24';
@@ -58,10 +59,10 @@ export interface NetworkPageSpec {
      */
     absentPages?: Partial<Record<ScreenPage, { why: string; evidence: string }>>;
     /**
-     * 🪞 **같은 화면이라 칸이 같은 페이지** — 이 페이지 칸은 비우고 `as` 페이지 칸을 쓴다(`fieldsOf` · 원달앱은 뽑을 때 복사).
-     * `seen` 은 «이 페이지가 그 모양이다»를 본 정도 — 복사한 칸은 원래 칸과 이것 중 약한 쪽이 된다.
+     * 🪟 **콜 한 건 화면 위 부속 팝업** — 한 번만 적는다. 불러올 때 같은 배차망의 새 콜 화면 · 내 콜 화면 줄 덧칸 **맨 앞**에 자리(`slot`) 차례(상차지 · 하차지 · 적요)로 붙는다.
+     * 팝업의 이름은 그 배차망 말 그대로이고, 공통 이름은 사전의 `CALL_OVERLAY_LABEL` 이다. 원달앱 생성 파일에는 `slot` 이 실리지 않는다(원달앱 `OverlaySpec` 에 칸이 없다).
      */
-    sameFieldsAs?: Partial<Record<ScreenPage, { as: ScreenPage; seen: 'REAL' | 'SIM' | 'UNKNOWN'; why: string }>>;
+    callOverlays?: Array<ScreenOverlay & { slot: CallOverlaySlot }>;
     /**
      * 🚫 **제외어를 찾는 칸** — 상세 화면(detail)의 이 칸들 값에서만 기사님 제외어를 찾는다(기사님 «배차망별 칸에서만»).
      * 칸마다 그 화면 정의 줄의 읽는 법(read)으로 읽는다 — 주소 · 화주 이름 · 화면 머리 · 버튼 · 목록 잔상은 빠진다. 서버가 읽는다 · 원달앱 제외어는 목록 카드 글에서만(무변화) · gen:pages 는 이 칸을 뽑지 않는다.
@@ -123,7 +124,8 @@ export const STANDARD_SCREENS = [
     'RUN_TO_PICKUP', 'RUN_AT_PICKUP', 'RUN_TO_DROPOFF', 'RUN_AT_DROPOFF', 'RUN_DONE',
     'TRANSITION', 'NETWORK_MENU', 'OTHER_APP',
 ] as const;
-type StandardScreen = typeof STANDARD_SCREENS[number];
+export type StandardScreen = typeof STANDARD_SCREENS[number];
+type CallOverlaySlot = keyof typeof CALL_OVERLAY_LABEL;
 
 /**
  * 🔎 **알아보는 글자 한 벌** — all 은 모두 있어야 · any 는 하나라도(비면 안 봄) · none 은 하나도 없어야.
@@ -169,13 +171,9 @@ interface NetworkScreenSpec {
     /** 우리 기준 페이지 — null 은 화면을 아직 못 봐 못 정함(toCollect 가 있어야 한다) */
     standard: StandardScreen | null;
     /**
-     * 이 화면이 속한 기준 페이지(`BASE_PAGES`) — 같은 모양이면 둘이다(첫 칸은 화면만 보고 정하는 뜻 — 화면 낱말이 쓴다 · 둘째부터는 들어온 길로만 가를 수 있는 뜻).
-     * 비면 기준 밖(넘어가는 틀 · 배차망 메뉴 · 다른 앱). 서버로 보내는 화면 값은 `standard` 그대로다.
-     */
-    bases: BasePage[];
-    /**
      * 🔘 배차망 화면의 단추 글자 — accept 수락 · filterOut 잡기 전 물러남 · keep 잡은 뒤 결재 KEEP · cancel 잡은 뒤 결재 취소.
-     * 원달앱이 누를지는 플러그인이 정한다(픽커는 «수락하기»를 안 누른다). 결재 글자는 그 배차망 확정 기준 페이지 줄 하나에서만 읽는다.
+     * 원달앱이 누를지는 플러그인이 정한다(픽커는 «수락하기»를 안 누른다). 결재 글자는 그 배차망 내 콜 화면 줄 하나에서만 읽는다.
+     * 이 화면이 속한 기준 페이지는 줄에 적지 않는다 — 화면 종류(`standard`)로 사전의 `BASE_PAGE_OF` 가 정한다.
      */
     buttons?: { accept?: string; filterOut?: string; keep?: string; cancel?: string };
     /** 알아보는 글자 — 갈래 중 하나만 맞아도 이 페이지 · 빈 배열은 아직 모름(toCollect 가 있어야 한다) */
@@ -198,20 +196,33 @@ interface NetworkScreenSpec {
     wordsFrom?: string;
 }
 
+/**
+ * 🪟 부속 팝업을 불러올 때 붙인다 — 기준 페이지가 새 콜 화면 · 내 콜 화면인 줄의 덧칸 맨 앞에 사전 차례(상차지 · 하차지 · 적요)로.
+ * 🔴 생성 스크립트 `gen-pages.mjs` 와 원달앱 `NetworkPagesPairTest` 가 같은 법(맨 앞에 붙이기)을 자기 쪽에서 구현한다 — 고치면 셋을 같이 본다.
+ */
+function withCallOverlays(spec: NetworkPageSpec): NetworkPageSpec {
+    const parts = spec.callOverlays ?? [];
+    if (!parts.length) return spec;
+    const front = (Object.keys(CALL_OVERLAY_LABEL) as CallOverlaySlot[]).flatMap((slot) => parts.filter((o) => o.slot === slot));
+    return {
+        ...spec,
+        screens: spec.screens.map((s) => {
+            const base = basePageOf(s.standard);
+            return base === 'newCall' || base === 'myCall' ? { ...s, overlays: [...front, ...s.overlays] } : s;
+        }),
+    };
+}
+
 export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = {
-    insung: INSUNG_PAGES,
-    hwamul24: HWAMUL24_PAGES,
-    kakaopicker: KAKAO_PICKER_PAGES,
-    isflex: ISFLEX_PAGES,
+    insung: withCallOverlays(INSUNG_PAGES),
+    hwamul24: withCallOverlays(HWAMUL24_PAGES),
+    kakaopicker: withCallOverlays(KAKAO_PICKER_PAGES),
+    isflex: withCallOverlays(ISFLEX_PAGES),
 };
 
-const SEEN_RANK = { UNKNOWN: 0, SIM: 1, REAL: 2 } as const;
-/** 📄 그 배차망 · 그 페이지의 칸 — 같은 칸 페이지(`sameFieldsAs`)면 가리키는 페이지 칸을 seen 약한 쪽으로(원달앱 생성 파일과 같은 답) */
+/** 📄 그 배차망 · 그 페이지의 칸 */
 export function fieldsOf(app: TargetAppType, page: ScreenPage): NetworkFieldSpec[] {
-    const spec = NETWORK_PAGES[app];
-    const same = spec?.sameFieldsAs?.[page];
-    if (!same) return spec?.pages[page] ?? [];
-    return (spec.pages[same.as] ?? []).map((r) => (SEEN_RANK[r.seen] <= SEEN_RANK[same.seen] ? r : { ...r, seen: same.seen }));
+    return NETWORK_PAGES[app]?.pages[page] ?? [];
 }
 
 /**

@@ -4,13 +4,13 @@ package com.onedal.app.core
 data class ScreenWord(val word: String, val kind: String, val sample: String?)
 
 /**
- * 📄 **화면 줄 → 페이지** — 정의 표(shared `networkPages.ts`) 화면 줄의 첫 기준 칸(`bases`)이 모은 글자의 페이지다.
- * 홈 · 기준 칸이 없는 화면(메뉴 · 넘어가는 틀 · 다른 앱) · 모르는 화면 · 할 일이 «오류»인 팝업은 null — 그 화면 글자는 모으지 않는다.
+ * 📄 **화면 줄 → 페이지** — 정의 표(shared `networkPages.ts`) 화면 줄의 기준 페이지(`base`)가 모은 글자의 페이지다.
+ * 홈 · 기준 페이지가 없는 화면(메뉴 · 넘어가는 틀 · 다른 앱) · 모르는 화면 · 할 일이 «오류»인 팝업은 null — 그 화면 글자는 모으지 않는다.
  */
 fun pageOf(spec: ScreenSpec?, overlay: String?): Page? {
     if (spec == null) return null
     if (spec.overlays.any { it.name == overlay && it.action == OverlayAction.ERROR }) return null
-    val base = spec.bases.firstOrNull() ?: return null
+    val base = spec.base ?: return null
     return Page.values().firstOrNull { it.word == base }
 }
 
@@ -82,7 +82,7 @@ object ScreenWords {
         current = p
         // 🔴 목록 페이지는 통째로 모으지 않는다 — 목록 글자는 파서가 까닭과 함께 넣는다.
         //    화면이 바뀐 보고는 그 자리에서 나가므로, 걸어 두면 파서가 읽기도 전에 목록 판이 «정의에 없음»으로 쏟아진다
-        pendingRaw = if (p != null && p != Page.LIST) texts else emptyList()
+        pendingRaw = if (p != null && p != Page.NEW_LIST) texts else emptyList()
         pendingSample = sample
     }
 

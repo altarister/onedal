@@ -5056,7 +5056,7 @@
      "writer": "스크립트",
      "where": "A24 시뮬",
      "task": "{net} 상세에서 «…원 수행하기» → KEEP",
-     "desc": "원달앱이 그 콜 상세를 연 뒤 시뮬 «…원 수행하기»를 누름(taps a24.isflex.detail.accept · 🔴 시뮬만 — 누르기 전 run.guard 가 앞 창이 실물 insung.quickflex 면 멈춤) · 판정 색은 기록만 · 수행하기 뒤 시뮬이 진행중 탭으로 가므로 «닫기»는 안 누름",
+     "desc": "원달앱이 그 콜 상세를 연 뒤 시뮬 «…원 수행하기»를 누름(taps a24.isflex.newCall.accept · 🔴 시뮬만 — 누르기 전 run.guard 가 앞 창이 실물 insung.quickflex 면 멈춤) · 판정 색은 기록만 · 수행하기 뒤 시뮬이 진행중 탭으로 가므로 «닫기»는 안 누름",
      "evidence": "서버 «결재 처리 완료» 줄(30초)",
      "target": null,
      "onFail": "continue",

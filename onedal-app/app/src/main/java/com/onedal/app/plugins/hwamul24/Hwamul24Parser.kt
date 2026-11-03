@@ -328,7 +328,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
     /** 🔎 목록 줄 대조 — 상세의 «운송료» 칸(정의 표)으로 견준다 · 칸이 없으면 읽은 요금(머리 «잔액»에 속지 않게 · 29 X12) */
     override fun matchDetailOrder(screenTexts: List<String>, recentOrders: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
-        val fare = com.onedal.app.core.PageFieldRead.fareOf(Hwamul24Pages.pages, com.onedal.app.core.Page.DETAIL, screenTexts) ?: parse(screenTexts).fare
+        val fare = com.onedal.app.core.PageFieldRead.fareOf(Hwamul24Pages.pages, com.onedal.app.core.Page.NEW_CALL, screenTexts) ?: parse(screenTexts).fare
         return recentOrders.reversed().find { it.fare > 0 && it.fare == fare }
     }
 }

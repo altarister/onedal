@@ -38,7 +38,7 @@ class Hwamul24DetailReadTest {
     /** 상세 처리 순서 그대로 — 손으로 연 상세(목록 줄 못 찾음)의 화면 읽기 갈래 */
     private fun readHandDetail(texts: List<String>): SimplifiedOfficeOrder {
         val detail = Hwamul24Plugin(null).detailTextsOf(texts)
-        return PageFieldRead.fareFirst(parser.parseWith(detail, Hwamul24Parser.NOISE_WORDS), Hwamul24Pages.pages, Page.DETAIL, detail)
+        return PageFieldRead.fareFirst(parser.parseWith(detail, Hwamul24Parser.NOISE_WORDS), Hwamul24Pages.pages, Page.NEW_CALL, detail)
     }
 
     @Test fun `🔴 손으로 연 실물 상세 — 상차 · 하차 · 요금(운송료)이 선다`() {
@@ -80,16 +80,16 @@ class Hwamul24DetailReadTest {
         )
         for (t in samples) {
             val read = SimplifiedOfficeOrder(id = "i", pickup = "", dropoff = "", fare = InsungParser.readVehicleAndFare(t).second, timestamp = "t")
-            val now = PageFieldRead.withFare(read, InsungPages.pages, Page.DETAIL, t).fare
+            val now = PageFieldRead.withFare(read, InsungPages.pages, Page.NEW_CALL, t).fare
             assertTrue(t.toString(), now > 0)
-            assertEquals(t.toString(), now, PageFieldRead.fareFirst(read, InsungPages.pages, Page.DETAIL, t).fare)
+            assertEquals(t.toString(), now, PageFieldRead.fareFirst(read, InsungPages.pages, Page.NEW_CALL, t).fare)
         }
     }
 
     @Test fun `픽커는 상세 요금 칸 정의가 없어 그대로`() {
-        assertNull(PageFieldRead.fareOf(KakaoPickerPages.pages, Page.DETAIL, listOf("픽업지", "15,785")))
+        assertNull(PageFieldRead.fareOf(KakaoPickerPages.pages, Page.NEW_CALL, listOf("픽업지", "15,785")))
         val order = SimplifiedOfficeOrder(id = "p", pickup = "", dropoff = "", fare = 15_785, timestamp = "t")
-        assertEquals(15_785, PageFieldRead.fareFirst(order, KakaoPickerPages.pages, Page.DETAIL, listOf("픽업지", "15,785")).fare)
+        assertEquals(15_785, PageFieldRead.fareFirst(order, KakaoPickerPages.pages, Page.NEW_CALL, listOf("픽업지", "15,785")).fare)
         assertNotNull(order)
     }
 }

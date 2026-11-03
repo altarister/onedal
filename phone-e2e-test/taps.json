@@ -73,7 +73,7 @@
         "page": "^픽커 홈"
       }
     },
-    "a24.insung.detail.confirm": {
+    "a24.insung.newCall.confirm": {
       "phone": "A24",
       "x": 156,
       "y": 2001,
@@ -83,7 +83,7 @@
         "page": "^인성콜 확정 전 상세 → DETAIL_PRE_CONFIRM"
       }
     },
-    "a24.insung.detail.close": {
+    "a24.insung.myCall.close": {
       "phone": "A24",
       "x": 127,
       "y": 2001,
@@ -93,7 +93,7 @@
         "page": "^인성콜 확정 뒤 상세 → DETAIL_CONFIRMED"
       }
     },
-    "a24.hwamul24.list.fare": {
+    "a24.hwamul24.newList.fare": {
       "phone": "A24",
       "x": 962,
       "y": 733,
@@ -259,7 +259,7 @@
       "from": "글자로 찾아 손 누름(find.mjs · 정확히 같은 글자) — 콜 카드 단계 장의 바로 저장 단추(StepSummary · 그 단계가 생긴 칸에만 단추) · 고치기는 «통화 · 이슈 · 수정»이 여는 팝업",
       "text": "=상차 완료"
     },
-    "a24.hwamul24.detail.confirm": {
+    "a24.hwamul24.newCall.confirm": {
       "phone": "A24",
       "x": 281,
       "y": 2113,
@@ -462,7 +462,7 @@
         ]
       }
     },
-    "a24.insung.list.row": {
+    "a24.insung.newList.row": {
       "phone": "A24",
       "x": 527,
       "y": 501,
@@ -512,7 +512,7 @@
         "page": "^화물24시 배차신청 뒤 화물상세정보"
       }
     },
-    "a24.hwamul24.myorders.row": {
+    "a24.hwamul24.myList.row": {
       "phone": "A24",
       "x": 948,
       "y": 638,
@@ -522,7 +522,7 @@
         "page": "^화물24시 배차내역 목록"
       }
     },
-    "a24.hwamul24.myorder.back": {
+    "a24.hwamul24.myCall.back": {
       "phone": "A24",
       "x": 674,
       "y": 2141,
@@ -542,7 +542,7 @@
         "page": "^화물24시 배차내역 목록"
       }
     },
-    "a24.picker.list.card": {
+    "a24.picker.newList.card": {
       "phone": "A24",
       "x": 959,
       "y": 866,
@@ -552,7 +552,7 @@
         "page": "^픽커 신규 리스트 → LIST"
       }
     },
-    "a24.picker.detail.accept": {
+    "a24.picker.newCall.accept": {
       "phone": "A24",
       "x": 755,
       "y": 2112,
@@ -562,7 +562,7 @@
         "page": "^픽커 상세\\(수락 전 시트\\)"
       }
     },
-    "a24.picker.myorders.card": {
+    "a24.picker.myList.card": {
       "phone": "A24",
       "x": 538,
       "y": 445,
@@ -683,7 +683,7 @@
         "page": "^플렉스 홈"
       }
     },
-    "a24.isflex.detail.accept": {
+    "a24.isflex.newCall.accept": {
       "phone": "A24",
       "x": 450,
       "y": 2065,
@@ -693,7 +693,7 @@
         "page": "^플렉스 상세"
       }
     },
-    "a24.isflex.detail.close": {
+    "a24.isflex.newCall.close": {
       "phone": "A24",
       "x": 90,
       "y": 2065,

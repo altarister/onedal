@@ -1,21 +1,46 @@
-/**
- * 📄 **배차망 페이지 정의의 공통 이름** (기사님 «가»).
- *
- * 세 배차망이 **같은 이름**을 쓴다 — 배차망마다 다른 것은 «화면 어디서 · 어떤 글자로»뿐이다(원달앱 `…Pages.kt`).
- * 원달앱 짝은 `core/PageField.kt` — `PageFieldPairTest` 가 낱말과 차례가 같은지 문다 (로그 태그 `logTags.ts` 와 같은 모양).
- */
+import type { StandardScreen } from './networkPages';
 
 /**
- * 칸을 적는 페이지 — 목록 · 상세(확정 전) · 확정(계약 직후) · 내 오더(확정된 콜 탭) · 내 오더 콜(탭에서 연 확정된 콜 한 건 · 운행).
- * 기준 페이지(`BASE_PAGES`)는 여기에 홈을 앞에 더한 것이다 — 홈은 콜 자료가 없어 칸을 적지 않는다.
+ * 📄 **기준 페이지 사전** — 모든 배차망이 같은 이름을 쓴다. 배차망마다 다른 것은 «화면 어디서 · 어떤 글자로»뿐이다(원달앱 `…Pages.kt`).
+ *
+ * 🔴 원천이다 — 여기를 고친다. 기준 페이지 이름에 배차망 말을 쓰지 않는다 — 배차망이 부르는 이름은 정의 표 화면 줄 `name` 에만 둔다.
+ * 이름은 콜의 두 사실(주인이 없음/나 × 목록/한 건)으로만 짓는다. 이름 · 한글은 `설계/기준페이지_이름표.md` 0장, 뜻(`does`)은 `설계/기준페이지_분류.md` 2장의 요약이다.
+ * 읽는 곳: TS(아래 파생) · 생성 스크립트 `gen-pages.mjs` · 원달앱 `PageFieldPairTest` · `NetworkPagesPairTest` — 뒤의 셋은 TS 를 못 부르므로 아래 JSON 글자를 같은 정규식으로 읽는다.
+ * 그래서 이 파일에는 JSON 표시 한 쌍만 둔다(주석에 그 표시 글자를 쓰면 정규식이 주석을 먼저 잡는다).
+ *
+ * - `pages`: 기준 페이지(차례가 곧 기준 페이지 차례) · `owner` 콜의 주인(none 주인 없음 · me 나) · `shape` 목록(list)인가 한 건(one)인가
+ * - `baseOf`: 화면 종류 → 기준 페이지(null 이면 기준 밖: 넘어가는 틀 · 배차망 메뉴 · 다른 앱)
+ * - `callOverlays`: 콜 한 건 화면 위의 부속 팝업 — 열쇠는 정의 표의 부속 자리 `slot`
+ * - `runStages`: 내 콜 화면 안의 운행 단계(열쇠는 화면 종류 이름)
  */
-export const SCREEN_PAGES = ['list', 'detail', 'confirm', 'myorders', 'myorder'] as const;
-export type ScreenPage = typeof SCREEN_PAGES[number];
-/** 기준 페이지 — 모든 배차망이 같은 순서(홈 → 목록 → 상세 → 확정 → 내 오더 → 내 오더 콜) · 배차망 화면 줄은 정의 표 `bases` 로 여기 속한다 */
-export const BASE_PAGES = ['home', ...SCREEN_PAGES] as const;
-export type BasePage = typeof BASE_PAGES[number];
+export const BASE_PAGE_BOOK = /*JSON*/{
+    "pages": {
+        "home":    {"label": "홈",          "owner": null,   "shape": null,   "does": "배차망 앱을 켜는 첫 화면 · 원달앱은 아무것도 안 한다"},
+        "newList": {"label": "새 콜 목록",  "owner": "none", "shape": "list", "does": "주인 없는 콜들 · 원달앱이 줄을 읽어 거르고 맞는 줄을 누른다"},
+        "newCall": {"label": "새 콜 화면",  "owner": "none", "shape": "one",  "does": "주인 없는 콜 한 건 · 칸을 읽어 판정 · 자동이면 계약 단추"},
+        "myList":  {"label": "내 콜 목록",  "owner": "me",   "shape": "list", "does": "내 콜들 · 여러 콜 · 여러 상태"},
+        "myCall":  {"label": "내 콜 화면",  "owner": "me",   "shape": "one",  "does": "내 콜 한 건 · 결재 단추 · 운행 단계"}
+    },
+    "baseOf": {"HOME": "home", "LIST": "newList", "DETAIL_PRE_CONFIRM": "newCall", "MY_ORDERS": "myList", "DETAIL_CONFIRMED": "myCall", "RUN_TO_PICKUP": "myCall", "RUN_AT_PICKUP": "myCall", "RUN_TO_DROPOFF": "myCall", "RUN_AT_DROPOFF": "myCall", "RUN_DONE": "myCall", "TRANSITION": null, "NETWORK_MENU": null, "OTHER_APP": null},
+    "callOverlays": {"pickup": "콜 상차지 팝업", "dropoff": "콜 하차지 팝업", "memo": "콜 적요 팝업"},
+    "runStages": {"RUN_TO_PICKUP": "상차지로 가는 중", "RUN_AT_PICKUP": "상차지에서", "RUN_TO_DROPOFF": "하차지로 가는 중", "RUN_AT_DROPOFF": "하차지에서", "RUN_DONE": "완료"}
+}/*JSON*/ as const;
+
+/** 기준 페이지 — 홈 포함. 타입은 `pages` 에서만 뽑는다(같은 식 안에서 자기 타입을 쓰면 순환이다) */
+export type BasePage = keyof typeof BASE_PAGE_BOOK.pages;
+/** 칸을 적는 페이지 — 홈은 콜 자료가 없어 칸을 적지 않는다 */
+export type ScreenPage = Exclude<BasePage, 'home'>;
+export const BASE_PAGES = Object.keys(BASE_PAGE_BOOK.pages) as readonly BasePage[];
+export const SCREEN_PAGES = BASE_PAGES.filter((p) => p !== 'home') as readonly ScreenPage[];
 /** 사람이 읽는 이름 — 서버 로그와 운영센터 화면 낱말 표가 같은 말을 쓴다 */
-export const SCREEN_PAGE_LABEL: Record<ScreenPage, string> = { list: '목록', detail: '상세', confirm: '확정', myorders: '내 오더', myorder: '내 오더 콜' };
+export const SCREEN_PAGE_LABEL: Record<ScreenPage, string> = Object.fromEntries(
+    SCREEN_PAGES.map((p) => [p, BASE_PAGE_BOOK.pages[p].label]),
+) as Record<ScreenPage, string>;
+/** 화면 종류 → 기준 페이지(기준 밖은 null) — 타입을 따로 단 줄이라 화면 종류가 빠져도, 사전 밖 글자여도 컴파일이 문다 */
+export const BASE_PAGE_OF: Readonly<Record<StandardScreen, BasePage | null>> = BASE_PAGE_BOOK.baseOf;
+export const basePageOf = (standard: StandardScreen | null): BasePage | null => (standard === null ? null : BASE_PAGE_OF[standard]);
+/** 콜 한 건 화면 위 부속 팝업의 공통 이름(부속 자리 `slot` → 이름) */
+export const CALL_OVERLAY_LABEL: Readonly<Record<keyof typeof BASE_PAGE_BOOK.callOverlays, string>> = BASE_PAGE_BOOK.callOverlays;
 
 /**
  * 모은 글자의 갈래 — 잡음 낱말로 뺀 글자(noise) · 정의에 없어 못 알아본 글자(unknown) · 칸이 다 차서 남는 토막(extra).

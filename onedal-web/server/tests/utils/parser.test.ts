@@ -11,7 +11,7 @@ import { pageFareOf, detailRecordOf } from '@onedal/shared';
  * 서버는 원달앱과 같은 정의 표(NETWORK_PAGES) · 같은 숫자 규칙(쉼표 떼고 정수)으로 읽는다(shared pageFareOf).
  * 만 · 천 · 축약은 짐작하지 않는다 — 상세 화면은 실물 · 시뮬 모두 «85,000» 꼴이다.
  */
-const fare = (raw: string) => pageFareOf('insung', 'detail', raw) ?? undefined;
+const fare = (raw: string) => pageFareOf('insung', 'newCall', raw) ?? undefined;
 
 describe("인성 상세 요금 — 정의 표대로", () => {
     it("🔴 «수납금액» · «금액» 은 인성 요금 이름표가 아니다 — 못 읽음 · «요금 : N» 은 그대로", () => {

@@ -89,8 +89,8 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
         fun blacklistTextOf(order: SimplifiedOfficeOrder): String {
             val t = listOf(order.rawText ?: "")
             return listOfNotNull(
-                PageFieldRead.fieldOf(IsflexPages.pages, Page.DETAIL, PageField.MEMO, t),
-                PageFieldRead.fieldOf(IsflexPages.pages, Page.DETAIL, PageField.TAGS, t),
+                PageFieldRead.fieldOf(IsflexPages.pages, Page.NEW_CALL, PageField.MEMO, t),
+                PageFieldRead.fieldOf(IsflexPages.pages, Page.NEW_CALL, PageField.TAGS, t),
             ).joinToString(" ")
         }
 
@@ -173,7 +173,7 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
         }
 
         /** 상세 칸 하나 — 정의 표 읽는 법 */
-        private fun detailField(texts: List<String>, field: PageField): String? = PageFieldRead.fieldOf(IsflexPages.pages, Page.DETAIL, field, texts)
+        private fun detailField(texts: List<String>, field: PageField): String? = PageFieldRead.fieldOf(IsflexPages.pages, Page.NEW_CALL, field, texts)
 
         private fun kmOf(s: String?): Double? = s?.toDoubleOrNull()
 
@@ -189,7 +189,7 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
                 type = "NEW_ORDER",
                 pickup = pickup?.address ?: OrderRequirement.MISSING,
                 dropoff = dropoff?.address ?: OrderRequirement.MISSING,
-                fare = PageFieldRead.fareOf(IsflexPages.pages, Page.DETAIL, texts) ?: 0,
+                fare = PageFieldRead.fareOf(IsflexPages.pages, Page.NEW_CALL, texts) ?: 0,
                 timestamp = nowStamp(),
                 scheduleText = pickup?.prefix,
                 vehicleType = detailField(texts, PageField.VEHICLE_TYPE),

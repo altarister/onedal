@@ -22,7 +22,7 @@ import com.onedal.app.core.StandardScreen
  */
 object Hwamul24Pages {
     val pages: PageSpecs = mapOf(
-        Page.LIST to listOf(
+        Page.NEW_LIST to listOf(
             FieldSpec(PageField.PICKUP, "왼쪽 윗줄", "경기 시흥 정왕동", Seen.REAL, Handling.READ, "Hwamul24Parser.parse"),
             FieldSpec(PageField.DROPOFF, "오른쪽 윗줄", "경기 안산 상록구 장상동", Seen.REAL, Handling.READ, "Hwamul24Parser.parse"),
             FieldSpec(PageField.FARE, "오른쪽 아랫줄", "50,000원", Seen.REAL, Handling.READ, "Hwamul24CardGrouping.fareOf"),
@@ -33,7 +33,7 @@ object Hwamul24Pages {
             FieldSpec(PageField.MEMO, "셋째 줄 화물 글", "당일상 당착 공파렛 50p / 10시전하차 · 당일오전9시30분상", Seen.REAL, Handling.READ, "Hwamul24MemoTimes.split — 상차 쪽만 예약으로"),
             FieldSpec(PageField.CLOCK, "하차 배지 앞 시각", "06:32 (등록 시각인지 모름)", Seen.REAL, Handling.READ, "Hwamul24Parser.parse — postTime"),
         ),
-        Page.DETAIL to listOf(
+        Page.NEW_CALL to listOf(
             FieldSpec(PageField.ORDER_NO, "머리", "화물번호:3-9483-2159", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.CLOCK, "머리", "등록시간:05:18분", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "상차지 칸", "경기 군포 부곡동 [당상][수] 5Km", Seen.REAL, Handling.UNUSED, "목록 값을 쓴다"),
@@ -50,10 +50,7 @@ object Hwamul24Pages {
                 read = Regex("""결제방법\s+(?!\S*\s*:)(\S+)""")),
             FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 = (운송료+부가세) x1.298%", Seen.REAL, Handling.UNUSED),
         ),
-        Page.CONFIRM to listOf(
-            FieldSpec(PageField.STAGE, "배차신청 뒤 화면", "(실물 캡처 없음)", Seen.UNKNOWN, Handling.UNUSED),
-        ),
-        Page.MY_ORDERS to listOf(
+        Page.MY_LIST to listOf(
             FieldSpec(PageField.STAGE, "배차내역 줄 오른쪽 상태", "배차완료", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "배차내역 줄 상차", "경기 군포 당정동 공단로124번길 4 (크레텍)", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.DROPOFF, "배차내역 줄 하차", "경기 화성 신동 703", Seen.REAL, Handling.UNUSED),
@@ -64,7 +61,8 @@ object Hwamul24Pages {
             FieldSpec(PageField.VEHICLE_TYPE, "배차내역 줄 톤 · 차종", "5톤 · 윙바디", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.CLOCK, "배차내역 줄 오른쪽 시각", "12-30 14:53", Seen.REAL, Handling.UNUSED),
         ),
-        Page.MY_ORDER to listOf(
+        Page.MY_CALL to listOf(
+            FieldSpec(PageField.STAGE, "배차신청 뒤 화면", "(실물 캡처 없음)", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "배차내역 상세 상차지", "경기 군포 당정동 공단로124번길 4 (크레텍)", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.DROPOFF, "배차내역 상세 하차지", "경기 화성 신동 703", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.DELIVERY_DISTANCE, "배차내역 상세 하차지 끝", "34Km", Seen.REAL, Handling.UNUSED),
@@ -125,7 +123,7 @@ object Hwamul24Pages {
             listOf("ex_images/화물24시/54_화물상세정보_배차신청뒤.png"),
             toCollect = "머리 «<»(뒤로) · «배차취소하기» · «전화걸기»를 누른 뒤 화면 · 막대가 다 차는 시간",
             landsAfterAccept = true,
-            bases = listOf("confirm"),
+            base = "myCall",
         ),
         ScreenSpec(
             "화물상세정보",
@@ -137,7 +135,7 @@ object Hwamul24Pages {
             ),
             Seen.REAL,
             listOf("ex_images/화물24시/18_화물상세정보_배차신청.png", "ex_images/화물24시/51_화물상세정보.png", "ex_images/화물24시/53_화물상세정보_배차신청전.png"),
-            bases = listOf("detail"),
+            base = "newCall",
             buttons = ScreenButtons(accept = "배차신청", filterOut = "돌아가기"),
         ),
         ScreenSpec(
@@ -148,7 +146,7 @@ object Hwamul24Pages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/화물24시/21_화물상세_화주정보_전화번호.png"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "배차내역 상세 · 결제정보 탭",
@@ -158,7 +156,7 @@ object Hwamul24Pages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/화물24시/22_화물상세_결제정보.png"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "배차내역 상세 · 화물정보 탭",
@@ -173,7 +171,7 @@ object Hwamul24Pages {
             ),
             Seen.REAL,
             listOf("ex_images/화물24시/04_배차상세_화물정보_상단.png", "ex_images/화물24시/05_배차상세_화물정보_하단.png", "ex_images/화물24시/06_배차상세_계산서발행.png", "ex_images/화물24시/10_배차상세_인수증.png", "ex_images/화물24시/13_배차상세_예약건.png", "ex_images/화물24시/24_화물정보탭_인수증전송팝업.png", "ex_images/화물24시/52_배차내역상세_화물정보탭.png"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "화물배차정보요약",
@@ -183,7 +181,7 @@ object Hwamul24Pages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/화물24시/14_화물배차정보요약.png", "ex_images/화물24시/15_화물배차정보요약_메뉴.png (녹화 앱 메뉴가 겹침)"),
-            bases = listOf("myorder"),
+            base = "myCall",
         ),
         ScreenSpec(
             "배차내역 목록",
@@ -196,7 +194,7 @@ object Hwamul24Pages {
             Seen.REAL,
             listOf("ex_images/화물24시/03_배차내역_리스트.png", "ex_images/화물24시/11_배차내역_수금목록.png", "ex_images/화물24시/20_배차내역_목록.png"),
             landsAfterAccept = true,
-            bases = listOf("myorders"),
+            base = "myList",
         ),
         ScreenSpec(
             "화물정보 검색조건",
@@ -222,7 +220,7 @@ object Hwamul24Pages {
             ),
             Seen.REAL,
             listOf("ex_images/화물24시/17_화물정보_리스트.png", "ex_images/화물24시/32_오더목록_기본.png", "ex_images/화물24시/35_실시간목록.png", "ex_images/화물24시/36_화물정보_전체.png", "ex_images/화물24시/37_실시간목록.png", "ex_images/화물24시/40_실시간목록.png", "ex_images/화물24시/43_실시간목록_토스트.png", "ex_images/화물24시/44_실시간목록.png", "ex_images/화물24시/45_실시간목록_자동새로고침OFF.png", "ex_images/화물24시/46_실시간목록.png", "ex_images/화물24시/47_실시간목록_알림팝업.png", "ex_images/화물24시/48_실시간목록_토스트.png", "ex_images/화물24시/49_실시간목록.png", "ex_images/화물24시/50_실시간목록.png"),
-            bases = listOf("list"),
+            base = "newList",
         ),
         ScreenSpec(
             "홈 «전국24시콜화물»",
@@ -232,7 +230,7 @@ object Hwamul24Pages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/화물24시/01_메인_홈화면.png", "ex_images/화물24시/28_홈.png", "ex_images/화물24시/33_홈.png"),
-            bases = listOf("home"),
+            base = "home",
         ),
         ScreenSpec(
             "가상계좌 정보",

@@ -106,8 +106,8 @@ data class ScreenSpec(
     val wordsFrom: String = "",
     /** 🖐️ 수락 뒤 배차망이 스스로 보내는 페이지 — 목록 복귀여도 «잡은 콜을 놓음»이 아니다(shared `landsAfterAccept` · 38 F42) */
     val landsAfterAccept: Boolean = false,
-    /** 🧭 이 화면이 속한 기준 페이지(shared `BASE_PAGES` 낱말) — 원천 설명은 shared `networkPages.ts` `bases` · `Page` 에는 홈이 없어(홈은 칸을 안 적는다) 낱말로 둔다 */
-    val bases: List<String> = emptyList(),
+    /** 🧭 이 화면이 속한 기준 페이지(shared `BASE_PAGES` 낱말) 하나 — 화면 종류에서 나온다(shared 사전 `baseOf` · 생성 파일이 적는다) · 기준 밖이면 null · `Page` 에는 홈이 없어(홈은 칸을 안 적는다) 낱말로 둔다 */
+    val base: String? = null,
     /** 🔘 배차망 화면의 단추 글자(shared `buttons`) — 원달앱이 누를지는 플러그인이 정한다 */
     val buttons: ScreenButtons? = null,
 )
@@ -115,6 +115,6 @@ data class ScreenSpec(
 /** 🔘 화면 단추 글자 — accept 수락 · filterOut 잡기 전 물러남 · keep 잡은 뒤 결재 KEEP · cancel 잡은 뒤 결재 취소 */
 data class ScreenButtons(val accept: String? = null, val filterOut: String? = null, val keep: String? = null, val cancel: String? = null)
 
-/** 🔘 그 기준 페이지(`bases` 낱말)의 단추 — 단추가 적힌 화면 줄 하나(shared 검사가 배차망마다 하나임을 문다) · 없으면 null */
+/** 🔘 그 기준 페이지(`base` 낱말)의 단추 — 단추가 적힌 화면 줄 하나(shared 검사가 배차망마다 하나임을 문다) · 없으면 null */
 fun buttonsOn(screens: List<ScreenSpec>, base: String): ScreenButtons? =
-    screens.firstOrNull { base in it.bases && it.buttons != null }?.buttons
+    screens.firstOrNull { it.base == base && it.buttons != null }?.buttons

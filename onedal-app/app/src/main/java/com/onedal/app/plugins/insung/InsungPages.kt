@@ -22,7 +22,7 @@ import com.onedal.app.core.StandardScreen
  */
 object InsungPages {
     val pages: PageSpecs = mapOf(
-        Page.LIST to listOf(
+        Page.NEW_LIST to listOf(
             FieldSpec(PageField.PICKUP, "출발지 칸", "@초이동 · @남양주(오남", Seen.REAL, Handling.READ, "InsungParser.parse"),
             FieldSpec(PageField.DROPOFF, "도착지 칸", "이태원동 · 김포(대곶면", Seen.REAL, Handling.READ, "InsungParser.parse"),
             FieldSpec(PageField.RESERVATION, "출발지 칸 앞글자", "낼7시/ · 낼6시30/ · 21시/(시각만 · 오늘) · 오후7시30/(시각만 · 오늘) · 10일/", Seen.REAL, Handling.READ, "InsungParser.reservationOf"),
@@ -32,7 +32,7 @@ object InsungPages {
             FieldSpec(PageField.PICKUP_DISTANCE, "거리 칸 윗줄", "17.8", Seen.REAL, Handling.READ, "InsungParser.parse"),
             FieldSpec(PageField.DELIVERY_DISTANCE, "거리 칸 아랫줄", "0.0 · 341.3", Seen.REAL, Handling.READ, "InsungParser.parse"),
         ),
-        Page.DETAIL to listOf(
+        Page.NEW_CALL to listOf(
             FieldSpec(PageField.STAGE, "상태 줄", "상태 : 배송", Seen.REAL, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""상태\s*:\s*(?!\S*\s*:)(\S+)""")),
             /* 실물: 이름표 «물품 :» 은 확정 전 3/3 늘 있지만 값은 0/7(확정 전 «--» · 확정 뒤 빈칸) — 읽는 법은 값을 읽으니 분류하지 않는다(늘 있음이면 «사라짐» 거짓 경고) */
@@ -96,7 +96,13 @@ object InsungPages {
             FieldSpec(PageField.CONTACT, "도착지 상세 팝업 «전화2»", "전화2 …(이름표만 있는 줄이면 다음 줄)", Seen.SIM, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""\[도착지상세\](?:(?!\[출발지상세\])[\s\S])*?\n전화2[ \t]*:?[ \t]*(?:\n[ \t]*)?([^\n]+)"""), part = "dropoff.phone2"),
         ),
-        Page.CONFIRM to listOf(
+        Page.MY_LIST to listOf(
+            FieldSpec(PageField.STAGE, "완료 탭 줄 배지", "완료", Seen.SIM, Handling.UNUSED),
+            FieldSpec(PageField.CONTACT, "완료 탭 줄", "회사 이름", Seen.SIM, Handling.UNUSED),
+            FieldSpec(PageField.CLOCK, "완료 탭 줄", "상차 시각 · 하차 시각", Seen.SIM, Handling.UNUSED),
+        ),
+        Page.MY_CALL to listOf(
+            /* 확정 뒤 상세 = 완료 탭에서 연 콜 — 인성설명서 장면 1621 · 자막 16:29 */
             FieldSpec(PageField.PICKUP, "출발지 줄", "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen"),
             FieldSpec(PageField.DROPOFF, "도착지 줄", "서울강남구 / 역삼동 / 이희억", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen"),
             FieldSpec(PageField.FARE, "요금 줄", "요금 : 40,000(신용)", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen — PageFieldRead",
@@ -107,23 +113,6 @@ object InsungPages {
             FieldSpec(PageField.VEHICLE_TYPE, "차량 줄", "차량 : 다마스", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.TOLL, "탁송료 줄", "탁송료 : 0", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 : 23%", Seen.REAL, Handling.UNUSED),
-        ),
-        Page.MY_ORDERS to listOf(
-            FieldSpec(PageField.STAGE, "완료 탭 줄 배지", "완료", Seen.SIM, Handling.UNUSED),
-            FieldSpec(PageField.CONTACT, "완료 탭 줄", "회사 이름", Seen.SIM, Handling.UNUSED),
-            FieldSpec(PageField.CLOCK, "완료 탭 줄", "상차 시각 · 하차 시각", Seen.SIM, Handling.UNUSED),
-        ),
-        Page.MY_ORDER to listOf(
-            FieldSpec(PageField.PICKUP, "출발지 줄", "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", Seen.SIM, Handling.READ, "InsungSequence.buildOrderFromScreen"),
-            FieldSpec(PageField.DROPOFF, "도착지 줄", "서울강남구 / 역삼동 / 이희억", Seen.SIM, Handling.READ, "InsungSequence.buildOrderFromScreen"),
-            FieldSpec(PageField.FARE, "요금 줄", "요금 : 40,000(신용)", Seen.SIM, Handling.READ, "InsungSequence.buildOrderFromScreen — PageFieldRead",
-                read = Regex("""요금\s*:\s*([\d,]+)(?![\d.])""")),
-            FieldSpec(PageField.CONTACT, "머리 줄", "(주)신한로직스-1588-5480", Seen.SIM, Handling.UNUSED),
-            FieldSpec(PageField.MEMO, "적요 칸", "1시상차 6박스 …", Seen.SIM, Handling.UNUSED),
-            FieldSpec(PageField.STAGE, "상태 줄", "상태 : 배송", Seen.SIM, Handling.UNUSED),
-            FieldSpec(PageField.VEHICLE_TYPE, "차량 줄", "차량 : 다마스", Seen.SIM, Handling.UNUSED),
-            FieldSpec(PageField.TOLL, "탁송료 줄", "탁송료 : 0", Seen.SIM, Handling.UNUSED),
-            FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 : 23%", Seen.SIM, Handling.UNUSED),
         ),
     )
 
@@ -178,7 +167,7 @@ object InsungPages {
             ),
             Seen.REAL,
             listOf("ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"),
-            bases = listOf("confirm", "myorder"),
+            base = "myCall",
             buttons = ScreenButtons(keep = "닫기", cancel = "취소"),
         ),
         ScreenSpec(
@@ -197,7 +186,7 @@ object InsungPages {
             ),
             Seen.REAL,
             listOf("ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"),
-            bases = listOf("detail"),
+            base = "newCall",
             buttons = ScreenButtons(accept = "확정", filterOut = "취소"),
         ),
         ScreenSpec(
@@ -208,7 +197,7 @@ object InsungPages {
             emptyList(),
             Seen.REAL,
             listOf("ex_images/인성/인성홈.png"),
-            bases = listOf("home"),
+            base = "home",
         ),
         ScreenSpec(
             "신규 콜 목록",
@@ -222,7 +211,7 @@ object InsungPages {
             ),
             Seen.REAL,
             listOf("ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png"),
-            bases = listOf("list"),
+            base = "newList",
         ),
         ScreenSpec(
             "완료 탭",
@@ -233,7 +222,7 @@ object InsungPages {
             Seen.UNKNOWN,
             listOf(),
             toCollect = "캡처 · 메시지함 · GPS 탭과 가를 글자(지금 글자는 그 탭에도 맞는다)",
-            bases = listOf("myorders"),
+            base = "myList",
         ),
         ScreenSpec(
             "메시지함 탭",

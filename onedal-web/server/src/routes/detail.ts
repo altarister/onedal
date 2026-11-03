@@ -108,7 +108,7 @@ router.post("/", async (req, res) => {
             // 📄 상세 콜 자료(상태 · 결제 · 수수료 · 구분 · 형태 · 배차사 · 적요 · 출발 · 도착 연락처)는 배차망 정의 표대로 — 못 찾은 칸은 싣지 않는다
             pendingOrder = { ...pendingOrder, ...detailRecordOf(targetApp, rawText) };
             /* 🧾 늘 있던 칸이 이 상세에 없으면 한 줄 — 배차망 화면이 바뀌었을 수 있다(58 ② · 리뉴얼 신호 · 판정은 그대로) */
-            const missingAlways = missingAlwaysOf(targetApp, 'detail', rawText);
+            const missingAlways = missingAlwaysOf(targetApp, 'newCall', rawText);
             /* 같은 배차망 · 같은 빠짐은 하루 한 번 — 리뉴얼이면 모든 콜이 같은 빠짐을 내 로그를 덮는다(원달앱 미등록 화면 보고와 같은 결) · 빠진 묶음이 달라지면 새 사건 */
             const missingKey = `${targetApp}|${missingAlways.join('·')}`;
             const today = kstDateText(Date.now()) ?? '';
@@ -125,12 +125,12 @@ router.post("/", async (req, res) => {
 
             // 💰 원달앱 요금이 비었을 때만 — 원달앱과 같은 정의 표 · 같은 숫자 규칙으로 읽는다(못 읽으면 0 → [P3] 경고)
             if (!pendingOrder.fare || pendingOrder.fare <= 0) {
-                pendingOrder.fare = pageFareOf(targetApp, 'detail', rawText) ?? 0;
+                pendingOrder.fare = pageFareOf(targetApp, 'newCall', rawText) ?? 0;
             }
             // 🚚 차종은 짐작하지 않는다 — /confirm 이 남긴 목록 차종이 없을 때만 정의 표의 읽는 법(인성 «차량 : 트럭-1t»)으로.
             //    그래도 없으면 비워 두고 판정의 차종 문은 건너뛴다
             if (!pendingOrder.vehicleType) {
-                pendingOrder.vehicleType = pageFieldOf(targetApp, 'detail', 'vehicleType', rawText) ?? undefined;
+                pendingOrder.vehicleType = pageFieldOf(targetApp, 'newCall', 'vehicleType', rawText) ?? undefined;
             }
         }
 

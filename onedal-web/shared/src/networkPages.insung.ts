@@ -35,44 +35,42 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
   "vehicleWordsWhy": "목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록",
   "networkMarkers": [["신규", "빠른설정"], ["적요상세", "요금"], ["인성퀵화면분할"]],
   "networkMarkersWhy": "목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금») · 첫 화면(«인성퀵화면분할» — 홈에서 바로 알아보기)",
+  "callOverlays": [
+    {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"], "slot": "pickup"},
+    {"name": "도착지 상세 팝업", "kind": "POPUP", "match": [{"any": ["도착지 상세", "하차지 상세"]}], "meaning": "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_DROPOFF", "seen": "REAL", "evidence": ["ex_images/인성/도착지상세.png"], "slot": "dropoff"},
+    {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "action": "FILL_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처", "slot": "memo"}
+  ],
   "screens": [
-    {"name": "확정 뒤 상세", "standard": "DETAIL_CONFIRMED", "bases": ["confirm", "myorder"], "buttons": {"keep": "닫기", "cancel": "취소"}, "match": [{"all": ["적요상세"], "any": ["인수증 전송", "카드 승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"], "overlays": [
-      {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"]},
-      {"name": "도착지 상세 팝업", "kind": "POPUP", "match": [{"any": ["도착지 상세", "하차지 상세"]}], "meaning": "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_DROPOFF", "seen": "REAL", "evidence": ["ex_images/인성/도착지상세.png"]},
-      {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "action": "FILL_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처"},
+    {"name": "확정 뒤 상세", "standard": "DETAIL_CONFIRMED", "buttons": {"keep": "닫기", "cancel": "취소"}, "match": [{"all": ["적요상세"], "any": ["인수증 전송", "카드 승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"], "overlays": [
       {"name": "취소 확인 팝업", "kind": "POPUP", "match": [], "meaning": "확정 뒤 취소를 누르면 한 번 더 묻는다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
       {"name": "취소 불가 팝업", "kind": "POPUP", "match": [{"any": ["취소할 수 없"], "none": ["적요상세"]}], "meaning": "안전취소 시간이 지나 취소할 수 없다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
     ]},
-    {"name": "확정 전 상세", "standard": "DETAIL_PRE_CONFIRM", "bases": ["detail"], "buttons": {"accept": "확정", "filterOut": "취소"}, "match": [{"all": ["적요상세", "확정"], "any": ["요금", "실운임"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"], "overlays": [
-      {"name": "출발지 상세 팝업", "kind": "POPUP", "match": [{"any": ["출발지 상세", "상차지 상세"]}], "meaning": "출발지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_PICKUP", "seen": "REAL", "evidence": ["ex_images/인성/출발지상세.png"]},
-      {"name": "도착지 상세 팝업", "kind": "POPUP", "match": [{"any": ["도착지 상세", "하차지 상세"]}], "meaning": "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_DROPOFF", "seen": "REAL", "evidence": ["ex_images/인성/도착지상세.png"]},
-      {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "action": "FILL_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처"},
+    {"name": "확정 전 상세", "standard": "DETAIL_PRE_CONFIRM", "buttons": {"accept": "확정", "filterOut": "취소"}, "match": [{"all": ["적요상세", "확정"], "any": ["요금", "실운임"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"], "overlays": [
       {"name": "계산서 오더 안내 띠", "kind": "BANNER", "match": [{"any": ["계산서 발급오더의 경우"]}], "meaning": "계산서 오더 — 위수탁세금계산서 발행에 동의한 기사만 처리 · 부가세 포함 입금", "seen": "REAL", "evidence": ["ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"]},
       {"name": "확정 확인 팝업", "kind": "POPUP", "match": [], "meaning": "확정을 누르면 한 번 더 묻는다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
       {"name": "이미 배차됨 팝업", "kind": "POPUP", "match": [], "meaning": "남이 먼저 잡았다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
       {"name": "확정 실패 팝업", "kind": "POPUP", "match": [{"any": ["시간이 지나", "실패"], "none": ["적요상세"]}], "meaning": "확정이 안 됐다 — 적요 글의 «실패» · «시간이 지나»와 가를 머리 글자가 필요하다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 팝업 머리 글자"}
     ]},
-    {"name": "홈 «인성퀵화면분할»", "standard": "HOME", "bases": ["home"], "match": [{"all": ["인성퀵화면분할"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/인성홈.png"], "overlays": []},
-    {"name": "신규 콜 목록", "standard": "LIST", "bases": ["list"], "match": [{"all": ["신규", "빠른설정"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png"], "overlays": [
+    {"name": "홈 «인성퀵화면분할»", "standard": "HOME", "match": [{"all": ["인성퀵화면분할"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/인성홈.png"], "overlays": []},
+    {"name": "신규 콜 목록", "standard": "LIST", "match": [{"all": ["신규", "빠른설정"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/위아래나뉜인성콜리스트.png", "ex_images/인성/인성콜_스플릿오더화면.png"], "overlays": [
       {"name": "로딩 토스트", "kind": "TOAST", "match": [{"any": ["오더 조회", "기다려 주십"]}], "meaning": "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", "action": "SKIP", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"},
       {"name": "메뉴 드롭다운", "kind": "POPUP", "match": [], "meaning": "목록 머리 «메뉴»를 누르면 펼쳐진다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
       {"name": "빈 목록 안내", "kind": "BANNER", "match": [{"any": ["대기 중인 오더가 없"]}], "meaning": "지금 신규 콜이 없다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
     ]},
-    {"name": "완료 탭", "standard": "MY_ORDERS", "bases": ["myorders"], "match": [{"all": ["완료", "신규"], "none": ["빠른설정"]}], "listReturn": true, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 메시지함 · GPS 탭과 가를 글자(지금 글자는 그 탭에도 맞는다)", "overlays": []},
-    {"name": "메시지함 탭", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
-    {"name": "GPS 탭", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
-    {"name": "게시판", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
-    {"name": "환경설정", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
-    {"name": "당일정산", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
-    {"name": "전표", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
-    {"name": "탁송", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (상세 바닥 «탁송» 버튼 뒤)", "overlays": []},
-    {"name": "카드 승인", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (확정 뒤 상세 «카드 승인» 버튼 뒤)", "overlays": []},
-    {"name": "인수증 전송", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (확정 뒤 상세 «인수증 전송» 버튼 뒤)", "overlays": []},
-    {"name": "로그인", "standard": "NETWORK_MENU", "bases": [], "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []}
+    {"name": "완료 탭", "standard": "MY_ORDERS", "match": [{"all": ["완료", "신규"], "none": ["빠른설정"]}], "listReturn": true, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 메시지함 · GPS 탭과 가를 글자(지금 글자는 그 탭에도 맞는다)", "overlays": []},
+    {"name": "메시지함 탭", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
+    {"name": "GPS 탭", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
+    {"name": "게시판", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
+    {"name": "환경설정", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
+    {"name": "당일정산", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
+    {"name": "전표", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []},
+    {"name": "탁송", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (상세 바닥 «탁송» 버튼 뒤)", "overlays": []},
+    {"name": "카드 승인", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (확정 뒤 상세 «카드 승인» 버튼 뒤)", "overlays": []},
+    {"name": "인수증 전송", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자 (확정 뒤 상세 «인수증 전송» 버튼 뒤)", "overlays": []},
+    {"name": "로그인", "standard": "NETWORK_MENU", "match": [], "listReturn": false, "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자", "overlays": []}
   ],
-  "sameFieldsAs": {"myorder": {"as": "confirm", "seen": "SIM", "why": "완료 탭에서 연 콜 — 확정 뒤 상세와 같은 모양 · 시뮬레이터 InsungOngoingDetailScreen 로만 봄"}},
   "pages": {
-    "list": [
+    "newList": [
       {"field": "pickup", "where": "출발지 칸", "sample": "@초이동 · @남양주(오남", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},
       {"field": "dropoff", "where": "도착지 칸", "sample": "이태원동 · 김포(대곶면", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},
       {"field": "reservation", "where": "출발지 칸 앞글자", "sample": "낼7시/ · 낼6시30/ · 21시/(시각만 · 오늘) · 오후7시30/(시각만 · 오늘) · 10일/", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.reservationOf"},
@@ -82,7 +80,7 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "pickupDistance", "where": "거리 칸 윗줄", "sample": "17.8", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},
       {"field": "deliveryDistance", "where": "거리 칸 아랫줄", "sample": "0.0 · 341.3", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"}
     ],
-    "detail": [
+    "newCall": [
       {"field": "stage", "where": "상태 줄", "sample": "상태 : 배송", "seen": "REAL", "handling": "READ", "usedAt": "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다", "read": "상태\\s*:\\s*(?!\\S*\\s*:)(\\S+)", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/인성 확정 전 상세 3건(상세-미확정(다른사람 잡을수 있음) · 상세-미확정3 · 상세-미확정4) — 확정 뒤 5건은 다른 화면이라 따로 적음 · 확정 전 «배차» · 확정 뒤 «배송»"}},
       {"field": "itemSize", "where": "물품 줄", "sample": "물품 :", "seen": "REAL", "handling": "READ", "usedAt": "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다 · 값이 다음 줄에 있으면 그 줄(다른 칸 줄이면 안 읽는다)", "read": "물품[ \\t]*:[ \\t]*(?:\\n(?![^\\n]*:))?([^\\n]+)", "note": "실물: 이름표 «물품 :» 은 확정 전 3/3 늘 있지만 값은 0/7(확정 전 «--» · 확정 뒤 빈칸) — 읽는 법은 값을 읽으니 분류하지 않는다(늘 있음이면 «사라짐» 거짓 경고)"},
       {"field": "vehicleType", "where": "차량 줄", "sample": "차량 : 트럭-1t · 다마스", "seen": "REAL", "handling": "READ", "usedAt": "서버 detail.ts pageFieldOf — 원달앱 값 · 목록 차종이 없을 때만(원달앱은 아직 이 칸을 안 읽는다)", "read": "차량\\s*:\\s*(?!\\S*\\s*:)([^\\s(]+)", "note": "🚚 빈 «차량 :» 뒤의 다음 이름표(«탁송료 :»)를 차종으로 잡지 않는다 — 값 토막 뒤가 바로 «:» 이면 이름표다", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/인성 확정 전 상세 3건(상세-미확정(다른사람 잡을수 있음) · 상세-미확정3 · 상세-미확정4) — 확정 뒤 5건은 다른 화면이라 따로 적음 · 확정 전은 짧은 글자(«다» · «1t» · «트») · 확정 뒤 «다마스» · «트럭-1t»"}},
@@ -115,8 +113,13 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "contact", "where": "도착지 상세 팝업 «전화1»", "sample": "전화1 …(이름표만 있는 줄이면 다음 줄)", "seen": "SIM", "handling": "READ", "usedAt": "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다", "read": "\\[도착지상세\\](?:(?!\\[출발지상세\\])[\\s\\S])*?\\n전화1[ \\t]*:?[ \\t]*(?:\\n[ \\t]*)?([^\\n]+)", "part": "dropoff.phone1"},
       {"field": "contact", "where": "도착지 상세 팝업 «전화2»", "sample": "전화2 …(이름표만 있는 줄이면 다음 줄)", "seen": "SIM", "handling": "READ", "usedAt": "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다", "read": "\\[도착지상세\\](?:(?!\\[출발지상세\\])[\\s\\S])*?\\n전화2[ \\t]*:?[ \\t]*(?:\\n[ \\t]*)?([^\\n]+)", "part": "dropoff.phone2"}
     ],
-    "confirm": [
-      {"field": "pickup", "where": "출발지 줄", "sample": "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen"},
+    "myList": [
+      {"field": "stage", "where": "완료 탭 줄 배지", "sample": "완료", "seen": "SIM", "handling": "UNUSED"},
+      {"field": "contact", "where": "완료 탭 줄", "sample": "회사 이름", "seen": "SIM", "handling": "UNUSED"},
+      {"field": "clock", "where": "완료 탭 줄", "sample": "상차 시각 · 하차 시각", "seen": "SIM", "handling": "UNUSED"}
+    ],
+    "myCall": [
+      {"field": "pickup", "where": "출발지 줄", "sample": "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen", "note": "확정 뒤 상세 = 완료 탭에서 연 콜 — 인성설명서 장면 1621 · 자막 16:29"},
       {"field": "dropoff", "where": "도착지 줄", "sample": "서울강남구 / 역삼동 / 이희억", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen"},
       {"field": "fare", "where": "요금 줄", "sample": "요금 : 40,000(신용)", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen — PageFieldRead", "read": "요금\\s*:\\s*([\\d,]+)(?![\\d.])"},
       {"field": "contact", "where": "머리 줄", "sample": "(주)신한로직스-1588-5480", "seen": "REAL", "handling": "UNUSED"},
@@ -125,12 +128,6 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "vehicleType", "where": "차량 줄", "sample": "차량 : 다마스", "seen": "REAL", "handling": "UNUSED"},
       {"field": "toll", "where": "탁송료 줄", "sample": "탁송료 : 0", "seen": "REAL", "handling": "UNUSED"},
       {"field": "commission", "where": "수수료 줄", "sample": "수수료 : 23%", "seen": "REAL", "handling": "UNUSED"}
-    ],
-    "myorders": [
-      {"field": "stage", "where": "완료 탭 줄 배지", "sample": "완료", "seen": "SIM", "handling": "UNUSED"},
-      {"field": "contact", "where": "완료 탭 줄", "sample": "회사 이름", "seen": "SIM", "handling": "UNUSED"},
-      {"field": "clock", "where": "완료 탭 줄", "sample": "상차 시각 · 하차 시각", "seen": "SIM", "handling": "UNUSED"}
-    ],
-    "myorder": []
+    ]
   }
 }/*JSON*/ as NetworkPageSpec;

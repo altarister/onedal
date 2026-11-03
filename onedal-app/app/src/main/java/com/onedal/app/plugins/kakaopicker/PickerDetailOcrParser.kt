@@ -88,7 +88,7 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
     ): VerifyResult {
         // 📰 사진에서 칸에 안 넣은 줄 — 상세 페이지의 «정의에 없음»으로 모은다 (`ScreenWords`)
         val photoSample = parsed.unreadLines.joinToString(" ")
-        parsed.unreadLines.forEach { ScreenWords.add(it, WordKind.UNKNOWN, photoSample, page = com.onedal.app.core.Page.DETAIL) }   // 📸 찍은 화면(상세)으로 — 판독이 끝날 때 화면이 바뀌어 있어도
+        parsed.unreadLines.forEach { ScreenWords.add(it, WordKind.UNKNOWN, photoSample, page = com.onedal.app.core.Page.NEW_CALL) }   // 📸 찍은 화면(상세)으로 — 판독이 끝날 때 화면이 바뀌어 있어도
         if (alarmTappedCard != null) {
             val verifiedOrder = alarmTappedCard.copy(
                 fare = detailFare(alarmTappedCard.fare, parsed.finalIncome) ?: alarmTappedCard.fare,

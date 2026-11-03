@@ -105,7 +105,7 @@ class IsflexParserTest {
 
     @Test fun `상세 다섯 — 칸 읽기 · 손 상세 · 전체 주소`() {
         val pages = IsflexPages.pages
-        val page = com.onedal.app.core.Page.DETAIL
+        val page = com.onedal.app.core.Page.NEW_CALL
         for ((i, row) in wantDetail.withIndex()) {
             val (texts, w, fields) = row
             val label = "상세 ${8 + i}"

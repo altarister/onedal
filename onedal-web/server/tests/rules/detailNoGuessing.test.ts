@@ -30,7 +30,7 @@ describe('💰 상세 요금 — 정의 표대로', () => {
     it('🔴 상세 길이 요금을 짐작 함수가 아니라 정의 표로 읽는다', () => {
         const detail = read('routes/detail.ts');
         expect(detail).not.toMatch(/parseMockupFare/);
-        expect(detail).toMatch(/pageFareOf\(targetApp, 'detail', rawText\)/);
+        expect(detail).toMatch(/pageFareOf\(targetApp, 'newCall', rawText\)/);
         expect(read('utils/parser.ts')).not.toMatch(/parseMockupFare/);
     });
     it.each(SHEET.cases.map(c => [`${c.network} ${c.page} ${c.field} — ${c.why}`, c] as const))('공통 문제지: %s', (_, c) => {
@@ -38,13 +38,13 @@ describe('💰 상세 요금 — 정의 표대로', () => {
         if (c.fare !== undefined) expect(pageFareOf(c.network, c.page, c.texts)).toBe(c.fare);   // 숫자로 바꾼 값도 원달앱 fareOf 와 같다
     });
     it('숫자 규칙 — 원달앱 fareOf 와 같다', () => {
-        expect(pageFareOf('insung', 'detail', '요금 : 50,000(카드)')).toBe(50000);
-        expect(pageFareOf('insung', 'detail', '상태 : 신규\n요금 : 150,000(카드)\n구분 : 편도')).toBe(150000);   // 인성 원문은 줄바꿈으로 온다
-        expect(pageFareOf('hwamul24', 'detail', ['화물번호:3-9483-2159', '운송료', '60,000원', '수납금액', '65,144원'])).toBe(60000);
-        expect(pageFareOf('insung', 'detail', '요금 : 4.5만')).toBeNull();   // 축약을 짐작하지 않는다 · «4» 로 틀리게 읽지도 않는다(읽는 법이 숫자 뒤 «.» 를 막음)
-        expect(pageFareOf('insung', 'detail', '요금 : 0')).toBeNull();
-        expect(pageFareOf('insung', 'detail', '차량 : 다마스')).toBeNull();
-        expect(pageFareOf('kakaopicker', 'detail', '최종 수익 2,387')).toBeNull();   // 픽커 상세 요금은 읽는 법이 없다
+        expect(pageFareOf('insung', 'newCall', '요금 : 50,000(카드)')).toBe(50000);
+        expect(pageFareOf('insung', 'newCall', '상태 : 신규\n요금 : 150,000(카드)\n구분 : 편도')).toBe(150000);   // 인성 원문은 줄바꿈으로 온다
+        expect(pageFareOf('hwamul24', 'newCall', ['화물번호:3-9483-2159', '운송료', '60,000원', '수납금액', '65,144원'])).toBe(60000);
+        expect(pageFareOf('insung', 'newCall', '요금 : 4.5만')).toBeNull();   // 축약을 짐작하지 않는다 · «4» 로 틀리게 읽지도 않는다(읽는 법이 숫자 뒤 «.» 를 막음)
+        expect(pageFareOf('insung', 'newCall', '요금 : 0')).toBeNull();
+        expect(pageFareOf('insung', 'newCall', '차량 : 다마스')).toBeNull();
+        expect(pageFareOf('kakaopicker', 'newCall', '최종 수익 2,387')).toBeNull();   // 픽커 상세 요금은 읽는 법이 없다
     });
 });
 
@@ -61,7 +61,7 @@ describe('🚚 상세 차종 — 정의 표대로', () => {
         expect(normalizeVehicleType('다마스')).toBe('다마스');
     });
     it('🔴 상세 길이 원달앱 · 목록 차종이 없을 때만 정의 표로 차종을 읽는다', () => {
-        expect(read('routes/detail.ts')).toMatch(/if \(!pendingOrder\.vehicleType\) \{\s*pendingOrder\.vehicleType = pageFieldOf\(targetApp, 'detail', 'vehicleType', rawText\)/);
+        expect(read('routes/detail.ts')).toMatch(/if \(!pendingOrder\.vehicleType\) \{\s*pendingOrder\.vehicleType = pageFieldOf\(targetApp, 'newCall', 'vehicleType', rawText\)/);
     });
 });
 

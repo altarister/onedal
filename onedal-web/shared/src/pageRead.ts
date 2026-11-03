@@ -44,7 +44,7 @@ export function pageFareOf(app: TargetAppType, page: ScreenPage, text: string | 
  *    칸마다 상세 화면의 읽는 법(`pageFieldOf`)으로 읽고, 못 읽은 칸은 빠진다(지어내지 않는다).
  */
 export function excludeScanTextOf(app: TargetAppType, text: string | readonly string[]): string {
-    return NETWORK_PAGES[app].excludeScan.map(f => pageFieldOf(app, 'detail', f, text)).filter((t): t is string => !!t).join(' ');
+    return NETWORK_PAGES[app].excludeScan.map(f => pageFieldOf(app, 'newCall', f, text)).filter((t): t is string => !!t).join(' ');
 }
 
 /**
@@ -112,7 +112,7 @@ const BILLING_TYPES: readonly BillingType[] = ['계산서', '인수증', '무과
 export type DetailRecord = Partial<Pick<DetailedOfficeOrder, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>>
     & { pickupDetails: LocationDetailInfo[]; dropoffDetails: LocationDetailInfo[] };
 export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecord {
-    const read = (field: PageField, part = '') => pageFieldOf(app, 'detail', field, rawText, part) ?? undefined;
+    const read = (field: PageField, part = '') => pageFieldOf(app, 'newCall', field, rawText, part) ?? undefined;
     const out: Partial<Pick<DetailedOfficeOrder, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>> = {};
     for (const [key, field, part] of DETAIL_RECORD) { const v = read(field, part); if (v !== undefined) out[key] = v; }
     const pay = read('payment');
