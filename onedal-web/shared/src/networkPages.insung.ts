@@ -30,9 +30,10 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
     {"word": "11t", "vehicle": "11t", "seen": "SIM"},
     {"word": "14t", "vehicle": null, "seen": "SIM"},
     {"word": "18t", "vehicle": null, "seen": "SIM"},
-    {"word": "25t", "vehicle": "25t", "seen": "SIM"}
+    {"word": "25t", "vehicle": "25t", "seen": "SIM"},
+    {"word": "용/소", "vehicle": null, "seen": "REAL"}
   ],
-  "vehicleWordsWhy": "목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록",
+  "vehicleWordsWhy": "목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록 · «용/소» 는 영상 1719 목록 차종 칸에 있고 뜻은 모른다(용달/소형 같음) — 차종을 모름으로 두어 카드는 묶되 차종 필터를 걸었으면 걸러진다",
   "networkMarkers": [["신규", "빠른설정"], ["적요상세", "요금"], ["인성퀵화면분할"]],
   "networkMarkersWhy": "목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금») · 첫 화면(«인성퀵화면분할» — 홈에서 바로 알아보기)",
   "callOverlays": [
@@ -43,6 +44,7 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
   "slotNotes": {
     "newCall": {"toCollect": "배차수신(투터치 — 인성설명서 0526) · 지도형 상세(인성설명서 0948) 를 정의 표에 넣을 것"},
     "myCall": {"toCollect": "신용 콜의 총액을 읽을 자리(확정 뒤 상세는 금액 줄이 «실운임 :» 수수료 뺀 값뿐이라 지금은 못 읽는다) · 내 콜 화면 머리 오른쪽 «27:23» 숫자의 뜻(인성설명서 1743) · 목록 보라색 줄의 뜻(인성설명서 1719)"},
+    "newList": {"toCollect": "목록 차종 «용/소» 의 뜻 — 기사님: 용달/소형 같음 · 확인 필요 · 그 콜 상세 원문의 차종 글로 확인(인성설명서 영상 1719)"},
     "myList": {"toCollect": "메시지함 · GPS 탭에도 «장터게시판» 이 있는지 — 영상에 안 나옴"},
     "RUN_TO_PICKUP": {"toCollect": "확정 뒤 상세의 «상태 : 배송» 줄이 상차 · 하차 뒤 어떻게 바뀌나 모을 것(인성설명서 자막 17:45 «픽업하시고 완료하시면은 이 상태가 바뀔 거예요») · 단계마다 화면이 따로 있는지는 모른다(지금 정의 표에는 따로 없다 — 같은 확정 뒤 상세)"},
     "RUN_AT_PICKUP": {"toCollect": "상차지로 가는 중과 같다 — 확정 뒤 상세의 «상태 :» 줄 변화를 모을 것"},

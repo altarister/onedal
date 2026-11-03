@@ -56,4 +56,9 @@ class VehicleFareAnchorTest {
     fun `뭉친 노드 라2점2 는 그대로 읽는다`() {
         assertEquals("라" to 22_000, read("3.2, 10.1, 초월읍, 중리동, 라2.2"))
     }
+
+    @Test
+    fun `차종 칸이 용슬래시소 인 줄도 한 콜로 읽는다 - 영상 1719 의 요금 38점5`() {
+        assertEquals("용/소" to 385_000, read("9.8, 10.2, @2분동승+참, 논현동, 용/소, 38.5"))
+    }
 }

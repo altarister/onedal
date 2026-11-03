@@ -33,13 +33,23 @@ class InsungVehicleWordsTest {
 
     /** 인성 화면 차종 토큰 — readVehicleAndFare 가 order.vehicleType 에 싣는 값은 이 중 하나다 */
     private val tokens = listOf("오", "다", "라", "승", "1t", "1.4", "2.5t", "2.5", "3.5t", "3.5", "5t", "11t", "14t", "18t", "25t")
+    /** 옛 정규식에 없던 낱말 — 영상 1719 «용/소». 뜻을 몰라 차종은 모름(null)이다 */
+    private val unknownVehicleWords = listOf("용/소")
     private val allowed = listOf("오토바이", "다마스", "라보", "승용차", "1t", "1.4t", "2.5t", "3.5t", "5t", "11t", "25t", "특수화물", "1톤", "1 t", "2.5")
 
-    @Test fun `표의 낱말은 지금 토큰 열다섯 그대로`() = assertEquals(tokens.toSet(), InsungPages.vehicleWords.keys)
+    @Test fun `표의 낱말은 옛 토큰 열다섯에 모르는 차종 낱말을 더한 열여섯`() =
+        assertEquals((tokens + unknownVehicleWords).toSet(), InsungPages.vehicleWords.keys)
 
     @Test fun `토큰 × 허용 차종 격자 전부 - 옛 답 == 새 답`() {
         for (t in tokens) for (a in allowed)
             assertEquals("$a ← $t", oldMatches(a, t), InsungParser.vehicleMatches(a, t))
+    }
+
+    @Test fun `모르는 차종 낱말은 어느 허용 차종에도 맞지 않는다 - 옛 답 false · 새 답 false`() {
+        for (t in unknownVehicleWords) for (a in allowed) {
+            assertEquals("옛 $a ← $t", false, oldMatches(a, t))
+            assertEquals("새 $a ← $t", false, InsungParser.vehicleMatches(a, t))
+        }
     }
 
     @Test fun `카드 묶기 닻 - 옛 정규식과 같은 글에 맞는다`() {
@@ -47,6 +57,15 @@ class InsungVehicleWordsTest {
         for (s in samples) {
             assertEquals("닻 «$s»", oldOnly.matches(s), InsungParser.VEHICLE_ONLY.matches(s))
             assertEquals("뭉친 «$s»", oldWithFare.find(s)?.groupValues, InsungParser.VEHICLE_WITH_FARE.find(s)?.groupValues)
+        }
+    }
+
+    @Test fun `카드 묶기 닻 - 새 낱말만 옛 정규식은 안 맞고 새 정규식은 맞는다`() {
+        for (t in unknownVehicleWords) {
+            assertEquals("옛 닻 «$t»", false, oldOnly.matches(t))
+            assertEquals("새 닻 «$t»", true, InsungParser.VEHICLE_ONLY.matches(t))
+            assertEquals("옛 뭉친 «$t 38.5»", null, oldWithFare.find("$t 38.5"))
+            assertEquals("새 뭉친 «$t 38.5»", listOf("$t 38.5", t, "38.5"), InsungParser.VEHICLE_WITH_FARE.find("$t 38.5")?.groupValues)
         }
     }
 }
