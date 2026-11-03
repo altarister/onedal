@@ -42,4 +42,12 @@ class HandAcceptTest {
         assertTrue(HandAccept.of(named("상세(확정 전)"), named("진행중(한 건)"), wasPreview = true, heldUnfilled = false))
         assertFalse(HandAccept.of(named("상세(확정 전)"), named("목록(신규)"), wasPreview = true, heldUnfilled = false))
     }
+
+    /** 인성플렉스 «…원 수행하기» 뒤 확정 화면(픽업완료하기 단추가 있는 «내 오더 콜») — 실물에서는 이리로 곧장 넘어간다. 글자는 시뮬이 지어낸 것이라 실물 첫날 다시 본다 */
+    @Test fun `🔴 인성플렉스 정의 표 - 상세(확정 전) → 내 오더 콜 = 손 수락 · 앱이 계약한 콜이면 아니다`() {
+        val screens = com.onedal.app.plugins.isflex.IsflexPages.screens
+        fun named(n: String) = screens.first { it.name == n }
+        assertTrue(HandAccept.of(named("상세(확정 전)"), named("내 오더 콜"), wasPreview = true, heldUnfilled = false))
+        assertFalse(HandAccept.of(named("상세(확정 전)"), named("내 오더 콜"), wasPreview = false, heldUnfilled = false))
+    }
 }

@@ -150,6 +150,7 @@ object IsflexPages {
             Seen.SIM,
             listOf("지어낸 화면 — 시뮬레이터 인성플렉스 «내 오더 콜»(실물 캡처 없음)"),
             toCollect = "실물 화면 글자(출발지로 이동 · 배송 · 서명) · 단계 줄 «…까지 출발지로 이동» · 아래 단추 글자 — 요금 제목 «총 수익» · 적요 제목 «오더메모»가 실물에 나오나",
+            landsAfterAccept = true,
             base = "myCall",
         ),
         ScreenSpec(
