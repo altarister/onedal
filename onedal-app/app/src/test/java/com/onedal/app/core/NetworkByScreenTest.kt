@@ -125,6 +125,8 @@ class NetworkByScreenTest {
     fun `인성 화면은 인성이다`() {
         assertEquals(TargetApp.INSUNG, TargetApp.networkOfScreen(insungList))
         assertEquals(TargetApp.INSUNG, TargetApp.networkOfScreen(insungDetail))
+        // 지도형 상세(영상 0948) — 인성 표식 «적요상세 + 요금» 으로 알아본다
+        assertEquals(TargetApp.INSUNG, TargetApp.networkOfScreen(listOf("@독산동 → 면목동", "출발지까지 1.5km", "요금 26,900원", "적요상세 6시30분 픽업", "닫기", "수행하기")))
     }
 
     @Test
