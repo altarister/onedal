@@ -5153,6 +5153,379 @@
    ]
   },
   {
+   "id": "S32",
+   "say": "인성(시뮬) 목록 위에 뜨는 것 — 빈 완료 탭은 자료 없음 팝업 · 잠금을 켜면 잠금 팝업 · 잠금을 끄면 상세 → 확정 → 완료 탭",
+   "phone": "both",
+   "expect": "시뮬 인성 목록에서 잡은 콜 없이 «완료(0)» 를 누르면 원달앱 기록 «📄 [페이지] 인성콜 신규 콜 목록 + 자료 없음 팝업 → LIST» · 잠금을 켠 채 콜을 넣으면 원달앱이 콜 줄을 눌러 «신규 콜 목록 + 잠금 팝업 → LIST»(누르기가 안 먹힘) · 잠금을 끄고 이미 본 콜 기억을 비우면 원달앱이 상세를 열고(상세 진입) 시험 스크립트가 확정 → «닫기» → 완료(1) 탭에서 «인성콜 완료 탭 → LIST_COMPLETED»",
+   "wrong": "팝업을 모르는 화면(표에 없음)으로 읽음 · 빈 완료 탭이 완료 탭(LIST_COMPLETED)으로 읽힘 · 잠금 팝업 뒤 원달앱이 상세를 못 엶 · 확정 뒤 완료 탭을 목록(LIST)으로 읽음",
+   "onFail": "tool",
+   "limitSec": 420,
+   "purpose": "기준 페이지 5단계 5-1 · 5-2 — 시뮬 인성 화면(완료 탭 머리 · 잠금 · 자료 없음 팝업)을 원달앱이 표대로 알아보는가",
+   "needs": [],
+   "checks": [
+    {
+     "id": "ad543b",
+     "who": "에이전트",
+     "writer": "스크립트",
+     "where": "맥",
+     "task": "«{scene}» 장면 돌리기",
+     "desc": "실행기로 이 장면을 시작한다",
+     "evidence": "실행기가 이 장면을 시작했다",
+     "target": null,
+     "onFail": "continue",
+     "run": "scene_start",
+     "args": {
+      "scene": "S32"
+     }
+    },
+    {
+     "id": "2a113d",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "S23",
+     "task": "원달앱 모드를 «{mode}»로",
+     "desc": "관제앱 모드 단추를 글자로 찾아 누름 · 이미 그 모드면 안 누름",
+     "evidence": "원달앱이 받은 모드가 {mode}",
+     "target": null,
+     "onFail": "continue",
+     "run": "mode",
+     "args": {
+      "mode": "ALARM"
+     }
+    },
+    {
+     "id": "4d8929",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "시뮬레이터 새로 열기 — {net} 목록까지",
+     "desc": "시뮬 껍데기 앱을 닫았다 다시 켬 → 인성 탭 → 개별콜 → 화면으로 시작 → 홈 → 목록 · 앞 판 콜 지움",
+     "evidence": "원달앱 기록 «[페이지] 인성콜 … 신규 콜 목록 → LIST»",
+     "target": null,
+     "onFail": "stop",
+     "run": "sim",
+     "args": {
+      "net": "insung",
+      "fresh": true
+     }
+    },
+    {
+     "id": "da5576",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "목록(신규)을 «신규 콜 목록»으로 알아봄",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[페이지\\] 인성콜 신규 콜 목록 → LIST"
+     }
+    },
+    {
+     "id": "5a2c63",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 기준점 표시",
+     "desc": "이 뒤에 찍힌 원달앱 기록만 본다 — 목록(신규)은 앞쪽에 이미 찍혀 있어 기준을 옮긴다",
+     "evidence": "원달앱 로그의 기준 줄을 잡았다",
+     "target": null,
+     "onFail": "continue",
+     "run": "mark",
+     "args": {
+      "what": "app"
+     }
+    },
+    {
+     "id": "a19793",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "단추: {name}",
+     "desc": "잡은 콜이 없는 목록에서 머리 «완료(0)» 탭 누름(시뮬 · 영상 1611 — 완료 탭으로 안 넘어가고 자료 없음 팝업)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "a24.insung.tab.done"
+     }
+    },
+    {
+     "id": "c37be8",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "자료 없음 팝업이 목록 위의 것으로 읽힘(화면 값은 LIST · 완료 탭 LIST_COMPLETED 가 아님)",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 15
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[페이지\\] 인성콜 신규 콜 목록 \\+ 자료 없음 팝업 → LIST"
+     }
+    },
+    {
+     "id": "21eaba",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "단추: {name}",
+     "desc": "팝업 «확인»(시뮬 알림 닫기)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "a24.insung.popup.ok"
+     }
+    },
+    {
+     "id": "5d2415",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "단추: {name}",
+     "desc": "머리 «잠금» 누름 — 오더 선택 잠금 켜기(시뮬 · 영상 1328 · 단추가 «해제»로 바뀜)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "a24.insung.lock"
+     }
+    },
+    {
+     "id": "1ae72a",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "시뮬 인성 개별콜 하나 · 요금 끝자리는 판마다 바꿈 · 차종은 필터 첫 차종 · S04 와 같은 콜",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "moda",
+      "drop": "ian",
+      "fare": 40000,
+      "veh": "filter",
+      "tag": "fare_low_score_high",
+      "bind": "C1"
+     }
+    },
+    {
+     "id": "0babf5",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "잠금을 켠 채 원달앱이 콜 줄을 눌러 잠금 팝업이 뜸 — 목록 위의 것으로 읽힘(5-2: 전에는 모르는 화면이었다)",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[페이지\\] 인성콜 신규 콜 목록 \\+ 잠금 팝업 → LIST"
+     }
+    },
+    {
+     "id": "e06328",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "단추: {name}",
+     "desc": "팝업 «확인»(시뮬 알림 닫기)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "a24.insung.popup.ok"
+     }
+    },
+    {
+     "id": "a88982",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "단추: {name}",
+     "desc": "머리 «해제» 누름 — 오더 선택 잠금 끄기",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "a24.insung.lock"
+     }
+    },
+    {
+     "id": "cddbd9",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "잠금을 끄자 원달앱이 같은 콜 줄을 다시 눌러 상세가 열렸다(잠금 팝업 뒤 되돌림 길이 다음 눌림을 막지 않음)",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 20
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[페이지\\] 인성콜 확정 전 상세 → DETAIL_PRE_CONFIRM"
+     }
+    },
+    {
+     "id": "ae74d7",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 «이미 본 콜» 기억 비우기",
+     "desc": "서버 회차를 앞 판보다 크게 올림 → 원달앱이 다음 보고의 응답으로 비움 · 잠금 때 눌러 본 콜을 다시 열게 함",
+     "evidence": "«✅ 원달앱이 본 콜 기억을 비움»",
+     "target": null,
+     "onFail": "continue",
+     "run": "forget_seen",
+     "args": {}
+    },
+    {
+     "id": "cb66b9",
+     "who": "스크립트",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "콜 넣기 — {net} · {pick} → {drop} · {fare}원",
+     "desc": "확정까지 가 볼 둘째 콜 — 첫 콜은 잠금을 푼 뒤 원달앱이 열었다 닫아 확정을 못 누른다(상세에 머무는 시간이 없는 알람 미리보기)",
+     "evidence": "시뮬 목록 맨 위에 그 콜(이름 {bind})",
+     "target": null,
+     "onFail": "continue",
+     "run": "call",
+     "args": {
+      "net": "insung",
+      "pick": "moda",
+      "drop": "ian",
+      "fare": 45000,
+      "veh": "filter",
+      "tag": "fare_low_score_high",
+      "bind": "C2"
+     }
+    },
+    {
+     "id": "c765cf",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24 시뮬",
+     "task": "{net} 상세에서 확정 → KEEP",
+     "desc": "원달앱이 그 콜 상세를 연 뒤 시뮬 «확정» 누름(인성 확정 전 상세에서만) · 판정 색은 기록만 · 확정 뒤 상세는 시뮬이 몇 초 뒤 스스로 목록으로 돌아와 «닫기»를 누르지 않는다",
+     "evidence": "서버 «결재 처리 완료» 줄",
+     "target": null,
+     "onFail": "continue",
+     "run": "decide",
+     "args": {
+      "bind": "C2",
+      "how": "hand",
+      "net": "insung",
+      "sec": 60
+     }
+    },
+    {
+     "id": "c4f590",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "원달앱이 둘째 콜 상세를 열었다",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 40
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "상세 진입\\] {fare:C2}원"
+     }
+    },
+    {
+     "id": "8f67f3",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "단추: {name}",
+     "desc": "확정 1건 뒤 머리 «완료(1)» 탭 누름 — 이번엔 완료 탭으로 넘어간다",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "a24.insung.tab.done"
+     }
+    },
+    {
+     "id": "2e2bcb",
+     "who": "원달앱",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "원달앱 기록 «{re}»",
+     "desc": "완료 탭을 화면 값 LIST_COMPLETED 로 읽음(원달앱 기록은 서버로 가는 화면 값을 쓴다)",
+     "evidence": "기준점 뒤 원달앱 로그에 «{re}» 줄",
+     "target": {
+      "sec": 15
+     },
+     "onFail": "continue",
+     "run": "wait",
+     "args": {
+      "src": "app",
+      "re": "\\[페이지\\] 인성콜 완료 탭 → LIST_COMPLETED"
+     }
+    },
+    {
+     "id": "1db5a0",
+     "who": "스크립트(기사님 대신)",
+     "writer": "스크립트",
+     "where": "A24",
+     "task": "단추: {name}",
+     "desc": "머리 «신규» 탭으로 돌아감(장면을 목록에서 끝냄)",
+     "evidence": "그 단추를 찾아 눌렀다",
+     "target": null,
+     "onFail": "continue",
+     "run": "tap",
+     "args": {
+      "name": "a24.insung.tab.new"
+     }
+    },
+    {
+     "id": "ca2f0c",
+     "who": "에이전트",
+     "writer": "에이전트",
+     "where": "대화창",
+     "task": "기사님께 결과 알림",
+     "desc": "장면이 섰나는 줄들에서 나온다(장면 머리에 표시) — 이 줄은 그 결과와 까닭을 기사님께 말했는가",
+     "evidence": "이 장면의 ✅ · 🔴 줄과 까닭을 기사님께 한 번 말했다",
+     "target": null,
+     "onFail": "continue",
+     "run": null,
+     "args": {}
+    }
+   ]
+  },
+  {
    "id": "S99",
    "say": "끝 정리 — 필터를 S01 이 떠 둔 기사님 필터(목적지 · 제외 지역 · 최저)로 되돌리고 · 모드는 시작 값과 다를 때만 되돌림 · 귀가는 이번 판에 스크립트가 켰을 때만 끔 · JoyStick 끄기(에이전트)",
    "phone": "both",
