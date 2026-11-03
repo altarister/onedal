@@ -1,5 +1,5 @@
 import type { TargetAppType } from './index';
-import type { PageField, ScreenPage } from './pageFields';
+import type { PageField, ScreenPage, BaseSlot } from './pageFields';
 import { basePageOf, CALL_OVERLAY_LABEL } from './pageFields';
 import type { VehicleType } from './vehicles';
 import { INSUNG_PAGES } from './networkPages.insung';
@@ -54,10 +54,11 @@ export interface NetworkPageSpec {
     about: string[];
     pages: Record<ScreenPage, NetworkFieldSpec[]>;
     /**
-     * 🚫 **그 배차망에 없는 페이지** — 실물로 없다고 확인한 것만(까닭 · 근거 캡처). 칸은 비운다.
-     * 모르는 페이지는 비우지 않고 `seen: UNKNOWN` 줄로 둔다 — «비어 있음 = 없다고 확인함»만 참이 되게.
+     * 🕳️ **자리 기록** — 화면 줄이 없는 자리는 둘 중 하나를 적는다. `{ why, evidence }` 이 배차망엔 그 자리가 없다(실물로 확인한 까닭 · 근거 캡처) ·
+     * `{ toCollect }` 아직 모른다(무엇을 모을 것인가). 화면 줄이 있는 자리에는 `{ toCollect }` 만 함께 올 수 있다(모을 것이 남았다).
+     * 못 본 화면에 지어낸 줄을 만들지 않는다 — «없음»과 «모름»을 가르는 것이 이 칸의 일이다. 검사 `networkPages.test.ts`(배차망 × 자리마다 빠짐 없이) · 사전표 `설계/기준페이지_사전표.md` 가 이 칸에서 뽑힌다.
      */
-    absentPages?: Partial<Record<ScreenPage, { why: string; evidence: string }>>;
+    slotNotes?: Partial<Record<BaseSlot, { why: string; evidence: string } | { toCollect: string }>>;
     /**
      * 🪟 **콜 한 건 화면 위 부속 팝업** — 한 번만 적는다. 불러올 때 같은 배차망의 새 콜 화면 · 내 콜 화면 줄 덧칸 **맨 앞**에 자리(`slot`) 차례(상차지 · 하차지 · 적요)로 붙는다.
      * 팝업의 이름은 그 배차망 말 그대로이고, 공통 이름은 사전의 `CALL_OVERLAY_LABEL` 이다. 원달앱 생성 파일에는 `slot` 이 실리지 않는다(원달앱 `OverlaySpec` 에 칸이 없다).

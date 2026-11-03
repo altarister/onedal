@@ -1,13 +1,14 @@
 /**
  * 누가: onedal-f5 (기사님 «플러그인스에 있는 값을 서버가 같이 써야» · onedal-69 «가»)
- * 언제: shared/src/networkPages.<배차망>.ts(배차망 화면 정의 표의 배차망 몫 — 칸 · 페이지 목록)를 고친 뒤
- * 어디서: onedal-web — `pnpm gen:pages`
- * 무엇을: 표의 배차망마다(칸 정의 · 페이지 목록 · 차종 낱말)를 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt · isflex/IsflexPages.kt)으로 굳힌다
+ * 언제: shared/src/networkPages.<배차망>.ts(배차망 화면 정의 표의 배차망 몫 — 칸 · 페이지 목록 · 자리 기록)나 pageFields.ts(기준 페이지 사전)를 고친 뒤
+ * 어디서: onedal-web — `pnpm gen:pages`(원달앱 생성 파일) · `pnpm gen:pages doc`(설계/기준페이지_사전표.md 만 뽑음) · `pnpm gen:pages doc --check`(뽑은 글이 그 파일과 같은지만 봄)
+ * 무엇을: 표의 배차망마다(칸 정의 · 페이지 목록 · 차종 낱말)를 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt · isflex/IsflexPages.kt)으로 굳힌다 · doc 이면 사전 + 정의 표에서 «자리 × 배차망» 사전표 글을 뽑는다
  * 왜: 배차망마다 다른 것을 shared 한 곳에만 둔다 — 서버는 표를 바로 읽고 원달앱은 뽑은 코드를 읽는다 · 같은지는 원달앱 NetworkPagesPairTest 가 문다
  */
 import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { slotProblems, renderBasePageDoc, networkNames } from './lib/base-page-doc.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fail = (msg) => { console.error(`❌ ${msg}`); process.exit(1); };
@@ -34,6 +35,24 @@ const BOOK = (() => {
     if (!body) fail('pageFields.ts 에서 JSON 표시 사이를 못 찾았다');
     try { return JSON.parse(body); } catch (e) { fail(`pageFields.ts 의 JSON 이 깨졌다 — ${e.message}`); }
 })();
+
+/* 🕳️ 배차망 × 자리마다 «화면 줄 / 없음 + 근거 / 모름 + 모을 것» — 어긋나면 어느 쪽 문서(원달앱 생성 파일 · 사전표)도 뽑지 않는다 */
+const slotFails = slotProblems(BOOK, table);
+if (slotFails.length) fail(`자리 기록이 어긋났다 — ${slotFails.join(' · ')}`);
+
+/* 📄 doc — 원달앱 생성 파일은 건드리지 않고 사전표 글만 뽑는다(--check 는 파일을 안 쓰고 같은지만 본다) */
+if (process.argv[2] === 'doc') {
+    const docPath = join(here, '../../설계/기준페이지_사전표.md');
+    const text = renderBasePageDoc(BOOK, table, networkNames(table));
+    if (process.argv[3] === '--check') {
+        if (readFileSync(docPath, 'utf8') !== text) fail('설계/기준페이지_사전표.md 가 사전 + 정의 표에서 다시 뽑은 글과 다르다 — cd onedal-web && pnpm gen:pages doc');
+        console.log('✅ 설계/기준페이지_사전표.md — 사전 + 정의 표에서 다시 뽑은 글과 같다');
+    } else {
+        writeFileSync(docPath, text);
+        console.log('✅ 설계/기준페이지_사전표.md — 사전 + 정의 표에서 뽑았다');
+    }
+    process.exit(0);
+}
 
 /* 낱말 → 코틀린 enum 이름 — 원달앱 core/PageField.kt 가 원천(shared pageFields 와 짝 검사가 이미 묶는다) */
 const app = join(here, '../../onedal-app/app/src/main/java/com/onedal/app');
@@ -124,12 +143,6 @@ for (const [net, file, pkg, obj] of TARGETS) {
     if (parts.length && JSON.stringify(parts.map((o) => o.slot).sort()) !== JSON.stringify([...slots].sort())) fail(`${net} callOverlays 의 자리(slot)가 ${slots.join(' · ')} 각각 하나가 아니다`);
     for (const o of parts) if (!String(o.action ?? '').startsWith('FILL_')) fail(`${net} callOverlays «${o.name}» — 자리가 있는 덧칸은 action 이 FILL_* 여야 한다`);
     const callFront = slots.flatMap((slot) => parts.filter((o) => o.slot === slot));
-    /* 🚫 없는 페이지 — 키는 원달앱 Page 낱말 · 까닭이 있어야 한다 */
-    const absent = Object.entries(spec.absentPages ?? {}).map(([pg, a]) => {
-        const p = PAGE[pg] ?? fail(`${net} 없는 페이지 «${pg}» — core/PageField.kt Page 에 없다`);
-        if (!a.why || !a.evidence) fail(`${net} 없는 페이지 «${pg}» — 까닭 · 근거가 비었다`);
-        return `Page.${p} to ${kstr(a.why)}`;
-    });
     const pages = Object.entries(spec.pages).map(([page, rows]) => {
         const p = PAGE[page] ?? fail(`${net} — 모르는 화면 «${page}» (core/PageField.kt Page 에 없다)`);
         if (!rows.length) return `        Page.${p} to emptyList<FieldSpec>(),`;
@@ -180,9 +193,6 @@ object ${obj} {
     val pages: PageSpecs = mapOf(
 ${pages.join('\n')}
     )
-
-    /** 🚫 그 배차망에 없는 페이지 → 까닭(shared absentPages — 칸이 빈 것은 «없다고 확인함») */
-    val absentPages: Map<Page, String> = ${absent.length ? `mapOf(${absent.join(', ')})` : 'emptyMap()'}
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords${spec.vehicleWordsWhy ? ` — ${spec.vehicleWordsWhy}` : ''}) */
     val vehicleWords: Map<String, String?> = ${vehicleWords}

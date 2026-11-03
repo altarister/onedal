@@ -40,6 +40,15 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
     {"name": "도착지 상세 팝업", "kind": "POPUP", "match": [{"any": ["도착지 상세", "하차지 상세"]}], "meaning": "도착지 고객 · 부서 · 담당 · 전화 · 위치를 보여 준다", "action": "FILL_DROPOFF", "seen": "REAL", "evidence": ["ex_images/인성/도착지상세.png"], "slot": "dropoff"},
     {"name": "적요 상세 팝업", "kind": "POPUP", "match": [{"all": ["적요 상세", "적요 내용"]}], "meaning": "적요 전문을 보여 준다", "action": "FILL_MEMO", "seen": "SIM", "evidence": ["ex_images/인성/적요상세.png (시뮬레이터 화면)"], "toCollect": "실물 캡처", "slot": "memo"}
   ],
+  "slotNotes": {
+    "newCall": {"toCollect": "배차수신(투터치 — 인성설명서 0526) · 지도형 상세(인성설명서 0948) 를 정의 표에 넣을 것"},
+    "myList": {"toCollect": "완료 탭 실물 글자는 인성설명서 1633 으로 봄 — 표의 알아보는 글자를 고칠 것"},
+    "RUN_TO_PICKUP": {"toCollect": "확정 뒤 상세의 «상태 : 배송» 줄이 상차 · 하차 뒤 어떻게 바뀌나 모을 것(인성설명서 자막 17:45 «픽업하시고 완료하시면은 이 상태가 바뀔 거예요») · 단계마다 화면이 따로 있는지는 모른다(지금 정의 표에는 따로 없다 — 같은 확정 뒤 상세)"},
+    "RUN_AT_PICKUP": {"toCollect": "상차지로 가는 중과 같다 — 확정 뒤 상세의 «상태 :» 줄 변화를 모을 것"},
+    "RUN_TO_DROPOFF": {"toCollect": "상차지로 가는 중과 같다 — 확정 뒤 상세의 «상태 :» 줄 변화를 모을 것"},
+    "RUN_AT_DROPOFF": {"toCollect": "상차지로 가는 중과 같다 — 확정 뒤 상세의 «상태 :» 줄 변화를 모을 것"},
+    "RUN_DONE": {"toCollect": "상차지로 가는 중과 같다 — 확정 뒤 상세의 «상태 :» 줄 변화를 모을 것"}
+  },
   "screens": [
     {"name": "확정 뒤 상세", "standard": "DETAIL_CONFIRMED", "buttons": {"keep": "닫기", "cancel": "취소"}, "match": [{"all": ["적요상세"], "any": ["인수증 전송", "카드 승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"], "overlays": [
       {"name": "취소 확인 팝업", "kind": "POPUP", "match": [], "meaning": "확정 뒤 취소를 누르면 한 번 더 묻는다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},

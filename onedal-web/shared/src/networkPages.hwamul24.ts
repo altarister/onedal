@@ -31,6 +31,16 @@ export const HWAMUL24_PAGES: NetworkPageSpec = /*JSON*/{
   "vehicleWordsWhy": "목록 셋째 줄 «낱말/…»(«1톤/전체» · «2.5톤/윙» · «다마스/전체»)의 첫 «/» 앞 낱말 — REAL 은 실물 캡처 17 · 실물 목록, SIM 은 시뮬레이터 목록에서만 봤다",
   "networkMarkers": [["화물정보", "자동새로고침"], ["화물상세정보", "운송료"], ["전국24시콜화물"]],
   "networkMarkersWhy": "실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료») · 첫 화면(«전국24시콜화물» — 홈에서 바로 알아보기)",
+  "slotNotes": {
+    "RUN_TO_PICKUP": {"toCollect": "실물 운행 단계 화면을 모을 것 — 지금은 시뮬레이터뿐"},
+    "RUN_AT_PICKUP": {"toCollect": "실물 운행 단계 화면을 모을 것 — 지금은 시뮬레이터뿐"},
+    "RUN_TO_DROPOFF": {"toCollect": "실물 운행 단계 화면을 모을 것 — 지금은 시뮬레이터뿐"},
+    "RUN_AT_DROPOFF": {"toCollect": "실물 운행 단계 화면을 모을 것 — 지금은 시뮬레이터뿐"},
+    "RUN_DONE": {"toCollect": "실물 운행 단계 화면을 모을 것 — 지금은 시뮬레이터뿐"},
+    "pickup": {"toCollect": "부속 팝업이 있는지 실물로 모을 것"},
+    "dropoff": {"toCollect": "부속 팝업이 있는지 실물로 모을 것"},
+    "memo": {"toCollect": "부속 팝업이 있는지 실물로 모을 것"}
+  },
   "screens": [
     {"name": "배차신청 뒤 화물상세정보", "standard": "DETAIL_CONFIRMED", "match": [{"all": ["화물상세정보", "배차취소하기"]}, {"all": ["화물상세정보", "전화걸기", "배차내역"]}], "listReturn": false, "landsAfterAccept": true, "seen": "REAL", "evidence": ["ex_images/화물24시/54_화물상세정보_배차신청뒤.png"], "toCollect": "머리 «<»(뒤로) · «배차취소하기» · «전화걸기»를 누른 뒤 화면 · 막대가 다 차는 시간", "overlays": [
       {"name": "배차신청 성공 토스트", "kind": "TOAST", "match": [{"all": ["배차신청에 성공"]}], "meaning": "배차신청이 됐다 — 위 «배차취소하기» 막대가 차는 동안만 앱에서 취소할 수 있다", "seen": "REAL", "evidence": ["ex_images/화물24시/54_화물상세정보_배차신청뒤.png"]}

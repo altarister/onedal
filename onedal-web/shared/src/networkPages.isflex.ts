@@ -25,6 +25,17 @@ export const ISFLEX_PAGES: NetworkPageSpec = /*JSON*/{
   "vehicleWordsWhy": "목록 줄 · 상세 «출발지까지» 다음 차종 글자(실물 8건 모두 «오토») · 목록 칩과 홈 배송 수단 글자(«오토바이» · «승용/소형» · «도보» · «개인이동수단») — 도보 · 개인이동수단은 우리 차종이 없다",
   "networkMarkers": [["출발지까지", "수입"], ["총 수입", "수행하기"], ["현재 선택된 배송 수단"], ["진행중인 오더가 없습니다"]],
   "networkMarkersWhy": "목록(«출발지까지» + «수입») · 상세(«총 수입» + «수행하기») · 홈(«현재 선택된 배송 수단») · 진행중 빈 화면(«진행중인 오더가 없습니다») — 실물 02 · 08 · 01 · 04 에 있고 인성 화면에는 없는 글자 묶음. 공지 띠 · «AI 배차 대기중»은 글이 바뀌거나 사라져 쓰지 않는다",
+  "slotNotes": {
+    "myCall": {"toCollect": "실물 — 지금 줄은 시뮬레이터 글자 · 실물 첫날 S31 꼴"},
+    "RUN_TO_PICKUP": {"toCollect": "픽업완료 단추가 같은 화면에 있는지 · 단계마다 화면이 갈리는지 실물로"},
+    "RUN_AT_PICKUP": {"toCollect": "픽업완료 단추가 같은 화면에 있는지 · 단계마다 화면이 갈리는지 실물로"},
+    "RUN_TO_DROPOFF": {"toCollect": "픽업완료 단추가 같은 화면에 있는지 · 단계마다 화면이 갈리는지 실물로"},
+    "RUN_AT_DROPOFF": {"toCollect": "픽업완료 단추가 같은 화면에 있는지 · 단계마다 화면이 갈리는지 실물로"},
+    "RUN_DONE": {"toCollect": "픽업완료 단추가 같은 화면에 있는지 · 단계마다 화면이 갈리는지 실물로"},
+    "pickup": {"toCollect": "부속 팝업이 있는지 실물로 모을 것"},
+    "dropoff": {"toCollect": "부속 팝업이 있는지 실물로 모을 것"},
+    "memo": {"toCollect": "부속 팝업이 있는지 실물로 모을 것"}
+  },
   "screens": [
     {"name": "상세(확정 전)", "standard": "DETAIL_PRE_CONFIRM", "buttons": {"accept": "수행하기", "filterOut": "닫기"}, "match": [{"all": ["총 수입", "수행하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성플렉스/08_상세.png", "ex_images/인성플렉스/09_상세_선불.png", "ex_images/인성플렉스/10_상세_3.png", "ex_images/인성플렉스/11_상세_4.png", "ex_images/인성플렉스/12_상세_5.png"], "toCollect": "꼬리표 자리에 «과적» 말고 오는 글자(«급송» · «왕복» · «경유» · 짐 크기 «대박스») · 도착 주소에 «@»가 붙는 콜 · 적요 안에 «선불» · «착불» · «총 수입»이 드는 콜 — 적요 제목 «오더메모» · 요금 제목 «수입»만(«총 수입» 아님)이 보이면 리뉴얼", "overlays": [
       {"name": "수락 실패 팝업", "kind": "POPUP", "match": [], "meaning": "착불 콜을 적립금이 모자라 수락하지 못했다 — 원달앱은 알아보기만", "seen": "UNKNOWN", "evidence": [], "toCollect": "착불 콜 «수행하기» 뒤 뜨는 팝업 글자"},

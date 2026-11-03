@@ -239,20 +239,16 @@ describe('정의 표 — 화면 줄의 기준 페이지', () => {
 });
 
 /**
- * 🚫 **없는 페이지(`absentPages`)** — «비어 있음 = 없다고 확인함»만 참이 되게.
- * 막는 것: 근거 없이 비운 페이지 · 없다면서 그 기준 화면 줄이 있는 것.
+ * 🕳️ **자리 기록(`slotNotes`)의 모양** — 열쇠는 사전에서 파생한 자리뿐이고, 기록은 «없음 + 근거» 또는 «모름 + 모을 것» 하나다.
+ * 배차망 × 자리마다 빠짐 없이 적혔는지(화면 줄 / 없음 / 모름 중 하나)는 `pagesDoc.test.ts` 가 묻는다.
  */
-describe('정의 표 — 없는 페이지', () => {
-    it('없는 페이지는 칸을 적는 페이지 낱말 · 까닭과 근거가 있고 · 칸이 비고 · 그 기준 화면 줄이 없다', () => {
+describe('정의 표 — 자리 기록 모양', () => {
+    it('기록은 {why, evidence} 또는 {toCollect} 하나의 모양(열쇠가 사전의 자리인지는 pagesDoc.test.ts)', () => {
         for (const net of TARGET_APPS) {
-            const spec = NETWORK_PAGES[net];
-            for (const [page, a] of Object.entries(spec.absentPages ?? {})) {
-                const at = `${net} 없는 페이지 ${page}`;
-                expect(SCREEN_PAGES as readonly string[], at).toContain(page);
-                expect(a.why, `${at} 까닭`).toBeTruthy();
-                expect(a.evidence, `${at} 근거`).toBeTruthy();
-                expect(spec.pages[page as ScreenPage], `${at} 칸이 있다`).toEqual([]);
-                expect(spec.screens.filter(s => basePageOf(s.standard) === page).map(s => s.name), `${at} 그 기준 화면 줄`).toEqual([]);
+            for (const [slot, note] of Object.entries(NETWORK_PAGES[net].slotNotes ?? {})) {
+                const at = `${net} 자리 ${slot}`;
+                expect(Object.keys(note).sort(), at).toEqual('why' in note ? ['evidence', 'why'] : ['toCollect']);
+                for (const text of Object.values(note)) expect(String(text).trim(), `${at} 빈 글`).not.toBe('');
             }
         }
     });

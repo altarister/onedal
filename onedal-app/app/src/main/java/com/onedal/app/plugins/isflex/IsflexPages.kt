@@ -98,9 +98,6 @@ object IsflexPages {
         ),
     )
 
-    /** 🚫 그 배차망에 없는 페이지 → 까닭(shared absentPages — 칸이 빈 것은 «없다고 확인함») */
-    val absentPages: Map<Page, String> = emptyMap()
-
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 줄 · 상세 «출발지까지» 다음 차종 글자(실물 8건 모두 «오토») · 목록 칩과 홈 배송 수단 글자(«오토바이» · «승용/소형» · «도보» · «개인이동수단») — 도보 · 개인이동수단은 우리 차종이 없다) */
     val vehicleWords: Map<String, String?> = mapOf(
         "오토" to "오토바이",

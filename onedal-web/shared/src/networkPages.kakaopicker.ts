@@ -17,6 +17,11 @@ export const KAKAO_PICKER_PAGES: NetworkPageSpec = /*JSON*/{
   "addressCutWhy": "지우지 않는다 — 원달앱이 이미 «구 동»으로 정리해 보낸다(앞뒤 공백만)",
   "networkMarkers": [["리스트 설정"], ["넘기기", "수락하기"], ["시작하기"], ["물품이 안전하게 전달"], ["밀어서 픽업 완료"], ["밀어서 사진 촬영"], ["배송 시간"], ["물품 파손"], ["픽업 준비"], ["픽업지 근처에"], ["픽업지 정보"], ["도착지 정보"], ["픽업지 주소 복사하기"], ["픽업지에 전화하기"], ["도착지 주소 복사하기"], ["도착지에 전화하기"]],
   "networkMarkersWhy": "목록 머리 · 수락 전 상세 버튼 둘 · 홈과 수락 뒤 단계 글자 하나씩 · 퀵 흰 페이지 칸 이름 하나씩(퀵 머리 글자는 원달앱이 못 읽는다)",
+  "slotNotes": {
+    "pickup": {"why": "상세 시트 안에 주소 · 적요가 바로 보인다", "evidence": "실물 캡처 ex_images/카카오픽커/실물_2026"},
+    "dropoff": {"why": "상세 시트 안에 주소 · 적요가 바로 보인다", "evidence": "실물 캡처 ex_images/카카오픽커/실물_2026"},
+    "memo": {"why": "상세 시트 안에 주소 · 적요가 바로 보인다", "evidence": "실물 캡처 ex_images/카카오픽커/실물_2026"}
+  },
   "screens": [
     {"name": "홈(출근 전)", "standard": "HOME", "match": [{"all": ["시작하기"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_2026/01_홈_출근전.png", "ex_images/카카오픽커/실물_20260913_내가찍음/35_홈_관심일거리팝업_0411.png", "ex_images/카카오픽커/실물_20260913_내가찍음/36_홈_관심일거리팝업_1205.png"], "overlays": [
       {"name": "관심 일거리 상자", "kind": "POPUP", "match": [], "meaning": "관심 일거리를 고르라는 광고 상자", "seen": "REAL", "evidence": ["ex_images/카카오픽커/실물_20260913_내가찍음/35_홈_관심일거리팝업_0411.png", "ex_images/카카오픽커/실물_20260913_내가찍음/36_홈_관심일거리팝업_1205.png"], "wordsFrom": "server/config/keywords_picker.json adStartWords"},

@@ -42,6 +42,9 @@ export const basePageOf = (standard: StandardScreen | null): BasePage | null => 
 /** 콜 한 건 화면 위 부속 팝업의 공통 이름(부속 자리 `slot` → 이름) */
 export const CALL_OVERLAY_LABEL: Readonly<Record<keyof typeof BASE_PAGE_BOOK.callOverlays, string>> = BASE_PAGE_BOOK.callOverlays;
 
+/** 📍 자리 — 배차망마다 «이 자리에 어떤 화면이 있나»를 적는 단위: 기준 페이지(홈 포함) · 내 콜 화면 안의 운행 단계 · 콜 한 건 화면 위의 부속 팝업. 사전에서 파생한다(손으로 나열하지 않는다) */
+export type BaseSlot = BasePage | keyof typeof BASE_PAGE_BOOK.runStages | keyof typeof BASE_PAGE_BOOK.callOverlays;
+
 /**
  * 모은 글자의 갈래 — 잡음 낱말로 뺀 글자(noise) · 정의에 없어 못 알아본 글자(unknown) · 칸이 다 차서 남는 토막(extra).
  * 서버 `screen_words` 표의 kind 칸이 이 셋이다.

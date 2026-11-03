@@ -84,9 +84,6 @@ object KakaoPickerPages {
         ),
     )
 
-    /** 🚫 그 배차망에 없는 페이지 → 까닭(shared absentPages — 칸이 빈 것은 «없다고 확인함») */
-    val absentPages: Map<Page, String> = emptyMap()
-
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords) */
     val vehicleWords: Map<String, String?> = emptyMap()
 

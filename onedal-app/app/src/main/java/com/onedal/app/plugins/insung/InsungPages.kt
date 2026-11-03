@@ -116,9 +116,6 @@ object InsungPages {
         ),
     )
 
-    /** 🚫 그 배차망에 없는 페이지 → 까닭(shared absentPages — 칸이 빈 것은 «없다고 확인함») */
-    val absentPages: Map<Page, String> = emptyMap()
-
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록) */
     val vehicleWords: Map<String, String?> = mapOf(
         "오" to "오토바이",

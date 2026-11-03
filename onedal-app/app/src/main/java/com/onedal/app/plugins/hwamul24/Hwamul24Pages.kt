@@ -78,9 +78,6 @@ object Hwamul24Pages {
         ),
     )
 
-    /** 🚫 그 배차망에 없는 페이지 → 까닭(shared absentPages — 칸이 빈 것은 «없다고 확인함») */
-    val absentPages: Map<Page, String> = emptyMap()
-
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 셋째 줄 «낱말/…»(«1톤/전체» · «2.5톤/윙» · «다마스/전체»)의 첫 «/» 앞 낱말 — REAL 은 실물 캡처 17 · 실물 목록, SIM 은 시뮬레이터 목록에서만 봤다) */
     val vehicleWords: Map<String, String?> = mapOf(
         "1톤" to "1t",
