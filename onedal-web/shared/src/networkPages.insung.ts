@@ -42,6 +42,7 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
   ],
   "slotNotes": {
     "newCall": {"toCollect": "배차수신(투터치 — 인성설명서 0526) · 지도형 상세(인성설명서 0948) 를 정의 표에 넣을 것"},
+    "myCall": {"toCollect": "신용 콜의 총액을 읽을 자리(확정 뒤 상세는 금액 줄이 «실운임 :» 수수료 뺀 값뿐이라 지금은 못 읽는다) · 내 콜 화면 머리 오른쪽 «27:23» 숫자의 뜻(인성설명서 1743) · 목록 보라색 줄의 뜻(인성설명서 1719)"},
     "myList": {"toCollect": "메시지함 · GPS 탭에도 «장터게시판» 이 있는지 — 영상에 안 나옴"},
     "RUN_TO_PICKUP": {"toCollect": "확정 뒤 상세의 «상태 : 배송» 줄이 상차 · 하차 뒤 어떻게 바뀌나 모을 것(인성설명서 자막 17:45 «픽업하시고 완료하시면은 이 상태가 바뀔 거예요») · 단계마다 화면이 따로 있는지는 모른다(지금 정의 표에는 따로 없다 — 같은 확정 뒤 상세)"},
     "RUN_AT_PICKUP": {"toCollect": "상차지로 가는 중과 같다 — 확정 뒤 상세의 «상태 :» 줄 변화를 모을 것"},
@@ -50,11 +51,11 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
     "RUN_DONE": {"toCollect": "상차지로 가는 중과 같다 — 확정 뒤 상세의 «상태 :» 줄 변화를 모을 것"}
   },
   "screens": [
-    {"name": "확정 뒤 상세", "standard": "DETAIL_CONFIRMED", "buttons": {"keep": "닫기", "cancel": "취소"}, "match": [{"all": ["적요상세"], "any": ["인수증 전송", "카드 승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)"], "overlays": [
+    {"name": "확정 뒤 상세", "standard": "DETAIL_CONFIRMED", "buttons": {"keep": "닫기", "cancel": "취소"}, "match": [{"all": ["적요상세"], "any": ["인수증 전송", "카드 승인"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-확정(다른사람 못잡음, 취소+1).png", "ex_images/인성/상세-미확정1.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정2.png (내용은 확정 뒤 상세)", "ex_images/인성/상세-미확정5.png (내용은 확정 뒤 상세)", "ex_images/인성/상세와확정.png (가운데 폰 — 금액 줄 «실운임 :»)", "ex_images/인성/인성설명서/영상_1621.jpg (결재 줄 «취소» · «닫기» · «카드 승인» — 금액 줄 «실운임 : 22,330(신용)»)", "ex_images/인성/인성설명서/영상_1743.jpg (같은 꼴 — 착불 «고객에게 받을 금액 45,000» 아래 «실운임 : 34,650(착불)»)"], "overlays": [
       {"name": "취소 확인 팝업", "kind": "POPUP", "match": [], "meaning": "확정 뒤 취소를 누르면 한 번 더 묻는다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
       {"name": "취소 불가 팝업", "kind": "POPUP", "match": [{"any": ["취소할 수 없"], "none": ["적요상세"]}], "meaning": "안전취소 시간이 지나 취소할 수 없다", "action": "ERROR", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처"}
     ]},
-    {"name": "확정 전 상세", "standard": "DETAIL_PRE_CONFIRM", "buttons": {"accept": "확정", "filterOut": "취소"}, "match": [{"all": ["적요상세", "확정"], "any": ["요금", "실운임"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"], "overlays": [
+    {"name": "확정 전 상세", "standard": "DETAIL_PRE_CONFIRM", "buttons": {"accept": "확정", "filterOut": "취소"}, "match": [{"all": ["적요상세", "확정"], "any": ["요금", "실운임"]}], "listReturn": false, "seen": "REAL", "evidence": ["ex_images/인성/상세-미확정(다른사람 잡을수 있음).png", "ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png", "ex_images/인성/인성설명서/영상_0938.jpg (금액 줄 «요금 :»)", "ex_images/인성/인성설명서/영상_0532.jpg (금액 줄 «요금 :»)"], "toCollect": "알아보는 글자 any 의 «실운임» 은 확정 전 상세에서 본 근거가 없다(영상 0938 · 0532 는 «요금 :») — 확정 전 상세에서 «실운임 :» 이 보이는 캡처", "overlays": [
       {"name": "계산서 오더 안내 띠", "kind": "BANNER", "match": [{"any": ["계산서 발급오더의 경우"]}], "meaning": "계산서 오더 — 위수탁세금계산서 발행에 동의한 기사만 처리 · 부가세 포함 입금", "seen": "REAL", "evidence": ["ex_images/인성/상세-미확정3.png", "ex_images/인성/상세-미확정4.png"]},
       {"name": "확정 확인 팝업", "kind": "POPUP", "match": [], "meaning": "확정을 누르면 한 번 더 묻는다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
       {"name": "이미 배차됨 팝업", "kind": "POPUP", "match": [], "meaning": "남이 먼저 잡았다", "seen": "UNKNOWN", "evidence": [], "toCollect": "캡처 · 알아보는 글자"},
@@ -133,7 +134,7 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
     "myCall": [
       {"field": "pickup", "where": "출발지 줄", "sample": "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen", "note": "확정 뒤 상세 = 완료 탭에서 연 콜 — 인성설명서 장면 1621 · 자막 16:29"},
       {"field": "dropoff", "where": "도착지 줄", "sample": "서울강남구 / 역삼동 / 이희억", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen"},
-      {"field": "fare", "where": "요금 줄", "sample": "요금 : 40,000(신용)", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen — PageFieldRead", "read": "요금\\s*:\\s*([\\d,]+)(?![\\d.])"},
+      {"field": "fare", "where": "요금 줄 «요금 :» · 착불이면 «고객에게 받을 금액» 줄 — 확정 뒤 상세의 «실운임 :» 은 수수료를 뺀 값이라 안 읽는다(영상 1621 · 1743)", "sample": "고객에게 받을 금액 45,000", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen — PageFieldRead", "read": "(?:요금\\s*:|고객에게 받을 금액)\\s*([\\d,]+)(?![\\d.])"},
       {"field": "contact", "where": "머리 줄", "sample": "(주)신한로직스-1588-5480", "seen": "REAL", "handling": "UNUSED"},
       {"field": "memo", "where": "적요 칸", "sample": "1시상차 6박스 …", "seen": "REAL", "handling": "UNUSED"},
       {"field": "stage", "where": "상태 줄", "sample": "상태 : 배송", "seen": "REAL", "handling": "UNUSED"},
