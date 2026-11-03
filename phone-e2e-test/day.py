@@ -334,7 +334,7 @@ def bind_call(b, m=None):
     if DRY: return 'dry'
     fare = FARES.get(b.get('bind')) or PENDING.get('fare')
     if not fare: raise ToolStop(f'⚪ 시험 도구 — 콜 번호를 못 묶음({b.get("bind")} · 넣은 요금 없음)')
-    rx = rf'상세 진입\] {fare}원 .*세션 ((?:24H-)?[0-9a-f-]{{8,36}})'   # 인성 UUID · 화물24시 «24H-d7837085»(91판)
+    rx = rf'상세 진입\] {fare}원 .*세션 ((?:24H-|FLX-)?[0-9a-f-]{{8,36}})'   # 인성 UUID · 화물24시 «24H-d7837085» · 인성플렉스 «FLX-e8a4bb9e»
     t = wait_for('app', CMARK.get(b.get('bind')) or PENDING.get('cmark') or PENDING.get('amark') or 0, rx, 40, f'{b.get("bind")} 상세 진입 {fare}원')
     ids = sorted(set(re.findall(rx, t)))
     if len(ids) != 1: raise ToolStop(f'⚪ 시험 도구 — 콜 번호를 못 묶음({b.get("bind")} · {fare}원 상세 진입이 {len(ids)}개: {", ".join(i[:8] for i in ids)})')
