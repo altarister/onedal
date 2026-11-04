@@ -22,14 +22,6 @@ export const EVENT_TYPES = {
 /** 콜 종류 — 직접 잡음 · 체험 여부를 함께 담는다. `SimplifiedOfficeOrder.type` 의 타입이다 */
 export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
 
-// 위치 한 곳 — `pickups` · `dropoffs` 칸의 모양. 지금은 채우는 코드가 없다
-export interface LocationPoint {
-    code?: string;            // 지역 코드
-    name: string;             // 예: "역삼동"
-    fullName?: string;        // 예: "서울 강남구 역삼동"
-    centroid?: [number, number];  // 중심 좌표
-}
-
 // 상차지 · 하차지 연락처 — 인성 «출발지 상세» · «도착지 상세» 팝업의 칸과 1:1
 export interface LocationDetailInfo {
     customerName?: string;    // [고객] 상호/고객명 (예: "*레드캠프", "SK스토아 홈쇼핑(5층하차")
@@ -111,13 +103,10 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
     detailMemo?: string;              // 적요 상세 (원문 전체)
     
     // 5. 위치 정보
-    pickups?: LocationPoint[];        // 다중/상세 상차지
-    dropoffs?: LocationPoint[];       // 다중/상세 하차지
     pickupDetails?: LocationDetailInfo[];  // 출발지 상세 정보 (팝업 파싱)
     dropoffDetails?: LocationDetailInfo[]; // 도착지 상세 정보 (팝업 파싱)
     
     // 6. 메타 데이터 및 호환성 필드
-    isMock?: boolean;                 // 목업 콜 여부
     companyName?: string;             // 화주 상호/이름 (과거 호환 유지 목적)
     pickupTime?: string;              // 픽업 예약 시간 지정
 }
