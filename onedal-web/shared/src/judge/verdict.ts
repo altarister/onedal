@@ -1,3 +1,12 @@
+/**
+ * 🎨 판정 색 읽기
+ * 누가: 관제웹과 서버가 부른다
+ * 언제: 결재석과 콜 색 · 벨을 정할 때
+ * 어디서: 관제웹 결재석 · 서버 공급
+ * 무엇을: 서버가 준 판정에서 색 · 벨을 낸다
+ * 어떻게: 서버 값을 그대로 읽고 다시 계산하지 않는다
+ * 왜: 화면이 판정을 두 벌로 계산하지 않게 한다
+ */
 import type { SecuredOrder } from '../index';
 import type { Color } from './judge';
 import { isEvaluating } from '../callStatus';

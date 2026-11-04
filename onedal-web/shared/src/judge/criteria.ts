@@ -1,3 +1,12 @@
+/**
+ * ⚖️ 판정 기준 아홉
+ * 누가: 판정 엔진(`judge.ts`)이 돌리고 서버 판정 · 관제웹 실험실이 부른다
+ * 언제: 콜 하나를 판정할 때
+ * 어디서: 서버 OrderEvaluator · 관제웹 실험실
+ * 무엇을: 돈 · 노동강도 · 운전 · 대기 · 통화 · 약속 · 공간 · 성질 · 지리를 잰다
+ * 어떻게: 기준마다 자기 사실만 보고 점수 · 관문 · 배수를 말한다
+ * 왜: 기준을 더하고 빼도 엔진이 안 바뀌게 한다
+ */
 import { defineCriterion, scored, multiplied, asCeiling, needsCall, nothing, unmeasurable } from './judge';
 import type { Criterion } from './judge';
 import { manwonText } from '../common/format';
