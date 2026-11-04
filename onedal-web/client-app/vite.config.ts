@@ -78,7 +78,7 @@ function sharedPages(): Plugin {
           req.on("end", async () => {
             try {
               const { app, page: screen, field, part, sample } = JSON.parse(text);
-              const [pageReadFile, networkFile] = [sharedFileOf("pageRead") ?? sharedFileOf("network/pageRead"), sharedFileOf("networkPages") ?? sharedFileOf("network/networkPages")];
+              const [pageReadFile, networkFile] = [sharedFileOf("network/pageRead"), sharedFileOf("network/networkPages")];
               const { pageFieldOf } = await server.ssrLoadModule(pageReadFile!);
               const { NETWORK_PAGES } = await server.ssrLoadModule(networkFile!);
               const rows: { field: string; part?: string; handling: string; read?: string }[] = NETWORK_PAGES[app]?.pages?.[screen] ?? [];
