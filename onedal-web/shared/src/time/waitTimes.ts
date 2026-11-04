@@ -1,3 +1,12 @@
+/**
+ * ⏱️ 대기 시간 기본값
+ * 누가: 서버 · 관제웹 · shared 가 읽고 원달앱 WaitTimes 와 짝이다
+ * 언제: 안전취소 · 상세 대기 · 주행 굳음 초를 쓸 때
+ * 어디서: 서버 타이머 · 관제웹 설정 · 결재석
+ * 무엇을: 기본 초와 배차망별 안전취소 초를 낸다
+ * 어떻게: 값의 원천은 DB 칸이고 여기는 기본값과 읽는 함수다
+ * 왜: 배차망마다 다른 시간을 한 길로 잇는다
+ */
 import { isTargetApp, DEFAULT_TARGET_APP } from '../targetApps';
 import { NETWORK_PAGES } from '../networkPages';
 
