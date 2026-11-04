@@ -4,7 +4,13 @@ import { drawMenu } from '/shared/_/menu.js';
 drawMenu();
 const file = decodeURIComponent(location.pathname).replace(/^\/shared\//, '').replace(/\/$/, '');
 const box = document.getElementById('box');
-const text = (v) => (v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v, null, 1) : String(v));
+/* 칸 글자 — JSON 괄호 없이: 글자 목록은 · 로, 묶음은 «이름: 값» 줄로 */
+const text = (v) => {
+    if (v === null || v === undefined) return '';
+    if (Array.isArray(v)) return v.map(text).join(v.some((x) => x && typeof x === 'object') ? '\n' : ' · ');
+    if (typeof v === 'object') return Object.entries(v).map(([k, x]) => `${k}: ${text(x)}`).join('\n');
+    return String(v);
+};
 
 const sortText = (v) => (v && typeof v === 'object' && 'text' in v ? v.text : text(v));
 
@@ -98,30 +104,100 @@ function drawNetworkBook(spec, fields) {
         h.textContent = `${book[page]?.label ?? page} (${page}) — 칸 ${rows.length}개`;
         out.push(h, paragraph(book[page]?.does ?? ''), draw(rows.map((r) => ({
             '화면 자리': r.where, '화면 칸': r.part ? `${r.field} · ${r.part}` : r.field, '글자 견본': r.sample, '읽나': HANDLING_LABEL[r.handling] ?? r.handling,
-            '본 곳': SEEN_LABEL[r.seen] ?? r.seen, '늘 있나': PRESENCE_LABEL[r.presence] ?? '모름', '읽는 곳': r.usedAt ?? '', '덧말': r.note ?? '',
+            '본 곳': SEEN_LABEL[r.seen] ?? r.seen, '늘 있나': r.presence ? PRESENCE_LABEL[r.presence] ?? r.presence : '안 적음',
+            '늘 있나 근거': r.presenceEvidence ? `${r.presenceEvidence.seen}/${r.presenceEvidence.of} · ${r.presenceEvidence.from}` : '',
+            '읽는 곳': r.usedAt ?? '', '읽는 법': r.read ?? '', '덧말': r.note ?? '',
         }))));
     }
-    out.push(sectionHead(`화면 위에 뜨는 팝업 ${spec.callOverlays?.length ?? 0}개`), tableOf((spec.callOverlays ?? []).map((o) => ({
-        '팝업': o.name, '뜻': o.meaning, '알아보는 글자': matchText(o.match), '본 곳': SEEN_LABEL[o.seen] ?? o.seen, '근거': (o.evidence ?? []).join('\n'),
-    }))));
+    const overlayRow = (o, where) => ({
+        '화면': where, '팝업': o.name, '종류': o.kind ?? '', '뜻': o.meaning ?? '', '알아보는 글자': matchText(o.match), '동작': o.action ?? '', '자리': o.slot ?? '', '낱말 출처': o.wordsFrom ?? '',
+        '본 곳': SEEN_LABEL[o.seen] ?? o.seen ?? '', '근거': (o.evidence ?? []).join('\n'),
+    });
+    out.push(sectionHead(`콜 화면 위에 뜨는 팝업 ${spec.callOverlays?.length ?? 0}개`), tableOf((spec.callOverlays ?? []).map((o) => overlayRow(o, '콜 화면'))));
     out.push(sectionHead(`화면 알아보기 ${spec.screens.length}개`), draw(spec.screens.map((s) => ({
-        '화면': s.name, '기준 페이지': book[pageOf[s.standard]]?.label ?? '', '알아보는 글자': matchText(s.match), '버튼': Object.values(s.buttons ?? {}).join(' · '),
-        '위에 뜨는 것': (s.overlays ?? []).map((o) => o.name).join('\n'), '본 곳': SEEN_LABEL[s.seen] ?? s.seen, '근거': (s.evidence ?? []).join('\n'),
+        '화면': s.name, '기준 페이지': book[pageOf[s.standard]]?.label ?? '', '알아보는 글자': matchText(s.match), '버튼': Object.entries(s.buttons ?? {}).map(([k, x]) => `${k}: ${x}`).join('\n'),
+        '목록으로 돌아가나': s.listReturn === undefined ? '' : s.listReturn ? '예' : '아니요', '수락 뒤 도착': s.landsAfterAccept ? '예' : '',
+        '위에 뜨는 팝업': (s.overlays ?? []).length, '본 곳': SEEN_LABEL[s.seen] ?? s.seen, '근거': (s.evidence ?? []).join('\n'),
     }))));
+    const screenOverlays = spec.screens.flatMap((s) => (s.overlays ?? []).map((o) => overlayRow(o, s.name)));
+    out.push(sectionHead(`화면 위에 뜨는 것 ${screenOverlays.length}개`), tableOf(screenOverlays));
     out.push(sectionHead('배차망 규칙'), draw(Object.entries(RULE_LABEL).map(([key, [label, why]]) => ({
         '항목': label, '값': Array.isArray(spec[key]) ? spec[key].map((v) => (Array.isArray(v) ? v.join(' + ') : v)).join(' · ') : spec[key] ?? '없음', '까닭': spec[why] ?? '',
     }))));
     out.push(sectionHead(`차종 낱말 ${spec.vehicleWords?.length ?? 0}개`), paragraph(spec.vehicleWordsWhy ?? ''), tableOf((spec.vehicleWords ?? []).map((w) => ({ '화면 낱말': w.word, '차종': w.vehicle ?? '없음', '본 곳': SEEN_LABEL[w.seen] ?? w.seen }))));
     out.push(sectionHead('메모'), ...(spec.about ?? []).map(paragraph));
-    out.push(sectionHead('아직 모을 것'), tableOf(Object.entries(spec.slotNotes ?? {}).map(([slot, note]) => ({ '자리': book[slot]?.label ?? slot, '내용': note.toCollect ?? note.why ?? '', '근거': note.evidence ?? '' }))));
+    const toCollect = [
+        ...Object.entries(spec.slotNotes ?? {}).map(([slot, note]) => ({ '자리': book[slot]?.label ?? slot, '내용': note.toCollect ?? note.why ?? '', '근거': note.evidence ?? '' })),
+        ...spec.screens.filter((s) => s.toCollect).map((s) => ({ '자리': s.name, '내용': s.toCollect, '근거': '' })),
+        ...spec.screens.flatMap((s) => (s.overlays ?? []).filter((o) => o.toCollect).map((o) => ({ '자리': `${s.name} · ${o.name}`, '내용': o.toCollect, '근거': '' }))),
+        ...(spec.callOverlays ?? []).filter((o) => o.toCollect).map((o) => ({ '자리': o.name, '내용': o.toCollect, '근거': '' })),
+    ];
+    out.push(sectionHead(`아직 모을 것 ${toCollect.length}건`), tableOf(toCollect));
     const rest = Object.entries(spec).filter(([key]) => !DRAWN_KEYS.includes(key));
     if (rest.length > 0) out.push(sectionHead('그 밖의 항목'), draw(rest.map(([key, value]) => ({ '항목': key, '값': value }))));
     return out;
 }
 
+/* 🧩 값 모양에 맞춰 그린다 — 글자 목록은 한 줄 · 묶음은 표 · 모양이 다른 묶음은 항목마다 나눠서 */
+const isPlain = (v) => v && typeof v === 'object' && !Array.isArray(v);
+function drawValue(value) {
+    if (Array.isArray(value) && value.every((v) => !v || typeof v !== 'object')) {
+        const chips = document.createElement('div');
+        chips.className = 'chips';
+        for (const v of value) { const c = document.createElement('span'); c.textContent = text(v); chips.append(c); }
+        return [chips];
+    }
+    if (!isPlain(value)) return Array.isArray(value) ? [draw(rowsOf(value))] : [paragraph(text(value))];
+    const children = Object.values(value);
+    if (children.every((v) => !v || typeof v !== 'object')) return [draw(rowsOf(value))];
+    const keys = new Set(children.filter(isPlain).flatMap((v) => Object.keys(v)));
+    if (children.every(isPlain) && children.every((v) => Object.keys(v).length * 2 >= keys.size)) return [draw(rowsOf(value))];
+    return Object.entries(value).flatMap(([key, v]) => {
+        const h = document.createElement('h3');
+        h.textContent = key;
+        return [h, ...drawValue(v)];
+    });
+}
+
+/* 📜 소스 코드 — 내보내지 않은 값도 볼 수 있게. 펼칠 때 읽는다 */
+function sourceBlock() {
+    const box = document.createElement('details');
+    box.className = 'source';
+    const head = document.createElement('summary');
+    head.textContent = '소스 코드 보기';
+    const code = document.createElement('pre');
+    box.append(head, code);
+    box.addEventListener('toggle', () => {
+        if (box.open && !code.textContent) fetch(`/shared/_/source/${file}`).then((r) => r.text()).then((s) => { code.textContent = s; });
+    }, { once: false });
+    return box;
+}
+
+/* 📂 폴더 한눈에 보기 — 파일마다 제목 · 무엇을 · 누가 · 왜 */
+async function drawFolder() {
+    const files = await fetch(`/shared/_/folder/${file}`).then((r) => r.json());
+    const word = (f, w) => f.six.find((s) => s.word === w)?.text ?? '';
+    document.title = file;
+    document.getElementById('title').textContent = `${file} 폴더 — 파일 ${files.length}개`;
+    document.getElementById('six').remove();
+    const el = draw(files.map((f) => ({ '파일': f.file.split('/').pop(), '제목': f.title, '무엇을': word(f, '무엇을'), '누가': word(f, '누가'), '왜': word(f, '왜') })));
+    for (const row of el.tBodies[0].rows) {
+        const name = row.cells[0].textContent;
+        const a = document.createElement('a');
+        a.href = `/shared/${file}/${name}`;
+        a.textContent = name;
+        row.cells[0].textContent = '';
+        row.cells[0].append(a);
+    }
+    box.append(el);
+}
+
 document.title = file;
 document.getElementById('title').textContent = file;
-fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ values, limit, six, functions, aliases, interfaces }) => {
+if (!file.includes('/')) drawFolder().catch((e) => { box.textContent = `못 읽음: ${e}`; });
+else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ values, limit, title, six, functions, aliases, interfaces, notes }) => {
+    if (title) { document.title = title; document.getElementById('title').textContent = `${title} — ${file}`; }
+    box.after(sourceBlock());
     const sixBox = document.getElementById('six');
     if (six.length === 0) sixBox.textContent = '6하원칙 없음';
     for (const s of six) {
@@ -151,12 +227,20 @@ fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ values, li
         }
         const h = document.createElement('h2');
         h.className = 'value';
-        h.textContent = v.total > limit ? `${v.name} — ${v.total}개 중 ${limit}개` : v.name;
+        const note = notes?.[v.name] && notes[v.name] !== '주석 없음' ? ` — ${notes[v.name]}` : '';
+        h.textContent = v.total > limit ? `${v.name} — ${v.total}개 중 ${limit}개${note}` : `${v.name}${note}`;
+        if (v.name === 'NETWORK_PAGES') {
+            const links = document.createElement('div');
+            links.className = 'chips';
+            for (const net of Object.keys(v.rows)) { const a = document.createElement('a'); a.href = `/shared/network/networkPages.${net}`; a.textContent = net; links.append(a); }
+            box.append(h, paragraph('네 배차망 파일을 합친 값입니다. 내용은 배차망 페이지에서 봅니다.'), links);
+            continue;
+        }
         if (isBook(v.rows)) {
             h.textContent = v.rows.title ?? v.name;
             const about = document.createElement('p');
             about.textContent = v.rows.about ?? '';
             box.append(h, about, draw(v.rows.rows, v.rows));
-        } else box.append(h, draw(rowsOf(v.rows)));
+        } else box.append(h, ...drawValue(v.rows));
     }
 }).catch((e) => { box.textContent = `못 읽음: ${e}`; });

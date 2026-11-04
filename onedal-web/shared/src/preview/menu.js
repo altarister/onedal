@@ -27,6 +27,11 @@ export async function drawMenu() {
                 const head = document.createElement('summary');
                 head.textContent = FOLDER_LABEL[dir] ?? dir;
                 box.append(head);
+                const all = document.createElement('a');
+                all.href = `/shared/${dir}`;
+                all.textContent = '폴더 한눈에 보기';
+                if (all.getAttribute('href') === here) { all.className = 'now'; box.open = true; }
+                box.append(all);
                 box.open = saved.open?.includes(dir) ?? false;
                 nav.append(box);
             }

@@ -1,5 +1,5 @@
 import path from "path"
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs"
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "fs"
 import { execSync } from "child_process"
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -72,7 +72,8 @@ async function sharedCodeOf(file: string) {
   const functions: Record<string, string>[] = [];
   const aliases: Record<string, string>[] = [];
   const interfaces: { name: string; about: string; rows: Record<string, string>[] }[] = [];
-  if (!source || !module) return { functions, aliases, interfaces };
+  const notes: Record<string, string> = {};
+  if (!source || !module) return { functions, aliases, interfaces, notes };
   const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
   /* `/** */` 주석 → 같은 줄 뒤 `//`(interface 는 `{` 뒤) → (칸이 아니면) 바로 윗줄 `//`. 칸 위의 `//` 는 여러 칸을 묶는 소제목이라 읽지 않는다 */
   const firstLine = (symbol: import("typescript").Symbol) => {
@@ -88,6 +89,7 @@ async function sharedCodeOf(file: string) {
   for (const exported of checker.getExportsOfModule(module)) {
     const symbol = exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
     const signature = checker.getTypeOfSymbolAtLocation(symbol, source).getCallSignatures()[0];
+    if (symbol.flags & ts.SymbolFlags.Variable && !signature) notes[exported.name] = firstLine(symbol);
     if (signature) functions.push({ "함수": exported.name, "기능": firstLine(symbol), "리턴 타입": checker.typeToString(signature.getReturnType(), source) });
     if (symbol.flags & ts.SymbolFlags.TypeAlias) {
       const node = symbol.declarations?.find(ts.isTypeAliasDeclaration);
@@ -103,9 +105,15 @@ async function sharedCodeOf(file: string) {
       interfaces.push({ name: exported.name, about: firstLine(symbol), rows });
     }
   }
-  return { functions, aliases, interfaces };
+  return { functions, aliases, interfaces, notes };
 }
 /** 찾을 파일 — 주소 글자는 낱말과 `/` 만 받는다(`..` 로 밖에 못 나간다) */
+/** 폴더 한눈에 보기 — 주소 글자가 shared 안 폴더 하나일 때만 */
+function sharedFolderOf(name: string): string | null {
+  if (!/^[a-zA-Z0-9_-]+$/.test(name) || name === "preview" || name === "node_modules") return null;
+  const folder = path.join(SHARED, name);
+  return existsSync(folder) && statSync(folder).isDirectory() ? name : null;
+}
 function sharedFileOf(name: string): string | null {
   if (!/^(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+$/.test(name) || name.includes("..") || name.endsWith(".test")) return null;
   const file = path.join(SHARED, `${name}.ts`);
@@ -139,17 +147,26 @@ function sharedPages(): Plugin {
           });
           return;
         }
+        if (url.startsWith("_/source/")) {
+          const file = sharedFileOf(url.slice("_/source/".length));
+          return file ? send("text/plain", readFileSync(file)) : fail(404, "없는 파일");
+        }
+        if (url.startsWith("_/folder/")) {
+          const folder = sharedFolderOf(url.slice("_/folder/".length));
+          if (!folder) return fail(404, "없는 폴더");
+          return json(sharedFiles(path.join(SHARED, folder), `${folder}/`).map((file) => ({ file, title: sharedTitleOf(file), six: sixOf(readFileSync(path.join(SHARED, `${file}.ts`), "utf-8")) })));
+        }
         if (url.startsWith("_/module/")) {
           const file = sharedFileOf(url.slice("_/module/".length));
           if (!file) return fail(404, "없는 파일");
           server.ssrLoadModule(file).then(async (loaded) => {
             const values = Object.entries(loaded).map(([name, value]) => ({ name, ...sharedValue(value) })).filter((v) => "rows" in v);
-            json({ limit: SHARED_ROW_LIMIT, six: sixOf(readFileSync(file, "utf-8")), ...(await sharedCodeOf(file)), values });
+            json({ limit: SHARED_ROW_LIMIT, title: sharedTitleOf(url.slice("_/module/".length)), six: sixOf(readFileSync(file, "utf-8")), ...(await sharedCodeOf(file)), values });
           }).catch((e) => fail(500, String(e)));
           return;
         }
         if (url.startsWith("_/") && SHARED_ASSETS[url.slice(2)]) return send(SHARED_ASSETS[url.slice(2)], readFileSync(path.join(SHARED_PAGE, url.slice(2))));
-        if (sharedFileOf(url)) return page("view.html");
+        if (sharedFileOf(url) || sharedFolderOf(url)) return page("view.html");
         next();
       });
     },
