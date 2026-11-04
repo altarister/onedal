@@ -65,7 +65,7 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     timestamp: string;                // ISO 8601 포맷
     postTime?: string;                // 콜 상차시간 · 등록시간 (예: "12:23")
     scheduleText?: string;            // 예약 앞글자 원문 (예: "낼09시", "11일)09시", "@")
-    vehicleType?: string;             // 콜 차종 (예: "라", "다", "1t" 등)
+    vehicleType?: string;             // 콜 차종 — 목록 줄임말("라", "다", "1t") 또는 상세의 차량 이름("다마스")
     rawText?: string;                 // 안드로이드 스캐너에서 긁어온 원본 텍스트         
     // 좌표 — 원달앱 명부 또는 서버 지오코딩
     pickupX?: number;                 // 상차지 좌표 X
@@ -97,7 +97,6 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
     // 2. 문서/전표 기본 정보
     receiptStatus?: string;           // 전표 상태 (예: "신규", "수정", "취소")
     itemDescription?: string;         // 물품 요약 (예: "소형 가전", "박스 2개")
-    vehicleType?: string;             // 차량 종류 (예: "1t", "다마스")
     
     // 3. 요금 상세 스펙
     commissionRate?: string;          // 수수료율 (예: "23%", "10%", "*%")
