@@ -47,7 +47,7 @@ export type CargoUnit = typeof CARGO_UNITS[number] | typeof LEGACY_CARGO_UNITS[n
 export const CARGO_UNIT_POINTS: Record<CargoUnit, number> = {
     '파레트': 40,    // 박스 40개 분량 — 2개(80) + 여유 20 = 1t 만재
     '마대': 1,       // 박스 1개 (기사님 확정)
-    '라면박스': 1,   // 축의 기준 — 라면 40개들이 1박스
+    '라면박스': 1,   // 축의 기준 — 라면 20봉지 정도가 들어가는 크기 · 41 × 31 × 28cm (기사님 정의)
     '서류봉투': 0.2,  // 무게·부피 거의 없음
     /**
      * `기타` 는 **부피를 모른다는 뜻**이다. 0 점을 주는 것은 "안 실었다"가 아니라
