@@ -1,3 +1,12 @@
+/**
+ * 🏢 운영센터 규격과 회원 상태
+ * 누가: 서버와 운영센터 · 관제웹이 함께 읽는다
+ * 언제: 운영센터 문을 주고받거나 회원을 막을지 정할 때
+ * 어디서: 서버 /api/ops · 운영센터 화면 · 관제웹 차단 화면
+ * 무엇을: 운영센터 응답 타입과 회원 상태 규칙을 정한다
+ * 어떻게: 회원 상태는 이름 칸이 아니라 사실 시각 칸을 보고 계산한다
+ * 왜: 서버와 화면이 회원 상태를 다르게 말하지 않게 한다
+ */
 import type { Color } from '../judge';
 import type { TargetAppType, DeviceSession, AutoDispatchFilter, JudgmentSnapshot, DeviceModeType } from '../index';
 import type { ContentKind } from './join';
