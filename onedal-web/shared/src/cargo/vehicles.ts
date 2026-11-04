@@ -7,7 +7,7 @@
  * 어떻게: 배차망 낱말은 정의 표에서 찾아 우리 차종으로 바꾼다
  * 왜: 배차망마다 다른 차종 말을 한 기준으로 맞춘다
  */
-import { NETWORK_PAGES } from '../networkPages';
+import { NETWORK_PAGES } from '../network/networkPages';
 export const VEHICLE_OPTIONS = [
     '오토바이', 
     '다마스', 

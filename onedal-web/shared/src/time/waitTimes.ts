@@ -7,8 +7,8 @@
  * 어떻게: 값의 원천은 DB 칸이고 여기는 기본값과 읽는 함수다
  * 왜: 배차망마다 다른 시간을 한 길로 잇는다
  */
-import { isTargetApp, DEFAULT_TARGET_APP } from '../targetApps';
-import { NETWORK_PAGES } from '../networkPages';
+import { isTargetApp, DEFAULT_TARGET_APP } from '../network/targetApps';
+import { NETWORK_PAGES } from '../network/networkPages';
 
 /**
  * ⏱️ **«주행·정차»로 굳는 데 걸리는 초 — 기본값** (기사님 확정 · 화면규칙 S16).

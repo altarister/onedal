@@ -1,6 +1,6 @@
 import { TARGET_APP_LABEL, type TargetAppType } from './targetApps';
-import { DEVICE_OFFLINE_LABEL, type DeviceOfflineReason } from './device/deviceOffline';
-import type { ScreenContextType } from './index';
+import { DEVICE_OFFLINE_LABEL, type DeviceOfflineReason } from '../device/deviceOffline';
+import type { ScreenContextType } from '../index';
 import { overlayLabelOf } from './networkPages';
 
 /**

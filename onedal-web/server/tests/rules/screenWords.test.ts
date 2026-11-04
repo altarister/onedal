@@ -100,7 +100,7 @@ describe('📰 현황판 «새 글자» 줄 — 라이브에서도 보인다', (
     });
 
     it('갈래·페이지의 한국어 이름은 shared 한 곳 — 서버 로그와 운영센터가 같은 말', () => {
-        const shared = readFileSync(join(__dirname, '../../../shared/src/pageFields.ts'), 'utf8');
+        const shared = readFileSync(join(__dirname, '../../../shared/src/network/pageFields.ts'), 'utf8');
         expect(shared).toContain('export const WORD_KIND_LABEL');
         expect(shared).toContain('export const SCREEN_PAGE_LABEL');
         expect(read('services/screenWords.ts')).toContain('WORD_KIND_LABEL[kind]');

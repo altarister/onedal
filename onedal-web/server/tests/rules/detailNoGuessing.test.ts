@@ -20,10 +20,10 @@ describe('🔎 상세 원문 짐작 없음', () => {
 
 /**
  * 💰 **요금 — 원달앱과 같은 정의 표 · 같은 숫자 규칙** (3단계 1 · onedal-69 «가»).
- *    공통 문제지(shared/src/pageReadCases.json)를 서버도 풀어 원달앱 PageFieldReadTest 와 같은 답을 낸다.
+ *    공통 문제지(shared/src/network/pageReadCases.json)를 서버도 풀어 원달앱 PageFieldReadTest 와 같은 답을 낸다.
  *    숫자 규칙은 원달앱 PageFieldRead.fareOf 와 같다 — 쉼표 떼고 정수 · 0 이하는 못 읽음(만 · 천 · 축약을 짐작하지 않는다).
  */
-const SHEET = JSON.parse(readFileSync(join(__dirname, '../../../shared/src/pageReadCases.json'), 'utf8')) as
+const SHEET = JSON.parse(readFileSync(join(__dirname, '../../../shared/src/network/pageReadCases.json'), 'utf8')) as
     { cases: Array<{ network: any; page: any; field: any; part?: string; texts: string[]; expect: string | null; fare?: number | null; why: string }> };
 
 describe('💰 상세 요금 — 정의 표대로', () => {

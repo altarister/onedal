@@ -20,7 +20,7 @@ import com.onedal.app.core.StandardScreen
  * 안 읽는·버리는 칸(UNUSED·DROPPED)이 다음에 읽을 재료다.
  * 상세의 칸 밖 요소(실물 15건): 지도 · 핀 · ← 늘 있음(시트를 끝까지 올리면 가려짐) · 현위치 단추 한 번만 · 넘기기 · 수락하기 늘 있음(화면 판별 글자) · 도보 상세는 배치가 달라 모름(1장).
  *
- * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/networkPages.kakaopicker.ts` — 서버도 같은 표를 읽는다.
+ * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/network/networkPages.kakaopicker.ts` — 서버도 같은 표를 읽는다.
  */
 object KakaoPickerPages {
     val pages: PageSpecs = mapOf(

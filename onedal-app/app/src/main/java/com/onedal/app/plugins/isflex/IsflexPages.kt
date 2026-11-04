@@ -19,7 +19,7 @@ import com.onedal.app.core.StandardScreen
  * 실물은 홈 · 목록 둘 · 지도 · 진행중(빈) · 시트 둘 · 확정 전 상세 다섯 · 메뉴 여섯뿐 — 확정 뒤 화면 · 진행중 한 건 · 팝업은 실물이 없어 모름(UNKNOWN)이나 지어낸 시뮬 화면(SIM)이다.
  * 안내 그림(img_guide3_*)의 이름표가 실물과 다르면 실물이 맞다 — 실물에 안내 그림 이름표가 나오면 리뉴얼 신호다.
  *
- * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/networkPages.isflex.ts` — 서버도 같은 표를 읽는다.
+ * 🔴 **생성 파일이다 — 손으로 고치지 않는다** (`cd onedal-web && pnpm gen:pages`). 원천은 `onedal-web/shared/src/network/networkPages.isflex.ts` — 서버도 같은 표를 읽는다.
  */
 object IsflexPages {
     val pages: PageSpecs = mapOf(

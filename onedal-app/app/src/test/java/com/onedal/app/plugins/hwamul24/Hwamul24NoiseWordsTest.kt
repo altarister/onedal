@@ -30,7 +30,7 @@ class Hwamul24NoiseWordsTest {
 
     /** 견본 — shared 화면 문제지의 화물24시 줄 · 시뮬레이터 화면 스냅숏의 화물24시 줄(띄어쓰기로 쪼갬) · 이 폴더 검사의 노드 목록 */
     private fun samples(): List<Pair<String, List<String>>> {
-        val cases = JsonParser.parseString(File("../../onedal-web/shared/src/screenCases.json").readText()).asJsonObject["cases"].asJsonArray
+        val cases = JsonParser.parseString(File("../../onedal-web/shared/src/network/screenCases.json").readText()).asJsonObject["cases"].asJsonArray
             .map { it.asJsonObject }.filter { it["network"].asString == "hwamul24" }
             .map { "문제지 " + it["why"].asString to it["text"].asString.split(" ").filter { w -> w.isNotEmpty() } }
         val snap = File("../../onedal-sim/tests/__snapshots__/screens.test.tsx.snap").readLines()

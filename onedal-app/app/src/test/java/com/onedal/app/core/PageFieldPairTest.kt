@@ -8,10 +8,10 @@ import java.io.File
 
 /**
  * 📄 **페이지 · 칸 · 글자 갈래 이름 — 원달앱과 서버·관제웹이 같은 낱말** (로그 태그 짝과 같은 모양).
- * 짝: `onedal-web/shared/src/pageFields.ts`(기준 페이지 사전 — 칸을 적는 페이지는 `pages` 열쇠에서 홈을 뺀 것) ↔ 원달앱 `PageField.kt`. 한쪽만 바꾸면 여기서 빨갛다.
+ * 짝: `onedal-web/shared/src/network/pageFields.ts`(기준 페이지 사전 — 칸을 적는 페이지는 `pages` 열쇠에서 홈을 뺀 것) ↔ 원달앱 `PageField.kt`. 한쪽만 바꾸면 여기서 빨갛다.
  */
 class PageFieldPairTest {
-    private val shared = File("../../onedal-web/shared/src/pageFields.ts").readText()
+    private val shared = File("../../onedal-web/shared/src/network/pageFields.ts").readText()
 
     private fun wordsOf(name: String): List<String> {
         val body = shared.substringAfter("$name = [").substringBefore("] as const")

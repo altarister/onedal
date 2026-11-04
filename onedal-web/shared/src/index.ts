@@ -8,7 +8,7 @@ export * from './call/orderSync';
 export * from './time/waitTimes';
 export * from './call/dispatchApi';
 export * from './device/deviceModes';
-export * from './screenKinds';
+export * from './network/screenKinds';
 export * from './device/deviceSession';
 export * from './call/orderShapes';
 export * from './filter/dispatchFilter';
@@ -17,7 +17,7 @@ export { LET_GO_STATUSES, isLetGoStatus, type LetGoStatus, DECISION_STATUSES, ty
 
 export * from './device/deviceOffline';
 
-export * from './targetApps';
+export * from './network/targetApps';
 
 export * from './map/callBands';
 export * from './device/modeTable';
@@ -65,7 +65,7 @@ export * from './judge/judge';
 export * from './judge/criteria';
 
 /** 🏷️ 화면 이름표 — 배차망별로 갈라 둔다 (기사님 설계) */
-export * from './screenLabels';
+export * from './network/screenLabels';
 export * from './map/naviLink';
 /** ⏱️ 밀림 — 한 콜이 앞선 정거장을 몇 분 밀었나, 누가 밀었나 (실험실에서 올림) */
 export * from './judge/stopImpact';
@@ -82,10 +82,10 @@ export * from './filter/callNet';
 export * from './filter/trappedRegions';
 
 export * from './common/logTags';
-export * from './pageFields';
+export * from './network/pageFields';
 export * from './filter/sigungu';
 export * from './filter/adminDongMatch';
-export * from './networkPages';
-export * from './collectList';
+export * from './network/networkPages';
+export * from './network/collectList';
 export * from './ops/flowViews';
-export * from './pageRead';
+export * from './network/pageRead';

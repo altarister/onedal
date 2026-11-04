@@ -1,7 +1,7 @@
-import type { TargetAppType } from './index';
+import type { TargetAppType } from '../index';
 import type { PageField, ScreenPage, BaseSlot } from './pageFields';
 import { basePageOf, CALL_OVERLAY_LABEL } from './pageFields';
-import type { VehicleType } from './cargo/vehicles';
+import type { VehicleType } from '../cargo/vehicles';
 import { INSUNG_PAGES } from './networkPages.insung';
 import { HWAMUL24_PAGES } from './networkPages.hwamul24';
 import { KAKAO_PICKER_PAGES } from './networkPages.kakaopicker';

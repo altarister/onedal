@@ -5,13 +5,13 @@ import { Hwamul24SimScreen } from '@altari/ui-simulators';
 import type { Hwamul24Call, NetScreenProps } from '@altari/ui-simulators';
 import { callA } from './fixtures';
 import { FIXED_NOW, seededRandom } from './seededRandom';
-import tableSource from '../../onedal-web/shared/src/networkPages.hwamul24.ts?raw';   // 배차망 몫 파일(공통은 networkPages.ts)
+import tableSource from '../../onedal-web/shared/src/network/networkPages.hwamul24.ts?raw';   // 배차망 몫 파일(공통은 networkPages.ts)
 
 /**
  * 🧭 **시뮬레이터 화물24시 상세가 배차망 정의 표의 그 페이지로 읽히나** (실물 18 «화물상세정보»).
  * 잡기 전 상세는 «화물상세정보» 줄에만 맞고, 잡은 콜 상세는 «배차내역 상세 · 화물정보 탭» 줄에 맞아야 한다 —
  * 잡기 전 화면을 배차내역 모양으로 그리면 원달앱이 잡지 않은 콜을 «확정 뒤 상세»로 읽는다.
- * 표는 onedal-web/shared/src/networkPages.ts 의 JSON 표시 사이를 글(?raw)로 읽는다(시뮬레이터는 shared 를 의존하지 않는다) — 표의 화물24시 줄이 바뀌어 여기가 빨개지면 시뮬레이터와 표가 갈라진 것이다.
+ * 표는 onedal-web/shared/src/network/networkPages.ts 의 JSON 표시 사이를 글(?raw)로 읽는다(시뮬레이터는 shared 를 의존하지 않는다) — 표의 화물24시 줄이 바뀌어 여기가 빨개지면 시뮬레이터와 표가 갈라진 것이다.
  */
 type Match = { all?: string[]; any?: string[]; none?: string[]; shape?: { read: string; min?: number; max?: number } };
 type Screen = { name: string; match: Match[] };

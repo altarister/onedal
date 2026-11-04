@@ -14,7 +14,7 @@ import java.io.File
 
 /**
  * 🧪 **화면 판별은 배차망 정의 표대로**.
- * 문제지 `onedal-web/shared/src/screenCases.json` — 실물 캡처 고정 글자 · 시뮬레이터 견본 · A24 폰이 올린 화면 원문.
+ * 문제지 `onedal-web/shared/src/network/screenCases.json` — 실물 캡처 고정 글자 · 시뮬레이터 견본 · A24 폰이 올린 화면 원문.
  * 줄마다 `expect`(표 판별)와 같아야 한다. `was`(옛 판별)와 다른 줄이 2단계에서 바뀌는 화면 전부다 — 그 밖은 0.
  */
 class ScreenTableDetectTest {
@@ -22,7 +22,7 @@ class ScreenTableDetectTest {
     private data class Case(val network: String, val why: String, val text: String, val was: String, val expect: String, val overlay: String?, val page: String?)
 
     private val cases: List<Case> by lazy {
-        val json = JsonParser.parseString(File("../../onedal-web/shared/src/screenCases.json").readText()).asJsonObject
+        val json = JsonParser.parseString(File("../../onedal-web/shared/src/network/screenCases.json").readText()).asJsonObject
         json["cases"].asJsonArray.map { it.asJsonObject }.map {
             Case(it["network"].asString, it["why"].asString, it["text"].asString, it["was"].asString, it["expect"].asString, it["overlay"]?.asString, it["page"]?.asString)
         }

@@ -2,7 +2,7 @@ package com.onedal.app.core
 
 /**
  * 📄 **배차망 페이지 정의의 공통 이름 — 모든 배차망이 같은 낱말**(칸을 적는 기준 페이지 — 홈은 칸을 안 적어 없다).
- * 짝은 `onedal-web/shared/src/pageFields.ts` 의 기준 페이지 사전 (`PageFieldPairTest` 가 낱말과 차례를 문다).
+ * 짝은 `onedal-web/shared/src/network/pageFields.ts` 의 기준 페이지 사전 (`PageFieldPairTest` 가 낱말과 차례를 문다).
  * 배차망마다 다른 것은 «화면 어디서 · 어떤 글자로»뿐 — 그것은 플러그인 폴더의 `…Pages.kt` 가 적는다.
  */
 enum class Page(val word: String) {

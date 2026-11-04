@@ -10,10 +10,10 @@ import {
 import type { IsflexMenu, NetScreenProps } from '@altari/ui-simulators';
 import { FIXED_NOW } from './seededRandom';
 import { callA, callB, isflexA, isflexB, isflexC, pickerA } from './fixtures';
-import isflexSource from '../../onedal-web/shared/src/networkPages.isflex.ts?raw';
-import insungSource from '../../onedal-web/shared/src/networkPages.insung.ts?raw';
-import hwamul24Source from '../../onedal-web/shared/src/networkPages.hwamul24.ts?raw';
-import pickerSource from '../../onedal-web/shared/src/networkPages.kakaopicker.ts?raw';
+import isflexSource from '../../onedal-web/shared/src/network/networkPages.isflex.ts?raw';
+import insungSource from '../../onedal-web/shared/src/network/networkPages.insung.ts?raw';
+import hwamul24Source from '../../onedal-web/shared/src/network/networkPages.hwamul24.ts?raw';
+import pickerSource from '../../onedal-web/shared/src/network/networkPages.kakaopicker.ts?raw';
 import xml01 from '../../ex_images/인성플렉스/01_홈.xml?raw';
 import xml02 from '../../ex_images/인성플렉스/02_목록.xml?raw';
 import xml03 from '../../ex_images/인성플렉스/03_목록_지도.xml?raw';

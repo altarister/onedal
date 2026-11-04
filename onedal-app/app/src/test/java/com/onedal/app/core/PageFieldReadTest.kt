@@ -20,8 +20,8 @@ class PageFieldReadTest {
     /** 03:40:28 원달앱이 서버에 보낸 인성(시뮬) 상세 원문 — 노드를 한 줄로 이은 그대로 */
     private val insungDetail = listOf("고양퀵서비스-031-932-7722 전표 상태 : 신규 물품 : 박스 1개 차량 : 다마스 탁송료 : 수수료 : 23% 요금 : 50,000(카드) 구분 : 편도 형태 : 보통 적요상세 *카고 입니다. 세금계산서필 03:57 상차.")
 
-    /** 🧾 공통 문제지 — 서버 jest 가 3단계에 같은 줄을 푼다(`onedal-web/shared/src/pageReadCases.json`) */
-    private val cases = com.google.gson.JsonParser.parseString(File("../../onedal-web/shared/src/pageReadCases.json").readText())
+    /** 🧾 공통 문제지 — 서버 jest 가 3단계에 같은 줄을 푼다(`onedal-web/shared/src/network/pageReadCases.json`) */
+    private val cases = com.google.gson.JsonParser.parseString(File("../../onedal-web/shared/src/network/pageReadCases.json").readText())
         .asJsonObject["cases"].asJsonArray.map { it.asJsonObject }
     private val pagesOf = mapOf("insung" to InsungPages.pages, "hwamul24" to Hwamul24Pages.pages, "kakaopicker" to KakaoPickerPages.pages, "isflex" to IsflexPages.pages)
 

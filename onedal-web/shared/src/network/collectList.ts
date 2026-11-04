@@ -1,4 +1,4 @@
-import type { TargetAppType } from './index';
+import type { TargetAppType } from '../index';
 import { NETWORK_PAGES, type NetworkPageSpec } from './networkPages';
 
 type Screen = NetworkPageSpec['screens'][number];

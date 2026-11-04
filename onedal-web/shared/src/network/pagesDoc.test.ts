@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { TARGET_APPS } from './index';
+import { TARGET_APPS } from '../index';
 import { BASE_PAGE_BOOK, BASE_PAGES } from './pageFields';
 
 /**
@@ -10,8 +10,8 @@ import { BASE_PAGE_BOOK, BASE_PAGES } from './pageFields';
  * 막는 것: 정의 표를 고치고 사전표를 안 뽑는 것 · 배차망 × 자리에 «화면 줄 / 없음 + 근거 / 모름 + 모을 것» 어느 것도 없는 칸 · 화면 줄이 있는데 «없음»으로 적은 칸.
  * 못 잡는 것: 정의 표에 적힌 사실이 실물과 맞는지(시뮬레이터 글자 · 실물 첫날 확인 몫).
  */
-const LIB = join(__dirname, '../../scripts/lib/base-page-doc.mjs');
-const DOC = join(__dirname, '../../../설계/기준페이지_사전표.md');
+const LIB = join(__dirname, '../../../scripts/lib/base-page-doc.mjs');
+const DOC = join(__dirname, '../../../../설계/기준페이지_사전표.md');
 
 async function sources() {
     const lib: any = await import(/* @vite-ignore */ LIB);

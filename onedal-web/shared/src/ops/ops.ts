@@ -10,7 +10,7 @@
 import type { Color } from '../judge/judge';
 import type { TargetAppType, DeviceSession, AutoDispatchFilter, JudgmentSnapshot, DeviceModeType } from '../index';
 import type { ContentKind } from './join';
-import type { WordKind } from '../pageFields';
+import type { WordKind } from '../network/pageFields';
 import type { CargoUnit } from '../cargo/cargoUnits';
 import type { FlowCell, WatchedHour } from './flowViews';
 import { kstDateText } from '../common/format';

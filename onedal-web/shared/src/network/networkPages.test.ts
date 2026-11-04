@@ -3,9 +3,9 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { NETWORK_PAGES, STANDARD_SCREENS, fieldsOf } from './networkPages';
 import { PAGE_FIELDS, SCREEN_PAGES, BASE_PAGES, BASE_PAGE_OF, basePageOf, type PageField, type ScreenPage } from './pageFields';
-import { TARGET_APPS, type TargetAppType } from './index';
+import { TARGET_APPS, type TargetAppType } from '../index';
 import { pageFieldOf, pageFareOf, excludeScanTextOf, missingAlwaysOf } from './pageRead';
-import { VEHICLE_OPTIONS } from './cargo/vehicles';
+import { VEHICLE_OPTIONS } from '../cargo/vehicles';
 
 /**
  * 📄 **배차망 화면 정의 표 — 서버가 믿고 읽을 수 있나** (onedal-46 3단계 조건).
@@ -117,7 +117,7 @@ describe('차종 낱말 (vehicleWords)', () => {
  * 기준 값 · 덧칸 갈래는 정해진 낱말만 · 본 것은 근거가 있다 · 못 정한 것은 «모을 것»이 붙는다 · 목록 복귀는 지금 동작 그대로.
  */
 describe('배차망 페이지 목록 (screens)', () => {
-    const ROOT = join(__dirname, '../../..');
+    const ROOT = join(__dirname, '../../../..');
     const all = Object.entries(NETWORK_PAGES).flatMap(([net, spec]) => spec.screens.map(s => ({ net, s })));
     /* 수락 뒤 픽커 캡처 폴더는 .gitignore 가 막는다 — 다른 기계에는 파일이 없다 */
     const ignored = (p: string) => p.startsWith('ex_images/카카오픽커/실물_2026/') || p.startsWith('ex_images/인성/인성설명서/');

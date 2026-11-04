@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { NETWORK_PAGES, type NetworkPageSpec } from './networkPages';
 import { collectListOf, collectCountOf } from './collectList';
-import type { TargetAppType } from './index';
+import type { TargetAppType } from '../index';
 
 /**
  * 📸 **모을 것 목록은 배차망 정의 표에서 빠짐없이 뽑힌다**.

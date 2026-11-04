@@ -146,9 +146,9 @@
 | 픽커 상세 화면 OCR 파서 | 🟡 앱 `PickerScreenOcr.kt` ↔ 서버 `pickerScreenOcr.ts` (두 검사가 같은 문제지를 문다) |
 | 네 모드 표 `onedal-web/shared/src/device/modeTable.ts` ↔ 서버 `modeForPhone` · 원달앱 `ModeActs` · `TargetApp.runningMode` | ✅ shared `modeTable.test.ts` · 원달앱 `ModeTablePairTest` |
 | 블루투스 틀 `onedal-web/shared/src/device/bleProtocol.ts` ↔ 관제앱 `BleProtocol.java` · `SupplyService`(거절 글 · 증명 셈) · 원달앱 `BleFrames.kt` | ✅ 서버 `bleProtocolPair.test.ts` |
-| 배차망 정의 표 `onedal-web/shared/src/networkPages.ts`(칸 · 페이지 목록 · 부속 팝업 `callOverlays` · 단추 `buttons` · 차종 낱말 — 배차망 몫은 `networkPages.<배차망>.ts`) ↔ 원달앱 `InsungPages.kt` · `Hwamul24Pages.kt` · `KakaoPickerPages.kt` · `IsflexPages.kt` · `core/PageSpec.kt` 의 `StandardScreen` | ✅ 원달앱 `NetworkPagesPairTest`(표 = 생성 파일 — 칸 · 페이지 목록 · 화면 줄의 기준 페이지 `base` · 부속 팝업 붙이기 · 단추 `buttons` · 화면 종류 이름) · 다시 뽑기는 `pnpm gen:pages` |
-| 기준 페이지 사전 `onedal-web/shared/src/pageFields.ts`(`BASE_PAGE_BOOK` — 이름 · 한글 · 화면 종류 → 기준 페이지 · 부속 팝업 · 운행 단계) ↔ 원달앱 `core/PageField.kt` 의 `Page` · 생성 스크립트 `onedal-web/scripts/gen-pages.mjs` | ✅ 원달앱 `PageFieldPairTest`(낱말 · 차례) · `NetworkPagesPairTest`(화면 줄의 기준 페이지 · 팝업 붙이기가 사전을 같은 글자로 읽은 결과와 같다) · shared `networkPages.test.ts` — 읽는 곳이 JSON 표시 사이의 같은 글자를 같은 정규식으로 읽는다 |
-| 기준 페이지 사전표 `설계/기준페이지_사전표.md`(생성 파일) ↔ 사전 `onedal-web/shared/src/pageFields.ts` + 배차망 정의 표의 화면 줄 · 자리 기록 `slotNotes` | ✅ shared `pagesDoc.test.ts`(다시 뽑은 글 = 파일 · 배차망 × 자리 빠짐 없음 · 어긋난 사본이 잡힘) · 다시 뽑기는 `pnpm gen:pages doc` |
+| 배차망 정의 표 `onedal-web/shared/src/network/networkPages.ts`(칸 · 페이지 목록 · 부속 팝업 `callOverlays` · 단추 `buttons` · 차종 낱말 — 배차망 몫은 `networkPages.<배차망>.ts`) ↔ 원달앱 `InsungPages.kt` · `Hwamul24Pages.kt` · `KakaoPickerPages.kt` · `IsflexPages.kt` · `core/PageSpec.kt` 의 `StandardScreen` | ✅ 원달앱 `NetworkPagesPairTest`(표 = 생성 파일 — 칸 · 페이지 목록 · 화면 줄의 기준 페이지 `base` · 부속 팝업 붙이기 · 단추 `buttons` · 화면 종류 이름) · 다시 뽑기는 `pnpm gen:pages` |
+| 기준 페이지 사전 `onedal-web/shared/src/network/pageFields.ts`(`BASE_PAGE_BOOK` — 이름 · 한글 · 화면 종류 → 기준 페이지 · 부속 팝업 · 운행 단계) ↔ 원달앱 `core/PageField.kt` 의 `Page` · 생성 스크립트 `onedal-web/scripts/gen-pages.mjs` | ✅ 원달앱 `PageFieldPairTest`(낱말 · 차례) · `NetworkPagesPairTest`(화면 줄의 기준 페이지 · 팝업 붙이기가 사전을 같은 글자로 읽은 결과와 같다) · shared `networkPages.test.ts` — 읽는 곳이 JSON 표시 사이의 같은 글자를 같은 정규식으로 읽는다 |
+| 기준 페이지 사전표 `설계/기준페이지_사전표.md`(생성 파일) ↔ 사전 `onedal-web/shared/src/network/pageFields.ts` + 배차망 정의 표의 화면 줄 · 자리 기록 `slotNotes` | ✅ shared `pagesDoc.test.ts`(다시 뽑은 글 = 파일 · 배차망 × 자리 빠짐 없음 · 어긋난 사본이 잡힘) · 다시 뽑기는 `pnpm gen:pages doc` |
 
 
 ## 도메인 용어

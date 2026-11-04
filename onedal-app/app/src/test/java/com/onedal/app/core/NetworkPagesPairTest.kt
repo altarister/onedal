@@ -13,7 +13,7 @@ import java.io.File
 
 /**
  * 🔗 **짝 — 원달앱 화면 정의(배차망마다 한 벌)와 shared 배차망 정의 표가 같다** (기사님 «플러그인스에 있는 값을 서버가 같이 써야»).
- * 원천은 `onedal-web/shared/src/networkPages.ts`(공통) + 배차망마다 한 파일(`networkPages.<배차망>.ts`)이고, 원달앱 `…Pages.kt` 는 `pnpm gen:pages` 가 뽑은 생성 파일이다.
+ * 원천은 `onedal-web/shared/src/network/networkPages.ts`(공통) + 배차망마다 한 파일(`networkPages.<배차망>.ts`)이고, 원달앱 `…Pages.kt` 는 `pnpm gen:pages` 가 뽑은 생성 파일이다.
  * 표를 고치고 안 뽑으면(또는 Pages.kt 를 손으로 고치면) 여기서 빨갛다 — 칸 · 자리 글 · 견본 · 본 곳 · 읽나 · 읽는 곳 · 읽는 법 · 페이지 목록의 기준 페이지 · 부속 팝업 붙이기 · 단추까지 견준다.
  */
 class NetworkPagesPairTest {
@@ -22,7 +22,7 @@ class NetworkPagesPairTest {
     private val table: JsonObject by lazy {
         JsonObject().apply {
             for (net in networks) {
-                val ts = File("../../onedal-web/shared/src/networkPages.$net.ts").readText()
+                val ts = File("../../onedal-web/shared/src/network/networkPages.$net.ts").readText()
                 val body = Regex("""/\*JSON\*/([\s\S]*?)/\*JSON\*/""").find(ts)?.groupValues?.get(1)
                     ?: error("networkPages.$net.ts 에서 /*JSON*/ 표시 사이를 못 찾았다")
                 add(net, JsonParser.parseString(body).asJsonObject)
@@ -32,7 +32,7 @@ class NetworkPagesPairTest {
 
     /** 🧭 기준 페이지 사전 — shared `pageFields.ts` 의 JSON 표시 사이(화면 종류 → 기준 페이지 · 부속 팝업 자리 차례). TS 를 못 부르므로 뽑는 스크립트와 같은 글자를 읽는다 */
     private val book: JsonObject by lazy {
-        val ts = File("../../onedal-web/shared/src/pageFields.ts").readText()
+        val ts = File("../../onedal-web/shared/src/network/pageFields.ts").readText()
         val body = Regex("""/\*JSON\*/([\s\S]*?)/\*JSON\*/""").find(ts)?.groupValues?.get(1)
             ?: error("pageFields.ts 에서 /*JSON*/ 표시 사이를 못 찾았다")
         JsonParser.parseString(body).asJsonObject
@@ -128,7 +128,7 @@ class NetworkPagesPairTest {
 
     /** 🧭 우리 기준 페이지 이름 · 차례 — shared STANDARD_SCREENS 와 core/PageSpec.kt StandardScreen 이 같다 */
     @Test fun `우리 기준 페이지 이름은 shared 와 같다`() {
-        val ts = File("../../onedal-web/shared/src/networkPages.ts").readText()
+        val ts = File("../../onedal-web/shared/src/network/networkPages.ts").readText()
         val block = Regex("""STANDARD_SCREENS = \[([\s\S]*?)\] as const""").find(ts)?.groupValues?.get(1)
             ?: error("networkPages.ts 에서 STANDARD_SCREENS 를 못 찾았다")
         assertEquals(Regex("""'(\w+)'""").findAll(block).map { it.groupValues[1] }.toList(), StandardScreen.values().map { it.name })
@@ -144,7 +144,7 @@ class NetworkPagesPairTest {
     /** 🗂️ 배차망 파일 묶음(`networkPages.<배차망>.ts`)과 여기서 견주는 배차망이 같다 — 배차망을 더하고 이 검사를 안 고치면 빨갛다 */
     @Test
     fun `배차망 파일 묶음 = 견주는 배차망`() {
-        val files = File("../../onedal-web/shared/src").listFiles().orEmpty()
+        val files = File("../../onedal-web/shared/src/network").listFiles().orEmpty()
             .mapNotNull { Regex("""^networkPages\.(\w+)\.ts$""").find(it.name)?.groupValues?.get(1) }.filter { it != "test" }.sorted()
         assertEquals(networks.sorted(), files)
     }
