@@ -235,6 +235,16 @@ export function listReturnOf(targetApp: string | null | undefined, page: string 
     return NETWORK_PAGES[targetApp as TargetAppType]?.screens.some(s => s.name === page && s.listReturn) ?? false;
 }
 
+/**
+ * 🪟 **덧칸 이름의 공통 이름** — 콜 한 건 화면 위 부속 팝업(출발지 · 도착지 · 적요)이면 사전의 «콜 상차지 팝업» 등을, 아니면 배차망 말 그대로의 이름을 돌려준다.
+ * 관제웹 폰 줄 배지가 쓴다(원달앱이 서버로 보내는 덧칸 이름은 그 배차망 말이다).
+ */
+export function overlayLabelOf(targetApp: string | null | undefined, overlayName: string): string {
+    if (!targetApp) return overlayName;
+    const slot = NETWORK_PAGES[targetApp as TargetAppType]?.callOverlays?.find(o => o.name === overlayName)?.slot;
+    return slot ? CALL_OVERLAY_LABEL[slot] : overlayName;
+}
+
 /** 🖐️ **이 배차망 페이지는 수락 뒤 배차망이 스스로 보내는 곳인가** — 표의 `landsAfterAccept`(화물24시 배차신청 뒤 화물상세정보 · 배차내역 목록) · 모르면 거짓 */
 export function landsAfterAcceptOf(targetApp: string | null | undefined, page: string | null | undefined): boolean {
     if (!targetApp || !page) return false;

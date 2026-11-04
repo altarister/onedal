@@ -1,6 +1,7 @@
 import { TARGET_APP_LABEL, type TargetAppType } from './targetApps';
 import { DEVICE_OFFLINE_LABEL, type DeviceOfflineReason } from './deviceOffline';
 import type { ScreenContextType } from './index';
+import { overlayLabelOf } from './networkPages';
 
 /**
  * 🏷️ **화면 이름표 — 배차망마다 따로 둔다** (기사님 설계).
@@ -229,7 +230,7 @@ export function deviceScreenBadge(device: {
 
     /* 🧭 새 원달앱 — 배차망 페이지 이름 그대로 + «· 덧칸 이름» · 색은 화면 값의 색 */
     if (device.screenPage) {
-        const label = device.screenOverlay ? `${device.screenPage} · ${device.screenOverlay}` : device.screenPage;
+        const label = device.screenOverlay ? `${device.screenPage} · ${overlayLabelOf(device.targetApp, device.screenOverlay)}` : device.screenPage;
         return { network, label, color: screen?.color ?? MUTED };
     }
     

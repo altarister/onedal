@@ -158,10 +158,17 @@ describe('넘어가는 중 · 배차망 메뉴 · 화물24시 홈', () => {
 describe('배지 — 배차망 페이지 이름 · 덧칸', () => {
     it('페이지 이름 + «· 덧칸 이름» · 색은 화면 값의 색', () => {
         const b = deviceScreenBadge({ status: 'ONLINE', targetApp: 'insung', screenContext: 'DETAIL_PRE_CONFIRM', isScreenOn: true, screenPage: '확정 전 상세', screenOverlay: '출발지 상세 팝업' } as any);
-        expect(b!.label).toBe('확정 전 상세 · 출발지 상세 팝업');
+        expect(b!.label).toBe('확정 전 상세 · 콜 상차지 팝업');   // 부속 자리(slot)가 있는 팝업은 공통 이름
         expect(b!.color).toBe(screenLabelOf('insung', 'DETAIL_PRE_CONFIRM')!.color);
         const c = deviceScreenBadge({ status: 'ONLINE', targetApp: 'kakaopicker', screenContext: 'LIST', isScreenOn: true, screenPage: '신규 리스트' } as any);
         expect(c!.label).toBe('신규 리스트');
+    });
+
+    it('부속 자리가 없는 덧칸은 배차망 말 그대로(잠금 팝업) · 다른 배차망의 같은 이름도 그대로', () => {
+        const lock = deviceScreenBadge({ status: 'ONLINE', targetApp: 'insung', screenContext: 'LIST', isScreenOn: true, screenPage: '신규 콜 목록', screenOverlay: '잠금 팝업' } as any);
+        expect(lock!.label).toBe('신규 콜 목록 · 잠금 팝업');
+        const other = deviceScreenBadge({ status: 'ONLINE', targetApp: 'hwamul24', screenContext: 'LIST', isScreenOn: true, screenPage: '목록', screenOverlay: '출발지 상세 팝업' } as any);
+        expect(other!.label).toBe('목록 · 출발지 상세 팝업');
     });
 
     it('페이지 이름이 없으면(옛 원달앱) 지금 이름 그대로', () => {

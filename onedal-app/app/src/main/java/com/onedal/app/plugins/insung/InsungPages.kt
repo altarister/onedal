@@ -225,7 +225,7 @@ object InsungPages {
             false,
             listOf(
                 OverlaySpec("로딩 토스트", OverlayKind.TOAST, listOf(ScreenMatch(any = listOf("오더 조회", "기다려 주십"))), "목록을 다시 불러오는 중 — 이 화면은 건너뛴다", Seen.UNKNOWN, listOf(), toCollect = "캡처", action = OverlayAction.SKIP),
-                OverlaySpec("메뉴 드롭다운", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("업무종료", "프로그램종료", "메뉴닫기"))), "아래 «메뉴»를 누르면 목록을 오른쪽에서 덮는다 — 머리 «엘비스 Ver. …» · 당일정산 · 업무종료 · 환경설정 · 업데이트공지 · 기사정보 · 프로그램종료 · 메뉴닫기", Seen.REAL, listOf("ex_images/인성/인성설명서/영상_0544.jpg")),
+                OverlaySpec("메뉴 층", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("업무종료", "프로그램종료", "메뉴닫기"))), "아래 «메뉴»를 누르면 목록을 오른쪽에서 덮는다 — 머리 «엘비스 Ver. …» · 당일정산 · 업무종료 · 환경설정 · 업데이트공지 · 기사정보 · 프로그램종료 · 메뉴닫기", Seen.REAL, listOf("ex_images/인성/인성설명서/영상_0544.jpg")),
                 OverlaySpec("잠금 팝업", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("오더 선택 잠금 상태"))), "오더 선택 잠금이 켜져 있어 콜을 눌러도 상세가 안 열린다 — «확인» 으로 닫는다", Seen.REAL, listOf("ex_images/인성/인성설명서/영상_1328.jpg")),
                 OverlaySpec("자료 없음 팝업", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("오더 상세", "자료가 존재하지 않습니다"))), "잡은 콜이 없을 때 «완료» 를 누르면 목록 위에 뜬다 — 완료 탭으로 안 넘어간다. «확인» 으로 닫는다", Seen.REAL, listOf("ex_images/인성/인성설명서/영상_1611.jpg")),
             ),
