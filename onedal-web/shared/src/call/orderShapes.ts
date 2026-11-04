@@ -160,28 +160,55 @@ export interface QuickFoldFields {
     foldAfterSec?: number | null;     // 판정 끝에 정한 빨리 접기 초
 }
 
-export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldFields {  // 심사 중 콜 — OfficeOrder + 서버의 판정 · 경로 값. 서버 메모리에만 있고 아직 내 콜이 아니다
-    status: OrderStatus;                  // ORDER_PRE_SECURED | ORDER_SECURED_EVALUATING | ORDER_AWAITING_DECISION
-    capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
-    capturedAt: string;               // 낚아챈 실제 타임스탬프
+/** 서버가 계산하고 기록한 값 — 심사 중 콜 · 내 콜 · 관제웹 콜이 함께 물려받는다. 칸은 여기 한 번만 적는다 */
+export interface ServerCallFields {
+    capturedDeviceId: string;         // 이 콜을 올린 기기
+    capturedAt: string;               // 콜을 잡은 시각
     /**
-     * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
-     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterGoals.goalCityOf`) — 좌표로 가르지 않는다.
-     *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
+     * 🎯 **이 콜을 잡을 때 통과한 목적지 시**.
+     *    확정 순간 서버가 그때의 필터값을 그대로 적는다 (`filterGoals.goalCityOf`) — 좌표로 가르지 않는다.
+     *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 있고, 서버가 다시 켜지면 하차지의 시로 대신한다.
      */
     goalCity?: string;
-    /** 👀 미리보기 콜 — 확정 전이라 취소 카운트에 안 들어간다 (`DispatchBasicRequest.isPreview`) */
+    /** 👀 미리보기 콜 — 확정 전이라 취소 횟수에 안 들어간다. 확정하면 이 칸을 지운다 (`handleDecision`) */
     isPreview?: boolean;
+    kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
+    kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 글자
+    routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
+    totalDistanceKm?: number;         // 통합 연산된 전체 총 주행 거리
+    totalDurationMin?: number;        // 통합 연산된 전체 총 주행 시간
+    kakaoSoloDistanceKm?: number;     // 카카오가 연산한 이 콜만의 단독 주행 거리
+    kakaoSoloDurationMin?: number;    // 카카오가 연산한 이 콜만의 단독 소요 시간
+    /** 현위치 → 상차지 소요 시간(분). 통화 대본의 "여기서 N분 걸립니다"가 이 값이다 */
+    approachDurationMin?: number;
+    osrmError?: string;               // 경로 연산 실패 메세지
+    sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간
+    sectionDriveMin?: Array<number | null>;  // 출발점 기준 정거장별 누적 주행(분) — 시계가 아니라 상대값이라 낡지 않는다
+    /** 🧭 구간마다 어느 정거장인가 — `sectionDriveMin` 과 같은 길이. 구간의 색 주인이고, 도착으로 정거장이 빠져도 이름으로 맞춘다 */
+    sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
+    /**
+     * 🎨 **구간이 끝나는 자리** — `routePolyline` 안에서 각 구간의 끝 인덱스(누적)다.
+     *    지도가 구간마다 그 콜의 색으로 그리려면 경계가 필요하다.
+     * 🔴 선을 한 벌 더 보내지 않는다 — 같은 점열을 복제하면 초당 수백 KB 가 오가 브라우저가 죽는다. `sectionLinesOf()` 가 이 값으로 잘라 준다.
+     * ⚠️ `sectionStops` 가 «정거장마다»라면 이건 «정거장 사이마다»라 길이가 하나 짧다 — 카카오 `sections` 를 그대로 따른다.
+     */
+    sectionEnds?: number[];
+    routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 기준
+    arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
+    arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
+    pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
+    dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
+    rejectionReasons?: string[];      // 모든 탈락 · 패널티 사유
+    approvalReasons?: string[];       // 모든 장점 사유
+}
+
+export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldFields, ServerCallFields {  // 심사 중 콜 — OfficeOrder + 서버의 판정 · 경로 값. 서버 메모리에만 있고 아직 내 콜이 아니다
+    status: OrderStatus;                  // ORDER_PRE_SECURED | ORDER_SECURED_EVALUATING | ORDER_AWAITING_DECISION
     /**
      * ⏱️ **남은 판정 시간이 끝나는 시각** (밀리초) — 미리보기에만 싣는다. 심사석 배경이 이것으로 찬다.
      * 🔴 이 시각이 지나도 콜은 안 사라진다 — 끄는 것은 폰의 화면 상태 하나다 (`devices.leftDetail`).
      */
     judgeUntil?: number;
-    kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
-    kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
-    routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
-    totalDistanceKm?: number;         // 통합 연산된 전체 총 주행 거리
-    totalDurationMin?: number;        // 통합 연산된 전체 총 주행 시간
     /**
      * 🚚 **배송거리** (상차지 → 하차지, km) — 앱이 리스트에서 긁어 온 값.
      *
@@ -192,33 +219,6 @@ export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldField
      *    같은 이름이 `SimplifiedOfficeOrder` 에도 있다 (앱이 올려 주는 쪽).
      */
     deliveryDistance?: number;
-    kakaoSoloDistanceKm?: number;     // 카카오가 연산한 해당 콜만의 '단독' 주행 거리
-    kakaoSoloDurationMin?: number;    // 카카오가 연산한 해당 콜만의 '단독' 소요 시간
-    /** 현위치 → 상차지 소요 시간(분). 통화 대본의 "여기서 N분 걸립니다"가 이 값이다 */
-    approachDurationMin?: number;
-    osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
-    sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
-    sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
-    /** 🧭 구간마다 어느 정거장인가 — sectionDriveMin 과 같은 길이. 도착으로 정거장이 빠져도 이름으로 맞춘다 */
-    sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
-    /**
-     * 🎨 **구간이 끝나는 자리** — `routePolyline` 안에서 각 구간의 **끝 인덱스(누적)** 다
-     *    지도가 «구간마다 그 콜의 색»으로 그리려면 경계가 필요한데
-     *    통짜 배열은 그것을 잃는다.
-     *
-     * 🔴 **선을 한 벌 더 보내지 않는다** — 같은 점열을 복제하면 초당 수백 KB 가 오가 브라우저가 죽는다. 경계는 숫자 몇 개뿐이고
-     *    `sectionLinesOf()` 가 그것으로 잘라 준다 (파생은 한 곳 · 규칙 ③).
-     * ⚠️ `sectionStops` 가 «정거장마다»라면 이건 «정거장 사이마다»라 길이가 하나 짧다 —
-     *    카카오 `sections` 를 그대로 따른다.
-     */
-    sectionEnds?: number[];
-    routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 기준 = 카카오호출시점
-    arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
-    arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
-    pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
-    dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
-    rejectionReasons?: string[];      // 모든 탈락/패널티 사유 배열
-    approvalReasons?: string[];       // 모든 장점/긍정 사유 배열
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -259,16 +259,8 @@ export interface JudgmentSnapshot {
     extraMin?: number | null;
 }
 
-export interface MyOrder extends OfficeOrder {  // 내 콜 — OfficeOrder + 서버의 경로 · 판정 · 정산 값. 기사님이 KEEP 해 내 것이 된 콜. 서버 안에서 쓴다
+export interface MyOrder extends OfficeOrder, ServerCallFields {  // 내 콜 — OfficeOrder + 서버의 경로 · 판정 · 정산 값. 기사님이 KEEP 해 내 것이 된 콜. 서버 안에서 쓴다
     status: MyOrderStatus;            // ORDER_CONFIRMED | ORDER_PICKED_UP | ORDER_DELIVERED
-    capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
-    capturedAt: string;               // 낚아챈 실제 타임스탬프
-    /**
-     * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
-     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterGoals.goalCityOf`) — 좌표로 가르지 않는다.
-     *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
-     */
-    goalCity?: string;
     /**
      * 📅 **예약 보관 날 `YYYY-MM-DD`** — 잡은 날 + `reservedDay`. 오늘보다 뒤면 이 콜은 진행 중 콜이 아니라
      *    세션의 예약 보관(`reservedOrders`)에 있다. 장부 자리는 `orders.reserved_for`. 오늘 콜이면 비어 있다.
@@ -278,19 +270,8 @@ export interface MyOrder extends OfficeOrder {  // 내 콜 — OfficeOrder + 서
     completedAt?: string | null;
     /** 🧹 취소·방출한 시각 (장부 `orders.terminatedAt` · 전수표 #65) — 하차는 `completedAt`, 취소는 이것 */
     terminatedAt?: string | null;
-    /**
-     * 👀 미리보기 콜. 확정되면 `false` 로 덮여 보통 콜이 된다 —
-     * `PendingOrder` 와 **같은 모양이어야** 두 타입이 한 함수(`pickRouteHolder` 등)에
-     * 섞여 들어갈 때 갈라지지 않는다.
-     */
-    isPreview?: boolean;
-    kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
     /** 🎨 판정 스냅샷 — `SecuredOrder` 와 **같은 타입**을 가리킨다 (규칙 ③) */
     judgment?: JudgmentSnapshot;
-    kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
-    routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
-    totalDistanceKm?: number;         // 통합 연산된 전체 총 주행 거리
-    totalDurationMin?: number;        // 통합 연산된 전체 총 주행 시간
     /**
      * 🚚 **배송거리** (상차지 → 하차지, km) — 앱이 리스트에서 긁어 온 값.
      *
@@ -301,46 +282,11 @@ export interface MyOrder extends OfficeOrder {  // 내 콜 — OfficeOrder + 서
      *    같은 이름이 `SimplifiedOfficeOrder` 에도 있다 (앱이 올려 주는 쪽).
      */
     deliveryDistance?: number;
-    kakaoSoloDistanceKm?: number;     // 카카오가 연산한 해당 콜만의 '단독' 주행 거리
-    kakaoSoloDurationMin?: number;    // 카카오가 연산한 해당 콜만의 '단독' 소요 시간
-    /** 현위치 → 상차지 소요 시간(분). 통화 대본의 "여기서 N분 걸립니다"가 이 값이다 */
-    approachDurationMin?: number;
-    osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
-    sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
-    sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
-    /** 🧭 구간마다 어느 정거장인가 — sectionDriveMin 과 같은 길이. 도착으로 정거장이 빠져도 이름으로 맞춘다 */
-    sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
-    /**
-     * 🎨 **구간이 끝나는 자리** — `routePolyline` 안에서 각 구간의 **끝 인덱스(누적)** 다
-     *    지도가 «구간마다 그 콜의 색»으로 그리려면 경계가 필요한데
-     *    통짜 배열은 그것을 잃는다.
-     *
-     * 🔴 **선을 한 벌 더 보내지 않는다** — 같은 점열을 복제하면 초당 수백 KB 가 오가 브라우저가 죽는다. 경계는 숫자 몇 개뿐이고
-     *    `sectionLinesOf()` 가 그것으로 잘라 준다 (파생은 한 곳 · 규칙 ③).
-     * ⚠️ `sectionStops` 가 «정거장마다»라면 이건 «정거장 사이마다»라 길이가 하나 짧다 —
-     *    카카오 `sections` 를 그대로 따른다.
-     */
-    sectionEnds?: number[];
-    routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 기준 = 카카오호출시점
-    arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
-    arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
-    pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
-    dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
     settlement?: SettlementInfo;      // 정산 및 미수금 관리 트래킹 (운행일지용)
-    rejectionReasons?: string[];      // 모든 탈락/패널티 사유 배열
-    approvalReasons?: string[];       // 모든 장점/긍정 사유 배열
 }
 
-export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldFields {  // 관제웹이 받는 콜 — 심사 중 콜과 내 콜을 한 모양으로 담아 한 목록으로 다룬다
+export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldFields, ServerCallFields {  // 관제웹이 받는 콜 — 심사 중 콜과 내 콜을 한 모양으로 담아 한 목록으로 다룬다
     status: OrderStatus;                  // 단일 통합 라이프사이클 상태
-    capturedDeviceId: string;  // 이 콜을 올린 기기
-    capturedAt: string;  // 콜을 잡은 시각
-    /**
-     * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
-     *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterGoals.goalCityOf`) — 좌표로 가르지 않는다.
-     *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 — 서버가 다시 켜지면 하차지의 시로 대신한다.
-     */
-    goalCity?: string;
     /**
      * 🏁 **하차한 시각** (장부 `orders.completedAt`). 없으면 아직 안 내렸거나 옛 행이다.
      * 화면의 사이클 경계가 이걸 본다.
@@ -348,8 +294,6 @@ export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldField
     completedAt?: string | null;
     /** 🧹 취소·방출한 시각 (장부 `orders.terminatedAt` · 전수표 #65) — 하차는 `completedAt`, 취소는 이것 */
     terminatedAt?: string | null;
-    /** 👀 미리보기 콜 — 확정 전이라 아직 안 잡은 콜이다 */
-    isPreview?: boolean;
     /**
      * ⏱️ **남은 판정 시간이 끝나는 시각** (밀리초) — 미리보기에만 실린다. 심사석 배경이 이것으로 찬다.
      *
@@ -360,29 +304,7 @@ export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldField
     judgeUntil?: number;
     /** 🎨 판정 스냅샷 — 심사 1회, 불변 ([[JudgmentSnapshot]]) */
     judgment?: JudgmentSnapshot;
-    kakaoCalculatedFare?: number;  // 서버 연산 기반 가성비 단가
-    kakaoTimeExt?: string;  // 카카오 연산 결과: 예상 소요 시간 글자
-    routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
-    /** 🎨 구간이 끝나는 자리 — `routePolyline` 을 콜 색으로 칠하려면 이 경계가 필요하다 */
-    sectionEnds?: number[];
-    /** 🧭 구간마다 어느 정거장인가 — `sectionEnds` 와 같은 길이. 구간의 **색 주인**이다 */
-    sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
-    totalDistanceKm?: number;  // 통합 연산된 전체 총 주행 거리
-    totalDurationMin?: number;  // 통합 연산된 전체 총 주행 시간
-    kakaoSoloDistanceKm?: number;  // 이 콜만의 단독 주행 거리
-    kakaoSoloDurationMin?: number;  // 이 콜만의 단독 소요 시간
-    approachDurationMin?: number;  // 현위치 → 상차지 소요 시간(분)
-    osrmError?: string;  // 경로 연산 실패 메세지
-    sectionEtas?: string[];  // 경유지마다 도착 예상 시간
-    sectionDriveMin?: Array<number | null>;  // 출발점 기준 정거장별 누적 주행(분)
-    routeComputedAt?: string;  // 이 경로를 계산한 시점
-    arrivedPickupAt?: string;  // 상차지에 실제로 도착한 시각
-    arrivedDropoffAt?: string;  // 하차지에 실제로 도착한 시각
-    pickupEta?: string;  // 상차지 예상 도착 시간
-    dropoffEta?: string;  // 하차지 예상 도착 시간
     settlement?: SettlementInfo;  // 정산 및 미수금 기록
-    rejectionReasons?: string[];  // 모든 탈락 · 패널티 사유
-    approvalReasons?: string[];  // 모든 장점 사유
 }
 
 // 운행일지의 정산 · 미수금 기록
