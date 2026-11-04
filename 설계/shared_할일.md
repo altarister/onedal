@@ -47,3 +47,15 @@
 | `criteria.ts` | MONEY, LABOR, DRIVE, PromiseFacts, PROMISE, SpaceFacts |
 | `timing.ts` | DWELL_UNKNOWN_PICKUP_MINUTES, DWELL_UNKNOWN_DROPOFF_MINUTES, buildArrivalSlots, computeSlackMinutes, allowedDetourMinutes, describeSlack |
 | `waitTimes.ts` | SAFE_CANCEL_SEC_DEFAULT, PICKER_ALARM_DETAIL_SEC_DEFAULT, ISFLEX_ALARM_DETAIL_SEC_DEFAULT |
+
+## 콜 칸 표에 칸이 없는 값
+
+정의 표에는 읽는 자리가 있지만 콜 칸 표에 바로 맞는 칸을 이번에 확정하지 못한 값이다. 칸을 새로 만들지는 기사님과 합의한 뒤 정한다.
+
+- 약속 · 마감 시각: 픽커 상세 «○까지 픽업» · «○까지 배송» · 인성플랙스 도착지 앞 마감 앞글자 · 화물24시 하차 배지 앞 시각(뜻 확인 전) · 인성 도착지 칸 앞글자(지금 버림).
+- 운행 단계: 픽커 내 오더 줄 머리 · 운행 시트 머리.
+
+## 콜 칸 표를 만들며 찾은 것 (고치지 않음)
+
+- **화물24시 적요가 관제웹까지 안 가는 것으로 읽힌다.** 원달앱은 화물 글을 뽑지만 로그와 예약 계산에만 쓰고 콜에 싣지 않는다(`Hwamul24Parser.kt:212-265`). 서버도 화물정보 칸을 제외어 찾기에만 쓴다. 코드로 읽은 것이고 돌려 보지 않았다.
+- **조합 규칙이 코드 여러 곳에 흩어져 있다.** 칸을 잘라 읽는 법은 정의 표에 있지만 «무엇을 조합해 적요로 넣나»는 `pageRead.ts` 와 배차망 파서에 있다.
