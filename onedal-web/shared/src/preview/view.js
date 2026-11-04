@@ -75,9 +75,53 @@ function draw(rows, book) {
     return el;
 }
 
+/* 🗂️ 배차망 정의 표 — 종류가 다른 내용을 한 표에 펼치지 않고 페이지별 칸 · 화면 위 팝업 · 화면 알아보기 · 규칙 · 차종 낱말 · 메모로 나눠 그린다 */
+const SEEN_LABEL = { REAL: '실물', SIM: '시뮬레이터', UNKNOWN: '모름' };
+const HANDLING_LABEL = { READ: '읽음', DROPPED: '읽고 버림', UNUSED: '안 읽음' };
+const PRESENCE_LABEL = { ALWAYS: '늘 있음', SOMETIMES: '있다 없다', ONCE: '한 건에만', UNKNOWN: '모름' };
+const RULE_LABEL = {
+    modes: ['모드', 'rulesWhy'], packageKeywords: ['앱을 찾는 낱말'], safeCancelSec: ['안전취소 시간 설정', 'rulesWhy'], detailBackSec: ['상세 머묾 시간 설정', 'rulesWhy'],
+    excludeScan: ['제외어를 찾는 칸', 'excludeScanWhy'], addressCut: ['주소에서 지우는 글자', 'addressCutWhy'], networkMarkers: ['배차망을 알아보는 글자', 'networkMarkersWhy'],
+};
+const DRAWN_KEYS = ['about', 'pages', 'callOverlays', 'screens', 'vehicleWords', 'vehicleWordsWhy', 'slotNotes', 'rulesWhy', 'excludeScanWhy', 'addressCutWhy', 'networkMarkersWhy', ...Object.keys(RULE_LABEL)];
+const sectionHead = (words) => { const h = document.createElement('h2'); h.className = 'value'; h.textContent = words; return h; };
+const paragraph = (words) => { const p = document.createElement('p'); p.textContent = words; return p; };
+const matchText = (match) => (match ?? []).map((m) => [m.all && m.all.join(' + '), m.any && `${m.any.join(' 또는 ')} 중 하나`, m.none && `${m.none.join(' · ')} 없음`, m.shape && `글자 꼴 ${m.shape.read}`].filter(Boolean).join(' / ')).join('\n또는 ');
+
+function drawNetworkBook(spec, fields) {
+    const tableOf = (rows) => (rows.length > 0 ? draw(rows) : paragraph('없음'));
+    const book = fields.find((v) => v.name === 'BASE_PAGE_BOOK').rows.pages;
+    const pageOf = fields.find((v) => v.name === 'BASE_PAGE_OF').rows;
+    const out = [sectionHead('페이지별 칸')];
+    for (const [page, rows] of Object.entries(spec.pages)) {
+        const h = document.createElement('h3');
+        h.textContent = `${book[page]?.label ?? page} (${page}) — 칸 ${rows.length}개`;
+        out.push(h, paragraph(book[page]?.does ?? ''), draw(rows.map((r) => ({
+            '화면 자리': r.where, '화면 칸': r.part ? `${r.field} · ${r.part}` : r.field, '글자 견본': r.sample, '읽나': HANDLING_LABEL[r.handling] ?? r.handling,
+            '본 곳': SEEN_LABEL[r.seen] ?? r.seen, '늘 있나': PRESENCE_LABEL[r.presence] ?? '모름', '읽는 곳': r.usedAt ?? '', '덧말': r.note ?? '',
+        }))));
+    }
+    out.push(sectionHead(`화면 위에 뜨는 팝업 ${spec.callOverlays?.length ?? 0}개`), tableOf((spec.callOverlays ?? []).map((o) => ({
+        '팝업': o.name, '뜻': o.meaning, '알아보는 글자': matchText(o.match), '본 곳': SEEN_LABEL[o.seen] ?? o.seen, '근거': (o.evidence ?? []).join('\n'),
+    }))));
+    out.push(sectionHead(`화면 알아보기 ${spec.screens.length}개`), draw(spec.screens.map((s) => ({
+        '화면': s.name, '기준 페이지': book[pageOf[s.standard]]?.label ?? '', '알아보는 글자': matchText(s.match), '버튼': Object.values(s.buttons ?? {}).join(' · '),
+        '위에 뜨는 것': (s.overlays ?? []).map((o) => o.name).join('\n'), '본 곳': SEEN_LABEL[s.seen] ?? s.seen, '근거': (s.evidence ?? []).join('\n'),
+    }))));
+    out.push(sectionHead('배차망 규칙'), draw(Object.entries(RULE_LABEL).map(([key, [label, why]]) => ({
+        '항목': label, '값': Array.isArray(spec[key]) ? spec[key].map((v) => (Array.isArray(v) ? v.join(' + ') : v)).join(' · ') : spec[key] ?? '없음', '까닭': spec[why] ?? '',
+    }))));
+    out.push(sectionHead(`차종 낱말 ${spec.vehicleWords?.length ?? 0}개`), paragraph(spec.vehicleWordsWhy ?? ''), tableOf((spec.vehicleWords ?? []).map((w) => ({ '화면 낱말': w.word, '차종': w.vehicle ?? '없음', '본 곳': SEEN_LABEL[w.seen] ?? w.seen }))));
+    out.push(sectionHead('메모'), ...(spec.about ?? []).map(paragraph));
+    out.push(sectionHead('아직 모을 것'), tableOf(Object.entries(spec.slotNotes ?? {}).map(([slot, note]) => ({ '자리': book[slot]?.label ?? slot, '내용': note.toCollect ?? note.why ?? '', '근거': note.evidence ?? '' }))));
+    const rest = Object.entries(spec).filter(([key]) => !DRAWN_KEYS.includes(key));
+    if (rest.length > 0) out.push(sectionHead('그 밖의 항목'), draw(rest.map(([key, value]) => ({ '항목': key, '값': value }))));
+    return out;
+}
+
 document.title = file;
 document.getElementById('title').textContent = file;
-fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(({ values, limit, six, functions, aliases, interfaces }) => {
+fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ values, limit, six, functions, aliases, interfaces }) => {
     const sixBox = document.getElementById('six');
     if (six.length === 0) sixBox.textContent = '6하원칙 없음';
     for (const s of six) {
@@ -100,6 +144,11 @@ fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(({ values, limit, s
     }
     if (functions.length + aliases.length + interfaces.length + values.length === 0) box.textContent = '표로 볼 것이 없습니다.';
     for (const v of values) {
+        if (/^network\/networkPages\.\w+$/.test(file)) {
+            const fields = await fetch('/shared/_/module/network/pageFields').then((r) => r.json());
+            box.append(...drawNetworkBook(v.rows, fields.values));
+            continue;
+        }
         const h = document.createElement('h2');
         h.className = 'value';
         h.textContent = v.total > limit ? `${v.name} — ${v.total}개 중 ${limit}개` : v.name;
