@@ -1,3 +1,12 @@
+/**
+ * 🗺️ 행정동 더하기
+ * 누가: 서버 필터 계산이 부른다
+ * 언제: 목적지 묶음을 만들 때
+ * 어디서: 서버 filterNet
+ * 무엇을: 목적지 낱말에 행정동 이름을 더한다
+ * 어떻게: 행정동 → 법정동 표로 찾고 이름 겹침을 뺀다
+ * 왜: 픽커 화면의 행정동 하차가 목적지에 걸리게 한다
+ */
 import { ADMIN_DONGS } from './adminDongs';
 import { DONG_CENTROIDS } from './dongCentroids';
 

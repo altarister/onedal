@@ -1,3 +1,12 @@
+/**
+ * 🔍 콜 필터 모양
+ * 누가: 서버 · 관제웹 · 운영센터 · shared 가 읽는다
+ * 언제: 필터를 저장 · 내려보내고 고장을 볼 때
+ * 어디서: 서버 filterManager · appFilter · 관제웹 필터
+ * 무엇을: 필터 타입 · 앱에 내려가는 칸 표 · 고장 판단 · 평소값으로 되돌리기를 정한다
+ * 어떻게: 칸 표(`APP_FILTER_KEYS`) 하나로 내려보낸다
+ * 왜: 빈 필터를 «전부 통과»로 읽지 않게 한다
+ */
 import type { CapacityConfidence } from '../cargo/vehicles';
 import { DEFAULT_WAIT_TIMES, type WaitTimes } from '../time/waitTimes';
 
