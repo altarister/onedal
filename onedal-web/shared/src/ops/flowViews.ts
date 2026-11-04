@@ -1,4 +1,4 @@
-import { SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN } from './sigungu';
+import { SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN } from '../sigungu';
 
 /**
  * 📊 **흐름 칸 하나** — 요일 시 × 배차망 × 출발 시군구 → 도착 시군구, 기사를 합친 합(서버 `flowCellsOf`).

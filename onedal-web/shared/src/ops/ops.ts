@@ -1,10 +1,10 @@
-import type { Color } from './judge';
-import type { TargetAppType, DeviceSession, AutoDispatchFilter, JudgmentSnapshot, DeviceModeType } from './index';
+import type { Color } from '../judge';
+import type { TargetAppType, DeviceSession, AutoDispatchFilter, JudgmentSnapshot, DeviceModeType } from '../index';
 import type { ContentKind } from './join';
-import type { WordKind } from './pageFields';
-import type { CargoUnit } from './cargoUnits';
+import type { WordKind } from '../pageFields';
+import type { CargoUnit } from '../cargoUnits';
 import type { FlowCell, WatchedHour } from './flowViews';
-import { kstDateText } from './common/format';
+import { kstDateText } from '../common/format';
 
 /**
  * 🏢 **운영센터 API 규격 — 타입 + 회원 상태 규칙(순수)** (운영센터 `ops/` 와 서버 문 `/api/ops/*` 가 같은 모양을 읽는다).

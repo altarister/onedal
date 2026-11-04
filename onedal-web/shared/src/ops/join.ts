@@ -1,4 +1,4 @@
-import type { TargetAppType } from './index';
+import type { TargetAppType } from '../index';
 
 /**
  * 📝 **가입 · 약관 규격 — 타입만** (서버 문 /api/join/* · /api/contents/:kind).
