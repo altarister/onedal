@@ -10,6 +10,7 @@
 import type { PaymentType, BillingType } from './paymentTypes';
 import type { OrderStatus, MyOrderStatus } from './callStatus';
 
+/** 콜 종류 값 — 어떤 길로 온 보고인가 */
 export const EVENT_TYPES = {
     NEW_ORDER: "NEW_ORDER" as const,
     INTEL_BULK: "INTEL_BULK" as const,
@@ -18,18 +19,18 @@ export const EVENT_TYPES = {
     ALARM: "ALARM" as const,
 };
 
+/** 콜 종류 — 직접 잡음 · 체험 여부를 함께 담는다 */
 export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
 
-// 나중에 상세 주소나 위경도가 필요할 때를 대비한 하위 객체
+// 위치 한 곳 — `pickups` · `dropoffs` 칸의 모양. 지금은 채우는 코드가 없다
 export interface LocationPoint {
-    code?: string;
+    code?: string;            // 지역 코드
     name: string;             // 예: "역삼동"
     fullName?: string;        // 예: "서울 강남구 역삼동"
-    centroid?: [number, number];
+    centroid?: [number, number];  // 중심 좌표
 }
 
-// [신규] 출발지/도착지 팝업에서 긁어올 상세 정보 (운행일지 및 리뷰 작성용)
-// 인성앱 "출발지 상세" / "도착지 상세" 팝업 기준 1:1 매핑
+// 상차지 · 하차지 연락처 — 인성 «출발지 상세» · «도착지 상세» 팝업의 칸과 1:1
 export interface LocationDetailInfo {
     customerName?: string;    // [고객] 상호/고객명 (예: "*레드캠프", "SK스토아 홈쇼핑(5층하차")
     department?: string;      // [부서] 부서명 (예: "정실장님", 빈 값일 경우 "*")
@@ -43,11 +44,11 @@ export interface LocationDetailInfo {
     memo?: string;            // 현장 전달사항 (적요 등에서 추출)
 }
 
-// 1. [목록 위젯] 매크로가 0.01초만에 읽어야 하는 겉표면 텍스트
+// 목록 콜 — 배차망 목록 화면에서 읽는 값
 export interface SimplifiedOfficeOrder {
-    /** 🌐 픽커 전용 — 물품 크기(초소형/소형…). 차종 칸에 섞지 않는다 (규칙 ⑤-4 ⑤) */
+    /** 🌐 짐 크기 — 물품 크기 원문(초소형/소형…). 차종 칸에 섞지 않는다 (규칙 ⑤-4 ⑤) */
     itemSize?: string | null;
-    /** 🌐 픽커 전용 — 태그 원문(급송·예약 17:00·준비 29분…) */
+    /** 🌐 꼬리표 — 배차망 표시 원문(급송·예약 17:00·준비 29분…) */
     tagsText?: string | null;
     /**
      * 🗳️ **앱이 이 콜을 어떻게 판정했나**.
@@ -63,15 +64,15 @@ export interface SimplifiedOfficeOrder {
     dropoff: string;                  // 예: "강남구 역삼동"
     fare: number;                     // 45000 (숫자)
     timestamp: string;                // ISO 8601 포맷
-    postTime?: string;                // [추가] 앱에서 긁어온 콜 상차시간/등록시간 (예: "12:23")
-    scheduleText?: string;            // [추가] 예약일정/수식어 (예: "낼09시", "11일)09시", "@")
-    vehicleType?: string;             // [추가] 차종 (예: "라", "다", "1t" 등)
+    postTime?: string;                // 콜 상차시간 · 등록시간 (예: "12:23")
+    scheduleText?: string;            // 예약 앞글자 원문 (예: "낼09시", "11일)09시", "@")
+    vehicleType?: string;             // 콜 차종 (예: "라", "다", "1t" 등)
     rawText?: string;                 // 안드로이드 스캐너에서 긁어온 원본 텍스트         
-    // (선택) MOCK 지도 연산 및 시뮬레이션 용 임시 좌표
-    pickupX?: number;
-    pickupY?: number;
-    dropoffX?: number;
-    dropoffY?: number;
+    // 좌표 — 원달앱 명부 또는 서버 지오코딩
+    pickupX?: number;                 // 상차지 좌표 X
+    pickupY?: number;                 // 상차지 좌표 Y
+    dropoffX?: number;                // 하차지 좌표 X
+    dropoffY?: number;                // 하차지 좌표 Y
     pickupDistance?: number;          // 상차지까지의 남은 직선 거리 (km)
     /**
      * 배송거리 (상차지 → 하차지, km). 리스트 최좌측 두 숫자 중 **두 번째** 값.
@@ -89,7 +90,7 @@ export interface SimplifiedOfficeOrder {
     /** 📅 예약 시각 «HH:MM» */
     reservedAt?: string | null;
 }
-// 2. [상세 페이지] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
+// 상세 콜 — 배차망 상세 화면에서 읽는 값
 export interface DetailedOfficeOrder {
     // 1. 배차사(퀵사무실) 정보 (상세화면 최상단)
     dispatcherName?: string;          // 배차 사무실 상호 (예: "고양퀵서비스")
@@ -126,8 +127,7 @@ export interface DetailedOfficeOrder {
     pickupTime?: string;              // 픽업 예약 시간 지정
 }
 
-// (FilterConfig removed in favor of AutoDispatchFilter)
-// 3. [오더 풀스팩] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
+// 콜 한 건 — 목록 콜 + 상세 콜 + 어느 배차망에서 어떻게 잡았나
 export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder {
     /** 어느 배차망에서 온 콜인가 — TARGET_APPS 표준값 (앱 confirm 페이로드가 싣는다).
      *  🔴 원장(orders.targetApp)에 저장 — 배차망별 콜 검색·분석의 근거 (기사님) */
@@ -137,7 +137,8 @@ export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder 
     capturedVia?: string | null;
     /** 🖱️ 잡은 방식 — 그때 도는 모드(명령 값 · 화면 이름은 네 모드 표 name) · 상세페이지로 진입시킨 주체 (29 P5-1 · 기록 전용 · 모르면 null) */
     capturedMode?: string | null;
-    openedBy?: 'APP' | 'DRIVER' | null; }
+    openedBy?: 'APP' | 'DRIVER' | null;  // 상세 화면을 연 주체 — 원달앱 / 기사님
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 2-A] 심사 중 오더 — 서버 메모리 전용 (아직 내 퀵이 아님)
@@ -148,8 +149,8 @@ export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder 
  *    서버가 판정 때 싣는다(앱이 보내는 칸 아님 · DB 칸 아님). 심사 중 콜과 확정 콜이 같이 든다.
  */
 export interface ApproxAddress {
-    pickupApprox?: string | null;
-    dropoffApprox?: string | null;
+    pickupApprox?: string | null;     // 상차지를 어림한 읍·면·동 이름
+    dropoffApprox?: string | null;    // 하차지를 어림한 읍·면·동 이름
 }
 
 /**
@@ -158,10 +159,11 @@ export interface ApproxAddress {
  *    `foldAfterSec`: 판정 끝에 정한 빨리 접기 초(`quickFoldSecOf`) — 있으면 judgeUntil 이 판정 끝 + 그 초로 당겨진다.
  */
 export interface QuickFoldFields {
-    openedByApp?: boolean;
-    foldAfterSec?: number | null;
+    openedByApp?: boolean;            // 이 상세를 원달앱이 알람 모드로 목록에서 눌러 열었나
+    foldAfterSec?: number | null;     // 판정 끝에 정한 빨리 접기 초
 }
 
+// 심사 중 콜 — 서버 메모리에만 있고 아직 내 콜이 아니다
 export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldFields {
     status: OrderStatus;                  // ORDER_PRE_SECURED | ORDER_SECURED_EVALUATING | ORDER_AWAITING_DECISION
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
@@ -236,13 +238,13 @@ export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldField
  *    (재시작 복구가 만드는 것)에 **색이 실리지 못한다.**
  */
 export interface JudgmentSnapshot {
-    color: '꿀' | '보통' | '똥' | '사고';
+    color: '꿀' | '보통' | '똥' | '사고';  // 판정 색
     /** 🔴 못 쟀으면 `null` — **0 이 아니다** (0 은 «나쁘다»로 읽힌다) */
     score: number | null;
     /** 🔴 못 잰 기준은 `score` 가 `null` 이다 — 0 은 «나쁘다»로 읽힌다 */
     axes: Array<{ key: string; name: string; score: number | null; weight: number; raw: string; value?: number }>;
-    gates: Array<{ key: string; name: string; pass: boolean; why: string | null }>;
-    tags: string[];
+    gates: Array<{ key: string; name: string; pass: boolean; why: string | null }>;  // 통과해야 하는 조건 — 조건마다 통과 여부와 까닭
+    tags: string[];  // 판정에 붙는 표시 글자
     /**
      * 🧾 **기존 콜 정거장마다 — 이 후보를 받으면** (전수표 #43 #45 #46 #47 · 합짐 심사 때만 있다).
      *    약속(`promisedAt`) · 예정(`etaAt`) · 늦음(분 — 양수면 늦다). 모르면 `null` — 지어내지 않는다 (규칙 ④).
@@ -261,6 +263,7 @@ export interface JudgmentSnapshot {
     extraMin?: number | null;
 }
 
+// 내 콜 — 기사님이 KEEP 해 내 것이 된 콜
 export interface MyOrder extends OfficeOrder {
     status: MyOrderStatus;            // ORDER_CONFIRMED | ORDER_PICKED_UP | ORDER_DELIVERED
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
@@ -333,12 +336,11 @@ export interface MyOrder extends OfficeOrder {
     approvalReasons?: string[];       // 모든 장점/긍정 사유 배열
 }
 
-// [통합] SecuredOrder — PendingOrder와 MyOrder를 모두 아우르는 통합 인터페이스
-// 프론트엔드(useOrderEngine, PinnedRouteCard)에서 심사 중 + 확정된 오더를 하나의 배열로 관리
+// 심사 중 콜과 내 콜을 함께 담는 모양 — 관제웹이 한 목록으로 다룬다
 export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldFields {
     status: OrderStatus;                  // 단일 통합 라이프사이클 상태
-    capturedDeviceId: string;
-    capturedAt: string;
+    capturedDeviceId: string;  // 이 콜을 올린 기기
+    capturedAt: string;  // 콜을 잡은 시각
     /**
      * 🎯 **판 — 이 콜을 잡을 때 통과한 목적지 시** (전수표 #30 · 목업 `confirmCall` 의 caughtDest).
      *    확정 순간 서버가 **그때의 필터값**을 그대로 적는다 (`filterGoals.goalCityOf`) — 좌표로 가르지 않는다.
@@ -364,32 +366,32 @@ export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldField
     judgeUntil?: number;
     /** 🎨 판정 스냅샷 — 심사 1회, 불변 ([[JudgmentSnapshot]]) */
     judgment?: JudgmentSnapshot;
-    kakaoCalculatedFare?: number;
-    kakaoTimeExt?: string;
-    routePolyline?: Array<{ x: number; y: number }>;
+    kakaoCalculatedFare?: number;  // 서버 연산 기반 가성비 단가
+    kakaoTimeExt?: string;  // 카카오 연산 결과: 예상 소요 시간 글자
+    routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
     /** 🎨 구간이 끝나는 자리 — `routePolyline` 을 콜 색으로 칠하려면 이 경계가 필요하다 */
     sectionEnds?: number[];
     /** 🧭 구간마다 어느 정거장인가 — `sectionEnds` 와 같은 길이. 구간의 **색 주인**이다 */
     sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
-    totalDistanceKm?: number;
-    totalDurationMin?: number;
-    kakaoSoloDistanceKm?: number;
-    kakaoSoloDurationMin?: number;
-    approachDurationMin?: number;
-    osrmError?: string;
-    sectionEtas?: string[];
-    sectionDriveMin?: Array<number | null>;
-    routeComputedAt?: string;
-    arrivedPickupAt?: string;
-    arrivedDropoffAt?: string;
-    pickupEta?: string;
-    dropoffEta?: string;
-    settlement?: SettlementInfo;
-    rejectionReasons?: string[];
-    approvalReasons?: string[];
+    totalDistanceKm?: number;  // 통합 연산된 전체 총 주행 거리
+    totalDurationMin?: number;  // 통합 연산된 전체 총 주행 시간
+    kakaoSoloDistanceKm?: number;  // 이 콜만의 단독 주행 거리
+    kakaoSoloDurationMin?: number;  // 이 콜만의 단독 소요 시간
+    approachDurationMin?: number;  // 현위치 → 상차지 소요 시간(분)
+    osrmError?: string;  // 경로 연산 실패 메세지
+    sectionEtas?: string[];  // 경유지마다 도착 예상 시간
+    sectionDriveMin?: Array<number | null>;  // 출발점 기준 정거장별 누적 주행(분)
+    routeComputedAt?: string;  // 이 경로를 계산한 시점
+    arrivedPickupAt?: string;  // 상차지에 실제로 도착한 시각
+    arrivedDropoffAt?: string;  // 하차지에 실제로 도착한 시각
+    pickupEta?: string;  // 상차지 예상 도착 시간
+    dropoffEta?: string;  // 하차지 예상 도착 시간
+    settlement?: SettlementInfo;  // 정산 및 미수금 기록
+    rejectionReasons?: string[];  // 모든 탈락 · 패널티 사유
+    approvalReasons?: string[];  // 모든 장점 사유
 }
 
-// [신규] 운행일지 정산 및 미수금 추적을 위한 구조체
+// 운행일지의 정산 · 미수금 기록
 export interface SettlementInfo {
     status: '미정산' | '지급예정' | '정산완료' | '미수금'; // 현재 돈을 받았는지 상태
     unpaidAmount: number;             // 받지 못한 금액 (미수금) 
