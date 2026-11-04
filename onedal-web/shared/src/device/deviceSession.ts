@@ -1,3 +1,12 @@
+/**
+ * 🚦 폰 세션 표시
+ * 누가: 서버 · 관제웹 · 운영센터가 부른다
+ * 언제: 폰 줄과 기기 목록을 그릴 때
+ * 어디서: 서버 기기 세션 · 폰 줄
+ * 무엇을: 작업 단계 이름 · 화면 못 읽음 · 적용중 · 끊김 표시를 낸다
+ * 어떻게: 앱이 보낸 칸과 숫자로 계산하고 한글은 여기만 둔다
+ * 왜: 한글 낱말이 앱과 두 벌이 되지 않게 한다
+ */
 import { phoneModeOf } from './allowance';
 import type { DeviceOfflineReason } from './deviceOffline';
 import type { TargetAppType } from '../targetApps';
