@@ -39,6 +39,37 @@ async function readInto(td, app, cell, samples) {
     td.append(box);
 }
 
+/* 📑 오른쪽 목차 — 이 페이지의 제목들. 누르면 그 자리로 가고, 스크롤하면 지금 보는 제목을 표시한다 */
+function drawToc() {
+    document.getElementById('toc')?.remove();
+    const heads = [...box.querySelectorAll('h2.value, h3')];
+    if (heads.length === 0) return;
+    const nav = document.createElement('nav');
+    nav.id = 'toc';
+    const title = document.createElement('div');
+    title.className = 'tocTitle';
+    title.textContent = '이 페이지';
+    nav.append(title);
+    const links = heads.map((h, i) => {
+        h.id = `s${i}`;
+        const a = document.createElement('a');
+        a.href = `#s${i}`;
+        a.textContent = h.textContent.split(' — ')[0];
+        if (h.tagName === 'H3') a.className = 'sub';
+        nav.append(a);
+        return a;
+    });
+    document.body.append(nav);
+    document.body.classList.add('hasToc');
+    const mark = () => {
+        let now = 0;
+        heads.forEach((h, i) => { if (h.getBoundingClientRect().top <= 80) now = i; });
+        links.forEach((a, i) => a.classList.toggle('now', i === now));
+    };
+    window.onscroll = mark;
+    mark();
+}
+
 /* 🔎 누가 쓰나 — 요약 글자를 누르면 파일 이름이 펼쳐진다. 값은 개발 서버가 TypeScript 참조 찾기로 계산한다 */
 const USE_AREAS = ['서버', '관제웹', '운영센터', '운행일지', 'ui', 'shared', '검사'];
 function usesCell(usage, name) {
@@ -326,6 +357,7 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
             box.append(h, usesLine(usage, v.name), about, draw(v.rows.rows, v.rows));
         } else box.append(h, usesLine(usage, v.name), ...drawValue(v.rows));
     }
+    drawToc();
     };
     await paint(null);
     const usage = await fetch(`/shared/_/uses/${file}`).then((r) => r.json());
