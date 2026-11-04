@@ -74,11 +74,11 @@ async function sharedCodeOf(file: string) {
   const interfaces: { name: string; about: string; rows: Record<string, string>[] }[] = [];
   if (!source || !module) return { functions, aliases, interfaces };
   const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
-  /* `/** */` 주석 → 같은 줄 뒤 `//` → (칸이 아니면) 바로 윗줄 `//`. 칸 위의 `//` 는 여러 칸을 묶는 소제목이라 읽지 않는다 */
+  /* `/** */` 주석 → 같은 줄 뒤 `//`(interface 는 `{` 뒤) → (칸이 아니면) 바로 윗줄 `//`. 칸 위의 `//` 는 여러 칸을 묶는 소제목이라 읽지 않는다 */
   const firstLine = (symbol: import("typescript").Symbol) => {
     const node = symbol.declarations?.[0];
     const text = node?.getSourceFile().text ?? "";
-    const trailing = node && ts.getTrailingCommentRanges(text, node.getEnd())?.[0];
+    const trailing = node && ts.getTrailingCommentRanges(text, ts.isInterfaceDeclaration(node) ? node.members.pos : node.getEnd())?.[0];
     const above = node && !ts.isPropertySignature(node) ? ts.getLeadingCommentRanges(text, node.getFullStart())?.filter((c, i, all) => !/\n\s*\n/.test(text.slice(c.end, all[i + 1]?.pos ?? node.getStart()))) : undefined;
     const slash = trailing ?? above?.[0];
     const line = ts.displayPartsToString(symbol.getDocumentationComment(checker)).split("\n").map((l) => l.trim()).find(Boolean)

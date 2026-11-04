@@ -44,8 +44,7 @@ export interface LocationDetailInfo {
     memo?: string;            // 현장 전달사항 (적요 등에서 추출)
 }
 
-// 목록 콜 — 배차망 목록 화면에서 읽는 값
-export interface SimplifiedOfficeOrder {
+export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차망 목록에서 읽어 서버로 보내는 칸
     /** 🌐 짐 크기 — 물품 크기 원문(초소형/소형…). 차종 칸에 섞지 않는다 (규칙 ⑤-4 ⑤) */
     itemSize?: string | null;
     /** 🌐 꼬리표 — 배차망 표시 원문(급송·예약 17:00·준비 29분…) */
@@ -90,8 +89,7 @@ export interface SimplifiedOfficeOrder {
     /** 📅 예약 시각 «HH:MM» */
     reservedAt?: string | null;
 }
-// 상세 콜 — 배차망 상세 화면에서 읽는 값
-export interface DetailedOfficeOrder {
+export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보내고 서버가 상세 원문에서 뽑거나 계산해 채우는 칸
     // 1. 배차사(퀵사무실) 정보 (상세화면 최상단)
     dispatcherName?: string;          // 배차 사무실 상호 (예: "고양퀵서비스")
     dispatcherPhone?: string;         // 배차 사무실 연락처 (예: "031-932-7722")
@@ -127,8 +125,7 @@ export interface DetailedOfficeOrder {
     pickupTime?: string;              // 픽업 예약 시간 지정
 }
 
-// 콜 한 건 — 목록 콜 + 상세 콜 + 어느 배차망에서 어떻게 잡았나
-export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder {
+export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder {  // 배차망에서 온 콜 한 건 — 목록 콜 + 상세 콜 + 어느 배차망에서 어떻게 잡았나. 아래 콜 모양 셋의 부모
     /** 어느 배차망에서 온 콜인가 — TARGET_APPS 표준값 (앱 confirm 페이로드가 싣는다).
      *  🔴 원장(orders.targetApp)에 저장 — 배차망별 콜 검색·분석의 근거 (기사님) */
     targetApp?: string;
@@ -163,8 +160,7 @@ export interface QuickFoldFields {
     foldAfterSec?: number | null;     // 판정 끝에 정한 빨리 접기 초
 }
 
-// 심사 중 콜 — 서버 메모리에만 있고 아직 내 콜이 아니다
-export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldFields {
+export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldFields {  // 심사 중 콜 — OfficeOrder + 서버의 판정 · 경로 값. 서버 메모리에만 있고 아직 내 콜이 아니다
     status: OrderStatus;                  // ORDER_PRE_SECURED | ORDER_SECURED_EVALUATING | ORDER_AWAITING_DECISION
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
@@ -263,8 +259,7 @@ export interface JudgmentSnapshot {
     extraMin?: number | null;
 }
 
-// 내 콜 — 기사님이 KEEP 해 내 것이 된 콜
-export interface MyOrder extends OfficeOrder {
+export interface MyOrder extends OfficeOrder {  // 내 콜 — OfficeOrder + 서버의 경로 · 판정 · 정산 값. 기사님이 KEEP 해 내 것이 된 콜. 서버 안에서 쓴다
     status: MyOrderStatus;            // ORDER_CONFIRMED | ORDER_PICKED_UP | ORDER_DELIVERED
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
@@ -336,8 +331,7 @@ export interface MyOrder extends OfficeOrder {
     approvalReasons?: string[];       // 모든 장점/긍정 사유 배열
 }
 
-// 심사 중 콜과 내 콜을 함께 담는 모양 — 관제웹이 한 목록으로 다룬다
-export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldFields {
+export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldFields {  // 관제웹이 받는 콜 — 심사 중 콜과 내 콜을 한 모양으로 담아 한 목록으로 다룬다
     status: OrderStatus;                  // 단일 통합 라이프사이클 상태
     capturedDeviceId: string;  // 이 콜을 올린 기기
     capturedAt: string;  // 콜을 잡은 시각

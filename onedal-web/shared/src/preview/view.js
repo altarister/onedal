@@ -96,9 +96,7 @@ fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(({ values, limit, s
     if (functions.length > 0) box.append(heading(`함수 ${functions.length}개`), draw(functions));
     if (aliases.length > 0) box.append(heading(`타입 ${aliases.length}개`), draw(aliases));
     for (const shape of interfaces) {
-        const about = document.createElement('p');
-        about.textContent = shape.about;
-        box.append(heading(`${shape.name} — 칸 ${shape.rows.length}개`), about, draw(shape.rows));
+        box.append(heading(`${shape.name} (칸 ${shape.rows.length}개) — ${shape.about}`), draw(shape.rows));
     }
     if (functions.length + aliases.length + interfaces.length + values.length === 0) box.textContent = '표로 볼 것이 없습니다.';
     for (const v of values) {
