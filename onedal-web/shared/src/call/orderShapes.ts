@@ -167,7 +167,7 @@ export interface ServerCallFields {
     /**
      * 🎯 **이 콜을 잡을 때 통과한 목적지 시**.
      *    확정 순간 서버가 그때의 필터값을 그대로 적는다 (`filterGoals.goalCityOf`) — 좌표로 가르지 않는다.
-     *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. 🔴 메모리에만 있고, 서버가 다시 켜지면 하차지의 시로 대신한다.
+     *    «복귀콜을 잡았나»(`goalCitiesOf`)가 이 값으로 갈린다. `orders.goalCity` 에 저장되어 재시작 때 되살아난다.
      */
     goalCity?: string;
     /** 👀 미리보기 콜 — 확정 전이라 취소 횟수에 안 들어간다. 확정하면 이 칸을 지운다 (`handleDecision`) */
