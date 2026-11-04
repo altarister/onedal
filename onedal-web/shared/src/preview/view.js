@@ -1,4 +1,4 @@
-/* 📋 shared 파일 보기 — 내보낸 값마다 표 하나. 쓰는 길이 없다. 줄 머리를 누르면 정렬한다 */
+/* 📋 shared 파일 보기 — 내보낸 함수 표 하나와 내보낸 값마다 표 하나. 쓰는 길이 없다. 줄 머리를 누르면 정렬한다 */
 import { drawMenu } from '/shared/_/menu.js';
 
 drawMenu();
@@ -77,7 +77,7 @@ function draw(rows, book) {
 
 document.title = file;
 document.getElementById('title').textContent = file;
-fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(({ values, limit, six }) => {
+fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(({ values, limit, six, functions }) => {
     const sixBox = document.getElementById('six');
     if (six.length === 0) sixBox.textContent = '6하원칙 없음';
     for (const s of six) {
@@ -87,7 +87,13 @@ fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(({ values, limit, s
         line.append(word, s.text);
         sixBox.append(line);
     }
-    if (values.length === 0) { box.textContent = '표로 볼 값이 없습니다 (함수 · 타입만 있는 파일).'; return; }
+    if (functions.length > 0) {
+        const h = document.createElement('h2');
+        h.className = 'value';
+        h.textContent = `함수 ${functions.length}개`;
+        box.append(h, draw(functions));
+    }
+    if (functions.length === 0 && values.length === 0) box.textContent = '표로 볼 값이 없습니다 (타입만 있는 파일).';
     for (const v of values) {
         const h = document.createElement('h2');
         h.className = 'value';

@@ -59,6 +59,28 @@ function sharedTitleOf(name: string): string {
   const head = readFileSync(path.join(SHARED, `${name}.ts`), "utf-8").match(/\/\*\*\s*\n\s*\*\s*(.+)/);
   return head ? head[1].replace(/^[^\p{L}\p{N}]+/u, "").trim() : "";
 }
+/**
+ * 내보낸 함수 표 — 이름 · 주석 첫 줄 · 리턴 타입. 함수를 실행하지 않고 TypeScript 로 읽는다.
+ * 리턴 타입을 적지 않은 함수가 많아 소스 글자가 아니라 TypeScript 가 계산한 값을 쓴다.
+ */
+async function sharedFunctionsOf(file: string): Promise<Record<string, string>[]> {
+  const { default: ts } = await import("typescript");
+  const program = ts.createProgram([file], { noEmit: true, skipLibCheck: true, strict: true, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, types: [] });
+  const checker = program.getTypeChecker();
+  const source = program.getSourceFile(file);
+  const module = source && checker.getSymbolAtLocation(source);
+  if (!source || !module) return [];
+  return checker.getExportsOfModule(module).flatMap((symbol) => {
+    const signature = checker.getTypeOfSymbolAtLocation(symbol, source).getCallSignatures()[0];
+    if (!signature) return [];
+    const comment = ts.displayPartsToString(symbol.getDocumentationComment(checker)).split("\n").map((line) => line.trim()).find(Boolean) ?? "";
+    return [{
+      "함수": symbol.name,
+      "기능": comment.replace(/\*\*/g, "").replace(/^[^\p{L}\p{N}]+/u, "") || "주석 없음",
+      "리턴 타입": checker.typeToString(signature.getReturnType(), source),
+    }];
+  });
+}
 /** 찾을 파일 — 주소 글자는 낱말과 `/` 만 받는다(`..` 로 밖에 못 나간다) */
 function sharedFileOf(name: string): string | null {
   if (!/^(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+$/.test(name) || name.includes("..") || name.endsWith(".test")) return null;
@@ -96,9 +118,9 @@ function sharedPages(): Plugin {
         if (url.startsWith("_/module/")) {
           const file = sharedFileOf(url.slice("_/module/".length));
           if (!file) return fail(404, "없는 파일");
-          server.ssrLoadModule(file).then((loaded) => {
+          server.ssrLoadModule(file).then(async (loaded) => {
             const values = Object.entries(loaded).map(([name, value]) => ({ name, ...sharedValue(value) })).filter((v) => "rows" in v);
-            json({ limit: SHARED_ROW_LIMIT, six: sixOf(readFileSync(file, "utf-8")), values });
+            json({ limit: SHARED_ROW_LIMIT, six: sixOf(readFileSync(file, "utf-8")), functions: await sharedFunctionsOf(file), values });
           }).catch((e) => fail(500, String(e)));
           return;
         }
