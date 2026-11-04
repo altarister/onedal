@@ -10,3 +10,4 @@ td.plain{white-space:pre-wrap;word-break:break-word;max-width:520px}
 
 .muted{color:#6b7280}
 .six{margin:8px 0;padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px}
+#menu summary{font-size:14px;font-weight:700;margin:10px 0 4px;color:#374151;cursor:pointer}#menu a small{display:block;font-size:11px;color:#6b7280}#menu a.now small{color:#d1d5db}

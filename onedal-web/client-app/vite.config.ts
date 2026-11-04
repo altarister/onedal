@@ -54,6 +54,11 @@ function sharedFiles(dir: string, prefix: string): string[] {
   const folders = names.filter((n) => n.isDirectory() && n.name !== "node_modules" && n.name !== "preview").map((n) => n.name).sort();
   return [...files, ...folders.flatMap((n) => sharedFiles(path.join(dir, n), `${prefix}${n}/`))];
 }
+/** 메뉴에 보일 한글 제목 — 파일 머리글의 첫 줄. 머리글이 없으면 빈 글자(메뉴가 파일 이름을 쓴다) */
+function sharedTitleOf(name: string): string {
+  const head = readFileSync(path.join(SHARED, `${name}.ts`), "utf-8").match(/\/\*\*\s*\n\s*\*\s*(.+)/);
+  return head ? head[1].replace(/^[^\p{L}\p{N}]+/u, "").trim() : "";
+}
 /** 찾을 파일 — 주소 글자는 낱말과 `/` 만 받는다(`..` 로 밖에 못 나간다) */
 function sharedFileOf(name: string): string | null {
   if (!/^(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+$/.test(name) || name.includes("..") || name.endsWith(".test")) return null;
@@ -71,7 +76,7 @@ function sharedPages(): Plugin {
         const fail = (code: number, text: string) => { res.statusCode = code; res.end(text); };
         const page = (name: string) => send("text/html", readFileSync(path.join(SHARED_PAGE, name)));
         if (url === "") return page("index.html");
-        if (url === "_/menu") return json(sharedFiles(SHARED, ""));
+        if (url === "_/menu") return json(sharedFiles(SHARED, "").map((file) => ({ file, title: sharedTitleOf(file) })));
         if (url === "_/read" && req.method === "POST") {
           let text = "";
           req.on("data", (c) => { text += c; });
