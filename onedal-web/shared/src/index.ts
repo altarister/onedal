@@ -19,18 +19,18 @@ export * from './deviceOffline';
 
 export * from './targetApps';
 
-export * from './callBands';
+export * from './map/callBands';
 export * from './modeTable';
 export * from './bleProtocol';
 export * from './openBlocked';
 export * from './common/mask';
 export * from './common/format';
-export * from './mapTile';
+export * from './map/mapTile';
 export * from './replies';
 export * from './filterTally';
 export * from './common/jsonArray';
 export * from './verdict';
-export * from './routeReuse';
+export * from './map/routeReuse';
 export * from './fuelCost';
 export * from './vehicles';
 export * from './deviceLink';
@@ -66,11 +66,11 @@ export * from './criteria';
 
 /** 🏷️ 화면 이름표 — 배차망별로 갈라 둔다 (기사님 설계) */
 export * from './screenLabels';
-export * from './naviLink';
+export * from './map/naviLink';
 /** ⏱️ 밀림 — 한 콜이 앞선 정거장을 몇 분 밀었나, 누가 밀었나 (실험실에서 올림) */
 export * from './stopImpact';
 /** 🎨 구간별 선 — 통짜 폴리라인 + 경계로 자른다 */
-export * from './sectionLine';
+export * from './map/sectionLine';
 /**
  * 🕸️ **콜 그물·2단계 판정** — 지도 실험실이 나흘 동안 기사님과 맞춰 온 계산
  *    (기사님 확정: *«실험실 계산을 올린다»*).

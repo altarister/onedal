@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildKakaoRouteUrl, KAKAO_MAX_VIA } from './index';
+import { buildKakaoRouteUrl, KAKAO_MAX_VIA } from '../index';
 
 /**
  * 🧭 **내비 링크 — 개인 폰으로 보내는 카카오맵 경로** (기사님 기획 · 확인)

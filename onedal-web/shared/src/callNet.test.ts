@@ -438,7 +438,7 @@ describe('라인 띠 — 길 하나가 담는 동 (2026-09-07 카카오 실측 �
     // 🔴 길은 이름으로 찾는다 — «모든 길» 재생성(저녁)으로 개수·순서가 바뀔 수 있다
     /* 🔴 띠는 **길 시작점 뒤를 자른다** — 뒤쪽 반원의 광주시 4동은 안 든다 (39동) */
     it('국도길(성남이천로·중부대로) 경유 띠 ±5km = 39동 — 이천 시내를 관통한다', async () => {
-        const { YEOJU_ROADS } = await import('./roadsYeoju');
+        const { YEOJU_ROADS } = await import('./map/roadsYeoju');
         const { buildLineNet } = await import('./callNet');
         const gukdo = YEOJU_ROADS.find(r => r.name.includes('성남이천로'))!;
         // lastDrop 이 없으면 «라인 ∪ 목적지 원»이다
@@ -452,7 +452,7 @@ describe('라인 띠 — 길 하나가 담는 동 (2026-09-07 카카오 실측 �
 
     /* 🔴 여기도 길 시작점 뒤 광주시 4동은 안 든다 (31동) */
     it('⛔ 고속길(광주원주) 경유 띠에는 산북면이 든다 — 길이 함정 옆을 지난다: 31동', async () => {
-        const { YEOJU_ROADS } = await import('./roadsYeoju');
+        const { YEOJU_ROADS } = await import('./map/roadsYeoju');
         const { buildLineNet } = await import('./callNet');
         const highway = YEOJU_ROADS.find(r => r.name.includes('광주원주'))!;
         const net = buildLineNet(highway.line, 5, null, WAIT_PRESET, NET_DST);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildKakaoNaviUrl, type NaviStop } from './index';
+import { buildKakaoNaviUrl, type NaviStop } from '../index';
 
 /**
  * 🧭 **카카오내비 링크 — QR 안에 들어가는 글자 한 줄**

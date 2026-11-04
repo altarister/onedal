@@ -794,7 +794,7 @@ ensureColumns('orders', { targetApp: 'TEXT',
     /**
      * 🎨 **구간 경계** — `routePolyline` 안에서 각 구간이 끝나는 자리 (JSON 숫자 배열).
      *    궤적과 **같은 운명**이라야 한다 — 선만 살아남고 경계가 없으면 지도가 한 색으로 물러난다.
-     *    선을 한 벌 더 저장하지 않는 이유는 `shared/src/sectionLine.ts` 에 있다.
+     *    선을 한 벌 더 저장하지 않는 이유는 `shared/src/map/sectionLine.ts` 에 있다.
      */
     sectionEnds: 'TEXT',
     /**
