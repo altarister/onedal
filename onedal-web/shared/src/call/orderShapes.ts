@@ -114,12 +114,9 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
     dropoffs?: LocationPoint[];       // 다중/상세 하차지
     pickupDetails?: LocationDetailInfo[];  // 출발지 상세 정보 (팝업 파싱)
     dropoffDetails?: LocationDetailInfo[]; // 도착지 상세 정보 (팝업 파싱)
-    distanceKm?: number;              // 운행 거리(km)
     
     // 6. 메타 데이터 및 호환성 필드
     isMock?: boolean;                 // 목업 콜 여부
-    isShared?: boolean;               // 합짐(혼적) 여부
-    isExpress?: boolean;              // 급송(독차) 여부
     companyName?: string;             // 화주 상호/이름 (과거 호환 유지 목적)
     pickupTime?: string;              // 픽업 예약 시간 지정
 }
@@ -199,6 +196,9 @@ export interface ServerCallFields {
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
     rejectionReasons?: string[];      // 모든 탈락 · 패널티 사유
     approvalReasons?: string[];       // 모든 장점 사유
+    distanceKm?: number;              // 운행 거리(km) — 서버가 카카오 단독 거리를 옮겨 적는다
+    isShared?: boolean;               // 합짐 여부 — 서버가 저장할 때 진행 콜 수로 계산한다
+    isExpress?: boolean;              // 급송 여부 — 서버가 저장할 때 `orderForm` 으로 계산한다
 }
 
 export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldFields, ServerCallFields {  // 심사 중 콜 — OfficeOrder + 서버의 판정 · 경로 값. 서버 메모리에만 있고 아직 내 콜이 아니다
@@ -208,16 +208,7 @@ export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldField
      * 🔴 이 시각이 지나도 콜은 안 사라진다 — 끄는 것은 폰의 화면 상태 하나다 (`devices.leftDetail`).
      */
     judgeUntil?: number;
-    /**
-     * 🚚 **배송거리** (상차지 → 하차지, km) — 앱이 리스트에서 긁어 온 값.
-     *
-     * 🔴 **타입에만 없었다** (고침). `orders` 테이블에 `deliveryDistance REAL`
-     *    로 살고 `GET /orders` 가 그대로 보내는데 여기 선언이 없어서, 관제웹이
-     *    `(route as any).deliveryDistance` 로 읽고 있었다 — **`as any` 가 «타입이
-     *    실제보다 좁다»는 사실을 덮고 있었다.**
-     *    같은 이름이 `SimplifiedOfficeOrder` 에도 있다 (앱이 올려 주는 쪽).
-     */
-    deliveryDistance?: number;
+    deliveryDistance?: number;        // 배송거리 — 부모 `SimplifiedOfficeOrder` 와 같은 칸을 다시 적은 것이다. 원달앱이 보낸 값이고 서버는 저장 · 복원만 한다
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -271,16 +262,7 @@ export interface MyOrder extends OfficeOrder, ServerCallFields {  // 내 콜 —
     terminatedAt?: string | null;
     /** 🎨 판정 스냅샷 — `SecuredOrder` 와 **같은 타입**을 가리킨다 (규칙 ③) */
     judgment?: JudgmentSnapshot;
-    /**
-     * 🚚 **배송거리** (상차지 → 하차지, km) — 앱이 리스트에서 긁어 온 값.
-     *
-     * 🔴 **타입에만 없었다** (고침). `orders` 테이블에 `deliveryDistance REAL`
-     *    로 살고 `GET /orders` 가 그대로 보내는데 여기 선언이 없어서, 관제웹이
-     *    `(route as any).deliveryDistance` 로 읽고 있었다 — **`as any` 가 «타입이
-     *    실제보다 좁다»는 사실을 덮고 있었다.**
-     *    같은 이름이 `SimplifiedOfficeOrder` 에도 있다 (앱이 올려 주는 쪽).
-     */
-    deliveryDistance?: number;
+    deliveryDistance?: number;        // 배송거리 — 부모 `SimplifiedOfficeOrder` 와 같은 칸을 다시 적은 것이다. 원달앱이 보낸 값이고 서버는 저장 · 복원만 한다
     settlement?: SettlementInfo;      // 정산 및 미수금 관리 트래킹 (운행일지용)
 }
 
