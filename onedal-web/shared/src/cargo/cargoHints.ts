@@ -1,3 +1,12 @@
+/**
+ * 📄 적요 짐 힌트
+ * 누가: 서버 단계 만들기와 shared 시간 계산이 부른다
+ * 언제: 콜 스텝을 미리 채우고 상차 약속을 볼 때
+ * 어디서: 서버 stepSeeder · shared timing
+ * 무엇을: 적요 · 물품 글에서 단위 · 수량 · 방법 · 성질 · 상차 시각을 뽑는다
+ * 어떻게: 낱말과 정규식으로 찾고 못 찾으면 비운다
+ * 왜: 통화 시트를 미리 채워 기사님 손을 던다
+ */
 // ⚠️ **타입만** 가져온다. 값(CARGO_SIZES 등)을 import 하면 순환 참조가 된다 —
 //    index.ts 가 이 파일을 re-export 하므로, 모듈 초기화 시점에
 //    `ReferenceError: Cannot access 'CARGO_SIZES' before initialization` 로 **서버가 부팅조차 못 한다.**
