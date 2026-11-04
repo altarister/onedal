@@ -34,7 +34,7 @@ describe('상차 약속을 만드는 곳은 pickupClockMsOf 하나', () => {
      * 그 반쪽이 DB 에 저장된다.
      */
     const FILES = [
-        'shared/src/timing.ts',
+        'shared/src/time/timing.ts',
         'server/src/services/stepSeeder.ts',
         'server/src/core/engine/OrderEvaluator.ts',
     ];
@@ -51,7 +51,7 @@ describe('상차 약속을 만드는 곳은 pickupClockMsOf 하나', () => {
 
     it('🔴 약속이 도착 예상을 따라가는 옛 식이 되살아나지 않는다', () => {
         /** `max(도착 예상, 시계)` — 여유를 늘 0으로 만들고 늦음을 감추는 식 */
-        const timing = codeOnly(read('shared/src/timing.ts'));
+        const timing = codeOnly(read('shared/src/time/timing.ts'));
         const seeder = codeOnly(read('server/src/services/stepSeeder.ts'));
         expect(timing).not.toMatch(/Math\.max\([^)]*capturedMs[^)]*clock/);
         expect(seeder).not.toMatch(/Math\.max\(pickupEta/);

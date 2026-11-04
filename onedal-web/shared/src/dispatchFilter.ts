@@ -1,5 +1,5 @@
 import type { CapacityConfidence } from './cargo/vehicles';
-import { DEFAULT_WAIT_TIMES, type WaitTimes } from './waitTimes';
+import { DEFAULT_WAIT_TIMES, type WaitTimes } from './time/waitTimes';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 1] 기사 행동 상태 — 기사님이 직접 버튼을 눌러 전환

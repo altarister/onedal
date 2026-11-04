@@ -51,7 +51,7 @@ const PLAN3_STOPS: RoutePoint[] = [
  *    비례 배분한 값이다. 합이 정확히 106분이다. 실물은 카카오 값을 그대로 쓴다.
  *
  * ⚠️ **실물에서 이 값은 늙는다.** `driveMinutes` 는 «카카오 호출 시점부터의 누적»이라
- *    (`shared/src/timing.ts` `StopLead` 주석) 30분 달린 뒤에도 같은 수를 말한다.
+ *    (`shared/src/time/timing.ts` `StopLead` 주석) 30분 달린 뒤에도 같은 수를 말한다.
  */
 const PLAN3_LEG: Record<number, number> = { 1: 2, 2: 31, 3: 34, 4: 8, 5: 7, 6: 24 };
 /**

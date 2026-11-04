@@ -5,7 +5,7 @@ export * from './cargo/cargoReport';
 export * from './callDeck';
 export * from './arrivalReasons';
 export * from './orderSync';
-export * from './waitTimes';
+export * from './time/waitTimes';
 export * from './dispatchApi';
 export * from './device/deviceModes';
 export * from './screenKinds';
@@ -54,7 +54,7 @@ export * from './callOptions';
 export * from './cargo/cargoSpec';
 export * from './stepTables';
 export * from './stepRecords';
-export * from './timing';
+export * from './time/timing';
 export * from './judge/dryRun';
 /**
  * 🔴 콜의 **색을 정하는 곳 — 여기 하나뿐이다**.

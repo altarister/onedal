@@ -107,7 +107,7 @@ describe('읽는 자리를 한 곳으로 모았다', () => {
     });
 
     it('🔴 osrmSolo* 는 없앤다 — 아무도 안 채우는데 판정 분기가 그걸 물었다', () => {
-        expect(read('../shared/src/timing.ts')).not.toMatch(/osrmSolo/);
+        expect(read('../shared/src/time/timing.ts')).not.toMatch(/osrmSolo/);
         /* 콜 타입 셋에 옛 칸이 되살아나면 아래 기대가 쓸데없어져 타입 오류(TS2578)다 */
         const p = {} as PendingOrder, m = {} as MyOrder, s = {} as SecuredOrder;
         /* 칸마다 한 줄 — 한 줄에 둘이면 하나만 되살아나도 남은 오류가 기대를 채운다 */

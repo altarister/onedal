@@ -85,7 +85,7 @@ describe('통화 시트 — 하차 방법 미리 채움', () => {
             require('path').join(__dirname, '../../src/services/stepSeeder.ts'), 'utf8');
         expect(seeder).toMatch(/dropHandling = callD\?\.planned_handling \?\? handling/);
         const timing = require('fs').readFileSync(
-            require('path').join(__dirname, '../../../shared/src/timing.ts'), 'utf8');
+            require('path').join(__dirname, '../../../shared/src/time/timing.ts'), 'utf8');
         expect(timing).toMatch(/dropoffCargo\?\.handling \?\? pickupCargo\?\.handling/);
     });
 });

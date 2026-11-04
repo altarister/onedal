@@ -20,7 +20,7 @@ import { CARGO_UNITS, CARGO_UNIT_POINTS, PROTECTION_MINUTES, AFTERWORK_MINUTES,
          DEFAULT_PROTECTIONS, DEFAULT_AFTERWORKS } from './cargo/cargoUnits';
 import { CARGO_TAGS } from './cargo/cargoTags';
 import { VEHICLE_CAPACITY, VEHICLE_OPTIONS } from './cargo/vehicles';
-import { DWELL_BASE, DWELL_PER_POINT, DEFAULT_DEADLINE_RULES } from './timing';
+import { DWELL_BASE, DWELL_PER_POINT, DEFAULT_DEADLINE_RULES } from './time/timing';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 갈래

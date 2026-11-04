@@ -1,5 +1,5 @@
-import { isTargetApp, DEFAULT_TARGET_APP } from './targetApps';
-import { NETWORK_PAGES } from './networkPages';
+import { isTargetApp, DEFAULT_TARGET_APP } from '../targetApps';
+import { NETWORK_PAGES } from '../networkPages';
 
 /**
  * ⏱️ **«주행·정차»로 굳는 데 걸리는 초 — 기본값** (기사님 확정 · 화면규칙 S16).

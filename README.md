@@ -136,7 +136,7 @@
 | 식별자 이름 | ✅ `identifierAscii` |
 | 단계 → 마일스톤 | 🟡 `onedal-web/shared/src/callSteps.ts` 한 곳 |
 | 콜 색 | 🟡 `onedal-web/client-app/src/styles/callPalette.ts` 한 곳 |
-| 시간 계산 | 🟡 `onedal-web/shared/src/timing.ts` 한 곳 |
+| 시간 계산 | 🟡 `onedal-web/shared/src/time/timing.ts` 한 곳 |
 | 콜 필터의 지역 목록 계산 | 🟡 `pnpm net:compare` (그물 계산이 두 벌 — 지도 `callNet` ↔ 서버 turf) |
 | `baseFilter` ↔ `activeFilter` | 🟡 `onedal-web/server/CLAUDE.md` |
 | `destinationKeywords` · `customCityFilters` | ✅ `keepKeepsAliases` — 경유 한 벌은 `filterManager` 한 곳이 조립한다 (`onedal-web/server/CLAUDE.md`) |
@@ -234,7 +234,7 @@
   | ④ 화면 | 어디에 어떤 이름으로 보이고, 고칠 수 있나 |
   | ⑤ 읽는 곳 | 누가 읽고 **각자 무슨 질문의 답으로** 쓰나 — 읽는 곳이 둘이면 값을 둘로 갈라야 하는지 의심한다 |
 
-- **⑤-5** 시간 계산은 `onedal-web/shared/src/timing.ts` 를 먼저 읽는다 — 약속은 «도착 시각»이고, **상차버퍼**(상차지에서 더 기다릴 수 있는 분)와 **경유버퍼**(배송 중 남는 분)는 다른 값이다. 새 상수를 만들지 않는다
+- **⑤-5** 시간 계산은 `onedal-web/shared/src/time/timing.ts` 를 먼저 읽는다 — 약속은 «도착 시각»이고, **상차버퍼**(상차지에서 더 기다릴 수 있는 분)와 **경유버퍼**(배송 중 남는 분)는 다른 값이다. 새 상수를 만들지 않는다
 
 **⑥ 콜 진행 6단계(`CALL_STEPS`)는 한 번에 한 단계씩만 넘긴다**
 

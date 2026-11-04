@@ -1,5 +1,5 @@
 import { isTerminal, isEvaluating } from './callStatus';
-import { businessDayKey } from './timing';
+import { businessDayKey } from './time/timing';
 
 /**
  * 이미 상차한 콜인가 — **이 판단은 여기 한 곳에만 둔다.**
