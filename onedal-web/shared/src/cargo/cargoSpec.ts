@@ -13,7 +13,7 @@
  */
 
 import type { CargoUnit, Protection, Afterwork } from './cargoUnits';
-import type { HandlingMethod } from './index';
+import type { HandlingMethod } from '../index';
 import type { CargoTag } from './cargoTags';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

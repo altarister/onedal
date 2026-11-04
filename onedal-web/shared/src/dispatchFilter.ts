@@ -1,4 +1,4 @@
-import type { CapacityConfidence } from './vehicles';
+import type { CapacityConfidence } from './cargo/vehicles';
 import { DEFAULT_WAIT_TIMES, type WaitTimes } from './waitTimes';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

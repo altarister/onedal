@@ -5,7 +5,7 @@ import { NETWORK_PAGES, STANDARD_SCREENS, fieldsOf } from './networkPages';
 import { PAGE_FIELDS, SCREEN_PAGES, BASE_PAGES, BASE_PAGE_OF, basePageOf, type PageField, type ScreenPage } from './pageFields';
 import { TARGET_APPS, type TargetAppType } from './index';
 import { pageFieldOf, pageFareOf, excludeScanTextOf, missingAlwaysOf } from './pageRead';
-import { VEHICLE_OPTIONS } from './vehicles';
+import { VEHICLE_OPTIONS } from './cargo/vehicles';
 
 /**
  * 📄 **배차망 화면 정의 표 — 서버가 믿고 읽을 수 있나** (onedal-46 3단계 조건).

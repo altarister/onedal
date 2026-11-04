@@ -1,4 +1,4 @@
-import { NETWORK_PAGES } from './networkPages';
+import { NETWORK_PAGES } from '../networkPages';
 export const VEHICLE_OPTIONS = [
     '오토바이', 
     '다마스', 

@@ -3,7 +3,7 @@
 //    `ReferenceError: Cannot access 'CARGO_SIZES' before initialization` 로 **서버가 부팅조차 못 한다.**
 //    타입 import 는 컴파일 후 사라지므로 안전하다.
 //    (tsc·jest 는 통과했는데 tsx 런타임에서만 터졌다. 스모크가 잡았다)
-import type { HandlingMethod } from './index';
+import type { HandlingMethod } from '../index';
 import type { CargoUnit } from './cargoUnits';
 import type { CargoTag } from './cargoTags';
 

@@ -6,10 +6,10 @@
  * 이 파일이 **시간에 관한 유일한 자리**다. 단위(`cargoUnits`)와 성질(`cargoTags`)은
  * 각자의 것만 남기고, 여기서 그 값을 읽어 시간으로 환산한다. 의존은 한 방향뿐이다.
  */
-import { unitPoints } from './cargoUnits';
-import { protectionMinutes, afterworkMinutes } from './cargoUnits';
+import { unitPoints } from './cargo/cargoUnits';
+import { protectionMinutes, afterworkMinutes } from './cargo/cargoUnits';
 import type { CargoReport } from './index';
-import { parseCargoHints } from './cargoHints';
+import { parseCargoHints } from './cargo/cargoHints';
 import { hhmmText, kstDateText } from './common/format';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

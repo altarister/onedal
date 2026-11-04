@@ -12,7 +12,7 @@
  *   ② 상하차 방법을 **소요 시간(분)** 으로 환산해 경로 시간에 더한다
  */
 import { VEHICLE_CAPACITY, normalizeVehicleType } from './vehicles';
-import type { HandlingMethod } from './index';
+import type { HandlingMethod } from '../index';
 
 /**
  * 적재 단위 — **기사님이 통화에서 실제로 쓰는 말**을 그대로 쓴다.
