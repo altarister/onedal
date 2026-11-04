@@ -42,7 +42,7 @@ describe('🧾 jsonArrayOf', () => {
             for (const v of INPUTS) expect([k, v, NEW[k](v as never)]).toEqual([k, v, OLD[k](v as never)]);
     });
     it('🔴 네 자리가 jsonArrayOf 를 쓴다(사본 몸통 없음)', () => {
-        const web = join(__dirname, '../..');
+        const web = join(__dirname, '../../..');
         const src = (p: string) => readFileSync(join(web, p), 'utf8');
         for (const p of ['server/src/state/userSessionStore.ts', 'server/src/services/stepSeeder.ts', 'shared/src/stepRecords.ts', 'client-app/src/components/dashboard/StepSheetMock.tsx']) {
             expect([p, /jsonArrayOf\(/.test(src(p))]).toEqual([p, true]);

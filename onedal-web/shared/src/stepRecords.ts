@@ -1,5 +1,5 @@
 import { STEP_MILESTONE } from './callSteps';
-import { jsonArrayOf } from './jsonArray';
+import { jsonArrayOf } from './common/jsonArray';
 /**
  * 🔄 **단계 행 → 옛 장부 모양 어댑터**
  *

@@ -2,7 +2,7 @@ package com.onedal.app.core
 
 /**
  * 🏷️ **로그 태그 — 한 줄의 종류를 기계가 찾게 하는 열 낱말**.
- * 서버·관제웹·원달앱이 같은 낱말을 쓴다 — 짝은 `onedal-web/shared/src/logTags.ts` (`LogTagPairTest` 가 «같다»를 문다).
+ * 서버·관제웹·원달앱이 같은 낱말을 쓴다 — 짝은 `onedal-web/shared/src/common/logTags.ts` (`LogTagPairTest` 가 «같다»를 문다).
  * 줄에는 말머리 맨 앞 `#낱말` 로 붙는다. 이모지는 그대로 — 눈은 이모지, 기계는 태그.
  */
 enum class LogTag(val word: String) {

@@ -10,7 +10,7 @@ import { unitPoints } from './cargoUnits';
 import { protectionMinutes, afterworkMinutes } from './cargoUnits';
 import type { CargoReport } from './index';
 import { parseCargoHints } from './cargoHints';
-import { hhmmText, kstDateText } from './format';
+import { hhmmText, kstDateText } from './common/format';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 상하차 소요 시간 (dwell time)

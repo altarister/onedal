@@ -57,7 +57,7 @@ if (mode && mode !== 'call') {
 
 /** 태그 목록은 shared 한 곳 — 여기서 손으로 다시 적지 않는다 (TS 파일이라 배열 글자만 읽는다) */
 const LOG_TAGS = (() => {
-    const src = readFileSync(join(WEB, 'shared', 'src', 'logTags.ts'), 'utf8');
+    const src = readFileSync(join(WEB, 'shared', 'src', 'common', 'logTags.ts'), 'utf8');
     const body = /LOG_TAGS = \[([\s\S]*?)\] as const/.exec(src)?.[1] ?? '';
     return [...body.matchAll(/'([^']+)'/g)].map(m => m[1]);
 })();
