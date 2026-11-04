@@ -1,4 +1,4 @@
-import type { DeviceModeType, TargetAppType } from './index';
+import type { DeviceModeType, TargetAppType } from '../index';
 
 /**
  * 🎛️ **네 모드 표 — 한 곳** (기사님 «모든 상황에 대처할 수 있도록 표를 만들어 검수 코드에도 사용하자»).

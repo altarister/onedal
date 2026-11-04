@@ -7,21 +7,21 @@ export * from './arrivalReasons';
 export * from './orderSync';
 export * from './waitTimes';
 export * from './dispatchApi';
-export * from './deviceModes';
+export * from './device/deviceModes';
 export * from './screenKinds';
-export * from './deviceSession';
+export * from './device/deviceSession';
 export * from './orderShapes';
 export * from './dispatchFilter';
 
 export { LET_GO_STATUSES, isLetGoStatus, type LetGoStatus, DECISION_STATUSES, type DecisionStatus } from './orderStatuses';
 
-export * from './deviceOffline';
+export * from './device/deviceOffline';
 
 export * from './targetApps';
 
 export * from './map/callBands';
-export * from './modeTable';
-export * from './bleProtocol';
+export * from './device/modeTable';
+export * from './device/bleProtocol';
 export * from './openBlocked';
 export * from './common/mask';
 export * from './common/format';
@@ -33,9 +33,9 @@ export * from './verdict';
 export * from './map/routeReuse';
 export * from './fuelCost';
 export * from './vehicles';
-export * from './deviceLink';
+export * from './device/deviceLink';
 export * from './ops/releases';
-export * from './allowance';
+export * from './device/allowance';
 export * from './regionMatch';
 export * from './pricing';
 export * from './phases';

@@ -1,7 +1,7 @@
 import { isManualLineage } from './callStatus';
 import type { SimplifiedOfficeOrder, OfficeOrder } from './orderShapes';
 import type { AutoDispatchFilter } from './dispatchFilter';
-import type { DeviceModeType } from './deviceModes';
+import type { DeviceModeType } from './device/deviceModes';
 import type { ScreenContextType } from './screenKinds';
 
 // 서버 전용: 다이내믹 요율 계산 엔진 파라미터 (앱으로 전송하지 않음)

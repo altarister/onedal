@@ -9,14 +9,14 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 🎛️ **네 모드 표 — 원달앱 쪽 짝** (원천은 `onedal-web/shared/src/modeTable.ts` 한 장 · 서버 쪽 짝은 shared `modeTable.test.ts`).
+ * 🎛️ **네 모드 표 — 원달앱 쪽 짝** (원천은 `onedal-web/shared/src/device/modeTable.ts` 한 장 · 서버 쪽 짝은 shared `modeTable.test.ts`).
  * 상황마다 원달앱이 도는 모드 = `TargetApp.runningMode`(공급 받은 적 · 공급 연결 · 관제앱 서버 연결 · 보고 닿음)에 배차망 규칙(픽커는 자동 없음) — 표의 `running` 과 같다.
  * 도는 모드마다 하는 일(목록 누름 · 소리 · 확정 · 확정 막기 · 테두리)이 표의 `acts` 와 같다.
  * 못 잡는 것: 응답 실패가 실제로 언제 오는지(폰 · 서버 끄기 시험) · 상세 1~2초 사이에 응답이 실제로 오는지(폰 로그 «🔐 [확정 안 누름]»).
  */
 class ModeTablePairTest {
     private val table: JsonObject by lazy {
-        val ts = File("../../onedal-web/shared/src/modeTable.ts").readText()
+        val ts = File("../../onedal-web/shared/src/device/modeTable.ts").readText()
         val body = Regex("""/\*JSON\*/([\s\S]*?)/\*JSON\*/""").find(ts)?.groupValues?.get(1)
             ?: error("modeTable.ts 에서 /*JSON*/ 표시 사이를 못 찾았다")
         JsonParser.parseString(body).asJsonObject

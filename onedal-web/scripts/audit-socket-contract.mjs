@@ -67,7 +67,7 @@ function collectFromArrays(text, varNamesUsedDynamically) {
  * 📡 **상수로 쓴 사건 이름을 글자로 푼다** — 관제앱 공급 소켓은 이름을 한 곳에 둔다(shared `SUPPLY_EVENTS` · 관제앱 자바 `BleProtocol.EVENT_*`).
  *    풀지 않으면 그 emit · on 이 이 검사에서 통째로 빠진다(빨개지지도 않는다).
  */
-const sharedBle = readFileSync(join(ROOT, 'shared/src/bleProtocol.ts'), 'utf8');
+const sharedBle = readFileSync(join(ROOT, 'shared/src/device/bleProtocol.ts'), 'utf8');
 const SUPPLY_EVENTS = Object.fromEntries([...(sharedBle.match(/SUPPLY_EVENTS\s*=\s*\{([\s\S]*?)\}/)?.[1] ?? '').matchAll(/(\w+):\s*'([\w-]+)'/g)].map(m => [m[1], m[2]]));
 const javaBle = readFileSync(join(ROOT, 'client-app/android/app/src/main/java/kr/co/onedal/dashboard/BleProtocol.java'), 'utf8');
 const JAVA_EVENTS = Object.fromEntries([...javaBle.matchAll(/static final String (EVENT_\w+) = "([\w-]+)"/g)].map(m => [m[1], m[2]]));

@@ -19,7 +19,7 @@ describe('🎛️ 관제웹 폰 모드 고르기', () => {
     });
 
     it('🔴 «허락이 꺼졌습니다» 안내 줄 · 버튼 설명 문구가 관제웹 · shared 어디에도 없다', () => {
-        for (const f of ['client-app/src/components/dashboard/DeviceControlPanel.tsx', 'shared/src/allowance.ts'])
+        for (const f of ['client-app/src/components/dashboard/DeviceControlPanel.tsx', 'shared/src/device/allowance.ts'])
             expect(read(f)).not.toMatch(/modeHeldWhy|heldWhy|자동 잡기 허락이 꺼졌습니다/);
         /* 그 안내 줄을 내던 shared 함수(modeHeldWhy)가 어느 파일에서든 되살아나지 않는다 */
         expect(Object.keys(shared).filter(k => /heldWhy/i.test(k))).toEqual([]);

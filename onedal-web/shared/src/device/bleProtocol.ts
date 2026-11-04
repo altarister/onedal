@@ -1,4 +1,4 @@
-import type { DeviceModeType } from './index';
+import type { DeviceModeType } from '../index';
 
 /**
  * 📡 **관제앱 공급 소켓의 사건 · 틀 — 한 곳**.

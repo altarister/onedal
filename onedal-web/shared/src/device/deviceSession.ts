@@ -1,8 +1,8 @@
 import { phoneModeOf } from './allowance';
 import type { DeviceOfflineReason } from './deviceOffline';
-import type { TargetAppType } from './targetApps';
+import type { TargetAppType } from '../targetApps';
 import type { DeviceStatusType, DeviceModeType } from './deviceModes';
-import type { ScreenContextType } from './screenKinds';
+import type { ScreenContextType } from '../screenKinds';
 
 /**
  * 👁️ **앱은 켜져 있는데 화면을 못 읽는 중인가** (기사님 확정 · 크리티컬).

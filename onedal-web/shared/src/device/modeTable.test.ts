@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MODE_TABLE, networkCanAutoContract, otherContractingAuto, modeActsOf } from './modeTable';
 import { modeForPhone } from './allowance';
-import { DEVICE_MODES, DEVICE_MODE_LABEL, TARGET_APPS } from './index';
+import { DEVICE_MODES, DEVICE_MODE_LABEL, TARGET_APPS } from '../index';
 
 /**
  * 🎛️ **네 모드 표 — 서버 쪽 짝**.
