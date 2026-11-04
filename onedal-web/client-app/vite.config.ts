@@ -108,6 +108,99 @@ async function sharedCodeOf(file: string) {
   return { functions, aliases, interfaces, notes };
 }
 /** 찾을 파일 — 주소 글자는 낱말과 `/` 만 받는다(`..` 로 밖에 못 나간다) */
+/**
+ * 🔎 누가 쓰나 — shared 가 내보낸 것마다 쓰는 파일을 TypeScript 참조 찾기로 모은다. 소스가 바뀌면 다시 계산한다.
+ * `as any` · `require` · 글자로 읽는 곳 · 원달앱 JSON 은 못 찾으므로 «쓰는 곳 0» 이 곧 «지워도 됨» 은 아니다.
+ */
+const WEB = path.resolve(__dirname, "..");
+const USAGE_ROOTS: [area: string, dir: string][] = [["서버", "server/src"], ["검사", "server/tests"], ["관제웹", "client-app/src"], ["운영센터", "ops/src"], ["운행일지", "logbook/src"], ["ui", "ui/src"], ["shared", "shared/src"]];
+/** 코드 참조로 안 잡히는 쓰임 — 파일이 이 꼴이면 까닭을 함께 보여 준다 */
+const USAGE_NOTES: [RegExp, string][] = [
+  [/^call\/(dispatchApi|orderSync)$/, "원달앱과 주고받는 JSON 모양일 수 있음"],
+  [/^call\/orderShapes$/, "원달앱과 주고받는 JSON 모양일 수 있음"],
+  [/\.table$/, "보기 페이지가 읽는 표"],
+  [/^network\/(networkPages\.\w+|pageFields|targetApps)$/, "gen-pages 스크립트가 글자로 읽음"],
+];
+type SharedUsage = { exports: Record<string, { kind: string; self: boolean; note: string; areas: Record<string, string[]> }>; fields: Record<string, Record<string, string[]>> };
+function usageSources(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((n) => {
+    const full = path.join(dir, n.name);
+    if (n.isDirectory()) return n.name === "node_modules" || n.name === "preview" ? [] : usageSources(full);
+    return /\.tsx?$/.test(n.name) ? [full] : [];
+  });
+}
+const usageAreaOf = (file: string): string => {
+  const rel = path.relative(WEB, file);
+  if (/\.test\.tsx?$/.test(rel)) return "검사";
+  return USAGE_ROOTS.find(([, dir]) => rel.startsWith(`${dir}/`))?.[0] ?? "기타";
+};
+let usageCache: { stamp: string; result: Promise<Record<string, SharedUsage>> } | null = null;
+function sharedUsage(): Promise<Record<string, SharedUsage>> {
+  const files = USAGE_ROOTS.flatMap(([, dir]) => usageSources(path.join(WEB, dir)));
+  const stamp = `${files.length}:${Math.max(...files.map((f) => statSync(f).mtimeMs))}`;
+  if (usageCache?.stamp !== stamp) usageCache = { stamp, result: computeUsage(files) };
+  return usageCache.result;
+}
+async function computeUsage(files: string[]): Promise<Record<string, SharedUsage>> {
+  const { default: ts } = await import("typescript");
+  const options: import("typescript").CompilerOptions = {
+    noEmit: true, skipLibCheck: true, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler,
+    jsx: ts.JsxEmit.Preserve, allowImportingTsExtensions: true, resolveJsonModule: true, types: [], baseUrl: WEB,
+    paths: { "@onedal/shared": ["shared/src/index.ts"], "@/*": ["client-app/src/*"] },
+  };
+  const versions = new Map(files.map((f) => [f, String(statSync(f).mtimeMs)]));
+  const service = ts.createLanguageService({
+    getScriptFileNames: () => files,
+    getScriptVersion: (f) => versions.get(f) ?? "0",
+    getScriptSnapshot: (f) => (existsSync(f) ? ts.ScriptSnapshot.fromString(readFileSync(f, "utf-8")) : undefined),
+    getCurrentDirectory: () => WEB,
+    getCompilationSettings: () => options,
+    getDefaultLibFileName: ts.getDefaultLibFilePath,
+    fileExists: ts.sys.fileExists, readFile: ts.sys.readFile, readDirectory: ts.sys.readDirectory, directoryExists: ts.sys.directoryExists, getDirectories: ts.sys.getDirectories,
+  });
+  const program = service.getProgram()!;
+  const checker = program.getTypeChecker();
+  const index = path.join(SHARED, "index.ts");
+  const result: Record<string, SharedUsage> = {};
+  const fieldOwners = new Map<string, Set<string>>();
+  const ownFields = new Map<string, { file: string; name: string; fields: string[] }>();
+  for (const file of files.filter((f) => f.startsWith(`${SHARED}/`) && f !== index && usageAreaOf(f) === "shared")) {
+    const source = program.getSourceFile(file);
+    const module = source && checker.getSymbolAtLocation(source);
+    if (!source || !module) continue;
+    const name = path.relative(SHARED, file).replace(/\.tsx?$/, "");
+    const note = USAGE_NOTES.find(([re]) => re.test(name))?.[1] ?? "";
+    const usage: SharedUsage = { exports: {}, fields: {} };
+    result[name] = usage;
+    for (const symbol of checker.getExportsOfModule(module)) {
+      const decl = symbol.declarations?.[0];
+      const id = decl && ts.getNameOfDeclaration(decl);
+      if (!decl || !id || decl.getSourceFile() !== source) continue;
+      const areas: Record<string, string[]> = {};
+      let self = false;
+      const refs = service.findReferences(file, id.getStart(source)) ?? [];
+      for (const ref of refs.flatMap((r) => r.references)) {
+        if (ref.isDefinition || ref.fileName === index) continue;
+        if (ref.fileName === file) { self = true; continue; }
+        const area = usageAreaOf(ref.fileName);
+        const rel = path.relative(WEB, ref.fileName);
+        if (!(areas[area] ??= []).includes(rel)) areas[area].push(rel);
+      }
+      usage.exports[symbol.name] = { kind: ts.SyntaxKind[decl.kind], self, note, areas };
+      if (ts.isInterfaceDeclaration(decl)) {
+        const fields = decl.members.flatMap((m) => (m.name && ts.isIdentifier(m.name) ? [m.name.text] : []));
+        ownFields.set(symbol.name, { file: name, name: symbol.name, fields });
+        for (const f of fields) (fieldOwners.get(f) ?? fieldOwners.set(f, new Set()).get(f)!).add(symbol.name);
+      }
+      await new Promise((done) => setImmediate(done));
+    }
+  }
+  for (const { file, name, fields } of ownFields.values()) {
+    result[file].fields[name] = Object.fromEntries(fields.map((f) => [f, [...fieldOwners.get(f)!].filter((o) => o !== name)]));
+  }
+  return result;
+}
 /** 폴더 한눈에 보기 — 주소 글자가 shared 안 폴더 하나일 때만 */
 function sharedFolderOf(name: string): string | null {
   if (!/^[a-zA-Z0-9_-]+$/.test(name) || name === "preview" || name === "node_modules") return null;
@@ -145,6 +238,12 @@ function sharedPages(): Plugin {
               json({ defined, value: pageFieldOf(app, screen, field, sample ?? "", part ?? "") });
             } catch (e) { fail(400, String(e)); }
           });
+          return;
+        }
+        if (url.startsWith("_/uses/")) {
+          const name = url.slice("_/uses/".length);
+          if (!sharedFileOf(name)) return fail(404, "없는 파일");
+          sharedUsage().then((all) => json(all[name] ?? { exports: {}, fields: {} })).catch((e) => fail(500, String(e)));
           return;
         }
         if (url.startsWith("_/source/")) {

@@ -14,3 +14,4 @@ td.plain{white-space:pre-wrap;word-break:break-word;max-width:520px}
 h3{font-size:16px;margin:18px 0 8px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.chips>*{padding:3px 8px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;font-size:14px}
 .source{margin-top:28px}.source summary{cursor:pointer;font-weight:700}.source pre{margin-top:8px;padding:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;overflow:auto;font-size:13px;white-space:pre}
 .callSheet td:nth-child(n+12){min-width:300px}
+.usesLine{margin:0 0 8px;font-size:14px}.usesLine details{display:inline-block;vertical-align:top}.useFiles{white-space:pre-wrap;margin-top:4px;padding:6px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:12px}

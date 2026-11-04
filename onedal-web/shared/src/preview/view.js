@@ -39,6 +39,38 @@ async function readInto(td, app, cell, samples) {
     td.append(box);
 }
 
+/* 🔎 누가 쓰나 — 요약 글자를 누르면 파일 이름이 펼쳐진다. 값은 개발 서버가 TypeScript 참조 찾기로 계산한다 */
+const USE_AREAS = ['서버', '관제웹', '운영센터', '운행일지', 'ui', 'shared', '검사'];
+function usesCell(usage, name) {
+    if (!usage) return { text: '계산 중…', files: [] };
+    const use = usage.exports[name];
+    if (!use) return { text: '', files: [] };
+    const counts = USE_AREAS.filter((a) => use.areas[a]?.length).map((a) => `${a} ${use.areas[a].length}`);
+    const onlyTests = counts.length === 1 && use.areas['검사']?.length;
+    const summary = counts.join(' · ') || (use.self ? '자기 파일만' : '쓰는 곳 없음');
+    const warn = !counts.length || onlyTests ? (use.note ? ` — 지우면 안 됨: ${use.note}` : '') : '';
+    return { text: `${summary}${warn}`, files: USE_AREAS.flatMap((a) => use.areas[a] ?? []) };
+}
+function usesBox(cell) {
+    if (cell.files.length === 0) { const s = document.createElement('span'); s.textContent = cell.text; return s; }
+    const box = document.createElement('details');
+    const head = document.createElement('summary');
+    head.textContent = cell.text;
+    const list = document.createElement('div');
+    list.className = 'useFiles';
+    list.textContent = cell.files.join('\n');
+    box.append(head, list);
+    return box;
+}
+function usesLine(usage, name) {
+    const line = document.createElement('div');
+    line.className = 'usesLine';
+    const label = document.createElement('b');
+    label.textContent = '쓰는 곳: ';
+    line.append(label, usesBox(usesCell(usage, name)));
+    return line;
+}
+
 function draw(rows, book) {
     const columns = book ? book.columns.map((c) => c.key) : [...new Set(rows.flatMap((r) => Object.keys(r)))];
     const labelOf = (k) => book?.columns.find((c) => c.key === k)?.label ?? k;
@@ -69,7 +101,8 @@ function draw(rows, book) {
                 const td = tr.insertCell();
                 td.className = 'plain';
                 const cell = rows[i][c];
-                if (cell && typeof cell === 'object' && 'text' in cell) {
+                if (cell?.files) td.append(usesBox(cell));
+                else if (cell && typeof cell === 'object' && 'text' in cell) {
                     if (cell.state && cell.state !== '지금') { const s = document.createElement('div'); s.className = 'state'; s.textContent = cell.state; td.append(s); }
                     td.append(cell.text);
                     if (cell.reads?.length) readInto(td, c, cell, book?.samples);
@@ -251,16 +284,21 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
         h.textContent = words;
         return h;
     };
-    if (functions.length > 0) box.append(heading(`함수 ${functions.length}개`), draw(functions));
-    if (aliases.length > 0) box.append(heading(`타입 ${aliases.length}개`), draw(aliases));
+    const withUses = (rows, nameKey, usage) => rows.map((row) => ({ ...row, '쓰는 곳': usesCell(usage, row[nameKey]) }));
+    const paint = async (usage) => {
+    box.textContent = '';
+    box.append(paragraph('«쓰는 곳»은 TypeScript 로 찾은 파일 수입니다. as any · require · 글자로 읽는 곳 · 원달앱 JSON 은 못 찾으니, 0이라고 지워도 된다는 뜻은 아닙니다.'));
+    if (functions.length > 0) box.append(heading(`함수 ${functions.length}개`), draw(withUses(functions, '함수', usage)));
+    if (aliases.length > 0) box.append(heading(`타입 ${aliases.length}개`), draw(withUses(aliases, '타입', usage)));
     for (const shape of interfaces) {
-        box.append(heading(`${shape.name} (칸 ${shape.rows.length}개) — ${shape.about}`), draw(shape.rows));
+        const rows = shape.rows.map((row) => ({ ...row, '같은 이름 칸이 있는 타입': usage?.fields[shape.name]?.[row['칸']]?.join(' · ') ?? '' }));
+        box.append(heading(`${shape.name} (칸 ${shape.rows.length}개) — ${shape.about}`), usesLine(usage, shape.name), draw(rows));
     }
     if (functions.length + aliases.length + interfaces.length + values.length === 0) box.textContent = '표로 볼 것이 없습니다.';
     for (const v of values) {
         if (/^network\/networkPages\.\w+$/.test(file)) {
             const fields = await fetch('/shared/_/module/network/pageFields').then((r) => r.json());
-            box.append(...drawNetworkBook(v.rows, fields.values));
+            box.append(usesLine(usage, v.name), ...drawNetworkBook(v.rows, fields.values));
             continue;
         }
         const h = document.createElement('h2');
@@ -271,7 +309,7 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
             const links = document.createElement('div');
             links.className = 'chips';
             for (const net of Object.keys(v.rows)) { const a = document.createElement('a'); a.href = `/shared/network/networkPages.${net}`; a.textContent = net; links.append(a); }
-            box.append(h, paragraph('네 배차망 파일을 합친 값입니다. 내용은 배차망 페이지에서 봅니다.'), links);
+            box.append(h, usesLine(usage, v.name), paragraph('네 배차망 파일을 합친 값입니다. 내용은 배차망 페이지에서 봅니다.'), links);
             const [fields, apps, cf, shapes] = await Promise.all(['network/pageFields', 'network/targetApps', 'call/call-fields.table', 'call/orderShapes'].map((f) => fetch(`/shared/_/module/${f}`).then((r) => r.json())));
             box.append(sectionHead('콜 칸 × 네 배차망'),
                 paragraph('필수를 정할 때 보는 표입니다. 줄은 콜 칸이고 앞쪽 칸은 콜 칸 표(call-fields) 그대로입니다. 배차망 칸은 정의 표에서 뽑은 줄과 콜 칸 표에 사람이 적은 글입니다.'),
@@ -285,7 +323,11 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
             h.textContent = v.rows.title ?? v.name;
             const about = document.createElement('p');
             about.textContent = v.rows.about ?? '';
-            box.append(h, about, draw(v.rows.rows, v.rows));
-        } else box.append(h, ...drawValue(v.rows));
+            box.append(h, usesLine(usage, v.name), about, draw(v.rows.rows, v.rows));
+        } else box.append(h, usesLine(usage, v.name), ...drawValue(v.rows));
     }
+    };
+    await paint(null);
+    const usage = await fetch(`/shared/_/uses/${file}`).then((r) => r.json());
+    await paint(usage);
 }).catch((e) => { box.textContent = `못 읽음: ${e}`; });
