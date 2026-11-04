@@ -593,7 +593,7 @@ describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
     it('🔴 옛 LOCAL 전환 길이 없다', () => {
         expect(modal).not.toMatch(/'LOCAL'/);
         expect(engine).not.toMatch(/'LOCAL'/);
-        const ph = codeOnly(read(join(CLIENT, '../../shared/src/phases.ts')));
+        const ph = codeOnly(read(join(CLIENT, '../../shared/src/filter/phases.ts')));
         expect(ph).not.toMatch(/=== 'LOCAL'/);
     });
 });

@@ -9,9 +9,9 @@ import { anyRegionHit, sigunguHintBefore } from '@onedal/shared';
  * 규칙(서버 anyRegionHit · 원달앱 RegionMatch 한 벌): 맞은 동이 destinationDongSigungu 에 있고, 그 바로 앞 토막이 시군구 꼴인데
  * 칸의 꼴이 아니면 다른 곳. 목록 페이지에서 상세 주소가 안 보이면(시도만 · 없음) 통과 — 상세 페이지는 요건 확인(하차 주소 시·군·구)이 먼저 막는다.
  * 여러 시군구에 걸리는 구 이름(중구)은 앞 토막까지 두 토막으로.
- * 문제지는 shared/src/regionMatchCases.json 한 벌 — 원달앱 JUnit 도 같은 표를 읽는다.
+ * 문제지는 shared/src/filter/regionMatchCases.json 한 벌 — 원달앱 JUnit 도 같은 표를 읽는다.
  */
-const sheet = JSON.parse(readFileSync(join(__dirname, '../../../shared/src/regionMatchCases.json'), 'utf8'));
+const sheet = JSON.parse(readFileSync(join(__dirname, '../../../shared/src/filter/regionMatchCases.json'), 'utf8'));
 
 describe('🏘️ 동명이동 문제지 (서버)', () => {
     for (const c of sheet.cases.filter((c: any) => c.only !== 'picker')) {
@@ -58,7 +58,7 @@ describe('🏘️ 칸 파생 — 도착 목록 가운데 이름이 겹치는 동
 describe('🏘️ 채점기도 같은 원본', () => {
     it('🔴 픽커 알람 채점기가 지역 대조를 shared regionMatch 에서 가져온다 — 사본 regionHit 이 없다', () => {
         const grader = readFileSync(join(__dirname, '../../../../onedal-sim/scripts/pickerAlarmGrade.mjs'), 'utf8');
-        expect(grader).toContain("from '../../onedal-web/shared/src/regionMatch.ts'");
+        expect(grader).toContain("from '../../onedal-web/shared/src/filter/regionMatch.ts'");
         expect(grader).not.toMatch(/function regionHit\(/);
         expect(grader).toMatch(/dongTokenMatch\(dropoff, \[\.\.\.keys, \.\.\.\(f\.cityAliases \?\? \[\]\)\], f\.dongSigungu \?\? \{\}\)/);
     });

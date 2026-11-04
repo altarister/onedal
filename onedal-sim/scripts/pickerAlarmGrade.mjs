@@ -28,8 +28,8 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 /* shared 는 CommonJS 로 읽힌다 — 기본 가져오기로 받는다 */
-import regionMatch from '../../onedal-web/shared/src/regionMatch.ts';
-import sigungu from '../../onedal-web/shared/src/sigungu.ts';
+import regionMatch from '../../onedal-web/shared/src/filter/regionMatch.ts';
+import sigungu from '../../onedal-web/shared/src/filter/sigungu.ts';
 const { anyRegionHit } = regionMatch;
 const { sigunguHintBefore } = sigungu;
 

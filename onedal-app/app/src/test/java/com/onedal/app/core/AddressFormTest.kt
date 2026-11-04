@@ -63,7 +63,7 @@ class AddressFormTest {
      */
     @Test
     fun `원달앱 명부는 서버 지도 산출물과 같다`() {
-        val ts = File("../../onedal-web/shared/src/dongCentroids.ts").readText()
+        val ts = File("../../onedal-web/shared/src/filter/dongCentroids.ts").readText()
         val rows = Regex("""\["([^"]+)","([^"]+)",[\d.]+,[\d.]+,"([^"]+)"\]""").findAll(ts).toList()
         assertTrue("dongCentroids.ts 에서 줄을 못 읽었다", rows.isNotEmpty())
         val expect = rows.groupBy({ it.groupValues[2] }, { it.groupValues[1] }).mapValues { it.value.toSet() }
@@ -76,7 +76,7 @@ class AddressFormTest {
      */
     @Test
     fun `원달앱 행정동 명부는 shared 행정동 표와 같다`() {
-        val ts = File("../../onedal-web/shared/src/adminDongs.ts").readText()
+        val ts = File("../../onedal-web/shared/src/filter/adminDongs.ts").readText()
         val rows = Regex("""\["([^"]+)","([^"]+)",\[""").findAll(ts).toList()
         assertTrue("adminDongs.ts 에서 줄을 못 읽었다", rows.isNotEmpty())
         val expect = rows.map { it.groupValues[1] to it.groupValues[2] }

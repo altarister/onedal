@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { autoRadii, heldRadiusDistanceKm, RADIUS_BASE_KM_DEFAULT, type RadiusSet } from './phases';
-import { resetToBaseFilter } from './index';
+import { resetToBaseFilter } from '../index';
 
 /**
  * 📐 **반경 자동 맞춤**.

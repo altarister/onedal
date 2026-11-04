@@ -26,11 +26,11 @@ describe('🔴 방향을 서버가 정하는 길이 없다 (L1 — 코드 모양
 
     it('하차를 마쳐도 서버가 복귀를 켜거나 끄지 않는다', () => {
         expect(en).not.toMatch(/decideTargetAfterDelivery/);
-        expect(sharedCode('phases.ts')).not.toMatch(/decideTargetAfterDelivery/);
+        expect(sharedCode('filter/phases.ts')).not.toMatch(/decideTargetAfterDelivery/);
     });
 
     it('🔴 집 반경으로 방향을 판정하는 값이 없다 — 집에 닿아도 복귀는 켜진 채다', () => {
-        expect(sharedCode('phases.ts')).not.toMatch(/HOME_RADIUS_KM/);
+        expect(sharedCode('filter/phases.ts')).not.toMatch(/HOME_RADIUS_KM/);
     });
 
     it('🔴 «서버가 방향을 바꿨다»고 알리는 소켓이 없다', () => {

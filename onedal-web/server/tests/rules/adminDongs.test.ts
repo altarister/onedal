@@ -8,7 +8,7 @@ import { initGeoService } from '../../src/services/geoService';
 /**
  * 🗺️ **목적지 낱말에 행정동을 함께 싣는다** (기사님 «가» 1 · onedal-69 · f5 와 한 벌).
  *    픽커 화면은 행정동 이름(위례동 · 광남1동 · 역삼1동 · 처인구 중앙동)을 쓰고 명부는 법정동뿐이라, 목적지 안 콜이 «경유 이탈»로 떨어졌다.
- *    표는 행정안전부 KIKmix(shared/src/adminDongs.ts) · 판단은 서버 목록 한 벌 — 원달앱 RegionMatch · 서버 anyRegionHit 이 같은 목록을 본다.
+ *    표는 행정안전부 KIKmix(shared/src/filter/adminDongs.ts) · 판단은 서버 목록 한 벌 — 원달앱 RegionMatch · 서버 anyRegionHit 이 같은 목록을 본다.
  *    🔴 노이즈: 행정동은 그 관할 법정동이 목록에 하나라도 있을 때만 더한다 · 법정동이 빠지면 행정동도 걷힌다 · 같은 이름이 여러 시구에 있으면 시구로 가른다.
  */
 const U = 'test-admin-dongs';

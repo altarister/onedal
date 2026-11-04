@@ -1,6 +1,6 @@
 import { isManualLineage } from './callStatus';
 import type { SimplifiedOfficeOrder, OfficeOrder } from './orderShapes';
-import type { AutoDispatchFilter } from './dispatchFilter';
+import type { AutoDispatchFilter } from './filter/dispatchFilter';
 import type { DeviceModeType } from './device/deviceModes';
 import type { ScreenContextType } from './screenKinds';
 

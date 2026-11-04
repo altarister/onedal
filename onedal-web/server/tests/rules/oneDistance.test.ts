@@ -16,7 +16,7 @@ describe('📏 두 지점 거리 한 함수', () => {
     it('🔴 지구 반지름 6371 은 shared callNet 한 곳뿐', () => {
         /* 계산에 쓰인 6371 만 — 곱하기 · 값 넣기(지도 자료 파일 속 좌표 숫자는 아니다) */
         const hits = files.filter(f => /(\*\s*6_?371(?:000)?\b|\b6_?371(?:000)?\s*[*;]|=\s*6_?371(?:000)?\b)/.test(code(f))).map(f => relative(WEB, f));
-        expect(hits).toEqual(['shared/src/callNet.ts']);
+        expect(hits).toEqual(['shared/src/filter/callNet.ts']);
     });
     it('🔴 옛 이름(숫자 넷 함수 · 복사본)이 남아 있지 않다', () => {
         const hits = files.filter(f => /\b(getDistanceKm|haversineMeters|haversineKmOf)\b/.test(code(f))).map(f => relative(WEB, f));

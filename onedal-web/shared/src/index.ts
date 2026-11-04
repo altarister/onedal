@@ -11,7 +11,7 @@ export * from './device/deviceModes';
 export * from './screenKinds';
 export * from './device/deviceSession';
 export * from './orderShapes';
-export * from './dispatchFilter';
+export * from './filter/dispatchFilter';
 
 export { LET_GO_STATUSES, isLetGoStatus, type LetGoStatus, DECISION_STATUSES, type DecisionStatus } from './orderStatuses';
 
@@ -27,7 +27,7 @@ export * from './common/mask';
 export * from './common/format';
 export * from './map/mapTile';
 export * from './replies';
-export * from './filterTally';
+export * from './filter/filterTally';
 export * from './common/jsonArray';
 export * from './judge/verdict';
 export * from './map/routeReuse';
@@ -36,15 +36,15 @@ export * from './cargo/vehicles';
 export * from './device/deviceLink';
 export * from './ops/releases';
 export * from './device/allowance';
-export * from './regionMatch';
+export * from './filter/regionMatch';
 export * from './judge/pricing';
-export * from './phases';
+export * from './filter/phases';
 export * from './ops/ops';
 export * from './ops/anomalyKinds';
 export * from './ops/join';
 export * from './callTargetDay';
-export * from './pickupList';
-export * from './filterArea';
+export * from './filter/pickupList';
+export * from './filter/filterArea';
 export * from './cargo/cargoHints';
 export * from './cargo/cargoTags';
 export * from './cargo/cargoUnits';
@@ -78,13 +78,13 @@ export * from './map/sectionLine';
  * 🔴 **실물이 원천이고 실험실이 그것을 부른다** — 화면과 서버가 같은 계산을 봐야
  *    «화면은 든다는데 판정은 탈락»이 안 생긴다 (규칙 ③).
  */
-export * from './callNet';
-export * from './trappedRegions';
+export * from './filter/callNet';
+export * from './filter/trappedRegions';
 
 export * from './common/logTags';
 export * from './pageFields';
-export * from './sigungu';
-export * from './adminDongMatch';
+export * from './filter/sigungu';
+export * from './filter/adminDongMatch';
 export * from './networkPages';
 export * from './collectList';
 export * from './ops/flowViews';

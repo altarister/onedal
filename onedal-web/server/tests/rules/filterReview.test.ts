@@ -152,7 +152,7 @@ describe('2단계 · 배율이 아니라 «거리»를 싣는다 — 화면이 �
      * 없어, 기준거리를 끄는 동안 지도가 **안 따라온다.**
      * 서버는 **재료(마름모 축 길이)** 만 싣고, 배율은 `shared` 한 함수가 어디서든 낸다 (규칙 ③).
      */
-    const ph = codeOnly(readFileSync(join(__dirname, '../../../shared/src/phases.ts'), 'utf8'));
+    const ph = codeOnly(readFileSync(join(__dirname, '../../../shared/src/filter/phases.ts'), 'utf8'));
     const fm = codeOnly(read('state/filterManager.ts'));
 
     it('🔴 DTO 는 거리를 싣고 배율은 안 싣는다', () => {
@@ -349,7 +349,7 @@ describe('5단계 · 관내 표시를 걷었다 — «목적지 가까이 옴»�
     const sv = codeOnly(readClient('components/stage/StageView.tsx'));
     const modal = codeOnly(readClient('components/dashboard/OrderFilterModal.tsx'));
     const board = codeOnly(readClient('statusboard/StatusBoard.tsx'));
-    const net = codeOnly(readFileSync(join(__dirname, '../../../shared/src/callNet.ts'), 'utf8'));
+    const net = codeOnly(readFileSync(join(__dirname, '../../../shared/src/filter/callNet.ts'), 'utf8'));
     it('🔴 관제웹이 localMode 를 안 읽는다 — 무대 · 필터 판 · 현황판', () => {
         for (const src of [sv, modal, board]) expect(src).not.toMatch(/localMode/);
         expect(modal).not.toMatch(/isLocal/);

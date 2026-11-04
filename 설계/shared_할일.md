@@ -10,7 +10,7 @@
 - [ ] 픽커 견본 글을 실물 상세 글로 바꾼다.
 - [ ] 콜 상태 값의 원천을 정한다(`callStatus.ts` 또는 표) — 둘 다 원천이면 두 벌로 남는다. `callStatus.ts` 안의 차례도 세 가지다(타입 · 목록 · 이름표).
 - [ ] `index` 를 안 가져오는 잎 파일 넷을 검사로 묶을지 정한다.
-- [ ] `server/tests/rules/autoRadius.test.ts` 주석이 없는 파일(`shared/src/autoRadius.test.ts`)을 가리킨다.
+- [ ] `server/tests/rules/autoRadius.test.ts` 주석이 없는 파일(`shared/src/filter/autoRadius.test.ts`)을 가리킨다.
 
 ## 안 쓰는 파일
 

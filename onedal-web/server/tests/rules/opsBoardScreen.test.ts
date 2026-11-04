@@ -68,7 +68,7 @@ describe('🧰 운영센터 현황판 화면', () => {
         expect(s).toContain('<TestOnlySection');
     });
     it('🔴 축 이름표 두 벌(성적표 짧은 이름 AXES · 버린 콜 까닭 VERDICT_AXIS_LABEL)의 축 키 목록이 같다 — 새 축이 한쪽에만 더해지지 않게', () => {
-        const src = read('shared/src/filterTally.ts');
+        const src = read('shared/src/filter/filterTally.ts');
         const axes = [...src.slice(src.indexOf('const AXES'), src.indexOf('];', src.indexOf('const AXES'))).matchAll(/\['[^']+', '(\w+)'\]/g)].map(m => m[1]).sort();
         const body = src.slice(src.indexOf('export const VERDICT_AXIS_LABEL'));
         const labels = [...body.slice(0, body.indexOf('};')).matchAll(/^\s{4}(\w+): '/gm)].map(m => m[1]).sort();

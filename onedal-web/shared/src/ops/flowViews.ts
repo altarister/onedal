@@ -7,7 +7,7 @@
  * 어떻게: 서버가 준 흐름 칸을 합쳐 계산하고, 요금을 아는 콜로만 평균을 낸다
  * 왜: 어디서 어디로 콜이 많은지 보게 한다
  */
-import { SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN } from '../sigungu';
+import { SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN } from '../filter/sigungu';
 
 /**
  * 📊 **흐름 칸 하나** — 요일 시 × 배차망 × 출발 시군구 → 도착 시군구, 기사를 합친 합(서버 `flowCellsOf`).

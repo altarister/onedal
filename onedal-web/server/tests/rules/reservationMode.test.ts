@@ -55,8 +55,8 @@ describe('📅 탈락 이유 «reservation» — 셋이 같은 낱말', () => {
         const oldApp: Pick<FilterTally, 'reservation'> = {};
         expect([blocked, oldApp]).toHaveLength(2);
         const client = (p: string) => read(join(__dirname, '../../../client-app/src', p));
-        expect(read(join(__dirname, '../../../shared/src/filterTally.ts'))).toMatch(/reservation: '예약/);   // 버린 콜 이유 글자 — 이름표는 shared VERDICT_AXIS_LABEL 한 벌(관제웹 callVerdict 가 그것을 다시 내보낸다)
+        expect(read(join(__dirname, '../../../shared/src/filter/filterTally.ts'))).toMatch(/reservation: '예약/);   // 버린 콜 이유 글자 — 이름표는 shared VERDICT_AXIS_LABEL 한 벌(관제웹 callVerdict 가 그것을 다시 내보낸다)
         expect(client('statusboard/callVerdict.ts')).toContain("export { VERDICT_AXIS_LABEL };");
-        expect(read(join(__dirname, '../../../shared/src/filterTally.ts'))).toContain("['예약', 'reservation']");   // 성적표 요약은 shared 한 벌(관제웹 · 운영센터)
+        expect(read(join(__dirname, '../../../shared/src/filter/filterTally.ts'))).toContain("['예약', 'reservation']");   // 성적표 요약은 shared 한 벌(관제웹 · 운영센터)
     });
 });

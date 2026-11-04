@@ -10,7 +10,7 @@ const codeOnly = (src: string) =>
 /**
  * 📐 **반경 자동 맞춤 — 서버와 화면이 같은 함수를 본다**.
  *
- * 계산 자체는 `shared/src/autoRadius.test.ts` 가 잠근다. 여기서 보는 것은
+ * 계산 자체는 `shared/src/filter/autoRadius.test.ts` 가 잠근다. 여기서 보는 것은
  * **«그 함수를 실제로 부르는가»** 와 **«둘이 같은 것을 부르는가»** 다 —
  * 계산이 두 벌이면 «지도는 든다는데 판정은 탈락»이 된다 (규칙 ③).
  */

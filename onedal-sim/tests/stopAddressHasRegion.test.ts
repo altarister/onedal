@@ -7,7 +7,7 @@ import * as presets from '../packages/core-simulator/src/presets';
  * 문제지의 정거장은 칸이 둘이다 — `region`(목록 화면에 그려지는 동 이름)과 `addressDetail`(주소 전체).
  * 🔴 **상세 화면과 서버 판정은 `addressDetail` 만 본다.** 거기에 동 이름이 없으면 경유 필터가
  *    그 콜을 버린다 — 「도착지(인천 남동구 논현로) 경유 이탈」. 하차 목록에 그 동이 있어도
- *    주소 문자열에 글자가 없으면 못 맞춘다 (`shared/src/regionMatch.ts` 의 `anyRegionHit`).
+ *    주소 문자열에 글자가 없으면 못 맞춘다 (`shared/src/filter/regionMatch.ts` 의 `anyRegionHit`).
  *
  * 🔴 **도로명도 함께 적는다** — 동 이름만 적으면 카카오가 동 중심점을 주고, 그 점이 도로 밖이면
  *    길찾기가 죽는다. 둘 다 담는 모양이 맞다: 「경기 오산시 가수동 황새로 211」.

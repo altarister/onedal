@@ -21,7 +21,7 @@ import { anyRegionHit } from '@onedal/shared';
  *    **볼트 기준으로는 1/3 이다.** 기준은 셋 다다 (기사님: *"3건 모두 합격이 되어야 하는 거 아냐?"*).
  *
  * ⚠️ 이 검사는 **앱의 1차 필터를 서버에서 재현**한 것이다 (`anyRegionHit` 은 앱 Kotlin
- *    `RegionMatch` 와 같은 규칙 · `shared/src/regionMatch.ts` 주석 참고).
+ *    `RegionMatch` 와 같은 규칙 · `shared/src/filter/regionMatch.ts` 주석 참고).
  *    실물 왕복(시뮬 화면 → 앱 스크래핑)은 폰이 있어야 하고 그건 `pnpm e2e:app` 의 일이다.
  */
 

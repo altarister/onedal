@@ -3,7 +3,7 @@ package com.onedal.app.plugins
 /**
  * 📋 **상차 목록 대조 — 상차지가 서버가 내려준 읍·면·동 목록에 걸리나** (2단계 원달앱)
  *
- * 규격은 서버 `shared/src/pickupList.ts` 와 한 벌이다 — 한쪽을 고치면 다른 쪽도 본다.
+ * 규격은 서버 `shared/src/filter/pickupList.ts` 와 한 벌이다 — 한쪽을 고치면 다른 쪽도 본다.
  *
  * ── 왜 ──
  * 동을 경로 위 한 지점으로만 기억해 순서로 거르면, 경로가 같은 동을 다시 지날 때(복귀콜로

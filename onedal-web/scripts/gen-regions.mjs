@@ -1,6 +1,6 @@
 /**
  * 누가: onedal-04 (기사님 «상세의 필수 요소는 전체 주소» · 명부 원천 «가» = 서버 지도 산출물)
- * 언제: 서버 지도(merged_map)를 다시 만들어 shared/src/dongCentroids.ts 를 다시 뽑은 뒤
+ * 언제: 서버 지도(merged_map)를 다시 만들어 shared/src/filter/dongCentroids.ts 를 다시 뽑은 뒤
  * 어디서: onedal-web — `pnpm gen:regions`
  * 무엇을: shared DONG_CENTROIDS(시군구 → 읍면동 이름)와 shared ADMIN_DONGS(시군구 → 행정동)를 원달앱 명부 상수(RegionRegister.kt)로 굳힌다
  * 왜: 원달앱이 «전체 주소인가»·«이 글자가 지역인가»를 서버가 좌표를 찍는 지도 · 서버가 펴는 행정동과 같은 명부로 본다 — 같은지는 원달앱 AddressFormTest 두 시험(«명부는 서버 지도 산출물과 같다» · «행정동 명부는 shared 행정동 표와 같다»)이 문다
@@ -10,7 +10,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const src = readFileSync(join(here, '../shared/src/dongCentroids.ts'), 'utf8');
+const src = readFileSync(join(here, '../shared/src/filter/dongCentroids.ts'), 'utf8');
 const rows = [...src.matchAll(/\["([^"]+)","([^"]+)",[\d.]+,[\d.]+,"([^"]+)"\]/g)];
 if (rows.length === 0) { console.error('❌ dongCentroids.ts 에서 줄을 못 읽었다'); process.exit(1); }
 
@@ -23,7 +23,7 @@ const packOf = (m) => [...m.keys()].sort().map(sgg => `${sgg}=${[...m.get(sgg)].
 const data = packOf(bySgg);
 
 /* 🗺️ 행정동 — shared ADMIN_DONGS(행정안전부 원천 생성 파일) · 그 시군구의 법정동과 같은 이름은 뺀다(명부가 이미 안다 — shared adminDongMatch 와 같은 규칙) */
-const adminSrc = readFileSync(join(here, '../shared/src/adminDongs.ts'), 'utf8');
+const adminSrc = readFileSync(join(here, '../shared/src/filter/adminDongs.ts'), 'utf8');
 const adminRows = [...adminSrc.matchAll(/\["([^"]+)","([^"]+)",\[/g)];
 if (adminRows.length === 0) { console.error('❌ adminDongs.ts 에서 줄을 못 읽었다'); process.exit(1); }
 const adminBySgg = new Map();
@@ -47,8 +47,8 @@ writeFileSync(out, `package com.onedal.app.core.engine
 /**
  * 🗺️ **전체 주소 명부 — 생성 파일이다, 손으로 고치지 않는다** (\`cd onedal-web && pnpm gen:regions\`).
  * 다시 뽑는 순서: 행정안전부가 행정동 새 판을 내면 \`pnpm gen:admin-dongs <KIKmix 경로>\` → \`pnpm gen:regions\` · 서버 지도를 다시 만들면 \`pnpm gen:regions\` 만.
- * 원천은 둘 — 법정동은 서버 지도 산출물 \`onedal-web/shared/src/dongCentroids.ts\`(서버가 좌표를 찍는 지도와 같은 명부),
- * 행정동은 \`onedal-web/shared/src/adminDongs.ts\`(행정안전부 원천 · 서버가 도착 낱말을 펼 때 쓰는 표와 같은 것).
+ * 원천은 둘 — 법정동은 서버 지도 산출물 \`onedal-web/shared/src/filter/dongCentroids.ts\`(서버가 좌표를 찍는 지도와 같은 명부),
+ * 행정동은 \`onedal-web/shared/src/filter/adminDongs.ts\`(행정안전부 원천 · 서버가 도착 낱말을 펼 때 쓰는 표와 같은 것).
  * 시군구 ${bySgg.size}개 · 법정 읍면동 ${rows.length}개 · 행정동 ${adminCount}개(그 시군구 법정동과 같은 이름은 뺌). 꼴: «시군구=동,동|…» (광역시는 «서울 강남구», 도 아래는 «성남시 분당구»).
  */
 object RegionRegister {

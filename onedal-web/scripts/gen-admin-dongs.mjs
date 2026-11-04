@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 🗺️ **행정동 → 법정동 표를 뽑는다** — shared/src/adminDongs.ts (생성 파일)
+ * 🗺️ **행정동 → 법정동 표를 뽑는다** — shared/src/filter/adminDongs.ts (생성 파일)
  * 누가: 에이전트 · 기사님
  * 언제: 행정안전부가 행정동 · 법정동 코드를 새로 낼 때(동이 나뉘거나 합쳐질 때)
  * 어디서: cd onedal-web && pnpm gen:admin-dongs <KIKmix 파일 경로>
@@ -22,10 +22,10 @@ const day = (basename(src).match(/(\d{8})/) ?? [])[1];
 if (!day) { console.error(`🛑 파일 이름에서 기준일(YYYYMMDD)을 못 찾았습니다: ${basename(src)}`); process.exit(1); }
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(root, 'shared/src/adminDongs.ts');
+const OUT = join(root, 'shared/src/filter/adminDongs.ts');
 
 /* 명부의 시군구 글자 — 시도 줄임(«서울 강남구») 또는 시군구 그대로(«성남시 수정구» · «광주시»). 명부와 같은 범위만 */
-const centroids = readFileSync(join(root, 'shared/src/dongCentroids.ts'), 'utf8');
+const centroids = readFileSync(join(root, 'shared/src/filter/dongCentroids.ts'), 'utf8');
 const SIGUNGU = new Set([...centroids.matchAll(/\["[^"]*","([^"]*)"/g)].map(m => m[1]));
 const SIDO_SHORT = { '서울특별시': '서울', '인천광역시': '인천', '대전광역시': '대전' };
 const sigunguOf = (sido, sgg) => {

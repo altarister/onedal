@@ -90,7 +90,7 @@ describe('🧰 현황판 열람 기록 — 열어 둔 동안 한 줄', () => {
 describe('🧰 성적표 요약은 shared 한 벌', () => {
     it('🔴 summarizeTally 는 shared 에 · 관제웹은 그것을 가져온다', () => {
         const web = join(__dirname, '../../..');
-        expect(readFileSync(join(web, 'shared/src/filterTally.ts'), 'utf8')).toMatch(/export function summarizeTally/);
+        expect(readFileSync(join(web, 'shared/src/filter/filterTally.ts'), 'utf8')).toMatch(/export function summarizeTally/);
         expect(readFileSync(join(web, 'client-app/src/components/dashboard/DeviceControlPanel.tsx'), 'utf8')).not.toMatch(/lib\/filterTally/);
     });
 });

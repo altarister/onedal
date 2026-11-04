@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { appFilterRowsOf } from './index';
+import { appFilterRowsOf } from '../index';
 
 /** 📦 앱 필터를 화면 줄로 — 두 현황판이 같은 순서 · 같은 줄임으로 그린다(사본이 둘이면 한쪽만 목록을 길게 찍는다) */
 describe('appFilterRowsOf', () => {
