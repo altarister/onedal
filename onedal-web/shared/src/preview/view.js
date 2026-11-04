@@ -138,6 +138,35 @@ function drawNetworkBook(spec, fields) {
     return out;
 }
 
+/* 📋 화면 칸 × 네 배차망 — 필수를 정하는 재료. 칸마다 그 값이 나오는 페이지 · 읽나 · 누가 읽나 · 글자/사진 · 본 곳 */
+/* 지금 코드의 필수 — 원달앱 OrderRequirement.kt 의 규칙을 옮겨 적은 것 (코드가 원천이다) */
+const REQUIRED_NOW = { fare: '목록 · 상세', pickup: '목록 · 상세(전체 주소)', dropoff: '목록 · 상세(전체 주소)', pickupDistance: '목록' };
+/* 누가 읽나 · 글자/사진은 칸이 없어 usedAt 글에서 어림한다 — 틀릴 수 있다 */
+function readerOf(row) {
+    if (row.handling !== 'READ') return '';
+    const used = row.usedAt ?? '';
+    const app = !/원달앱은 (아직 )?이 칸을 안/.test(used) && /\b[A-Z][a-z0-9]+[A-Z]\w*|원달앱/.test(used);
+    const server = /서버/.test(used);
+    return [app && '앱', server && '서버'].filter(Boolean).join(' + ') || '모름';
+}
+const photoOf = (row) => (row.handling === 'READ' ? (/사진|Ocr/.test(`${row.usedAt ?? ''}${row.where}`) ? '사진' : '글자') : '');
+function drawFieldSheet(networks, fields, netLabels) {
+    const book = fields.find((v) => v.name === 'BASE_PAGE_BOOK').rows.pages;
+    const order = fields.find((v) => v.name === 'PAGE_FIELDS').rows;
+    const nets = Object.keys(networks);
+    const seenKeys = new Map();
+    for (const net of nets) for (const [page, rows] of Object.entries(networks[net].pages)) for (const r of rows) {
+        const key = r.part ? `${r.field} · ${r.part}` : r.field;
+        if (!seenKeys.has(key)) seenKeys.set(key, { field: r.field, cells: Object.fromEntries(nets.map((n) => [n, []])) });
+        seenKeys.get(key).cells[net].push(`${book[page]?.label ?? page}: ${[HANDLING_LABEL[r.handling] ?? r.handling, readerOf(r), photoOf(r), SEEN_LABEL[r.seen] ?? r.seen].filter(Boolean).join(' · ')}`);
+    }
+    const keys = [...seenKeys.keys()].sort((a, b) => order.indexOf(seenKeys.get(a).field) - order.indexOf(seenKeys.get(b).field) || a.localeCompare(b));
+    return draw(keys.map((key) => ({
+        '화면 칸': key, '지금 코드 필수': key in REQUIRED_NOW ? REQUIRED_NOW[key] : '',
+        ...Object.fromEntries(nets.map((n) => [netLabels[n] ?? n, seenKeys.get(key).cells[n].join('\n')])),
+    })));
+}
+
 /* 🧩 값 모양에 맞춰 그린다 — 글자 목록은 한 줄 · 묶음은 표 · 모양이 다른 묶음은 항목마다 나눠서 */
 const isPlain = (v) => v && typeof v === 'object' && !Array.isArray(v);
 function drawValue(value) {
@@ -234,6 +263,12 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
             links.className = 'chips';
             for (const net of Object.keys(v.rows)) { const a = document.createElement('a'); a.href = `/shared/network/networkPages.${net}`; a.textContent = net; links.append(a); }
             box.append(h, paragraph('네 배차망 파일을 합친 값입니다. 내용은 배차망 페이지에서 봅니다.'), links);
+            const [fields, apps] = await Promise.all(['pageFields', 'targetApps'].map((f) => fetch(`/shared/_/module/network/${f}`).then((r) => r.json())));
+            box.append(sectionHead('화면 칸 × 네 배차망'),
+                paragraph('필수를 정할 때 보는 표입니다. 칸마다 값이 나오는 페이지 · 읽나 · 누가 읽나 · 글자/사진 · 본 곳입니다. 빈칸은 그 배차망 표에 그 자리가 없다는 뜻입니다.'),
+                paragraph('«누가 읽나»와 «글자/사진»은 표의 «읽는 곳» 글에서 어림한 것이라 틀릴 수 있습니다. «지금 코드 필수»는 픽커 도보 콜만 목록에서 하차가 없어도 됩니다.'),
+                paragraph('표에 줄이 없는데 원달앱이 채우는 값: postTime · rawText · 좌표. tagsText 는 일부 배차망에서만 tags 줄로 나옵니다.'),
+                drawFieldSheet(v.rows, fields.values, apps.values.find((x) => x.name === 'TARGET_APP_LABEL').rows));
             continue;
         }
         if (isBook(v.rows)) {
