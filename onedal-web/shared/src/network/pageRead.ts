@@ -1,3 +1,12 @@
+/**
+ * 화면 값 읽기
+ * 누가: 서버 판정 · 상세 · 스캔 · 시뮬레이션
+ * 언제: 배차망 화면 글자에서 칸 값을 꺼낼 때
+ * 어디서: 서버가 원달앱 보고를 받는 자리
+ * 무엇을: pageFieldOf · pageFareOf · addressOf · geocodeTargetOf · detailRecordOf
+ * 어떻게: 정의 표의 읽는 법으로 글자를 잘라 낸다
+ * 왜: 정의에 없거나 원문에 없는 값을 지어내지 않기 위해서다
+ */
 import type { TargetAppType, LocationDetailInfo, DetailedOfficeOrder } from '../index';
 import { PAYMENT_TYPES, type PaymentType, type BillingType } from '../call/paymentTypes';
 import type { PageField, ScreenPage } from './pageFields';

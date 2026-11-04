@@ -1,3 +1,12 @@
+/**
+ * 모을 것 목록
+ * 누가: 운영센터 이상 화면
+ * 언제: 실물 사진이 더 필요한 화면을 볼 때
+ * 어디서: 운영센터
+ * 무엇을: collectListOf · collectCountOf
+ * 어떻게: 배차망 화면 정의 표에서 화면과 그 위에 뜨는 것을 한 줄씩 뽑는다
+ * 왜: 모든 페이지와 팝업을 빠짐없이 모으기 위해서다
+ */
 import type { TargetAppType } from '../index';
 import { NETWORK_PAGES, type NetworkPageSpec } from './networkPages';
 

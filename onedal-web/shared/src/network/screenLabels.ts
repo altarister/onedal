@@ -1,3 +1,12 @@
+/**
+ * 화면 이름표
+ * 누가: 서버 기기 세션 · 운영센터 · 관제웹 기기 화면
+ * 언제: 화면 상태를 사람이 읽을 글자로 보여 줄 때
+ * 어디서: 기기 상태 글자와 배지
+ * 무엇을: 배차망별 화면 글자 · screenLabelOf · deviceScreenBadge
+ * 어떻게: 배차망별 표에서 글자와 색을 찾는다
+ * 왜: 배차망마다 부르는 말이 달라도 화면에는 뜻이 보이게 하기 위해서다
+ */
 import { TARGET_APP_LABEL, type TargetAppType } from './targetApps';
 import { DEVICE_OFFLINE_LABEL, type DeviceOfflineReason } from '../device/deviceOffline';
 import type { ScreenContextType } from '../index';

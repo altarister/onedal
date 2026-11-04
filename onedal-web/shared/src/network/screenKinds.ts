@@ -1,3 +1,12 @@
+/**
+ * 화면 상태 종류
+ * 누가: 서버 기기 세션 · 위치 보고
+ * 언제: 원달앱이 지금 어느 화면인지 보고할 때
+ * 어디서: 서버의 기기 상태 자리
+ * 무엇을: ScreenContextType · 목록 · 상세 · 잠깐 뜨는 화면 묶음과 screenNowOf
+ * 어떻게: 종류 묶음을 상수로 두고 함수로 묻는다
+ * 왜: 화면 종류마다 할 일을 사실로 가르기 위해서다
+ */
 import { listReturnOf, landsAfterAcceptOf } from './networkPages';
 
 /**

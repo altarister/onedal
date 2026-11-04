@@ -1,3 +1,12 @@
+/**
+ * 카카오 픽커 화면 정의
+ * 누가: networkPages.ts 와 gen-pages 스크립트
+ * 언제: 픽커 화면을 읽거나 원달앱 생성 파일을 뽑을 때
+ * 어디서: 배차망 화면 정의 표의 카카오 픽커 몫
+ * 무엇을: 픽커 화면마다 어디에 어떤 글자로 오는지
+ * 어떻게: JSON 표시 사이에 적고 pnpm gen:pages 로 원달앱 파일을 뽑는다
+ * 왜: 서버와 원달앱이 같은 화면 정의를 봐야 하기 때문이다
+ */
 import type { NetworkPageSpec } from './networkPages';
 
 /**

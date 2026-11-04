@@ -1,3 +1,12 @@
+/**
+ * 배차망 화면 정의 표의 묶음
+ * 누가: 서버 · shared 안의 화면 함수 · gen-pages 스크립트
+ * 언제: 배차망별 화면 · 칸 · 수락 뒤 도착 화면을 물을 때
+ * 어디서: 네 배차망 표를 합치는 자리
+ * 무엇을: 칸 모양 · 기준 화면 · NETWORK_PAGES · fieldsOf · listReturnOf · overlayLabelOf · landsAfterAcceptOf
+ * 어떻게: 배차망 파일 넷을 가져와 한 표로 묶고 함수로 묻는다
+ * 왜: 어떤 배차망이든 같은 순서로 돌고 다른 것은 표의 값뿐이게 하기 위해서다
+ */
 import type { TargetAppType } from '../index';
 import type { PageField, ScreenPage, BaseSlot } from './pageFields';
 import { basePageOf, CALL_OVERLAY_LABEL } from './pageFields';
