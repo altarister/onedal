@@ -28,9 +28,9 @@ interface SimBoardProps {
   maxPickupKm: number;
 }
 
-// 요금 포맷 헬퍼 (예: 30000 -> "3.0")
+// 요금 포맷 헬퍼 (실물은 천 원 단위 — 예: 30800 -> "30.8")
 const formatFare = (fare: number) => {
-  return (fare / 10000).toFixed(1);
+  return (fare / 1000).toFixed(1);
 };
 
 /**

@@ -86,13 +86,16 @@ class InsungParser(private val context: Context) : IScrapParser {
          */
         private val NUMBER_LIKE_VEHICLE = Regex("^\\d+\\.\\d+$")
 
+        /** 목록 요금 칸(천 원 단위 소수) → 원. 곱한 뒤 반올림한다 — 잘라 내면 32.3 × 1000 = 32299.999… 가 32,299 원이 된다 */
+        private fun fareOfThousands(shown: Double): Int = Math.round(shown * 1000.0).toInt()
+
         /**
-         * 🚚 **차종 닻 → (차종, 요금)** — 차종 토큰을 찾고 바로 다음 숫자를 요금(만 원 단위)으로 읽는다.
+         * 🚚 **차종 닻 → (차종, 요금)** — 차종 토큰을 찾고 바로 다음 숫자를 요금(천 원 단위 — «30.8» = 30,800원)으로 읽는다.
          * JVM 검사(`VehicleFareAnchorTest`)가 부르려고 `parse` 에서 떼어냈다.
          *
          * 🔴 **닻 후보가 여럿이면 숫자처럼 생긴 차종(1.4 등)은 진다** (`VehicleFareAnchorTest`).
          *    첫 후보를 쓰면 상차 거리가 1.4km 인 줄 `1.4, 15.2, …, 5t, 15.0` 에서
-         *    거리 칸 «1.4» 가 차종이 되고 배송거리 15.2 가 요금(152,000원)이 된다.
+         *    거리 칸 «1.4» 가 차종이 되고 배송거리 15.2 가 요금(15,200원)이 된다.
          *    - 진짜 차종 칸(5t · 다 …)이 있으면 그것을 쓴다
          *    - 후보가 전부 숫자처럼 생겼으면 **마지막** 것을 쓴다 — 차종·요금 칸은 줄의 오른쪽 끝이다
          *    - 후보가 하나면 그것을 쓴다 (상세 화면의 요금 대조가 기대는 동작)
@@ -109,17 +112,17 @@ class InsungParser(private val context: Context) : IScrapParser {
 
                 // 만약 현재 텍스트(예: "라")가 차종이라면
                 if (VEHICLE_ONLY.matches(text)) {
-                    // 바로 다음 텍스트 노드가 오더 창 우측 끝의 요금(예: "2.2" -> 22,000원)
+                    // 바로 다음 텍스트 노드가 오더 창 우측 끝의 요금(예: "2.2" -> 2,200원)
                     val nextVal = texts.getOrNull(i + 1)?.trim()?.replace(",", "")?.toDoubleOrNull()
-                    // 요금이 만 단위(0.1만 = 1000원 이상)이면 채택
-                    if (nextVal != null && nextVal > 0) anchors += Anchor(text, (nextVal * 10000).toInt())
+                    // 요금이 0 보다 크면 채택 (천 원 단위 소수 — 곱한 뒤 반올림해야 32.3 이 32,299 로 모자라지 않는다)
+                    if (nextVal != null && nextVal > 0) anchors += Anchor(text, fareOfThousands(nextVal))
                     else lastVehicleWithoutFare = text
                 } else {
                     // 예외 fallback: 텍스트 노드가 하나로 뭉쳐진 경우 ("라2.2" 등)
                     val clumpedMatch = VEHICLE_WITH_FARE.find(text)
                     if (clumpedMatch != null) {
                         val nextVal = clumpedMatch.groupValues[2].toDoubleOrNull()
-                        if (nextVal != null && nextVal > 0) anchors += Anchor(clumpedMatch.groupValues[1], (nextVal * 10000).toInt())
+                        if (nextVal != null && nextVal > 0) anchors += Anchor(clumpedMatch.groupValues[1], fareOfThousands(nextVal))
                         else lastVehicleWithoutFare = clumpedMatch.groupValues[1]
                     }
                 }
