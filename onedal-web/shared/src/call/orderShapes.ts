@@ -10,7 +10,7 @@
 import type { PaymentType, BillingType } from './paymentTypes';
 import type { OrderStatus, MyOrderStatus } from './callStatus';
 
-/** 콜 종류 값 — 어떤 길로 온 보고인가 */
+/** 콜 종류 값 — 어떤 길로 온 보고인가. 이 상수는 이 파일 밖에서 안 쓰고, 서버와 원달앱은 글자('NEW_ORDER' 등)로 맞춘다 */
 export const EVENT_TYPES = {
     NEW_ORDER: "NEW_ORDER" as const,
     INTEL_BULK: "INTEL_BULK" as const,
@@ -19,7 +19,7 @@ export const EVENT_TYPES = {
     ALARM: "ALARM" as const,
 };
 
-/** 콜 종류 — 직접 잡음 · 체험 여부를 함께 담는다 */
+/** 콜 종류 — 직접 잡음 · 체험 여부를 함께 담는다. `SimplifiedOfficeOrder.type` 의 타입이다 */
 export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
 
 // 위치 한 곳 — `pickups` · `dropoffs` 칸의 모양. 지금은 채우는 코드가 없다
@@ -75,8 +75,9 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     pickupDistance?: number;          // 상차지까지의 남은 직선 거리 (km)
     /**
      * 배송거리 (상차지 → 하차지, km). 리스트 최좌측 두 숫자 중 **두 번째** 값.
-     * 앱의 단가 판정(`fare ≥ deliveryDistance × ratePerKm[차종]`) 입력이며,
-     * 서버는 판정 근거를 로그에 남길 때 쓴다 (실제 판정은 카카오 도로거리로 다시 잰다).
+     * 앱의 단가 판정(`fare ≥ deliveryDistance × ratePerKm[차종]`) 입력이다.
+     * 원달앱이 목록에서 읽어 보낸다. 서버는 채우지 않고 저장 · 복원하며(`orders.deliveryDistance`),
+     * 카카오 거리가 없을 때 소요 시간 추정(`soloMinutesOf`)에 읽는다. 실제 판정은 카카오 도로거리로 다시 잰다.
      * 🔍 이 값이 직선거리인지 도로거리인지는 실콜 대조 대기 중
      */
     deliveryDistance?: number;
@@ -139,7 +140,7 @@ export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 /**
  * 📍 **주소 대략** — 서버가 주소를 못 찾아 읍·면·동 중심으로 판정했으면 그 이름(«마장면»). 정확하면 없다.
- *    서버가 판정 때 싣는다(앱이 보내는 칸 아님 · DB 칸 아님). 심사 중 콜과 확정 콜이 같이 든다.
+ *    서버 판정(`OrderEvaluator`)이 싣고(앱이 보내는 칸 아님 · DB 칸 아님), 로그와 관제웹 «대략» 표시(`approxAddress`)가 읽는다. 심사 중 콜과 확정 콜이 같이 든다.
  */
 export interface ApproxAddress {
     pickupApprox?: string | null;     // 상차지를 어림한 읍·면·동 이름
@@ -152,8 +153,8 @@ export interface ApproxAddress {
  *    `foldAfterSec`: 판정 끝에 정한 빨리 접기 초(`quickFoldSecOf`) — 있으면 judgeUntil 이 판정 끝 + 그 초로 당겨진다.
  */
 export interface QuickFoldFields {
-    openedByApp?: boolean;            // 이 상세를 원달앱이 알람 모드로 목록에서 눌러 열었나
-    foldAfterSec?: number | null;     // 판정 끝에 정한 빨리 접기 초
+    openedByApp?: boolean;            // 이 상세를 원달앱이 알람 모드로 목록에서 눌러 열었나 — 원달앱이 보내고 서버 판정이 읽는다
+    foldAfterSec?: number | null;     // 판정 끝에 정한 빨리 접기 초 — 서버 판정이 정하고 기기 세션 · 결재가 읽는다
 }
 
 /** 서버가 계산하고 기록한 값 — 심사 중 콜 · 내 콜 · 관제웹 콜이 함께 물려받는다. 칸은 여기 한 번만 적는다 */
@@ -208,7 +209,6 @@ export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldField
      * 🔴 이 시각이 지나도 콜은 안 사라진다 — 끄는 것은 폰의 화면 상태 하나다 (`devices.leftDetail`).
      */
     judgeUntil?: number;
-    deliveryDistance?: number;        // 배송거리 — 부모 `SimplifiedOfficeOrder` 와 같은 칸을 다시 적은 것이다. 원달앱이 보낸 값이고 서버는 저장 · 복원만 한다
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -216,7 +216,7 @@ export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldField
 // 업계 표준: 배차확정(CONFIRMED) → 상차완료(PICKED_UP) → 하차완료(DELIVERED)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 /**
- * 🎨 **판정 스냅샷** (판정색 확정안 v2) — 심사 1회, 불변.
+ * 🎨 **판정 스냅샷** (판정색 확정안 v2) — 심사 1회, 불변. 서버 판정(`OrderEvaluator`)이 만들고 관제웹 심사 칸 · 운영센터가 읽는다.
  * 심사 카드가 조건 전수를 이걸로 그리고, **색도 여기서 온다** (4단계).
  *
  * import 순환을 피해 `dryRun.ts` 의 `DryRunVerdict` 를 구조로 적는다.
@@ -262,7 +262,6 @@ export interface MyOrder extends OfficeOrder, ServerCallFields {  // 내 콜 —
     terminatedAt?: string | null;
     /** 🎨 판정 스냅샷 — `SecuredOrder` 와 **같은 타입**을 가리킨다 (규칙 ③) */
     judgment?: JudgmentSnapshot;
-    deliveryDistance?: number;        // 배송거리 — 부모 `SimplifiedOfficeOrder` 와 같은 칸을 다시 적은 것이다. 원달앱이 보낸 값이고 서버는 저장 · 복원만 한다
     settlement?: SettlementInfo;      // 정산 및 미수금 관리 트래킹 (운행일지용)
 }
 
@@ -288,7 +287,7 @@ export interface SecuredOrder extends OfficeOrder, ApproxAddress, QuickFoldField
     settlement?: SettlementInfo;  // 정산 및 미수금 기록
 }
 
-// 운행일지의 정산 · 미수금 기록
+// 정산 · 미수금 기록의 모양 — 지금은 채우는 코드도 읽는 코드도 없다. 실제 정산은 `orders` 표의 `settlementStatus` 등이 한다
 export interface SettlementInfo {
     status: '미정산' | '지급예정' | '정산완료' | '미수금'; // 현재 돈을 받았는지 상태
     unpaidAmount: number;             // 받지 못한 금액 (미수금) 
