@@ -6,7 +6,7 @@
  *
  * 🔴 **저장하는 것은 사건뿐이다** — 서버 `call_target_events` 표(`core/callTargetEvents.ts`). 지금 상태는 여기서 계산한다 (규칙 ③).
  */
-import { businessDayKey } from './time/timing';
+import { businessDayKey } from '../time/timing';
 import { isLetGoStatus } from './orderStatuses';
 
 export interface CallTargetEvent {

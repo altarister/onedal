@@ -134,7 +134,7 @@
 | 콜 상태 목록 | ✅ `orderStatus` |
 | 기다림 장부 | ✅ `waitLedger` — 서버가 `setTimeout` 을 장부 밖에서 걸지 않나 · ✅ `timerKeysCleared` — 세션 장부에 거는 기다림이 전부 `orderId` 를 싣나 |
 | 식별자 이름 | ✅ `identifierAscii` |
-| 단계 → 마일스톤 | 🟡 `onedal-web/shared/src/callSteps.ts` 한 곳 |
+| 단계 → 마일스톤 | 🟡 `onedal-web/shared/src/call/callSteps.ts` 한 곳 |
 | 콜 색 | 🟡 `onedal-web/client-app/src/styles/callPalette.ts` 한 곳 |
 | 시간 계산 | 🟡 `onedal-web/shared/src/time/timing.ts` 한 곳 |
 | 콜 필터의 지역 목록 계산 | 🟡 `pnpm net:compare` (그물 계산이 두 벌 — 지도 `callNet` ↔ 서버 turf) |

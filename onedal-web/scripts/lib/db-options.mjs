@@ -59,7 +59,7 @@ for (const [cat, title, hint] of GROUPS) {
         const off  = r.enabled ? '' : ' \x1b[90m(숨김)\x1b[0m';
         const name = (r.label || r.key).padEnd(12);
 
-        // 갈래마다 num1·num2 의 뜻이 다르다 (shared/src/callOptions.ts 의 표)
+        // 갈래마다 num1·num2 의 뜻이 다르다 (shared/src/call/callOptions.ts 의 표)
         let value;
         if (cat === 'handling')      value = `${num(r.num2)} ${r.unit_label}`;
         else if (cat === 'vehicle')  value = `${num(r.num1)} 박스 → ${r.ref_key} ${num(r.num2)}개`;

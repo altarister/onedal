@@ -87,7 +87,7 @@ describe('저장 경로 — 부터가 유실되지 않는다', () => {
         // 🏗️ 부터의 저장 경로는 다리(bridgeCargoReport) 하나다
         const seeder = read('../../src/services/stepSeeder.ts');
         expect(seeder).toContain('promised_arrival_from_at: report.promisedArrivalFromAt');
-        const records = read('../../../shared/src/stepRecords.ts');
+        const records = read('../../../shared/src/call/stepRecords.ts');
         expect(records).toContain('promisedArrivalFromAt: r.promised_arrival_from_at');
     });
 
@@ -95,7 +95,7 @@ describe('저장 경로 — 부터가 유실되지 않는다', () => {
         // 🏗️ 기간 저장은 StepSheetMock + 단계 행이 진다
         const sheet = read('../../../client-app/src/components/dashboard/StepSheetMock.tsx');
         expect(sheet).toContain('promisedArrivalFromAt');
-        const tables = read('../../../shared/src/stepTables.ts');
+        const tables = read('../../../shared/src/call/stepTables.ts');
         expect(tables).toContain('promised_arrival_from_at');
     });
 });

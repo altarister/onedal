@@ -8,7 +8,7 @@ import { OPEN_BLOCKED } from './openBlocked';
  * 원달앱이 보내는 열쇠와 표가 한 벌이어야 로그의 열쇠를 사람이 읽을 수 있다.
  */
 const APP_KEYS = (() => {
-    const kt = readFileSync(join(__dirname, '../../../onedal-app/app/src/main/java/com/onedal/app/core/OpenBlocked.kt'), 'utf8');
+    const kt = readFileSync(join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app/core/OpenBlocked.kt'), 'utf8');
     return [...kt.matchAll(/const val \w+ = "(\w+)"/g)].map(m => m[1]);
 })();
 

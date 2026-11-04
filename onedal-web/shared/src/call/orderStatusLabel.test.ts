@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_ORDER_STATUSES, ORDER_STATUS_LABEL, isLetGoStatus, LET_GO_STATUSES, TERMINAL_STATUSES } from './index';
+import { ALL_ORDER_STATUSES, ORDER_STATUS_LABEL, isLetGoStatus, LET_GO_STATUSES, TERMINAL_STATUSES } from '../index';
 
 /**
  * 🏷️ **콜 상태 이름표 한 벌** — 운영센터 화면에 영어 상태(SAFE_CANCEL · ORDER_RELEASED_BY_ME)가 그대로 나오던 것.

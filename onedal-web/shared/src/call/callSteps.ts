@@ -1,4 +1,4 @@
-import type { CargoReport } from './index';
+import type { CargoReport } from '../index';
 
 /**
  * 콜 하나의 진행 6단계.

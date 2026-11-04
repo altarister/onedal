@@ -107,7 +107,7 @@ describe('저장 — 사유가 장부에 남는다', () => {
     const read = (p: string) => readFileSync(join(__dirname, p), 'utf8');
 
     it('🔴 단계 행(도착 두 단계)에 reasons 칸이 있다 — 옛 테이블 철거 후의 거처', () => {
-        const tables = read('../../../shared/src/stepTables.ts');
+        const tables = read('../../../shared/src/call/stepTables.ts');
         expect(tables).toMatch(/reasons/);
     });
 

@@ -44,7 +44,7 @@ describe('🧾 jsonArrayOf', () => {
     it('🔴 네 자리가 jsonArrayOf 를 쓴다(사본 몸통 없음)', () => {
         const web = join(__dirname, '../../..');
         const src = (p: string) => readFileSync(join(web, p), 'utf8');
-        for (const p of ['server/src/state/userSessionStore.ts', 'server/src/services/stepSeeder.ts', 'shared/src/stepRecords.ts', 'client-app/src/components/dashboard/StepSheetMock.tsx']) {
+        for (const p of ['server/src/state/userSessionStore.ts', 'server/src/services/stepSeeder.ts', 'shared/src/call/stepRecords.ts', 'client-app/src/components/dashboard/StepSheetMock.tsx']) {
             expect([p, /jsonArrayOf\(/.test(src(p))]).toEqual([p, true]);
             expect([p, /JSON\.parse\(v/.test(src(p))]).toEqual([p, false]);
         }

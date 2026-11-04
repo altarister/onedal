@@ -1,4 +1,4 @@
-import type { OrderStatus } from './index';
+import type { OrderStatus } from '../index';
 
 /**
  * 🔙 **잡았다가 무른 콜 — 안전취소 · 방출 둘. 원천은 여기 하나**.

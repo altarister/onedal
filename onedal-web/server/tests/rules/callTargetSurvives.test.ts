@@ -6,7 +6,7 @@ import { join } from "path";
  *
  * 막는 모양: **기사님이 켠 값을 잠깐 빈 계산값이 지운다** — 복귀 켬(콜 0건 → 자동 순환 · 재기동 → 메모리 새로 채움)과
  * 모의 주행 켬(경로 0점 → «켤 수 없음» → running 까지 끔)이 같은 모양이다.
- * 판단은 순수 함수(`shared/src/callTargetDay.ts` · `phases.ts`)가 하고, 여기서는 **저장·되살림 배선**을 잠근다.
+ * 판단은 순수 함수(`shared/src/call/callTargetDay.ts` · `phases.ts`)가 하고, 여기서는 **저장·되살림 배선**을 잠근다.
  */
 const ROOT = join(__dirname, "../..");
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8").replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');

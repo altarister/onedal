@@ -1,7 +1,7 @@
 /** 📋 **진행 상태 값 표** — 칸과 값을 한곳에서 본다(`/shared/`). 고칠 때는 이 파일을 코드로 고친다. */
 export const TABLE = /*JSON*/{
  "title": "진행 상태 값 표",
- "about": "콜 칸 표의 status 줄이 가리키는 값 목록 · 코드 원천은 shared/src/callStatus.ts 다 · 이 표와 같은지 묶는 검사는 아직 없다",
+ "about": "콜 칸 표의 status 줄이 가리키는 값 목록 · 코드 원천은 shared/src/call/callStatus.ts 다 · 이 표와 같은지 묶는 검사는 아직 없다",
  "idPrefix": "S",
  "columns": [
   {

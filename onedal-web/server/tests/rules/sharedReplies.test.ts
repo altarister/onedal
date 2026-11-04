@@ -31,6 +31,6 @@ describe('📦 응답 모양 shared', () => {
         expect(read('server/src/routes/detail.ts')).toMatch(/: SafeCancelWarning = /);
         expect(read('server/src/routes/health.ts')).toMatch(/: HealthReply = /);
         expect(read('server/src/routes/logbook/filterDays.ts')).toMatch(/: FilterDaysReply = /);
-        expect(read('shared/src/index.ts')).toMatch(/export \* from '\.\/replies'/);
+        expect(read('shared/src/index.ts')).toMatch(/export \* from '\.\/call\/replies'/);
     });
 });

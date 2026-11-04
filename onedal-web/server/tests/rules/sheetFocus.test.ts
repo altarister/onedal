@@ -191,7 +191,7 @@ describe('S13·S14·S15 — 마중은 «그 콜의 그 단계»까지다', () =>
 
     it('🔴 «어느 쪽 도착인가»는 경로가 낸다 — 단계표가 그 말을 안다', () => {
         /* 서버가 `stopType` 을 싣고(planArrivalStops), 단계표도 `stop` 을 들고 있다 */
-        const tables = readFileSync(join(__dirname, '../../../shared/src/stepTables.ts'), 'utf8');
+        const tables = readFileSync(join(__dirname, '../../../shared/src/call/stepTables.ts'), 'utf8');
         expect(tables).toMatch(/step: 'ARRIVE_PICKUP'[\s\S]{0,80}stop: 'pickup'/);
         expect(tables).toMatch(/step: 'ARRIVE_DROPOFF'[\s\S]{0,80}stop: 'dropoff'/);
     });

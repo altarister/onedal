@@ -667,7 +667,7 @@ relaxScoreNotNull();
 /**
  * 🎛️ **콜 옵션** — 화면의 선택지와 그 값.
  *
- * 컬럼 목록은 `shared/src/callOptions.ts` 의 `CALL_OPTION_COLUMNS` 가 유일한 원천이다.
+ * 컬럼 목록은 `shared/src/call/callOptions.ts` 의 `CALL_OPTION_COLUMNS` 가 유일한 원천이다.
  * 🔴 **화면·판정은 아직 안 읽는다** — 옛 상수로 돈다. 채워만 두고 다음 단계에서 잇는다.
  *    (터미널에서는 `pnpm db options` 로 본다 — scripts/lib/db-options.mjs · 관제웹은 `call-options-init` 소켓으로 받는다)
  */
@@ -737,7 +737,7 @@ export function seedCallOptions(userId: string) {
 /**
  * 🪜 **여섯 단계, 여섯 테이블**.
  *
- * 컬럼은 `shared/src/stepTables.ts` 의 `STEP_TABLES` 가 원천이다 — **여기 손으로 적지 않는다.**
+ * 컬럼은 `shared/src/call/stepTables.ts` 의 `STEP_TABLES` 가 원천이다 — **여기 손으로 적지 않는다.**
  * 🔴 **첫 행은 KEEP 때 태어나고, 나머지는 각 단계가 끝날 때 태어난다** (출생 모델
  *    · socketHandlers 참조). 계획(`planned_*`)과 실측(`actual_*`)이 같은 행에 있어 오차를 조인 없이 잰다.
  * 🔴 **지금은 신고·마일스톤의 유일한 원천이다** — 판정·화면·복구가 전부 이 표를 읽는다
@@ -1078,7 +1078,7 @@ db.exec(`
 // ═══════════════════════════════════════
 // 🧭 복귀 켬·끔 — 바꾼 일 (기사님 확정)
 //
-// 🔴 지금 복귀인가는 저장하지 않는다 — 오늘 줄의 마지막에서 계산한다 (`shared/src/callTargetDay.ts` · 규칙 ③).
+// 🔴 지금 복귀인가는 저장하지 않는다 — 오늘 줄의 마지막에서 계산한다 (`shared/src/call/callTargetDay.ts` · 규칙 ③).
 //    메모리 필터에만 두면 서버를 다시 띄울 때 복귀 켬이 사라진다. 같은 방식: 위 `cancel_budget_resets`.
 // target: 'DEST' | 'HOME' · by: 'driver'(기사님이 누름) | 'auto'(자동 순환) — CHECK 를 안 건다 (낡은 CHECK 가 새 값을 조용히 거부한다 · server CLAUDE.md)
 // ═══════════════════════════════════════
