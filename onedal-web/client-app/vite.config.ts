@@ -26,7 +26,7 @@ function e2eTestFallback(): Plugin {
 const SHARED = path.resolve(__dirname, "../shared/src");
 const SHARED_PAGE = path.join(SHARED, "preview");
 const SHARED_ROW_LIMIT = 1000;
-const SHARED_ASSETS: Record<string, string> = { "view.js": "text/javascript", "menu.js": "text/javascript", "preview.css": "text/css" };
+const SHARED_ASSETS: Record<string, string> = { "view.js": "text/javascript", "menu.js": "text/javascript", "overview.js": "text/javascript", "preview.css": "text/css" };
 const SIX_WORDS = ["누가", "언제", "어디서", "무엇을", "어떻게", "왜"];
 /** 파일 머리의 6하원칙 — 첫 주석 안의 «누가: …» 줄들 */
 function sixOf(text: string): { word: string; text: string }[] {
@@ -201,6 +201,24 @@ async function computeUsage(files: string[]): Promise<Record<string, SharedUsage
   }
   return result;
 }
+/** `audit:dead` 에 까닭과 함께 남긴 이름 — 스크립트의 KEEP 표를 글자로 읽는다 */
+function auditKeepReasons(): Record<string, string> {
+  const src = readFileSync(path.join(WEB, "scripts/audit-dead.mjs"), "utf-8");
+  const block = src.slice(src.indexOf("const KEEP = {"), src.indexOf("const TEST_ONLY_KEEP"));
+  return Object.fromEntries([...block.matchAll(/^\s{4}(\w+):\s*'([^']*)'/gm)].map((m) => [m[1], m[2]]));
+}
+const USAGE_KIND: Record<string, string> = { FunctionDeclaration: "함수", VariableDeclaration: "값", InterfaceDeclaration: "타입", TypeAliasDeclaration: "타입", ClassDeclaration: "클래스", EnumDeclaration: "타입" };
+/** 쓰임 목록 — 내보낸 것 하나를 한 줄로. 쓰는 곳 없는 것은 왜 지금 검사를 지나는지 까닭을 단다 */
+function usageRows(all: Record<string, SharedUsage>) {
+  const keep = auditKeepReasons();
+  return Object.entries(all).flatMap(([file, usage]) => Object.entries(usage.exports).map(([name, e]) => {
+    const kind = USAGE_KIND[e.kind] ?? e.kind;
+    const main = ["서버", "관제웹", "운영센터", "운행일지", "ui"].some((a) => e.areas[a]?.length);
+    const group = main ? "main" : e.areas["shared"]?.length ? "shared" : e.areas["검사"]?.length ? "tests" : e.self ? "self" : "none";
+    const why = e.note || (keep[name] ? `audit:dead 남겨 둠 — ${keep[name]}` : kind === "타입" ? "audit:dead 는 타입을 안 본다" : "audit:dead 는 이름을 낱말로 센다 — 다른 파일의 같은 글자, require 로 부르는 곳이 있을 수 있다");
+    return { file, name, kind, group, why, tests: e.areas["검사"]?.length ?? 0 };
+  }));
+}
 /** 폴더 한눈에 보기 — 주소 글자가 shared 안 폴더 하나일 때만 */
 function sharedFolderOf(name: string): string | null {
   if (!/^[a-zA-Z0-9_-]+$/.test(name) || name === "preview" || name === "node_modules") return null;
@@ -238,6 +256,10 @@ function sharedPages(): Plugin {
               json({ defined, value: pageFieldOf(app, screen, field, sample ?? "", part ?? "") });
             } catch (e) { fail(400, String(e)); }
           });
+          return;
+        }
+        if (url === "_/usage") {
+          sharedUsage().then((all) => json(usageRows(all))).catch((e) => fail(500, String(e)));
           return;
         }
         if (url.startsWith("_/uses/")) {
