@@ -19,6 +19,93 @@ function e2eTestFallback(): Plugin {
 }
 
 /**
+ * 📋 `/shared/` — 프로젝트가 함께 쓰는 정의를 표로 본다. 주소는 파일 자리 그대로다(`/shared/cargo/vehicles`).
+ * 메뉴는 `shared/src` 를 하위 폴더까지 돌아 만든다(검사 파일 · 묶음 파일 제외). 파일 머리의 6하원칙을 표 위에 보인다.
+ * 보기 전용이다 — 파일에 쓰는 문이 없다. 개발 서버에만 있다(빌드에는 없다).
+ */
+const SHARED = path.resolve(__dirname, "../shared/src");
+const SHARED_PAGE = path.join(SHARED, "preview");
+const SHARED_ROW_LIMIT = 1000;
+const SHARED_ASSETS: Record<string, string> = { "view.js": "text/javascript", "menu.js": "text/javascript", "preview.css": "text/css" };
+const SIX_WORDS = ["누가", "언제", "어디서", "무엇을", "어떻게", "왜"];
+/** 파일 머리의 6하원칙 — 첫 주석 안의 «누가: …» 줄들 */
+function sixOf(text: string): { word: string; text: string }[] {
+  const head = /^\s*\/\*\*([\s\S]*?)\*\//.exec(text)?.[1] ?? "";
+  return SIX_WORDS.flatMap((word) => {
+    const line = new RegExp(`^\\s*\\*\\s*${word}\\s*:\\s*(.+)$`, "m").exec(head);
+    return line ? [{ word, text: line[1].trim() }] : [];
+  });
+}
+/** 내보낸 값 하나를 화면으로 보낼 모양으로 — 함수는 빼고, 너무 긴 목록은 자른다 */
+function sharedValue(value: unknown): { rows: unknown; total: number } | null {
+  if (typeof value === "function" || value === undefined) return null;
+  const plain = value instanceof Map ? Object.fromEntries(value) : value instanceof Set ? [...value] : value;
+  if (Array.isArray(plain)) return { rows: plain.slice(0, SHARED_ROW_LIMIT), total: plain.length };
+  if (plain && typeof plain === "object") {
+    const entries = Object.entries(plain);
+    return { rows: Object.fromEntries(entries.slice(0, SHARED_ROW_LIMIT)), total: entries.length };
+  }
+  return { rows: plain, total: 1 };
+}
+/** 메뉴 목록 — 하위 폴더까지 돈다. 위층 파일 먼저, 그다음 폴더 차례로. 확장자는 뗀다(주소가 곧 이름이다) */
+function sharedFiles(dir: string, prefix: string): string[] {
+  const names = readdirSync(dir, { withFileTypes: true });
+  const files = names.filter((n) => n.isFile() && n.name.endsWith(".ts") && !n.name.endsWith(".test.ts") && !n.name.endsWith(".d.ts") && !(prefix === "" && n.name === "index.ts")).map((n) => prefix + n.name.slice(0, -3)).sort();
+  const folders = names.filter((n) => n.isDirectory() && n.name !== "node_modules" && n.name !== "preview").map((n) => n.name).sort();
+  return [...files, ...folders.flatMap((n) => sharedFiles(path.join(dir, n), `${prefix}${n}/`))];
+}
+/** 찾을 파일 — 주소 글자는 낱말과 `/` 만 받는다(`..` 로 밖에 못 나간다) */
+function sharedFileOf(name: string): string | null {
+  if (!/^(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+$/.test(name) || name.includes("..") || name.endsWith(".test")) return null;
+  const file = path.join(SHARED, `${name}.ts`);
+  return existsSync(file) ? file : null;
+}
+function sharedPages(): Plugin {
+  return {
+    name: "shared-pages",
+    configureServer(server) {
+      server.middlewares.use("/shared", (req, res, next) => {
+        const url = decodeURIComponent((req.url ?? "/").split("?")[0]).replace(/^\/+/, "").replace(/\/+$/, "");
+        const send = (type: string, body: string | Buffer) => { res.setHeader("Content-Type", `${type}; charset=utf-8`); res.setHeader("Cache-Control", "no-store"); res.end(body); };
+        const json = (value: unknown) => send("application/json", JSON.stringify(value));
+        const fail = (code: number, text: string) => { res.statusCode = code; res.end(text); };
+        const page = (name: string) => send("text/html", readFileSync(path.join(SHARED_PAGE, name)));
+        if (url === "") return page("index.html");
+        if (url === "_/menu") return json(sharedFiles(SHARED, ""));
+        if (url === "_/read" && req.method === "POST") {
+          let text = "";
+          req.on("data", (c) => { text += c; });
+          req.on("end", async () => {
+            try {
+              const { app, page: screen, field, part, sample } = JSON.parse(text);
+              const [pageReadFile, networkFile] = [sharedFileOf("pageRead") ?? sharedFileOf("network/pageRead"), sharedFileOf("networkPages") ?? sharedFileOf("network/networkPages")];
+              const { pageFieldOf } = await server.ssrLoadModule(pageReadFile!);
+              const { NETWORK_PAGES } = await server.ssrLoadModule(networkFile!);
+              const rows: { field: string; part?: string; handling: string; read?: string }[] = NETWORK_PAGES[app]?.pages?.[screen] ?? [];
+              const defined = rows.some((r) => r.field === field && (r.part ?? "") === (part ?? "") && r.handling === "READ" && r.read !== undefined);
+              json({ defined, value: pageFieldOf(app, screen, field, sample ?? "", part ?? "") });
+            } catch (e) { fail(400, String(e)); }
+          });
+          return;
+        }
+        if (url.startsWith("_/module/")) {
+          const file = sharedFileOf(url.slice("_/module/".length));
+          if (!file) return fail(404, "없는 파일");
+          server.ssrLoadModule(file).then((loaded) => {
+            const values = Object.entries(loaded).map(([name, value]) => ({ name, ...sharedValue(value) })).filter((v) => "rows" in v);
+            json({ limit: SHARED_ROW_LIMIT, six: sixOf(readFileSync(file, "utf-8")), values });
+          }).catch((e) => fail(500, String(e)));
+          return;
+        }
+        if (url.startsWith("_/") && SHARED_ASSETS[url.slice(2)]) return send(SHARED_ASSETS[url.slice(2)], readFileSync(path.join(SHARED_PAGE, url.slice(2))));
+        if (sharedFileOf(url)) return page("view.html");
+        next();
+      });
+    },
+  };
+}
+
+/**
  * 🧪 `/e2e-test/phone/` — phone-e2e-test 장면 표. 문제지(problems.json)로 줄을 그리고 최신 결과지(out/result_*.json)로 체크를 얹는다.
  * 결과지를 만드는 곳은 make_result.py 하나다 — «새 판»도, 결과지 없이 누른 첫 체크도 그것을 부른다.
  */
@@ -71,7 +158,7 @@ const WEB_COMMIT = (() => {
 })();
 
 export default defineConfig({
-  plugins: [e2eTestFallback(), react(), tailwindcss()],
+  plugins: [e2eTestFallback(), sharedPages(), react(), tailwindcss()],
   define: { __WEB_COMMIT__: JSON.stringify(WEB_COMMIT) },
   resolve: {
     alias: {

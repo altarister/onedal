@@ -1,0 +1,12 @@
+body{margin:0;font:15px system-ui,sans-serif;color:#111;background:#fff}
+#menu{position:fixed;inset:0 auto 0 0;width:230px;overflow:auto;background:#f3f4f6;border-right:1px solid #d1d5db;padding:12px;box-sizing:border-box}
+#menu h2{font-size:14px;margin:14px 0 4px;color:#374151}#menu a{display:block;padding:4px 6px;color:#111;text-decoration:none;font-size:14px;word-break:break-all}
+#menu a.now{background:#1f2937;color:#fff;border-radius:4px}#menu a:hover:not(.now){background:#e5e7eb}
+main{margin-left:230px;padding:16px}h1{font-size:24px;margin:0}h2.value{font-size:18px;margin:24px 0 8px}
+table{border-collapse:collapse}th{position:sticky;top:0;background:#1f2937;color:#fff;padding:10px;font-size:16px;border:1px solid #4b5563;z-index:1;min-width:110px}
+th button{all:unset;cursor:pointer;font-weight:800}td{padding:8px;border:1px solid #d1d5db;vertical-align:top;min-width:110px}
+td.plain{white-space:pre-wrap;word-break:break-word;max-width:520px}
+.state{font-weight:800}.read{margin-top:4px;padding:4px;background:#ecfdf5;font-size:14px}.read.app{background:#f3f4f6;color:#4b5563}
+
+.muted{color:#6b7280}
+.six{margin:8px 0;padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px}
