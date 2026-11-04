@@ -110,17 +110,38 @@ async function sharedCodeOf(file: string) {
 /** 찾을 파일 — 주소 글자는 낱말과 `/` 만 받는다(`..` 로 밖에 못 나간다) */
 /**
  * 🔎 누가 쓰나 — shared 가 내보낸 것마다 쓰는 파일을 TypeScript 참조 찾기로 모은다. 소스가 바뀌면 다시 계산한다.
- * `as any` · `require` · 글자로 읽는 곳 · 원달앱 JSON 은 못 찾으므로 «쓰는 곳 0» 이 곧 «지워도 됨» 은 아니다.
+ * `as any` · 글자로 읽는 곳 · 원달앱 JSON 은 다 못 찾으므로 «쓰는 곳 0» 이 곧 «지워도 됨» 은 아니다.
  */
 const WEB = path.resolve(__dirname, "..");
 const USAGE_ROOTS: [area: string, dir: string][] = [["서버", "server/src"], ["검사", "server/tests"], ["관제웹", "client-app/src"], ["운영센터", "ops/src"], ["운행일지", "logbook/src"], ["ui", "ui/src"], ["shared", "shared/src"]];
-/** 코드 참조로 안 잡히는 쓰임 — 파일이 이 꼴이면 까닭을 함께 보여 준다 */
+/** 코드 참조로 안 잡히는 쓰임 — 근거가 있는 것만 적는다. 파일 통째로 달면 근거 없는 이름까지 «지우면 안 됨»이 된다 */
 const USAGE_NOTES: [RegExp, string][] = [
-  [/^call\/(dispatchApi|orderSync)$/, "원달앱과 주고받는 JSON 모양일 수 있음"],
-  [/^call\/orderShapes$/, "원달앱과 주고받는 JSON 모양일 수 있음"],
   [/\.table$/, "보기 페이지가 읽는 표"],
-  [/^network\/(networkPages\.\w+|pageFields|targetApps)$/, "gen-pages 스크립트가 글자로 읽음"],
+  [/^network\/(networkPages(\.\w+)?|pageFields|targetApps)$/, "gen-pages 스크립트가 글자로 읽음"],
+  [/^device\/bleProtocol$/, "원달앱 소스와 견주는 짝 검사가 있음"],
 ];
+/** 원달앱 Kotlin 에 같은 이름으로 선언된 클래스 — JSON 으로 주고받는 짝일 수 있다 */
+function kotlinClassNames(): Set<string> {
+  const kotlinFiles = (dir: string): string[] => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).flatMap((n) => (n.isDirectory() ? kotlinFiles(path.join(dir, n.name)) : n.name.endsWith(".kt") ? [path.join(dir, n.name)] : [])) : []);
+  const names = new Set<string>();
+  for (const f of kotlinFiles(path.join(WEB, "../onedal-app/app/src/main"))) for (const m of readFileSync(f, "utf-8").matchAll(/\b(?:class|object|interface)\s+([A-Z]\w+)/g)) names.add(m[1]);
+  return names;
+}
+/** `const { a } = require("@onedal/shared")` · `const s = require(...)` 뒤 `s.a` · `await import(...)` 로 부르는 이름 — 참조 찾기가 못 보는 길이다 */
+function requiredNames(files: string[]): Map<string, string[]> {
+  const byName = new Map<string, string[]>();
+  const add = (name: string, f: string) => { if (name) byName.set(name, [...(byName.get(name) ?? []), f]); };
+  for (const f of files) {
+    const text = readFileSync(f, "utf-8");
+    for (const m of text.matchAll(/\{([^{}]*)\}\s*=\s*(?:require\(|await import\()\s*["']@onedal\/shared["']/g)) {
+      for (const raw of m[1].split(",")) add(raw.split(":")[0].trim(), f);
+    }
+    for (const m of text.matchAll(/\b(\w+)\s*=\s*(?:require\(|await import\()\s*["']@onedal\/shared["']/g)) {
+      for (const use of text.matchAll(new RegExp(`\\b${m[1]}\\.(\\w+)`, "g"))) add(use[1], f);
+    }
+  }
+  return byName;
+}
 type SharedUsage = { exports: Record<string, { kind: string; self: boolean; note: string; areas: Record<string, string[]> }>; fields: Record<string, Record<string, string[]>> };
 function usageSources(dir: string): string[] {
   if (!existsSync(dir)) return [];
@@ -164,6 +185,8 @@ async function computeUsage(files: string[]): Promise<Record<string, SharedUsage
   const index = path.join(SHARED, "index.ts");
   const result: Record<string, SharedUsage> = {};
   const fieldOwners = new Map<string, Set<string>>();
+  const kotlin = kotlinClassNames();
+  const required = requiredNames(files);
   const ownFields = new Map<string, { file: string; name: string; fields: string[] }>();
   for (const file of files.filter((f) => f.startsWith(`${SHARED}/`) && f !== index && usageAreaOf(f) === "shared")) {
     const source = program.getSourceFile(file);
@@ -187,7 +210,13 @@ async function computeUsage(files: string[]): Promise<Record<string, SharedUsage
         const rel = path.relative(WEB, ref.fileName);
         if (!(areas[area] ??= []).includes(rel)) areas[area].push(rel);
       }
-      usage.exports[symbol.name] = { kind: ts.SyntaxKind[decl.kind], self, note, areas };
+      for (const f of required.get(symbol.name) ?? []) {
+        const area = usageAreaOf(f);
+        const rel = path.relative(WEB, f);
+        if (!(areas[area] ??= []).includes(rel)) areas[area].push(rel);
+      }
+      const ownNote = kotlin.has(symbol.name) ? "원달앱 Kotlin 에 같은 이름이 있음" : note;
+      usage.exports[symbol.name] = { kind: ts.SyntaxKind[decl.kind], self, note: ownNote, areas };
       if (ts.isInterfaceDeclaration(decl)) {
         const fields = decl.members.flatMap((m) => (m.name && ts.isIdentifier(m.name) ? [m.name.text] : []));
         ownFields.set(symbol.name, { file: name, name: symbol.name, fields });
@@ -216,7 +245,7 @@ function usageRows(all: Record<string, SharedUsage>) {
     const main = ["서버", "관제웹", "운영센터", "운행일지", "ui"].some((a) => e.areas[a]?.length);
     const group = main ? "main" : e.areas["shared"]?.length ? "shared" : e.areas["검사"]?.length ? "tests" : e.self ? "self" : "none";
     const why = e.note || (keep[name] ? `audit:dead 남겨 둠 — ${keep[name]}` : kind === "타입" ? "audit:dead 는 타입을 안 본다" : "audit:dead 는 이름을 낱말로 센다 — 다른 파일의 같은 글자, require 로 부르는 곳이 있을 수 있다");
-    return { file, name, kind, group, why, tests: e.areas["검사"]?.length ?? 0 };
+    return { file, name, kind, group, why, note: e.note, tests: e.areas["검사"]?.length ?? 0 };
   }));
 }
 /** 폴더 한눈에 보기 — 주소 글자가 shared 안 폴더 하나일 때만 */

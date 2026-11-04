@@ -50,7 +50,7 @@ box.textContent = '계산 중… 첫 계산은 약 8초 걸립니다.';
 fetch('/shared/_/usage').then((r) => r.json()).then((rows) => {
     box.textContent = '';
     const intro = document.createElement('p');
-    intro.textContent = `내보낸 것 ${rows.length}개입니다. TypeScript 로 찾은 쓰임이고, as any · require · 글자로 읽는 곳 · 원달앱 JSON 은 못 찾습니다.`;
+    intro.textContent = `내보낸 것 ${rows.length}개입니다. TypeScript 로 찾은 쓰임이고, as any · 글자로 읽는 곳 · 원달앱 JSON 은 다 못 찾습니다.`;
     const groups = Object.keys(LABEL).map((key) => ({ key, items: rows.filter((r) => r.group === key) }));
     box.append(intro, table(groups.map((g) => ({ '쓰임': LABEL[g.key], '개수': g.items.length }))));
     for (const key of Object.keys(NOTE)) {
@@ -60,7 +60,7 @@ fetch('/shared/_/usage').then((r) => r.json()).then((rows) => {
         h.textContent = `${LABEL[key]} ${items.length}개`;
         const p = document.createElement('p');
         p.textContent = NOTE[key];
-        const shown = items.map((r) => ({ '파일': r.file, '이름': r.name, '종류': r.kind, ...(key === 'none' ? { '까닭': r.why } : {}), ...(key === 'tests' ? { '검사 파일 수': r.tests } : {}) }));
+        const shown = items.map((r) => ({ '파일': r.file, '이름': r.name, '종류': r.kind, ...(key === 'none' ? { '까닭': r.why } : {}), ...(key === 'tests' ? { '검사 파일 수': r.tests, '코드 참조 말고 쓰는 곳': r.note } : {}) }));
         box.append(h, p, table(shown));
     }
 }).catch((e) => { box.textContent = `못 읽음: ${e}`; });

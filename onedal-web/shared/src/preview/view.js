@@ -48,7 +48,7 @@ function usesCell(usage, name) {
     const counts = USE_AREAS.filter((a) => use.areas[a]?.length).map((a) => `${a} ${use.areas[a].length}`);
     const onlyTests = counts.length === 1 && use.areas['검사']?.length;
     const summary = counts.join(' · ') || (use.self ? '자기 파일만' : '쓰는 곳 없음');
-    const warn = !counts.length || onlyTests ? (use.note ? ` — 지우면 안 됨: ${use.note}` : '') : '';
+    const warn = !counts.length || onlyTests ? (use.note ? ` — 지우기 전에 확인: ${use.note}` : '') : '';
     return { text: `${summary}${warn}`, files: USE_AREAS.flatMap((a) => use.areas[a] ?? []) };
 }
 function usesBox(cell) {
@@ -287,7 +287,7 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
     const withUses = (rows, nameKey, usage) => rows.map((row) => ({ ...row, '쓰는 곳': usesCell(usage, row[nameKey]) }));
     const paint = async (usage) => {
     box.textContent = '';
-    box.append(paragraph('«쓰는 곳»은 TypeScript 로 찾은 파일 수입니다. as any · require · 글자로 읽는 곳 · 원달앱 JSON 은 못 찾으니, 0이라고 지워도 된다는 뜻은 아닙니다.'));
+    box.append(paragraph('«쓰는 곳»은 TypeScript 로 찾은 파일 수입니다. as any · 글자로 읽는 곳 · 원달앱 JSON 은 다 못 찾으니, 0이라고 지워도 된다는 뜻은 아닙니다.'));
     if (functions.length > 0) box.append(heading(`함수 ${functions.length}개`), draw(withUses(functions, '함수', usage)));
     if (aliases.length > 0) box.append(heading(`타입 ${aliases.length}개`), draw(withUses(aliases, '타입', usage)));
     for (const shape of interfaces) {
