@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isDeviceQuiet, DEVICE_QUIET_MS } from './index';
+import { isDeviceQuiet, DEVICE_QUIET_MS } from '../index';
 
 /**
  * ⏱️ **폰이 조용한가** (기사님 확정)

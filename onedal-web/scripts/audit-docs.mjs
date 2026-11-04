@@ -272,7 +272,7 @@ say('⑤ 손 뗀 자리', '문서가 «이 파일이 한다»는 일을 그 파�
         const s = readFileSync(d, 'utf8');
         // 표의 «… | `경로/파일.ts` |» 꼴만 본다 — 산문 속 언급은 역사일 수 있다
         for (const m of new Set([...s.matchAll(/\|[^|\n]*\|\s*`([\w./-]+\.tsx?)`\s*\|/g)].map(x => x[1]))) {
-            // 🔴 «shared/src/dryRun.ts» 처럼 앱 이름이 앞에 붙은 것과, «routes/x.ts» 처럼
+            // 🔴 «shared/src/judge/dryRun.ts» 처럼 앱 이름이 앞에 붙은 것과, «routes/x.ts» 처럼
             //    앱 안 상대 경로로 적힌 것을 둘 다 받는다 (처음에 이걸 틀려 못 잡았다)
             const full = [m, `server/src/${m}`, `shared/src/${m}`, `client-app/src/${m}`]
                 .map(x => join(WEB, x)).find(existsSync);

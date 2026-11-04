@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { workStageLabel, isModeApplying, runningModeOf, modeChoicesOf, DEVICE_MODES, CHOSEN_MODES, commandModeOf, storedOf, chosenModeOf } from './index';
+import { workStageLabel, isModeApplying, runningModeOf, modeChoicesOf, DEVICE_MODES, CHOSEN_MODES, commandModeOf, storedOf, chosenModeOf } from '../index';
 
 /**
  * 🚦 **관제웹이 폰의 «지금 하는 일»과 «모드가 닿았나»를 읽는 자리**

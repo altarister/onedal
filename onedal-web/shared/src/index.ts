@@ -29,15 +29,15 @@ export * from './map/mapTile';
 export * from './replies';
 export * from './filterTally';
 export * from './common/jsonArray';
-export * from './verdict';
+export * from './judge/verdict';
 export * from './map/routeReuse';
-export * from './fuelCost';
+export * from './judge/fuelCost';
 export * from './cargo/vehicles';
 export * from './device/deviceLink';
 export * from './ops/releases';
 export * from './device/allowance';
 export * from './regionMatch';
-export * from './pricing';
+export * from './judge/pricing';
 export * from './phases';
 export * from './ops/ops';
 export * from './ops/anomalyKinds';
@@ -55,20 +55,20 @@ export * from './cargo/cargoSpec';
 export * from './stepTables';
 export * from './stepRecords';
 export * from './timing';
-export * from './dryRun';
+export * from './judge/dryRun';
 /**
  * 🔴 콜의 **색을 정하는 곳 — 여기 하나뿐이다**.
  *    이 파일은 아무것도 import 하지 않는다 — 순환 참조를 만들지 않으려는 것이다.
  */
-export * from './judgment';
-export * from './judge';
-export * from './criteria';
+export * from './judge/judgment';
+export * from './judge/judge';
+export * from './judge/criteria';
 
 /** 🏷️ 화면 이름표 — 배차망별로 갈라 둔다 (기사님 설계) */
 export * from './screenLabels';
 export * from './map/naviLink';
 /** ⏱️ 밀림 — 한 콜이 앞선 정거장을 몇 분 밀었나, 누가 밀었나 (실험실에서 올림) */
-export * from './stopImpact';
+export * from './judge/stopImpact';
 /** 🎨 구간별 선 — 통짜 폴리라인 + 경계로 자른다 */
 export * from './map/sectionLine';
 /**

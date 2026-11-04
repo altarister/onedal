@@ -115,7 +115,7 @@ describe('⏰ 흔들림 두 칸은 판정 기준 탭에서 온다 (규칙 ⑤-4 
 
     /** 🔴 «전화로 될 일이 아닌 배수»는 코드 상수다 — 분은 설정, 배수는 코드 */
     it('🔴 배수는 코드에 한 곳이다', () => {
-        const src = readFileSync(join(__dirname, '../../../shared/src/criteria.ts'), 'utf8');
+        const src = readFileSync(join(__dirname, '../../../shared/src/judge/criteria.ts'), 'utf8');
         expect(src.match(/HARD_SLIP_TIMES/g)!.length).toBeGreaterThanOrEqual(2);
     });
 });

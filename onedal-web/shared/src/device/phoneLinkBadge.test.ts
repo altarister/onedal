@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { phoneLinkBadgeOf, isModeApplying } from './index';
+import { phoneLinkBadgeOf, isModeApplying } from '../index';
 
 /**
  * 📶 **폰 칸 연결 배지 · 모드 «적용중»** (기사님 «나: 값마다 한 길» · «가: 적용중 고침»).

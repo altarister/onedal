@@ -10,7 +10,7 @@ import { firstLoadFacts } from '../../src/core/engine/judgeFacts';
  * «상차지 주소를 찾지 못했습니다» 이유만 남기고 끝나면, 서버 로그에 `🎨 [판정]` 줄이 없고
  * 장부(`order_judgments`)에도 없고, 관제웹은 «카카오 연산 실패»뿐이다.
  *
- * `onedal-web/shared/src/criteria.ts` 머리 표가 정한 대로
+ * `onedal-web/shared/src/judge/criteria.ts` 머리 표가 정한 대로
  * «주소 못 찾음 · 카카오 실패 · API 키 없음 → **잴 수 없음** (🔴)» 판정을 남긴다.
  *
  * 판정을 **성공 갈래 안에서만** 만들면 실패 갈래에서 빠진다.

@@ -1,6 +1,6 @@
-import type { SecuredOrder } from './index';
+import type { SecuredOrder } from '../index';
 import type { Color } from './judge';
-import { isEvaluating } from './callStatus';
+import { isEvaluating } from '../callStatus';
 
 /**
  * 🎨 **색을 정하는 곳은 여기 하나다** — 서버가 값으로 보낸 색(`order.judgment.color`)을 쓴다. 관제웹 · 운영센터가 같은 함수를 쓴다(공통 함수 5).

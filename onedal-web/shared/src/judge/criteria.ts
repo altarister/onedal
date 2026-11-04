@@ -1,6 +1,6 @@
 import { defineCriterion, scored, multiplied, asCeiling, needsCall, nothing, unmeasurable } from './judge';
 import type { Criterion } from './judge';
-import { manwonText } from './common/format';
+import { manwonText } from '../common/format';
 
 /**
  * ⚖️ **판정 기준 다섯 — 하나씩 따로 산다** (5단계)

@@ -7,7 +7,7 @@
  * 어떻게: 회원 상태는 이름 칸이 아니라 사실 시각 칸을 보고 계산한다
  * 왜: 서버와 화면이 회원 상태를 다르게 말하지 않게 한다
  */
-import type { Color } from '../judge';
+import type { Color } from '../judge/judge';
 import type { TargetAppType, DeviceSession, AutoDispatchFilter, JudgmentSnapshot, DeviceModeType } from '../index';
 import type { ContentKind } from './join';
 import type { WordKind } from '../pageFields';

@@ -12,7 +12,7 @@ import type { JudgeFacts } from '@onedal/shared';
  *   시간 때문에 좋은 콜이 🔴 가 되면 안 된다. 통화로 굳힌 약속만 «잡으면 사고»다
  * - **추정 적재**로 색을 덮는 것 — 차종 글자를 오독하면 멀쩡한 콜이 🔴 가 된다.
  *   추정 적재로 자리가 모자라면 «못 쟀다»로 두어 점수에서 빼고 색은 안 덮는다
- *   (`shared/src/criteria.ts` 의 `SPACE`)
+ *   (`shared/src/judge/criteria.ts` 의 `SPACE`)
  * - 성질이 **색을 안 덮게** 되는 것 — 위험물+식료품은 확정된 사실이라 덮어야 한다
  */
 const cfg = DEFAULT_JUDGMENT;

@@ -31,7 +31,7 @@ describe('🔴 점수는 할인율과 무관하고, 이 고침으로도 안 바�
      */
     it('🔴 판정 축(shared)에 할인율이 없다', () => {
         for (const f of ['criteria.ts', 'judge.ts']) {
-            const s = readFileSync(join(__dirname, '../../../shared/src', f), 'utf-8');
+            const s = readFileSync(join(__dirname, '../../../shared/src/judge', f), 'utf-8');
             expect(s).not.toMatch(/callDiscountPct|call_discount_pct/);
         }
     });
