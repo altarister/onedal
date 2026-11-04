@@ -1,4 +1,4 @@
-/* 📋 shared 파일 보기 — 내보낸 함수 표 하나와 내보낸 값마다 표 하나. 쓰는 길이 없다. 줄 머리를 누르면 정렬한다 */
+/* 📋 shared 파일 보기 — 내보낸 함수 · 타입 · 값을 표로. 쓰는 길이 없다. 줄 머리를 누르면 정렬한다 */
 import { drawMenu } from '/shared/_/menu.js';
 
 drawMenu();
@@ -77,7 +77,7 @@ function draw(rows, book) {
 
 document.title = file;
 document.getElementById('title').textContent = file;
-fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(({ values, limit, six, functions }) => {
+fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(({ values, limit, six, functions, aliases, interfaces }) => {
     const sixBox = document.getElementById('six');
     if (six.length === 0) sixBox.textContent = '6하원칙 없음';
     for (const s of six) {
@@ -87,13 +87,20 @@ fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(({ values, limit, s
         line.append(word, s.text);
         sixBox.append(line);
     }
-    if (functions.length > 0) {
+    const heading = (words) => {
         const h = document.createElement('h2');
         h.className = 'value';
-        h.textContent = `함수 ${functions.length}개`;
-        box.append(h, draw(functions));
+        h.textContent = words;
+        return h;
+    };
+    if (functions.length > 0) box.append(heading(`함수 ${functions.length}개`), draw(functions));
+    if (aliases.length > 0) box.append(heading(`타입 ${aliases.length}개`), draw(aliases));
+    for (const shape of interfaces) {
+        const about = document.createElement('p');
+        about.textContent = shape.about;
+        box.append(heading(`${shape.name} — 칸 ${shape.rows.length}개`), about, draw(shape.rows));
     }
-    if (functions.length === 0 && values.length === 0) box.textContent = '표로 볼 값이 없습니다 (타입만 있는 파일).';
+    if (functions.length + aliases.length + interfaces.length + values.length === 0) box.textContent = '표로 볼 것이 없습니다.';
     for (const v of values) {
         const h = document.createElement('h2');
         h.className = 'value';
