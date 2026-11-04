@@ -1,3 +1,12 @@
+/**
+ * 잡았다가 무른 콜
+ * 누가: 서버 · 시뮬레이션 · 운영센터 회원 화면과 콜 상태 파일
+ * 언제: 안전취소와 방출을 함께 물을 때
+ * 어디서: 콜 상태 값 묶음
+ * 무엇을: LET_GO_STATUSES · isLetGoStatus · DECISION_STATUSES
+ * 어떻게: 다른 파일을 가져오지 않는 작은 파일로 둔다
+ * 왜: 끝난 상태 · 복귀콜 셈 · 취소 시각이 같은 목록을 봐야 하기 때문이다
+ */
 import type { OrderStatus } from '../index';
 
 /**

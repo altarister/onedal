@@ -1,3 +1,12 @@
+/**
+ * 단계 행 어댑터
+ * 누가: 서버 도우미 · 단계 만들기 · 관제웹 기록 화면 · 시나리오
+ * 언제: 단계 행으로 장부와 체류 시간을 계산할 때
+ * 어디서: 단계 기록을 읽는 자리
+ * 무엇을: recordsOfSteps · dwellLedgerOfSteps · dwellSlipMinutes · dwellActualOfSteps
+ * 어떻게: 단계 행을 장부 모양으로 바꾼다
+ * 왜: 화면과 계산이 같은 단계 기록을 봐야 하기 때문이다
+ */
 import { STEP_MILESTONE } from './callSteps';
 import { jsonArrayOf } from '../common/jsonArray';
 /**

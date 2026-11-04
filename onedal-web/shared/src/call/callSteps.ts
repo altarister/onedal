@@ -1,3 +1,12 @@
+/**
+ * 콜 진행 6단계
+ * 누가: 관제웹 콜 스텝과 시나리오 스크립트
+ * 언제: 지금 해야 할 단계를 정하거나 되돌릴 수 있는지 물을 때
+ * 어디서: 콜 스텝 화면
+ * 무엇을: CALL_STEPS · deriveCallStep · canRewindTo · STEP_MILESTONE
+ * 어떻게: 단계 표를 차례로 보고 남은 첫 단계를 찾는다
+ * 왜: 화면과 시나리오가 같은 단계 순서를 봐야 하기 때문이다
+ */
 import type { CargoReport } from '../index';
 
 /**

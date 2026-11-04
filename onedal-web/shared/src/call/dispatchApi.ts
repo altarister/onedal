@@ -1,3 +1,12 @@
+/**
+ * 배차 요청 · 응답 모양
+ * 누가: 원달앱이 보내고 서버가 받으며 관제웹 알림이 읽는다
+ * 언제: 콜 보고 · 상세 보고 · 확정을 주고받을 때
+ * 어디서: 배차 API 자리
+ * 무엇을: 요청 · 응답 타입과 whoConfirmed · leftForOtherNetwork · timeoutActionOf
+ * 어떻게: 타입을 한 곳에 두고 사실 하나씩 함수로 묻는다
+ * 왜: 보내는 쪽과 받는 쪽이 같은 모양을 봐야 하기 때문이다
+ */
 import { isManualLineage } from './callStatus';
 import type { SimplifiedOfficeOrder, OfficeOrder } from './orderShapes';
 import type { AutoDispatchFilter } from '../filter/dispatchFilter';

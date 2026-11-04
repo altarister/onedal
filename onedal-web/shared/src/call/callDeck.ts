@@ -1,3 +1,12 @@
+/**
+ * 잡은 콜 묶음 판단
+ * 누가: 서버 배차 · 필터 · 카카오 쪽과 관제웹 지도 · 콜 목록
+ * 언제: 상차했나 · 배송했나 · 지금 판정 중인 콜이 무엇인가를 물을 때
+ * 어디서: 서버와 관제웹 양쪽
+ * 무엇을: isAlreadyLoaded · hasVisitedStop · judgingCallOf · isDeliveredCall · deckOfCycle
+ * 어떻게: 콜 값을 받아 사실 하나를 돌려준다
+ * 왜: 지도와 경로가 서로 다른 정의를 보면 갈라지기 때문이다
+ */
 import { isTerminal, isEvaluating } from './callStatus';
 import { businessDayKey } from '../time/timing';
 

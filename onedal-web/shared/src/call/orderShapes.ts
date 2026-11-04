@@ -1,3 +1,12 @@
+/**
+ * 콜 모양
+ * 누가: 서버 · 관제웹 · 운영센터
+ * 언제: 콜 값을 주고받을 때
+ * 어디서: 콜 타입을 쓰는 모든 자리
+ * 무엇을: 목록 콜 · 상세 콜 · 대기 콜 · 내 콜 · 판정 기록 타입
+ * 어떻게: 대부분 타입만 두고 값은 EVENT_TYPES 하나다
+ * 왜: 같은 콜을 앱마다 다른 모양으로 적지 않기 위해서다
+ */
 import type { PaymentType, BillingType } from './paymentTypes';
 import type { OrderStatus, MyOrderStatus } from './callStatus';
 
