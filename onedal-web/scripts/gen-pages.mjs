@@ -1,7 +1,7 @@
 /**
  * 누가: onedal-f5 (기사님 «플러그인스에 있는 값을 서버가 같이 써야» · onedal-69 «가»)
  * 언제: shared/src/network/networkPages.<배차망>.ts(배차망 화면 정의 표의 배차망 몫 — 칸 · 페이지 목록 · 자리 기록)나 pageFields.ts(기준 페이지 사전)를 고친 뒤
- * 어디서: onedal-web — `pnpm gen:pages`(원달앱 생성 파일) · `pnpm gen:pages doc`(설계/기준페이지_사전표.md 만 뽑음) · `pnpm gen:pages doc --check`(뽑은 글이 그 파일과 같은지만 봄)
+ * 어디서: onedal-web — `pnpm gen:pages`(원달앱 생성 파일) · `pnpm gen:pages basecall`(기본 콜 코틀린 모양) · `pnpm gen:pages doc`(설계/기준페이지_사전표.md 만 뽑음) · `pnpm gen:pages doc --check`(뽑은 글이 그 파일과 같은지만 봄)
  * 무엇을: 표의 배차망마다(칸 정의 · 페이지 목록 · 차종 낱말)를 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt · isflex/IsflexPages.kt)으로 굳힌다 · doc 이면 사전 + 정의 표에서 «자리 × 배차망» 사전표 글을 뽑는다
  * 왜: 배차망마다 다른 것을 shared 한 곳에만 둔다 — 서버는 표를 바로 읽고 원달앱은 뽑은 코드를 읽는다 · 같은지는 원달앱 NetworkPagesPairTest 가 문다
  */
@@ -9,9 +9,17 @@ import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { slotProblems, renderBasePageDoc, networkNames } from './lib/base-page-doc.mjs';
+import { renderBaseCallKotlin, KOTLIN_PATH } from './lib/base-call-kotlin.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fail = (msg) => { console.error(`❌ ${msg}`); process.exit(1); };
+
+/* 🎯 basecall — 화면 정의 표와 상관없이 orderShapes 의 기본 콜 타입만 코틀린으로 뽑는다 */
+if (process.argv[2] === 'basecall') {
+    writeFileSync(KOTLIN_PATH, renderBaseCallKotlin());
+    console.log(`✅ ${KOTLIN_PATH}`);
+    process.exit(0);
+}
 
 /* 🗂️ 배차망마다 한 파일(networkPages.<배차망>.ts)의 JSON 표시 사이를 읽어 한 표로 —
    배차망 목록은 shared targetApps.ts 의 TARGET_APPS 하나 · 배차망 파일 묶음이 그것과 다르면 멈춘다(배차망을 더하고 한 곳을 빠뜨리면 조용히 안 뽑히던 자리) */
