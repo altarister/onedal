@@ -113,6 +113,12 @@ interface IDispatchAppPlugin {
     fun fillDetail(context: ScanContext, order: SimplifiedOfficeOrder): SimplifiedOfficeOrder = order
 
     /**
+     * 🎯 **이 보고에서 찾은 값을 기본 콜 칸에 채운다** — 칸 기준은 shared `call-fields.table`.
+     * 찾은 칸만 채운다. 합치기는 서버가 한다. 아직 안 채우는 배차망은 null 이고 그러면 옛 보고만 나간다.
+     */
+    fun baseCallOf(context: ScanContext, order: SimplifiedOfficeOrder): com.onedal.app.models.BaseCall? = null
+
+    /**
      * 🧹 **상세 처리에 쓸 글** — 목록 잔상 떼기 등 배차망마다 다른 것은 여기 인자로. 기본은 그대로.
      * 서버로 가는 글 · 목록 줄 대조 · 누른 콜 대조가 이 글을 쓴다. 화면 판별과 모은 글자는 원래 글이다.
      */

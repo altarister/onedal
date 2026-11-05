@@ -77,6 +77,7 @@ fun ScanContext.handlePreConfirmScreen(
             rawText = rawScreenStr
         )
     } else if (matchedOrder != null) {
+        session.tappedListText = matchedOrder.rawText
         // MANUAL/ALARM 클릭인데 캐시 매칭에 성공한 경우 (원본 데이터 재활용)
         matchedOrder.copy(
             id = session.currentOrderId.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },

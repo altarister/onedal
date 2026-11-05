@@ -34,6 +34,7 @@ object ListTapRecord {
         // ✍️ 계약 버튼은 자동 모드 · 오늘 콜에서만 — 위 진입 줄과 같은 값 · 📅 상세에서 한 번 더: `appPressesAccept`
         session.contractedByApp = willContract
         session.setOrderId(order.id)
+        session.tappedListText = order.rawText
         session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
         /**
          * 🎯 **찍는 그 카드를 쥐여 둔다** — 앱이 직접 누르고 들어가는 판이라 어느 콜인지 이미 안다.

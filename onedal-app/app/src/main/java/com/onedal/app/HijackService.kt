@@ -1876,6 +1876,9 @@ class HijackService : AccessibilityService(), ScanContext {
 
         // ✅ 앱이 계약 버튼을 누르는 콜만 AUTO, 나머지는 전부 MANUAL
         val actualMatchType = session.clickOrigin
+        val baseCallPart = com.onedal.app.core.BaseCallReport.partOf(order.id, order.timestamp, session.tappedListText) {
+            com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).baseCallOf(this, order)
+        }
         apiClient.sendConfirm(
             DispatchBasicRequest(
                 step = "BASIC",
@@ -1886,6 +1889,8 @@ class HijackService : AccessibilityService(), ScanContext {
                 targetApp = currentTargetApp,
                 openedByApp = session.openedByApp,   // 👆 앱이 목록에서 눌러 연 상세인가 — 서버가 판정 뒤 접기를 가른다(보호 분기와 따로)
                 isPreview = session.isPreview,
+                baseCall = baseCallPart.baseCall,
+                evidence = baseCallPart.evidence,
                 source = TargetApp.sourceOf(telemetryManager.screenPackage),   // 🏷️ 목록 보고와 같은 한 칸 (통계는 실물만 센다)
             )
         )
@@ -1919,6 +1924,9 @@ class HijackService : AccessibilityService(), ScanContext {
     override fun sendDetail(order: SimplifiedOfficeOrder) {
         val order = session.withOrderId(order)   // 🔢 /confirm 과 같은 번호
         run {
+            val baseCallPart = com.onedal.app.core.BaseCallReport.partOf(order.id, order.timestamp, null) {
+                com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).baseCallOf(this, order)
+            }
             val payload = DispatchDetailedRequest(
                 step = "DETAILED",
                 deviceId = apiClient.getDeviceId(),
@@ -1935,6 +1943,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 matchType = session.clickOrigin,
                 targetApp = currentTargetApp,
                 isPreview = session.isPreview,
+                baseCall = baseCallPart.baseCall,
             )
 
             // 서버 응답("KEEP", "CANCEL") 대기를 위한 안전취소 타이머 가동

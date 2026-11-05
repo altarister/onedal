@@ -181,6 +181,9 @@ data class DispatchBasicRequest(
      * 서버가 판정 뒤 접기(foldAfter)와 관제웹 남은 시간 막대를 가른다. 🔴 보호 분기(matchType)와는 따로다(#75)
      */
     val openedByApp: Boolean? = null,
+    /** 🎯 플러그인이 채운 기본 콜 조각과 화면 기록 — 없으면 Gson 이 빼서 옛 보고와 글자가 같다 */
+    val baseCall: BaseCall? = null,
+    val evidence: CallEvidence? = null,
 )
 
 data class DispatchDetailedRequest(
@@ -191,7 +194,9 @@ data class DispatchDetailedRequest(
     val matchType: String = "AUTO",
     val targetApp: String = "insung",
     /** 👀 미리보기 콜 — 뜻과 규칙은 `DispatchBasicRequest.isPreview` 에 적었다 */
-    val isPreview: Boolean = false
+    val isPreview: Boolean = false,
+    /** 🎯 플러그인이 채운 기본 콜 조각 — 뜻은 `DispatchBasicRequest.baseCall` */
+    val baseCall: BaseCall? = null,
 )
 
 // ────────────────────────────────────────────────

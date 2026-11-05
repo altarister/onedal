@@ -8,7 +8,7 @@
  * 왜: 보내는 쪽과 받는 쪽이 같은 모양을 봐야 하기 때문이다
  */
 import { isManualLineage } from './callStatus';
-import type { SimplifiedOfficeOrder, OfficeOrder } from './orderShapes';
+import type { BaseCall, CallEvidence, SimplifiedOfficeOrder, OfficeOrder } from './orderShapes';
 import type { AutoDispatchFilter } from '../filter/dispatchFilter';
 import type { DeviceModeType } from '../device/deviceModes';
 import type { ScreenContextType } from '../network/screenKinds';
@@ -62,6 +62,9 @@ export interface EdgeDeviceTelemetry {
 // 1-A. 앱폰 -> 서버: 1차 호출 (리스트 창에서 '확정' 버튼 클릭 직후)
 export interface DispatchBasicRequest {
     step: 'BASIC';
+    /** 🎯 플러그인이 채운 기본 콜 조각 · 누른 목록 줄 기록 — 지금 서버는 안 읽는다 */
+    baseCall?: BaseCall;
+    evidence?: CallEvidence;
     deviceId: string;
     order: SimplifiedOfficeOrder;
     capturedAt: string;
@@ -112,6 +115,8 @@ export function timeoutActionOf(r: { keep: boolean; who: WhoConfirmed; simulated
 // 1-B. 앱폰 -> 서버: 2차 호출 (상세 페이지 진입 후 상세 정보 파싱 완료 시)
 export interface DispatchDetailedRequest {
     step: 'DETAILED';
+    /** 🎯 플러그인이 채운 기본 콜 조각 — 지금 서버는 안 읽는다 */
+    baseCall?: BaseCall;
     deviceId: string;
     order: OfficeOrder;
     capturedAt: string;

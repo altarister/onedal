@@ -66,6 +66,9 @@ class SessionManager {
     /** 상세 화면에서 참조할 원본 오더 데이터 */
     var lastDetailOrder: SimplifiedOfficeOrder? = null
 
+    /** 📜 누른 콜의 목록 줄 글자 — 상세 글로 덮이기 전 값. 첫 보고의 화면 기록으로 간다 */
+    var tappedListText: String? = null
+
     /**
      * 🎯 **앱이 방금 찍은 리스트 카드** — 그 상세가 어느 콜인지 **이미 아는 답**이다 (기사님 지시).
      *
@@ -168,6 +171,7 @@ class SessionManager {
         collectState = CollectState.IDLE
         accumulatedDetailText = ""
         lastDetailOrder = null
+        tappedListText = null
         alarmTappedCard = null
         alarmTappedAtMs = 0L
         settledOpener = null
