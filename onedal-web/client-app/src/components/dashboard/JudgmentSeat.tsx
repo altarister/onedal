@@ -150,7 +150,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const judged = !!v.color;
     const c = v.color ? SOAK[v.color] : null;
     const hourly = route.judgment?.axes?.find(a => a.key === 'money')?.value;
-    const twin = twinFareNoteOf(route.tagsText);
+    const twin = twinFareNoteOf(route.job?.tagsText);   // 🎯 묶음의 꼬리표 (계획서 E2)
     const score = route.judgment?.score;
     const routeText = cleanRoute(route.kakaoTimeExt);
     const negatives = route.rejectionReasons ?? [];

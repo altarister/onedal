@@ -2,7 +2,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
-import { OFFICE_FIELDS, baseCallShapeOf, mergeBaseCall, officeOrderOf } from './baseCallToOffice';
+import { OFFICE_FIELDS, baseCallShapeOf, isExpressOf, mergeBaseCall, officeOrderOf } from './baseCallToOffice';
 
 /**
  * 🎯 **콜에 펼친 기본 콜 묶음** (계획서 E) — 옛 칸이 있는 값은 옛 칸에서, 옛 칸이 없는 새 값만 원달앱 기본 콜에서.
@@ -62,5 +62,15 @@ describe('🎯 기본 콜 묶음', () => {
         const c = filled[0];
         const once = { ...c.expectCall, ...baseCallShapeOf(c.expectCall, mergedOf(c)) };
         expect(baseCallShapeOf(once, mergedOf(c))).toEqual(baseCallShapeOf(c.expectCall, mergedOf(c)));
+    });
+});
+
+describe('🚨 급송 — 묶음의 형태 하나로 가른다 (계획서 E2)', () => {
+    it.each(filled.map((c) => [c.why, c]))('옛 칸으로 가른 급송과 같다 — %s', (_w, c) => {
+        const order = { ...c.expectCall, ...baseCallShapeOf(c.expectCall, mergedOf(c)) };
+        expect(isExpressOf(order)).toBe(c.expectCall.orderForm === '급송');
+    });
+    it('묶음이 없는 콜은 급송이 아니다', () => {
+        expect(isExpressOf({ orderForm: '급송' })).toBe(false);
     });
 });

@@ -179,3 +179,11 @@ describe('📍 정거장 덩어리 — 이름 · 전체 주소 · 약속 · 예�
         expect([p.arrived, p.etaText, p.slackMin]).toEqual([true, null, null]);
     });
 });
+
+describe('🎯 증거 서랍 «원본 칸» — 이름은 옛 칸 그대로, 값은 묶음에서 (계획서 E2)', () => {
+    it('구분 · 형태 값은 묶음에서 읽고 서랍 글자는 tripType · orderForm 그대로', () => {
+        const f = Object.fromEntries(rawFieldsOf({ ...ROUTE, tripType: '옛값', orderForm: '옛값', job: { tripType: '편도', orderForm: '급송' } }));
+        expect(f.tripType).toBe('편도');
+        expect(f.orderForm).toBe('급송');
+    });
+});

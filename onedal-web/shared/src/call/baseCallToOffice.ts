@@ -237,3 +237,8 @@ export function baseCallShapeOf(order: Partial<OfficeOrder>, held?: BaseCall): B
     (shape.money as CallMoney).lines = lines;
     return shape as BaseCallShape;
 }
+
+/** 🚨 **급송 콜인가** — 묶음의 형태(job.orderForm) 하나로 가른다. 서버 저장 · 관제웹 표시가 같은 함수를 쓴다 (계획서 E2) */
+export function isExpressOf(order: Pick<BaseCallShape, 'job'>): boolean {
+    return order.job?.orderForm === '급송';
+}

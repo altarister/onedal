@@ -119,3 +119,12 @@ describe('📍 잡은 뒤 카드 — 머리 경로 · 상 · 하차 덩어리', 
         expect(text(html)).not.toContain('▸ 더보기');
     });
 });
+
+describe('🎯 급송 표시 — 묶음의 형태를 읽는다 (계획서 E2)', () => {
+    it('형태가 급송인 콜에 «급송» 표시', () => {
+        expect(draw({ route: { ...ROUTE, orderForm: '급송', job: { orderForm: '급송' } } })).toContain('>급송<');
+    });
+    it('🔴 묶음이 보통이면 표시가 없다 — 옛 칸이 아니라 묶음을 읽는다', () => {
+        expect(draw({ route: { ...ROUTE, orderForm: '급송', job: { orderForm: '보통' } } })).not.toContain('>급송<');
+    });
+});

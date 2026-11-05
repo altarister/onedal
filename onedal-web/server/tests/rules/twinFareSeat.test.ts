@@ -9,8 +9,8 @@ import { join } from 'path';
 const seat = readFileSync(join(__dirname, '../../../client-app/src/components/dashboard/JudgmentSeat.tsx'), 'utf8');
 
 describe('💰 판정석 추정 요금', () => {
-    it('🔴 판정석이 콜의 tagsText 에서 쌍둥이 꼬리를 읽는다', () => {
-        expect(seat).toMatch(/twinFareNoteOf\(route\.tagsText\)/);
+    it('🔴 판정석이 콜의 꼬리표(묶음 job.tagsText — 계획서 E2)에서 쌍둥이 꼬리를 읽는다', () => {
+        expect(seat).toMatch(/twinFareNoteOf\(route\.job\?\.tagsText\)/);
     });
     it('🔴 요금 옆 글은 «추정 · 둘 중 낮은 값» — 먼발치에서 확정 요금이 아님을 알아보게', () => {
         expect(seat).toContain('추정 · 둘 중 낮은 값');

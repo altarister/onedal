@@ -8,7 +8,7 @@ import { OrderRepository } from '../../src/repositories/OrderRepository';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
-import { BASE_CALL_COLUMN_TYPES, OFFICE_FIELDS, mergeBaseCall, officeOrderOf } from '@onedal/shared';
+import { BASE_CALL_COLUMN_TYPES, OFFICE_FIELDS, isExpressOf, mergeBaseCall, officeOrderOf } from '@onedal/shared';
 
 /**
  * 📐 **비교 기준 — 첫 보고와 상세 보고를 합친 콜 값 · 저장 행** (계획서 C1-1).
@@ -47,7 +47,7 @@ async function merged(c: any, index: number, withBaseCall = false) {
     await post(detailRouter, '/', { step: 'DETAILED', targetApp: c.network, order: { ...c.detail, ...stamp, type: 'AUTO_CLICK' }, ...part('detail') });
     spy.mockRestore();
     const call = getUserSession(U).pendingOrdersData.get(id);
-    OrderRepository.upsertOrder(call, U, 0, call.orderForm === '급송' ? 1 : 0);   // isExpress 는 결재 코드와 같은 규칙 · isShared 는 기준 밖
+    OrderRepository.upsertOrder(call, U, 0, isExpressOf(call) ? 1 : 0);   // isExpress 는 결재 코드와 같은 규칙 · isShared 는 기준 밖
     return { call: steady(call), row: steady(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(id)) };
 }
 

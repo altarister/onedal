@@ -16,7 +16,7 @@ import { composeMergedRoute, planArrivalStops, type PromiseOrderOpts, applyRoute
 import { firmPromiseMsOf, birthFirstStep, refreshPlannedSteps, stepsView } from "./stepSeeder";
 import { routeTlOf } from "./routeTl";
 import { saveHeldBaseCall } from "./baseCallCompare";
-import { DEFAULT_JUDGMENT, routeNeedsRecompute } from "@onedal/shared";
+import { DEFAULT_JUDGMENT, routeNeedsRecompute, isExpressOf } from "@onedal/shared";
 import type { JudgmentConfig } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { countCancel, countKeep, writesLedger } from "../core/cancelCount";
@@ -156,7 +156,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
          */
         if (writesLedger({ preview: wasPreview, simulated: wasSimulated })) try {
             const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
-            const isExpress = (cached as any).orderForm === '급송' ? 1 : 0;
+            const isExpress = isExpressOf(cached as any) ? 1 : 0;
             OrderRepository.upsertOrder(cached as any, userId, isShared, isExpress);
             saveHeldBaseCall(userId, orderId);   // 🎯 기본 콜 · 화면 기록도 같은 행에 (계획서 D2)
             const terminatedAt = OrderRepository.updateOrderStatus(orderId, userId, 'SAFE_CANCEL');
@@ -574,8 +574,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
                 //
                 // 이 시점에는 confirmedOrder가 이미 myOrders에 push된 뒤이므로,
                 // 활성 콜이 2건 이상이면 앞선 짐이 있었다는 뜻 = 합짐이다.
-                // isExpress: 파서가 추출한 orderForm이 "급송"이면 true
-                const isExpress = (cachedOrder.orderForm === '급송') ? 1 : 0;
+                const isExpress = isExpressOf(cachedOrder) ? 1 : 0;
 
                 // 1. orders 등록 (v5 전체 컬럼)
                 OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
@@ -771,7 +770,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
         if (cachedForLedger && writesLedger({ preview: wasPreview, simulated: isSimulatedOrder })) {
             try {
                 const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
-                const isExpress = (cachedForLedger as any).orderForm === '급송' ? 1 : 0;
+                const isExpress = isExpressOf(cachedForLedger as any) ? 1 : 0;
                 OrderRepository.upsertOrder(cachedForLedger as any, userId, isShared, isExpress);
                 saveHeldBaseCall(userId, orderId);   // 🎯 기본 콜 · 화면 기록도 같은 행에 (계획서 D2)
                 const terminatedAt = OrderRepository.updateOrderStatus(orderId, userId, endStatus);

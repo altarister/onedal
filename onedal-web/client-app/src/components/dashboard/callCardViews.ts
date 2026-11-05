@@ -277,15 +277,15 @@ export function stopBlocksOf({ route, timeline, visitOrder, timing, etas, seeded
 }
 
 // ─────────────────────────── 판정 근거 서랍 ───────────────────────────
-/** 🗄️ 원본 칸 — 서랍 아래에 `route.<칸> : 값` 으로 그린다 (차례가 화면 차례다) */
+/** 🗄️ 원본 칸 — 서랍 아래에 `route.<칸> : 값` 으로 그린다 (차례가 화면 차례다). 옮긴 칸은 이름을 그대로 두고 값만 묶음에서 읽는다 */
 export function rawFieldsOf(route: SecuredOrder): Array<[string, unknown]> {
     return Object.entries({
         id: route.id, type: route.type, status: route.status,
         receiptStatus: route.receiptStatus, itemDescription: route.itemDescription,
         vehicleType: route.vehicleType, commissionRate: route.commissionRate,
         tollFare: route.tollFare, paymentType: route.paymentType,
-        billingType: route.billingType, tripType: route.tripType,
-        orderForm: route.orderForm, distanceKm: route.distanceKm,
+        billingType: route.billingType, tripType: route.job?.tripType,   // 🎯 서랍 글자는 옛 이름, 값은 묶음 (계획서 E2)
+        orderForm: route.job?.orderForm, distanceKm: route.distanceKm,
         dispatcherName: route.dispatcherName, dispatcherPhone: route.dispatcherPhone,
         companyName: route.companyName, pickup: route.pickup, dropoff: route.dropoff,
         fare: route.fare, timestamp: route.timestamp, postTime: route.postTime,
