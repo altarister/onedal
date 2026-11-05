@@ -95,7 +95,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         }
 
         private val PICKUP_DAY_BADGES = setOf("당상", "내상")
-        private val DROPOFF_DAY_BADGES = setOf("당착", "내착")
+        internal val DROPOFF_DAY_BADGES = setOf("당착", "내착")
 
         /** 🏷️ 날 배지를 꼬리표로 — 잡음으로 버리지 않는다 (지역 후보에서는 빠진다) */
         fun badgesOf(texts: List<String>): String? =

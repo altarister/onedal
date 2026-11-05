@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
-import { KOTLIN_PATH, SHAPES_PATH, renderBaseCallKotlin } from '../../../scripts/lib/base-call-kotlin.mjs';
+import { KOTLIN_PATH, SHAPES_PATH, renderBaseCallKotlin, wordsOf } from '../../../scripts/lib/base-call-kotlin.mjs';
 
 /**
  * 🎯 **원달앱 기본 콜 모양은 orderShapes 에서 뽑은 그대로다** (계획서 B3).
@@ -10,6 +10,13 @@ import { KOTLIN_PATH, SHAPES_PATH, renderBaseCallKotlin } from '../../../scripts
 describe('🎯 기본 콜 코틀린 짝', () => {
     it('다시 뽑은 글 = 파일', () => {
         expect(readFileSync(KOTLIN_PATH, 'utf8')).toBe(renderBaseCallKotlin());
+    });
+    it('🔴 결제 값 목록이 비거나 글자를 못 뽑으면 멈춘다', () => {
+        expect(() => wordsOf('PAYMENT_TYPES', `export const PAYMENT_TYPES = ["신용"] as const;`)).toThrow('비었다');
+    });
+    it('🔴 결제 타입에 값이 늘면 뽑는 글도 는다', () => {
+        const more = readFileSync(SHAPES_PATH, 'utf8').replace("export type CallPaymentType = PaymentType | '선/착불';", "export type CallPaymentType = PaymentType | '선/착불' | '후불';");
+        expect(renderBaseCallKotlin(more)).toContain('"선/착불", "후불"');
     });
     it('🔴 타입에 칸이 늘면 뽑는 글도 는다', () => {
         const more = readFileSync(SHAPES_PATH, 'utf8').replace('export interface CallJob {', 'export interface CallJob {\n    newField?: string;');

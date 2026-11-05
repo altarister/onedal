@@ -27,10 +27,12 @@ const ROOTS = ['BaseCall', 'CallEvidence'];
 const pascal = (word) => word[0].toUpperCase() + word.slice(1);
 
 /** 결제 · 계산서 값 목록을 글자로 — 앱이 자유 글을 걸러 칸 뜻을 지킨다. 못 찾으면 멈춘다 */
-function wordsOf(name, text) {
+export function wordsOf(name, text) {
     const found = text.match(new RegExp(`export const ${name} = \\[([^\\]]*)\\]`));
     if (!found) throw new Error(`${name} 값 목록을 못 찾았다`);
-    return [...found[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    const words = [...found[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    if (words.length === 0) throw new Error(`${name} 값 목록이 비었다`);
+    return words;
 }
 const kotlinWords = (words) => `setOf(${words.map((w) => `"${w}"`).join(', ')})`;
 
@@ -95,7 +97,7 @@ export function renderBaseCallKotlin(source = readFileSync(SHAPES_PATH, 'utf8'))
         return `${about ? `/** ${about} */\n` : ''}data class ${name}(\n${rows}\n)`;
     }).join('\n\n');
     const payment = readFileSync(PAYMENT_PATH, 'utf8');
-    const extraPayment = source.match(/export type CallPaymentType = PaymentType \| '([^']+)'/);
+    const extraPayment = source.match(/export type CallPaymentType = PaymentType((?: \| '[^']+')+)/);
     if (!extraPayment) throw new Error('CallPaymentType 값을 못 찾았다');
     return `package com.onedal.app.models
 
@@ -103,7 +105,7 @@ export function renderBaseCallKotlin(source = readFileSync(SHAPES_PATH, 'utf8'))
 // 플러그인이 채워 보내는 모양이다. 글자 묶음 별칭(MoneyKind · 결제 등)은 글자로 보낸다.
 
 /** 기본 콜 결제 칸에 담는 값 */
-val CALL_PAYMENT_TYPES = ${kotlinWords([...wordsOf('PAYMENT_TYPES', payment), extraPayment[1]])}
+val CALL_PAYMENT_TYPES = ${kotlinWords([...wordsOf('PAYMENT_TYPES', payment), ...[...extraPayment[1].matchAll(/'([^']+)'/g)].map((m) => m[1])])}
 
 /** 기본 콜 계산서 칸에 담는 값 */
 val CALL_BILLING_TYPES = ${kotlinWords(wordsOf('BILLING_TYPES', payment))}

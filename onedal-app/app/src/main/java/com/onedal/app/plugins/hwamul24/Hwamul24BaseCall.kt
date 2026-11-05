@@ -56,7 +56,7 @@ object Hwamul24BaseCall {
             load = CallLoad(vehicleType = order.vehicleType),
             time = CallTime(
                 pickup = CallPromise(text = order.scheduleText, reserved = order.reserved, day = order.reservedDay?.toDouble(), at = order.reservedAt),
-                dropoff = order.tagsText?.split(" ")?.firstOrNull { it.endsWith("착") }?.let { CallPromise(text = it) },
+                dropoff = order.tagsText?.split(" ")?.firstOrNull { it in Hwamul24Parser.DROPOFF_DAY_BADGES }?.let { CallPromise(text = it) },
                 postTime = order.postTime,
             ),
             job = CallJob(tagsText = order.tagsText, detailMemo = read(PageField.MEMO)),
