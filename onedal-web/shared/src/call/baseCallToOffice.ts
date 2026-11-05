@@ -143,3 +143,26 @@ export function officeOrderOf(call: BaseCall, report: Partial<CallReport> = {}, 
         }),
     };
 }
+
+/** 기본 콜에서 만드는 옛 칸 — 견줄 때 쓴다. 보고 봉투 값(번호 · 시각 · 원문)은 안 본다 */
+const OFFICE_FIELDS: ReadonlyArray<keyof OfficeOrder> = [
+    'fare', 'pickup', 'dropoff', 'vehicleType', 'itemSize', 'itemDescription', 'tagsText', 'reserved', 'reservedDay', 'reservedAt', 'scheduleText',
+    'pickupDistance', 'deliveryDistance', 'detailMemo', 'tripType', 'orderForm', 'paymentType', 'billingType', 'commissionRate', 'tollFare',
+    'receiptStatus', 'dispatcherName', 'dispatcherPhone', 'postTime', 'pickupDetails', 'dropoffDetails',
+];
+/* 칸 차례 · 빈 값 · 빈 배열은 차이가 아니다 */
+const comparable = (value: unknown): string => {
+    if (value === undefined || value === null || value === '') return '';
+    if (Array.isArray(value)) return JSON.stringify(value.map((row) => Object.entries(present(row as object)).sort(([a], [b]) => a.localeCompare(b))).filter((row) => row.length > 0));
+    return String(value);
+};
+const EMPTY = comparable([]);
+
+/**
+ * 🔍 **기본 콜로 만든 옛 칸과 지금 콜 값이 다른 칸 이름** (계획서 D1) — 값은 돌려주지 않는다. 전화번호가 로그에 남지 않게.
+ */
+export function baseCallDiff(call: BaseCall, order: Partial<OfficeOrder>): string[] {
+    const office = officeOrderOf(call, {}, {}, true);
+    const text = (value: unknown) => { const t = comparable(value); return t === EMPTY ? '' : t; };
+    return OFFICE_FIELDS.filter((field) => text(office[field]) !== text(order[field])).map(String);
+}

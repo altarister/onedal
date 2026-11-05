@@ -35,6 +35,7 @@ import { reportSourceOf } from "../core/helpers";
 import { ownsOrder, ownedByOther } from "../core/orderOwner";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import { isAppTooOld } from "../state/phoneStatus";
+import { holdBaseCall } from "../services/baseCallCompare";
 
 const router = Router();
 
@@ -161,6 +162,7 @@ router.post("/confirm", (req, res) => {
 
         // 즉시 응답 (앱은 멈추지 않고 상세 페이지 긁으러 진입해야 함)
         logRoadmapEvent('통신', "서버", "앱폰에게 상세 정보 스크래핑을 즉시 진행하라고 응답 전달");
+        holdBaseCall(userId, payload.order.id, payload.baseCall);   // 🔍 쓰는 값은 그대로 — 상세 보고 때 견준다
         res.json({ success: true, message: "1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요." });
         /* 🏃 판정 재료(좌표 · 단독 길찾기)를 미리 출발 — /detail 판정이 같은 질문이면 받아 쓴다 · 세션은 읽기만 (OrderEvaluator.prefetch) */
         const prefetchApp = isTargetApp((payload as any).targetApp) ? (payload as any).targetApp : DEFAULT_TARGET_APP;

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import * as fileLogger from '../../src/utils/fileLogger';
 import db from '../../src/db';
 import detailRouter from '../../src/routes/detail';
 import ordersRouter from '../../src/routes/orders';
@@ -63,5 +64,12 @@ describe('🎯 옛 서버 + 새 앱 보고', () => {
         expect(getUserSession(U).pendingOrdersData.has('b2')).toBe(true);
         expect(held('b2')).toEqual(held('b1'));
         expect(getUserSession(U).pendingOrdersData.get('b2')).not.toHaveProperty('baseCall');
+    });
+    it('🔍 첫 보고와 상세 보고의 조각을 합쳐 지금 콜 값과 견준다 — 로그 한 줄', async () => {
+        const spy = jest.spyOn(fileLogger, 'slog');
+        await post(ordersRouter, '/confirm', { step: 'BASIC', order: order('c1', '화면 글'), baseCall });
+        await post(detailRouter, '/', { step: 'DETAILED', order: order('c1', '상세 글'), baseCall });
+        expect(spy.mock.calls.some(([, line]) => String(line).includes('🔍 [기본 콜 견줌]') && String(line).includes('c1'))).toBe(true);
+        spy.mockRestore();
     });
 });
