@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { detailRecordOf, pickupClockMsOf } from '@onedal/shared';
+import { baseCallShapeOf, detailRecordOf, pickupClockMsOf } from '@onedal/shared';
 
 /**
  * 📄 **상세 원문의 콜 자료(상태 · 결제 · 수수료 · 연락처 …)는 배차망 정의 표대로 읽는다** (기사님 «1~5 모두 가» · onedal-69).
@@ -34,7 +34,7 @@ describe('📄 상세 콜 자료 — 정의 표', () => {
     });
     it('🔴 적요는 팝업 글이 먼저 — 본문 «03:57 상차»가 상차 약속 시각이 되지 않는다(지금과 같음)', () => {
         const captured = Date.parse('2030-01-01T02:00:00+09:00');
-        expect(pickupClockMsOf(detailRecordOf('insung', FULL), captured, 30)).toBe(captured + 30 * 60_000);
+        expect(pickupClockMsOf(baseCallShapeOf(detailRecordOf('insung', FULL) as any), captured, 30)).toBe(captured + 30 * 60_000);
     });
     it('🔴 화물24시 결제방법 · 픽커 물품정보도 표대로(기사님 «가») — 원문은 공통 문제지에서', () => {
         expect(detailRecordOf('hwamul24', sheetText('hwamul24', 'payment')).paymentType).toBe('착불');

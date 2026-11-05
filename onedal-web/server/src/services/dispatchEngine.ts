@@ -620,7 +620,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
                 console.error('🚚 [예약 콜 단독 배송 재기 실패]', e);
             }
             saveConfirmedToLedger(0);
-            slog('결재', `📅 [예약 보관] ${orderId.slice(0, 8)} → ${reservedFor} ${(cachedOrder as any).reservedAt ?? ''} — 오늘 하루에 안 넣는다`);
+            slog('결재', `📅 [예약 보관] ${orderId.slice(0, 8)} → ${reservedFor} ${cachedOrder.time?.pickup?.at ?? ''} — 오늘 하루에 안 넣는다`);
             io.to(userId).emit("order-confirmed", orderId);
             birthStepsOnKeep(userId, orderId, io);   // 🌱 상차지 통화 단계 — 결재가 어느 길로 오든 여기 한 곳
             return { success: true, action: status };

@@ -329,7 +329,7 @@ export default function PinnedRouteCard({
                                          bg-warning/15 border-warning/40 text-warning">급송</span>
                     )}
                     {judging && route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
-                    {judging && route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
+                    {judging && route.time?.pickup?.text && <span className="text-warning font-bold">🕒 {route.time?.pickup?.text}</span>}
                     {/* 🧭 어떻게 잡았나 — 덱 머리글에도 단다 (리스트 헤더에만 달면
                         기사님이 보는 덱에는 안 나온다). 알람 듣고 잡음=알람콜 · 손=직접콜 */}
                     {!evaluating && isManualLineage(route.type) && route.status !== 'ORDER_COMPLETED' && (
@@ -731,7 +731,7 @@ export default function PinnedRouteCard({
                                                 <span>잡은 시각 <b className="text-text-primary">{clockText(route.capturedAt) ?? '-'}</b></span>
                                                 {route.vehicleType && <span className="px-1.5 rounded-[5px] font-black border bg-surface-alt border-border-card text-text-primary">{route.vehicleType}</span>}
                                                 {route.commissionRate && <span>· 수수료 {route.commissionRate}</span>}
-                                                {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
+                                                {route.time?.pickup?.text && <span className="text-warning font-bold">🕒 {route.time?.pickup?.text}</span>}
                                             </div>
                                             {/**
                                               * 📦 **짐과 버퍼는 한 줄이다** — 둘 다 «이 콜이 어떤 콜인가»의 답.

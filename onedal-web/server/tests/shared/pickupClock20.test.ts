@@ -82,7 +82,7 @@ describe('상차 약속 = 콜 잡은 시각 + 20분', () => {
 
     it('적요에 상차 시각이 있으면 그것이 이긴다 (예약콜) — 20분 룰보다 앞', () => {
         const tl = deriveRouteTimeline(
-            stops(30), [order({ detailMemo: '11:00 상차' })], noReports, noMilestones,
+            stops(30), [order({ job: { detailMemo: '11:00 상차' } })], noReports, noMilestones,
             T(9, 0), new Date(T(9, 0)).toISOString(),
             DEFAULT_DEADLINE_RULES, { pickupDwellMin: 15, dropoffDwellMin: 10 } as any,
         );

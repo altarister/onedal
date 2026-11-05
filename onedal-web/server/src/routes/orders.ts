@@ -35,8 +35,11 @@ import { reportSourceOf } from "../core/helpers";
 import { ownsOrder, ownedByOther } from "../core/orderOwner";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import { isAppTooOld } from "../state/phoneStatus";
-import { holdBaseCall } from "../services/baseCallCompare";
-import { withoutBaseCallColumns, baseCallShapeOf, baseCallFromRow } from "@onedal/shared";
+import { holdBaseCall, heldBaseCallOf } from "../services/baseCallCompare";
+import { withoutBaseCallColumns, baseCallShapeOf } from "@onedal/shared";
+
+/* 펼친 행에서 묶음 키만 — 나머지는 아래 칸 손질이 정한다 */
+const pickShape = (row: Record<string, any>) => Object.fromEntries(['route', 'money', 'load', 'time', 'job', 'stage', 'requesterName', 'fromOtherOffice', 'orderNo', 'clientOrderNo'].filter((k) => row[k] !== undefined).map((k) => [k, row[k]]));
 
 const router = Router();
 
@@ -81,7 +84,7 @@ router.get("/", requireAuth, (req, res) => {
             orders: (rows as any[]).map(r => ({
                 ...withoutBaseCallColumns(r),   // 🎯 기본 콜 · 화면 기록 열은 관제웹에 안 보낸다 — 전화번호 · 화면 원문 (계획서 D2)
                 /* 🎯 실시간 전송과 같은 묶음 — 복원과 같은 재료(연락처 · 참거짓)로 만든다 (계획서 E) */
-                ...baseCallShapeOf({ ...r, reserved: r.reserved == null ? undefined : !!r.reserved, ...OrderRepository.stopContactsOf(r.id) }, baseCallFromRow(r, r.id, r.targetApp).call),
+                ...pickShape(OrderRepository.shapedRowOf(r)),
                 routePolyline: parsePolyline(r.routePolyline),
                 /** 🎨 구간 경계도 함께 편다 — 궤적과 같은 운명이라야 지도가 색을 잃지 않는다 */
                 sectionEnds: parseSectionEnds(r.sectionEnds),
@@ -169,7 +172,8 @@ router.post("/confirm", (req, res) => {
         res.json({ success: true, message: "1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요." });
         /* 🏃 판정 재료(좌표 · 단독 길찾기)를 미리 출발 — /detail 판정이 같은 질문이면 받아 쓴다 · 세션은 읽기만 (OrderEvaluator.prefetch) */
         const prefetchApp = isTargetApp((payload as any).targetApp) ? (payload as any).targetApp : DEFAULT_TARGET_APP;
-        void new OrderEvaluator(prefetchApp).prefetch(userId, payload.order);
+        /* 🎯 미리 출발도 묶음을 펼친 콜로 — 예약 날(time.pickup.day)을 읽는다 (계획서 E3) */
+        void new OrderEvaluator(prefetchApp).prefetch(userId, { ...payload.order, ...baseCallShapeOf(payload.order, heldBaseCallOf(userId, payload.order.id)) });
         const session = getUserSession(userId);
 
         const previousEvaluatingId = session.deviceEvaluatingMap.get(payload.deviceId);

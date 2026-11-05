@@ -8,6 +8,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { baseCallShapeOf } from "@onedal/shared";
+import type { BaseCallShape } from "@onedal/shared";
 import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP, geocodeTargetOf } from '@onedal/shared';
 import type { GeocodeSource } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress, TargetAppType } from '@onedal/shared';
@@ -66,7 +67,7 @@ function verdictLine(v: JudgmentSnapshot): string {
  * 판정 입력 — 기점 · 잡은 콜 · 목적지. 판정(`evaluate`)과 1차 신호 미리 출발(`prefetch`)이 같은 한 벌을 쓴다.
  * 세션을 읽기만 한다 — 부를 때마다 그때 값을 읽는다.
  */
-export function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string; dropoff?: string }) {
+export function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: { time?: BaseCallShape['time']; capturedAt?: string; timestamp?: string; dropoff?: string }) {
     /**
      * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (기사님 결정 3 «가»).
      *    ① 접근 구간은 지금 자리가 아니라 **집**에서 잰다 — 그날은 집에서 출발한다. 집이 비면 기점이 없다 → 그 축은 «잴 게 없음».
@@ -169,7 +170,7 @@ export class OrderEvaluator {
      *    세션은 읽기만(기점 · 잡은 콜 수) · 알림·저장 없음 · 판정을 시작하지 않는다(문지기는 /detail 에 그대로).
      *    좌표 둘 → 잡은 콜이 없으면 단독 길찾기까지. 합짐은 좌표만(합짐 경로 인자는 약속 순서·비교 경로 캐시와 얽혀 떼면 두 벌이 된다).
      */
-    public prefetch(userId: string, order: { pickup?: string; dropoff?: string; reservedDay?: number | null; capturedAt?: string; timestamp?: string }): Promise<void> {
+    public prefetch(userId: string, order: { pickup?: string; dropoff?: string; time?: BaseCallShape['time']; capturedAt?: string; timestamp?: string }): Promise<void> {
         return hedgeBudget.run({ left: 2, used: 0 }, async () => {
             try {
                 if (!process.env.KAKAO_REST_API_KEY || !order.pickup || !order.dropoff) return;

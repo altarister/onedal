@@ -130,27 +130,27 @@ describe('📅 상차 시계 — 예약 날·시각으로 날짜를 만든다 (B
     const captured = Date.parse(todayAt(15));
     it('🔴 내일 09:00 예약은 내일 09:00 — 오늘 15:20 이 아니다', () => {
         const d = new Date(captured); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0);
-        expect(pickupClockMsOf({ reservedDay: 1, reservedAt: '09:00' } as any, captured, 20)).toBe(d.getTime());
+        expect(pickupClockMsOf({ time: { pickup: { day: 1, at: '09:00' } } } as any, captured, 20)).toBe(d.getTime());
     });
     it('오늘 안의 «예약 18:30» 은 오늘 18:30', () => {
         const d = new Date(captured); d.setHours(18, 30, 0, 0);
-        expect(pickupClockMsOf({ reservedDay: 0, reservedAt: '18:30' } as any, captured, 20)).toBe(d.getTime());
+        expect(pickupClockMsOf({ time: { pickup: { day: 0, at: '18:30' } } } as any, captured, 20)).toBe(d.getTime());
     });
     it('예약이 없으면 지금처럼 — 잡은 시각 + 잠정', () => {
         expect(pickupClockMsOf({} as any, captured, 20)).toBe(captured + 20 * 60_000);
     });
     it('🔴 날만 알고 시각을 모르는 예약(«내상»·«낼»)은 모름(null) — 오늘 시각으로 떨어지지 않는다', () => {
-        expect(pickupClockMsOf({ reservedDay: 1 } as any, captured, 20)).toBeNull();
+        expect(pickupClockMsOf({ time: { pickup: { day: 1 } } } as any, captured, 20)).toBeNull();
     });
     it('🔴 날만 아는 예약에 적요 시각을 붙이지 않는다 — 적요는 상차·하차를 안 가른다(«10시전하차»)', () => {
-        expect(pickupClockMsOf({ reservedDay: 1, itemDescription: '14시 상차' } as any, captured, 20)).toBeNull();
+        expect(pickupClockMsOf({ time: { pickup: { day: 1 } }, load: { itemDescription: '14시 상차' } } as any, captured, 20)).toBeNull();
     });
     it('예약 시각이 적요 시각을 이긴다', () => {
         const d = new Date(captured); d.setDate(d.getDate() + 1); d.setHours(9, 30, 0, 0);
-        expect(pickupClockMsOf({ reservedDay: 1, reservedAt: '09:30', itemDescription: '14시 상차' } as any, captured, 20)).toBe(d.getTime());
+        expect(pickupClockMsOf({ time: { pickup: { day: 1, at: '09:30' } }, load: { itemDescription: '14시 상차' } } as any, captured, 20)).toBe(d.getTime());
     });
     it('오늘 콜(날 0 · 시각 없음 · 적요 없음)은 지금처럼 잡은 시각 + 잠정', () => {
-        expect(pickupClockMsOf({ reservedDay: 0 } as any, captured, 20)).toBe(captured + 20 * 60_000);
+        expect(pickupClockMsOf({ time: { pickup: { day: 0 } } } as any, captured, 20)).toBe(captured + 20 * 60_000);
     });
     it('🔴 날만 아는 내일 콜을 KEEP 하면 상차지 통화 행의 약속 칸이 빈 채 태어난다 — 통화로 넣으신다', () => {
         const id = `${U}-seed-dayonly`;

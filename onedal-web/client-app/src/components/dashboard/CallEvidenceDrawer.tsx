@@ -29,7 +29,7 @@ export default function CallEvidenceDrawer({ route, soloKm, soloMin, milestoneLo
                 <span>·</span>
                 <span>{wonText(route.fare)}{route.paymentType ? `(${route.paymentType})` : ''}</span>
                 {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
-                {route.scheduleText && <><span>·</span><span className="text-warning font-bold">🕒 {route.scheduleText}</span></>}
+                {route.time?.pickup?.text && <><span>·</span><span className="text-warning font-bold">🕒 {route.time?.pickup?.text}</span></>}
             </div>
 
             {/* 마일스톤 이력 — 진행 점이 이미 "어디까지 왔나"를 보여주므로

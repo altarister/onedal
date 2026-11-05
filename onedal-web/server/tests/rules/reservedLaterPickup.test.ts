@@ -10,8 +10,8 @@ import { getUserSession, clearUserSession } from '../../src/state/userSessionSto
  */
 const U = 'test-reserved-later-pickup';
 const now = new Date().toISOString();
-const tomorrowCall = { reservedDay: 1, capturedAt: now };
-const todayCall = { reservedDay: null, capturedAt: now };
+const tomorrowCall = { time: { pickup: { day: 1 } }, capturedAt: now };
+const todayCall = { time: { pickup: { day: null } }, capturedAt: now };
 /** 김포 목적지 · 현위치 대전 — 상차지는 현위치보다 목적지에서 약 10km 더 멀다 */
 const me = { x: 127.38, y: 36.35 };
 const pickup = { x: 127.42, y: 36.27 };

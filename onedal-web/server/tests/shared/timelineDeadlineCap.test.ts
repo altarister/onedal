@@ -59,7 +59,7 @@ describe('타임라인 두 시계 — 추정 약속의 규칙은 하나다', () 
     });
 
     it('🔴 적요의 상차 시각이 상차 시계를 대체한다 (소숙 콜③ 예약)', () => {
-        const p = run(order({ detailMemo: '16:00상차 예약' })).find(e => e.stopType === 'pickup')!;
+        const p = run(order({ job: { detailMemo: '16:00상차 예약' } })).find(e => e.stopType === 'pickup')!;
         expect(kst(Date.parse(p.promisedUntil!))).toBe('16:00');   // 잡은시각+20(15:15)이 아니라 적요
     });
 

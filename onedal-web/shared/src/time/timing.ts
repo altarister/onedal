@@ -19,6 +19,7 @@ import { unitPoints } from '../cargo/cargoUnits';
 import { protectionMinutes, afterworkMinutes } from '../cargo/cargoUnits';
 import type { CargoReport } from '../index';
 import { parseCargoHints } from '../cargo/cargoHints';
+import type { BaseCallShape } from '../call/orderShapes';
 import { hhmmText, kstDateText } from '../common/format';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -346,11 +347,11 @@ export function businessDayKey(ms: number): string {
 }
 
 /**
- * 이 콜의 보관 날 `YYYY-MM-DD` — 잡은 날 + `reservedDay` 일. 오늘 콜(0 · 없음)이면 null.
+ * 이 콜의 보관 날 `YYYY-MM-DD` — 잡은 날 + 예약 날(`time.pickup.day`) 일. 오늘 콜(0 · 없음)이면 null.
  * 날 경계는 `businessDayKey`(영업일 전환과 같은 자정) 하나로 잰다. 서버(판정 · 보관)와 관제웹(판정석 예약 알약)이 같이 쓴다.
  */
-export function reservedForOf(order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string }): string | null {
-    const days = order.reservedDay;
+export function reservedForOf(order: { time?: BaseCallShape['time']; capturedAt?: string; timestamp?: string }): string | null {
+    const days = order.time?.pickup?.day;
     if (days == null || !(days >= 1)) return null;
     const base = Date.parse(order.capturedAt ?? order.timestamp ?? '');
     if (!Number.isFinite(base)) return null;
@@ -612,12 +613,13 @@ export interface TimingOrderFields {
      *    그러면 화면을 열 때마다 마감이 뒤로 밀려 *"영원히 여유가 있다"* 고 거짓말한다.
      */
     capturedAt?: string;
-    /** ⏱️ 적요 — 상차 시계("HH:MM상차")를 여기서 읽는다 (두 시계 · ⑯) */
-    itemDescription?: string;
-    /** 📅 예약 날(0 오늘 · 1 내일 · N)·시각 «HH:MM» — 있으면 상차 시계가 이것으로 날짜를 만든다 */
-    reservedDay?: number | null;
-    reservedAt?: string | null;
-    detailMemo?: string;
+    /**
+     * 🎯 콜 묶음 (계획서 E3) — 상차 약속(time.pickup: 예약 날 0 오늘 · 1 내일 · N, 시각 «HH:MM»)과
+     *    상차 시계(«HH:MM상차»)를 읽는 짐 글(load.itemDescription) · 적요(job.detailMemo) (두 시계 · ⑯)
+     */
+    time?: BaseCallShape['time'];
+    load?: BaseCallShape['load'];
+    job?: BaseCallShape['job'];
     approachDurationMin?: number;
     totalDistanceKm?: number;
     kakaoSoloDistanceKm?: number;
@@ -748,16 +750,17 @@ export function derivationInputsOf(cfg: {
  * 통화로 굳힌 약속은 호출부(declared)가 이긴다. 파생 한 곳 — 시딩과 타임라인이 같이 쓴다.
  */
 export function pickupClockMsOf(
-    order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo' | 'reservedDay' | 'reservedAt'>,
+    order: Pick<TimingOrderFields, 'time' | 'load' | 'job'>,
     capturedMs: number, offsetMinutes: number,
 ): number | null {
     /**
-     * 📅 **예약이 먼저다** — «잡은 날 + reservedDay 일»의 reservedAt 시각.
+     * 📅 **예약이 먼저다** — «잡은 날 + 예약 날(time.pickup.day) 일»의 예약 시각(time.pickup.at).
      *    오늘 안의 «예약 18:30»(0일)도 여기서 맞는다. 적요 시각은 날을 모르니 예약이 없을 때만 쓴다.
      */
-    const at = /^(\d{1,2}):(\d{2})$/.exec(order.reservedAt ?? '');
-    if (at && order.reservedDay != null && order.reservedDay >= 0) {
-        const day = kstDateText(capturedMs + order.reservedDay * 86_400_000);
+    const promise = order.time?.pickup;
+    const at = /^(\d{1,2}):(\d{2})$/.exec(promise?.at ?? '');
+    if (at && promise?.day != null && promise.day >= 0) {
+        const day = kstDateText(capturedMs + promise.day * 86_400_000);
         const t = Date.parse(`${day}T${at[1].padStart(2, '0')}:${at[2]}:00+09:00`);
         if (Number.isFinite(t) && t >= capturedMs) return t;   // 과거 시각이면 무시 (적요 시각과 같은 규칙)
     }
@@ -767,8 +770,8 @@ export function pickupClockMsOf(
      *    적요 시각도 붙이지 않는다 — 적요는 상차·하차를 안 가른다(«10시전하차»가 내일 상차 10:00 이 된다).
      *    약속은 기사님이 상차지 통화로 넣으신다.
      */
-    if ((order.reservedDay ?? 0) >= 1) return null;
-    const hint = parseCargoHints(order.itemDescription, order.detailMemo).promisedAt;
+    if ((promise?.day ?? 0) >= 1) return null;
+    const hint = parseCargoHints(order.load?.itemDescription, order.job?.detailMemo).promisedAt;
     if (hint) {
         const kstDay = kstDateText(capturedMs);
         const t = Date.parse(`${kstDay}T${hint}:00+09:00`);

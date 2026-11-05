@@ -17,6 +17,7 @@
  * `predicted_at` 은 **태어난 순간의 예측**으로 동결된다 — 실제(occurred_at)와 빼면
  * 그대로 예측 오차다 (todo ⑥).
  */
+import { OrderRepository } from "../repositories/OrderRepository";
 import db, { dwellRatesFor } from '../db';
 // 🔴 **미리 눌러 두는 기본값은 shared 하나에서 온다** — 여기서 손으로 다시 적으면 두 벌이 되어
 //    «한쪽만 고치는 날» 갈라진다 (규칙 ③).
@@ -230,7 +231,7 @@ export function firmPromiseMsOf(orderId: string, stopType: 'pickup' | 'dropoff')
 
 /** KEEP 의 일: 첫 행(상차지 통화)만 태어난다 */
 export function birthFirstStep(userId: string, orderId: string, judgment?: JudgmentConfig, routeTl?: RouteTl) {
-    const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
+    const o = OrderRepository.shapedRowOf(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any);   // 🎯 묶음 펼친 행 (계획서 E)
     if (!o) throw new Error(`콜을 찾을 수 없습니다: ${orderId}`);
     const born = bornRows(orderId);
     if (born.CALL_PICKUP) return;                        // 이미 태어났다 (재KEEP 등)
@@ -244,7 +245,7 @@ function birthNext(userId: string, orderId: string, after: StepId, judgment?: Ju
     if (!next) return;
     const born = bornRows(orderId);
     if (born[next]) return;
-    const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
+    const o = OrderRepository.shapedRowOf(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any);   // 🎯 묶음 펼친 행 (계획서 E)
     if (!o) return;
     insertStep(userId, orderId, next, computeChain(o, born, judgment, routeTl)[next]);
     slog('콜단계', `🌱 [출생] ${orderId.slice(-6)} · ${tableOf(next).label} ← ${tableOf(after).label} 끝`);
@@ -262,7 +263,7 @@ function finalizeStep(userId: string, orderId: string, step: StepId,
     patch: Record<string, any>, judgment?: JudgmentConfig, routeTl?: RouteTl) {
     let born = bornRows(orderId);
     if (!born[step]) {
-        const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
+        const o = OrderRepository.shapedRowOf(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any);   // 🎯 묶음 펼친 행 (계획서 E)
         if (!o) return;
         for (const st of ORDER.slice(0, ORDER.indexOf(step) + 1)) {
             if (born[st]) continue;
@@ -352,7 +353,7 @@ export function bridgeCargoReport(userId: string, orderId: string,
          * 🔴 «굳은 행은 불변» 의 예외가 아니다. 이건 **그 단계 자신의 사건**(통화)이라
          *    마감하며 채우는 값이다 (`refreshPlannedSteps` 의 경로 변경과는 다르다).
          */
-        const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
+        const o = OrderRepository.shapedRowOf(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any);   // 🎯 묶음 펼친 행 (계획서 E)
         if (o) {
             const want = computeChain(o, bornRows(orderId), judgment, routeTl)[step];
             const d = want?.planned_dwell_min;
@@ -448,7 +449,7 @@ export function saveStepDwell(orderId: string, step: StepId, minutes: number): b
  */
 export function refreshPlannedSteps(userId: string, orderId: string,
     judgment?: JudgmentConfig, routeTl?: RouteTl) {
-    const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
+    const o = OrderRepository.shapedRowOf(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any);   // 🎯 묶음 펼친 행 (계획서 E)
     if (!o) return;
     const born = bornRows(orderId);
     const chain = computeChain(o, born, judgment, routeTl);

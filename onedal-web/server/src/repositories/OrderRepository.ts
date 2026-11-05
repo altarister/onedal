@@ -1,7 +1,7 @@
 import db from "../db";
 import { MyOrder, PendingOrder, SecuredOrder, LET_GO_STATUSES } from "@onedal/shared";
 import type { CargoReport, LocationDetailInfo, BaseCall, CallEvidence } from "@onedal/shared";
-import { baseCallRowOf } from "@onedal/shared";
+import { baseCallRowOf, baseCallShapeOf, baseCallFromRow } from "@onedal/shared";
 
 export class OrderRepository {
     /**
@@ -123,6 +123,16 @@ export class OrderRepository {
         const columns = Object.keys(row);
         db.prepare(`UPDATE orders SET ${columns.map((c) => `${c} = COALESCE(?, ${c})`).join(', ')} WHERE id = ? AND userId = ?`)
             .run(...columns.map((c) => row[c]), orderId, userId);
+    }
+
+    /**
+     * 🎯 **콜 표의 행에 기본 콜 묶음을 펼친다** (계획서 E) — 관제웹 콜 목록 · 단계 시트가 같이 쓴다.
+     * 복원과 같은 재료(연락처 · 참거짓 예약)로 만들어 기억 속 콜과 같은 묶음이 된다. 행이 없으면 없다.
+     */
+    public static shapedRowOf<T extends Record<string, any> | undefined>(row: T): T {
+        if (!row) return row;
+        const flat = { ...row, reserved: row.reserved == null ? undefined : !!row.reserved, ...OrderRepository.stopContactsOf(row.id) };
+        return { ...row, ...baseCallShapeOf(flat as any, baseCallFromRow(row, row.id, row.targetApp).call) };
     }
 
     public static setCodCollected(orderId: string, userId: string, received: boolean, amount: number) {
