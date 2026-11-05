@@ -19,9 +19,13 @@ object BaseCallReport {
      */
     fun partOf(orderId: String, at: String, seenText: String?, screen: String = "newList", read: String = "text", fill: () -> BaseCall?): Part = try {
         val call = fill()?.copy(id = orderId)   // 번호는 보내기 직전에 정해진다
-        if (call != null && LogOnce.changed("baseCall-part", call.id)) AppLogger.d("BaseCallReport", LogTag.CALL_STAGE, "🎯 [기본 콜] ${call.targetApp} ${call.id.take(8)} — 요금 줄 ${call.money.lines.size} · 상세 주소 ${!call.route.pickup.addressDetail.isNullOrEmpty()} · 목록 동 ${call.route.listRegion != null}")
+        val evidence = seenText?.takeIf { it.isNotBlank() }?.let { CallEvidence(seen = listOf(EvidenceLine(at = at, screen = screen, read = read, rawText = it))) }
+        if (call != null && LogOnce.changed("baseCall-part", "${call.id}/$screen")) {
+            val gson = com.google.gson.Gson()
+            AppLogger.d("BaseCallReport", LogTag.CALL_STAGE, "🎯 [기본 콜] ${call.targetApp} ${call.id.take(8)} $screen — 요금 줄 ${call.money.lines.size} · 상세 주소 ${!call.route.pickup.addressDetail.isNullOrEmpty()} · 목록 동 ${call.route.listRegion != null} · 기본 콜 ${gson.toJson(call).toByteArray().size}바이트 · 기록 ${evidence?.let { gson.toJson(it).toByteArray().size } ?: 0}바이트")
+        }
         if (call == null) Part()
-        else Part(call, seenText?.takeIf { it.isNotBlank() }?.let { CallEvidence(seen = listOf(EvidenceLine(at = at, screen = screen, read = read, rawText = it))) })
+        else Part(call, evidence)
     } catch (e: Throwable) {   // TODO() · 재귀 넘침 · 초기화 실패는 Exception 이 아니다
         if (LogOnce.changed("baseCall-failed", e.javaClass.name)) AppLogger.w("BaseCallReport", "🎯 [기본 콜 조립 실패] 옛 보고만 보낸다 — ${e.message}")
         Part()
