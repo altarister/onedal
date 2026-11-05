@@ -127,6 +127,13 @@ export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder 
     openedBy?: 'APP' | 'DRIVER' | null;  // 상세 화면을 연 주체 — 원달앱 / 기사님
 }
 
+/**
+ * 🎯 **콜에 펼친 기본 콜 묶음** (계획서 E) — 서버가 콜을 기억에 넣을 때 펼친다(`baseCallShapeOf`).
+ * 옛 칸이 있는 값은 옛 칸에서, 옛 칸이 없는 새 값만 원달앱 기본 콜에서 온다. 읽는 줄은 묶음마다 옮긴다.
+ */
+export type BaseCallShape = Partial<Pick<BaseCall, 'requesterName' | 'fromOtherOffice' | 'orderNo' | 'clientOrderNo' | 'stage' | 'route' | 'money' | 'load' | 'time' | 'job'>>;
+export interface OfficeOrder extends BaseCallShape {}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 2-A] 심사 중 오더 — 서버 메모리 전용 (아직 내 퀵이 아님)
 // 앱이 긁어와서 서버가 꿀/똥콜 판별 중인 임시 데이터

@@ -82,3 +82,8 @@ export function officeValuesHeld(userId: string, order: Partial<OfficeOrder> & {
         return {};
     }
 }
+
+/** 🎯 합쳐 둔 원달앱 기본 콜 — 콜을 기억에 넣을 때 묶음을 펼치는 데 쓴다(계획서 E). 없으면 undefined */
+export function heldBaseCallOf(userId: string, id: string): BaseCall | undefined {
+    return held.get(keyOf(userId, id))?.call;
+}

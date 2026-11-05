@@ -93,6 +93,17 @@ const isflexEvidence: CallEvidence = {
 /** 지금 OfficeOrder 칸이 가는 곳 — 칸이 빠지면 타입 검사가 잡는다 */
 const officeOrderFieldMap: Record<keyof OfficeOrder, string> = {
     id: 'id (그대로)',
+    /* 🎯 콜에 펼친 기본 콜 묶음 (계획서 E) — 기본 콜 칸 그대로 */
+    requesterName: 'BaseCall.requesterName (묶음)',
+    fromOtherOffice: 'BaseCall.fromOtherOffice (묶음)',
+    orderNo: 'BaseCall.orderNo (묶음)',
+    clientOrderNo: 'BaseCall.clientOrderNo (묶음)',
+    stage: 'BaseCall.stage (묶음)',
+    route: 'BaseCall.route (묶음)',
+    money: 'BaseCall.money (묶음)',
+    load: 'BaseCall.load (묶음)',
+    time: 'BaseCall.time (묶음)',
+    job: 'BaseCall.job (묶음)',
     type: 'CallReport.type',
     timestamp: 'CallReport.timestamp',
     rawText: 'CallReport.rawText (가장 늦은 상세) · CallEvidence.seen[].rawText (전부)',

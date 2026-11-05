@@ -63,6 +63,7 @@ describe('🎯 관제웹 콜 목록', () => {
         expect(mine).toBeDefined();
         expect(Object.keys(mine).filter((k) => k in BASE_CALL_COLUMN_TYPES)).toEqual([]);
         expect(JSON.stringify(mine)).not.toContain('010-1234-5678');
+        expect(mine.route.pickup.addressDetail).toBe(mine.pickup);   // 🎯 실시간 전송과 같은 묶음 (계획서 E)
     });
 });
 
@@ -92,6 +93,7 @@ describe('♻️ 재시작 뒤', () => {
         const spy = jest.spyOn(fileLogger, 'slog');
         compareBaseCall(U, { ...order(`${U}-r`), id: `${U}-r` });
         expect(spy.mock.calls.some(([, line]) => String(line).includes('🔍 [기본 콜 견줌]') && String(line).includes(`${U}-r`))).toBe(true);
+        expect(getUserSession(U).pendingOrdersData.get(`${U}-r`).route.pickup.addressDetail).toBe('경기 광주시 경안동 1-2');   // 🎯 복원한 콜에도 묶음
         spy.mockRestore();
     });
 });

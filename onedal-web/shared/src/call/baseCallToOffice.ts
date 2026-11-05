@@ -7,7 +7,7 @@
  * 어떻게: 찾은 칸만 싣는다. 뜻이 섞인 칸은 담긴 글자 그대로 옮기고, 옛 목록에 없는 값은 안 넘긴다
  * 왜: 플러그인이 값을 채우는 동안 판정과 화면을 그대로 두기 위해서다
  */
-import type { BaseCall, CallEvidence, CallReport, CallCoordinates, CallStop, LocationDetailInfo, MoneyKind, MoneyLine, OfficeOrder } from './orderShapes';
+import type { BaseCall, CallEvidence, CallReport, CallCoordinates, CallStop, LocationDetailInfo, MoneyKind, MoneyLine, OfficeOrder, BaseCallShape, CallMoney, CallRoute } from './orderShapes';
 import { BILLING_TYPES, PAYMENT_TYPES } from './paymentTypes';
 import type { BillingType, PaymentType } from './paymentTypes';
 
@@ -178,4 +178,58 @@ export function officeValuesOf(call: BaseCall, order: Partial<OfficeOrder>): Par
     const office = officeOrderOf(call, {}, {}, true);
     const filled = (value: unknown) => { const t = comparable(value); return t !== '' && t !== EMPTY; };
     return Object.fromEntries(OFFICE_FIELDS.filter((field) => filled(order[field]) && filled(office[field])).map((field) => [field, office[field]])) as Partial<OfficeOrder>;
+}
+
+/**
+ * 옛 칸 → 기본 콜 경로 — 옛 칸이 있는 값의 원천은 옛 칸이다 (계획서 E).
+ * 요금 · 수수료 · 탁송료는 금액 줄이라 따로 만든다. 연락처는 정거장 칸으로 간다.
+ */
+const OFFICE_PATHS: ReadonlyArray<readonly [keyof OfficeOrder, readonly string[]]> = [
+    ['pickup', ['route', 'pickup', 'addressDetail']], ['dropoff', ['route', 'dropoff', 'addressDetail']],
+    ['pickupDistance', ['route', 'pickupDistance']], ['deliveryDistance', ['route', 'deliveryDistance']],
+    ['paymentType', ['money', 'paymentType']], ['billingType', ['money', 'billingType']],
+    ['vehicleType', ['load', 'vehicleType']], ['itemSize', ['load', 'itemSize']], ['itemDescription', ['load', 'itemDescription']],
+    ['scheduleText', ['time', 'pickup', 'text']], ['reserved', ['time', 'pickup', 'reserved']], ['reservedDay', ['time', 'pickup', 'day']],
+    ['reservedAt', ['time', 'pickup', 'at']], ['postTime', ['time', 'postTime']],
+    ['tripType', ['job', 'tripType']], ['orderForm', ['job', 'orderForm']], ['tagsText', ['job', 'tagsText']], ['detailMemo', ['job', 'detailMemo']],
+    ['receiptStatus', ['stage']], ['dispatcherName', ['dispatcherName']], ['dispatcherPhone', ['dispatcherPhone']],
+];
+const STOP_CONTACT: ReadonlyArray<keyof LocationDetailInfo> = ['customerName', 'department', 'contactName', 'phone1', 'phone2'];
+
+const filledValue = (value: unknown) => value !== undefined && value !== null && value !== '';
+function setPath(target: Record<string, unknown>, path: readonly string[], value: unknown): void {
+    let at = target;
+    for (const key of path.slice(0, -1)) at = (at[key] ??= {}) as Record<string, unknown>;
+    if (filledValue(value)) at[path[path.length - 1]] = value;
+    else delete at[path[path.length - 1]];
+}
+
+/**
+ * 🎯 **콜에 펼칠 기본 콜 묶음** (계획서 E) — 옛 칸이 있는 값은 옛 칸에서, 옛 칸이 없는 새 값만 원달앱 기본 콜에서 가져온다.
+ * 옛 칸이 비면 기본 콜에 값이 있어도 비운다 — 옛 칸에 없던 값(화물 글 · 유의사항 · 인수증 · 사진 거리 · 연락처)이 읽는 줄로 몰래 흐르지 않게.
+ * 배차망 이름으로 가르지 않는다. 기본 콜이 없는 콜(옛 앱 · 옛 행)은 옛 칸으로만 만든다.
+ * 🔴 옛 요금은 종류(목록 요금 · 수입)를 모른다 — 기본 콜에 같은 금액 줄이 없으면 «옛 요금»으로만 둔다. 종류는 요금을 옮기는 E5 에서 정한다.
+ */
+export function baseCallShapeOf(order: Partial<OfficeOrder>, held?: BaseCall): BaseCallShape {
+    const base = JSON.parse(JSON.stringify(held ?? {})) as Record<string, unknown>;
+    const shape: Record<string, unknown> = {
+        ...Object.fromEntries((['requesterName', 'fromOtherOffice', 'orderNo', 'clientOrderNo'] as const).filter((k) => base[k] !== undefined).map((k) => [k, base[k]])),
+        route: { ...((base.route as object) ?? {}), pickup: { ...((base.route as CallRoute | undefined)?.pickup ?? {}) }, dropoff: { ...((base.route as CallRoute | undefined)?.dropoff ?? {}) } },
+        money: { ...((base.money as object) ?? {}) }, load: { ...((base.load as object) ?? {}) }, time: { ...((base.time as object) ?? {}) }, job: { ...((base.job as object) ?? {}) },
+    };
+    for (const [field, path] of OFFICE_PATHS) setPath(shape, path, order[field]);
+    const route = shape.route as CallRoute;
+    for (const [side, details] of [['pickup', order.pickupDetails], ['dropoff', order.dropoffDetails]] as const) {
+        for (const key of STOP_CONTACT) setPath(route as unknown as Record<string, unknown>, [side, key], details?.[0]?.[key]);
+    }
+    const heldLines = held?.money?.lines ?? [];
+    const fareLine = heldLines.find((line) => (line.kind === 'total' || line.kind === 'income') && line.won === order.fare);
+    const lines: MoneyLine[] = [
+        ...(order.fare && order.fare > 0 ? [fareLine ?? { kind: 'unknown' as const, won: order.fare, label: '옛 요금' }] : []),
+        ...(filledValue(order.commissionRate) ? [{ kind: 'fee' as const, rate: String(order.commissionRate) }] : []),
+        ...(filledValue(order.tollFare) ? [{ kind: 'consign' as const, rate: String(order.tollFare) }] : []),
+        ...heldLines.filter((line) => !['total', 'income', 'fee', 'consign'].includes(line.kind)),
+    ];
+    (shape.money as CallMoney).lines = lines;
+    return shape as BaseCallShape;
 }

@@ -341,9 +341,9 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 judgment: OrderRepository.getJudgmentVerdict(row.id),
                 contacts: OrderRepository.stopContactsOf(row.id),
             });
-            rememberOrder(session, order as any);
-            /* 🎯 기본 콜 · 화면 기록은 콜 값에 안 붙이고 따로 되돌린다 — 소켓에 실리지 않게 (계획서 D2) */
+            /* 🎯 기본 콜 · 화면 기록을 서버 기억에 먼저 되돌린다 — 콜을 기억에 넣을 때 묶음을 펼치는 재료다 (계획서 D2 · E) */
             restoreHeldBaseCall(userId, row.id, baseCallFromRow(row, row.id, row.targetApp));
+            rememberOrder(session, order as any);
         }
 
         /**

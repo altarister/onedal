@@ -36,7 +36,7 @@ import { ownsOrder, ownedByOther } from "../core/orderOwner";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import { isAppTooOld } from "../state/phoneStatus";
 import { holdBaseCall } from "../services/baseCallCompare";
-import { withoutBaseCallColumns } from "@onedal/shared";
+import { withoutBaseCallColumns, baseCallShapeOf, baseCallFromRow } from "@onedal/shared";
 
 const router = Router();
 
@@ -80,6 +80,7 @@ router.get("/", requireAuth, (req, res) => {
         res.json({
             orders: (rows as any[]).map(r => ({
                 ...withoutBaseCallColumns(r),   // 🎯 기본 콜 · 화면 기록 열은 관제웹에 안 보낸다 — 전화번호 · 화면 원문 (계획서 D2)
+                ...baseCallShapeOf(r, baseCallFromRow(r, r.id, r.targetApp).call),   // 🎯 실시간 전송과 같은 묶음 (계획서 E)
                 routePolyline: parsePolyline(r.routePolyline),
                 /** 🎨 구간 경계도 함께 편다 — 궤적과 같은 운명이라야 지도가 색을 잃지 않는다 */
                 sectionEnds: parseSectionEnds(r.sectionEnds),

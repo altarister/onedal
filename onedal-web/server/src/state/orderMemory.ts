@@ -1,4 +1,5 @@
-import { PendingOrder, isTerminal } from "@onedal/shared";
+import { PendingOrder, isTerminal, baseCallShapeOf } from "@onedal/shared";
+import { heldBaseCallOf } from "../services/baseCallCompare";
 import { UserSession } from "./userSessionStore";
 import { slog } from "../utils/fileLogger";
 
@@ -45,6 +46,9 @@ export function rememberOrder(session: UserSession, order: PendingOrder | { id: 
         slog('콜단계', `🚪 [되살리기 막음] ${id} 는 ${prev.status} 로 끝난 콜이다 — ${order.status} 로 덮지 않는다`);
         return false;
     }
+    /* 🎯 기본 콜 묶음을 펼친다 — 옛 칸이 있는 값은 옛 칸에서, 새 값만 원달앱 기본 콜에서 (계획서 E) · 서버 판정과 관제웹이 같은 콜을 본다 */
+    /*    넘겨받은 객체에 펼친다 — 부르는 쪽이 같은 객체를 관제웹으로 내보낸다 */
+    if (typeof (order as PendingOrder).pickup === 'string') Object.assign(order, baseCallShapeOf(order as PendingOrder, heldBaseCallOf(session.userId, id)));
     session.pendingOrdersData.set(id, order as PendingOrder);
     return true;
 }

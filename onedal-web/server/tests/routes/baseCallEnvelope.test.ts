@@ -25,7 +25,7 @@ const evidence = { seen: [{ at: 't', screen: 'newList', rawText: '목록 글자'
 const order = (id: string, rawText: string) => ({ id, type: 'AUTO_CLICK', pickup: '경기 광주시 경안동 1-2', dropoff: '서울 용산구 한남동 12', fare: 50000, timestamp: '2026-11-05T10:00:00+09:00', rawText });
 /** 흔들리는 칸(시각 · 서버가 매기는 값)을 뺀 메모리 콜 */
 const held = (id: string) => {
-    const { capturedAt, statusUpdatedAt, ...rest } = getUserSession(U).pendingOrdersData.get(id) ?? {};
+    const { capturedAt, statusUpdatedAt, route, money, load, time, job, stage, ...rest } = getUserSession(U).pendingOrdersData.get(id) ?? {};   // 펼친 묶음은 아래 시험이 따로 본다
     return { ...rest, id: 'same' };
 };
 const post = async (router: any, path: string, body: any) => {
@@ -65,6 +65,27 @@ describe('🎯 옛 서버 + 새 앱 보고', () => {
         expect(held('b2')).toEqual({ ...held('b1'), pickup: '다른 주소', fare: 1 });
         expect(getUserSession(U).pendingOrdersData.get('b2')).not.toHaveProperty('baseCall');
         expect(getUserSession(U).pendingOrdersData.get('b2')).not.toHaveProperty('evidence');
+    });
+    it('🎯 기억에 넣은 콜에 기본 콜 묶음이 펼쳐진다 — 옛 앱 콜은 옛 칸으로', async () => {
+        await post(detailRouter, '/', { step: 'DETAILED', order: order('e1', '상세 글'), baseCall: { ...baseCall, route: { ...baseCall.route, listRegion: { pickup: '경안', dropoff: '한남' } }, time: { dropoff: { by: '18:28' } } } });
+        const got = getUserSession(U).pendingOrdersData.get('e1');
+        expect(got.route.listRegion).toEqual({ pickup: '경안', dropoff: '한남' });
+        expect(got.time.dropoff.by).toBe('18:28');
+        expect(got.route.pickup.addressDetail).toBe(got.pickup);
+        await post(detailRouter, '/', { step: 'DETAILED', order: order('e2', '상세 글') });
+        const old = getUserSession(U).pendingOrdersData.get('e2');
+        expect(old.route.pickup.addressDetail).toBe('경기 광주시 경안동 1-2');
+        expect(old.route.listRegion).toBeUndefined();
+    });
+    it('🎯 관제웹으로 내보낸 콜에도 묶음이 있다', async () => {
+        const sent = [];
+        const app = { get: (k) => (k === 'io' ? { to: () => ({ emit: (name, body) => sent.push([name, body]) }) } : undefined) };
+        const layer = detailRouter.stack.find((l) => l.route?.path === '/' && l.route.methods.post);
+        const res = { status: () => res, json: () => res };
+        await layer.route.stack[layer.route.stack.length - 1].handle({ app, headers: {}, body: { deviceId: DEV, matchType: 'AUTO', capturedAt: 't', step: 'DETAILED', order: order('e3', '상세 글'), baseCall } }, res);
+        const calls = sent.map(([, body]) => body).filter((b) => b && b.id === 'e3' && b.status);
+        expect(calls.length).toBeGreaterThan(0);
+        for (const body of calls) expect(body.route?.pickup?.addressDetail).toBe(body.pickup);
     });
     it('🔴 옛 길이 비운 칸은 기본 콜에 값이 있어도 비운 채로 둔다', async () => {
         await post(detailRouter, '/', { step: 'DETAILED', order: order('b3', '상세 글'), baseCall: { ...baseCall, job: { detailMemo: '새로 살린 적요' }, money: { lines: [], billingType: '인수증' } } });

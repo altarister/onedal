@@ -32,7 +32,9 @@ const post = async (router: any, path: string, body: any) => {
 };
 /* 돌릴 때마다 달라지거나 시험 틀이 정한 칸 */
 const SHAKY = ['id', 'capturedAt', 'statusUpdatedAt', 'updatedAt', 'createdAt', 'userId', 'judgeUntil', 'detailReceivedAt'];
-const steady = (value: any) => JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(value).filter(([k, v]) => !SHAKY.includes(k) && v !== null))));
+/* 펼친 기본 콜 묶음(계획서 E)은 baseCallShape 검사가 본다 — 여기서는 옛 칸만 견준다 */
+const SHAPE = ['route', 'money', 'load', 'time', 'job', 'stage', 'requesterName', 'fromOtherOffice', 'orderNo', 'clientOrderNo'];
+const steady = (value: any) => JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(value).filter(([k, v]) => !SHAKY.includes(k) && !SHAPE.includes(k) && v !== null))));
 
 async function merged(c: any, index: number, withBaseCall = false) {
     clearUserSession(U);
