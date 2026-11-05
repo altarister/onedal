@@ -13,7 +13,7 @@
  * - 상차 · 하차 약속은 같은 모양이다. 정시(at)와 마감(by)은 다른 칸이다.
  * - 뜻이 같은 칸은 지금 이름 그대로 쓴다. id · targetApp · dispatcherName · dispatcherPhone 은 맨 위에 두어 경로도 안 바꾼다.
  * - 기록(CallEvidence)은 콜과 따로 저장하고 소켓에 안 싣는다.
- * - 값은 «언제 생기나 · 콜 한 건의 값인가»로 나눈다. 잡기 전 콜 값은 BaseCall, 잡은 뒤 값은 CallProgress · CallSettlement, 콜 값이 아닌 것은 CALL_VALUES_OUTSIDE 표에 적는다.
+ * - 값은 «언제 생기나 · 콜 한 건의 값인가»로 나눈다. 잡기 전 콜 값은 BaseCall, 잡은 뒤 값은 NetworkProgress · CallSettlement, 콜 값이 아닌 것은 CALL_VALUES_OUTSIDE 표에 적는다.
  * - tripType · orderForm 은 지금 칸을 유지한다. 합치면 급송 판단이 옮겨 가고 저장 값이 달라질 수 있다.
  *
  * 잃는 것
@@ -31,11 +31,11 @@
  * 🔴 = 새 저장 칸, 원달앱 변경, 정의 표 변경, 또는 운행이 바뀌는 자리. 승인 없이 넣지 않는다
  */
 // ━━ 리뷰: onedal-1e ━━ 7판
-// - shortOrderNo 는 잡은 뒤 값이다 → CallProgress 로 옮김
+// - shortOrderNo 는 잡은 뒤 값이다 → NetworkProgress 로 옮김
 // - partnerCall 은 제휴사로 읽힌다 → fromOtherOffice. 목록 값을 상세가 덮지 않게 적음
 // - 인수증은 billingType, 선/착불만 paymentType → 그대로 넣음
 // - 인성 «-» 뒤는 itemSize, basis → takeHomeBasis, pickedUpAt 추가, region 은 서버 원문, 표 밖 값을 갈 곳별로 가름 → 넣음
-// - 서명은 CallStop 으로 → 안 넣음. 잡은 뒤 값이라 CallProgress 에 둔다 (shortOrderNo 를 옮긴 까닭과 같다)
+// - 서명은 CallStop 으로 → 안 넣음. 잡은 뒤 값이라 NetworkProgress 에 둔다 (shortOrderNo 를 옮긴 까닭과 같다)
 // - 안 쓰는 mileage · requestedTime → 기사님 결정으로 뺌
 // ━━ 리뷰: onedal-89 [e57856] ━━ 7판
 // - 화물24시 «수»는 합계에 더해진다 → collectedFee 로 나눔. total 주석 고침
@@ -129,7 +129,7 @@ export interface CallMoney {
     billingType?: BillingType;   // 증빙 방식: 계산서 · 인수증 · 무과세 — 인성 둘째 괄호 · 화물24시 결제방법 «인수증». 화물24시 플러그인이 결제방법 글자를 뜻대로 나눈다
 }
 
-/** 뭘 싣나 — 배차망이 말한 그대로 둔다. 실리는지는 CallFacts.load 가 답한다 */
+/** 뭘 싣나 — 배차망이 말한 그대로 둔다. 실리는지는 BaseCallFacts.load 가 답한다 */
 export interface CallLoad {
     vehicleType?: string;        // 콜 차종 낱말 그대로 — «다마스», «1t», «2.5톤/윙», 픽커 «승». 이 짐을 옮기라는 수단이고 내 차와 다른 개념이다
     itemSize?: string | null;    // 크기 낱말 — 픽커 목록 «소형». 지금 픽커 사진은 «소형 세 변의 합 …» 줄 통째를 옛 itemSize 에 넣는다. 그 줄은 itemDescription 으로 가고 옛 값은 바꾸는 함수가 다시 만든다 · 플렉스 «대박스»(안내 영상 · 안 읽음) · 인성 «다마스-다마»의 «다마»
@@ -231,7 +231,7 @@ export interface CallEvidence {
 }
 
 /** 잡은 뒤 진행 — 콜을 잡은 뒤 배차망 화면에 적힌 진행 사실. BaseCall 밖이고 🔴 키만 정했다. 저장 칸은 없다 */
-export interface CallProgress {
+export interface NetworkProgress {
     shortOrderNo?: string;       // 짧은 오더 코드 — 픽커 왼쪽 위 «DJYZ914». 잡은 뒤에만 보이고 같은 콜의 F번호와 다르다
     acceptedAt?: string;         // 잡은 시각 — 화물24시 «배차시간». ackedAt 은 폰이 결재를 실행한 시각이라 다르다
     pickedUpAt?: string;         // 배차망이 적은 픽업 시각 — 플렉스 «픽업시간 09:38»
@@ -265,7 +265,7 @@ export interface CallSettlement {
 }
 
 /** 판정 · 화면이 읽는 답 — 저장하지 않고 BaseCall 에서 뽑는다. 판정 코드는 배차망을 몰라도 된다 */
-export interface CallFacts {
+export interface BaseCallFacts {
     listKey: string | null;      // 같은 콜 찾기 글자 — route.firstSeen. detail.ts:142 자리
     navAddress: { pickup: string | null; dropoff: string | null };  // 내비에 찍을 주소 — addressDetail, 없으면 firstSeen. geocodeTargetOf 자리
     phone: { pickup?: string; dropoff?: string };  // 걸 번호 — 기존 stopPhoneOf
@@ -304,12 +304,12 @@ export type NextPendingOrder = ServerSide & ApproxAddress & QuickFoldFields & { 
 /** 끝 모습의 내 콜 — 기사님이 KEEP 해 내 것이 된 콜. 아직 아무도 안 쓴다 */
 export type NextMyOrder = ServerSide & {
     status: MyOrderStatus; reservedFor?: string; completedAt?: string | null; terminatedAt?: string | null;
-    judgment?: JudgmentSnapshot; progress?: CallProgress; settlement?: CallSettlement;
+    judgment?: JudgmentSnapshot; progress?: NetworkProgress; settlement?: CallSettlement;
 };
 /** 끝 모습의 관제웹 콜 — 심사 중 콜과 내 콜을 한 모양으로 받는다. 아직 아무도 안 쓴다 */
 export type NextSecuredOrder = ServerSide & ApproxAddress & QuickFoldFields & {
     status: OrderStatus; completedAt?: string | null; terminatedAt?: string | null; judgeUntil?: number;
-    judgment?: JudgmentSnapshot; progress?: CallProgress; settlement?: CallSettlement;
+    judgment?: JudgmentSnapshot; progress?: NetworkProgress; settlement?: CallSettlement;
 };
 // 🔴 옮기는 동안: 평평한 칸을 BaseCall 에서 뽑아 주는 함수를 두고 읽는 코드를 묶음별로 옮긴다.
 // 🔴 합치기: evolveOrder 는 얕은 병합이라 route · money 를 통째로 지운다. 칸별로 합치고 금액은 종류별로 합치는 코드와 검사가 필요하다.
@@ -485,13 +485,13 @@ export const BASE_CALL_PARTS = {
         { group: 'BaseCall 안', type: 'CallTime', depth: 0 },
         { group: 'BaseCall 안', type: 'CallPromise', depth: 1 },
         { group: 'BaseCall 안', type: 'CallJob', depth: 0 },
-        { group: '밖, 잡은 뒤 콜에 붙음', type: 'CallProgress', depth: 0 },
+        { group: '밖, 잡은 뒤 콜에 붙음', type: 'NetworkProgress', depth: 0 },
         { group: '밖, 잡은 뒤 콜에 붙음', type: 'CallSettlement', depth: 0 },
         { group: '밖, 콜에 함께 붙음', type: 'CallReport', depth: 0 },
         { group: '밖, 콜에 함께 붙음', type: 'CallCoordinates', depth: 0 },
         { group: '밖, 따로 저장', type: 'CallEvidence', depth: 0 },
         { group: '밖, 따로 저장', type: 'EvidenceLine', depth: 1 },
-        { group: '밖, 저장 안 함', type: 'CallFacts', depth: 0 },
+        { group: '밖, 저장 안 함', type: 'BaseCallFacts', depth: 0 },
         { group: '끝 모습', type: 'NextPendingOrder', depth: 0 },
         { group: '끝 모습', type: 'NextMyOrder', depth: 0 },
         { group: '끝 모습', type: 'NextSecuredOrder', depth: 0 },

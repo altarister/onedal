@@ -3642,7 +3642,7 @@ export const BASE_CALL_FIELDS = {
    "section": "잡은 뒤 진행 — BaseCall 밖 — 콜을 잡은 뒤 배차망 화면에 적힌 진행 사실. 키만 정했고 저장 칸은 없다"
   },
   {
-   "type": "CallProgress",
+   "type": "NetworkProgress",
    "field": "acceptedAt",
    "path": "progress.acceptedAt",
    "label": "잡은 시각",
@@ -3687,7 +3687,7 @@ export const BASE_CALL_FIELDS = {
    }
   },
   {
-   "type": "CallProgress",
+   "type": "NetworkProgress",
    "field": "shortOrderNo",
    "path": "progress.shortOrderNo",
    "label": "짧은 오더 코드",
@@ -3721,7 +3721,7 @@ export const BASE_CALL_FIELDS = {
    }
   },
   {
-   "type": "CallProgress",
+   "type": "NetworkProgress",
    "field": "pickedUpAt",
    "path": "progress.pickedUpAt",
    "label": "픽업 시각",
@@ -3755,7 +3755,7 @@ export const BASE_CALL_FIELDS = {
    }
   },
   {
-   "type": "CallProgress",
+   "type": "NetworkProgress",
    "field": "pickupSigned",
    "path": "progress.pickupSigned",
    "label": "상차 서명",
@@ -3789,7 +3789,7 @@ export const BASE_CALL_FIELDS = {
    }
   },
   {
-   "type": "CallProgress",
+   "type": "NetworkProgress",
    "field": "dropoffSigned",
    "path": "progress.dropoffSigned",
    "label": "하차 서명",
@@ -3823,7 +3823,7 @@ export const BASE_CALL_FIELDS = {
    }
   },
   {
-   "type": "CallProgress",
+   "type": "NetworkProgress",
    "field": "cancelable",
    "path": "progress.cancelable",
    "label": "취소 가능",
@@ -3863,7 +3863,7 @@ export const BASE_CALL_FIELDS = {
    }
   },
   {
-   "type": "CallProgress",
+   "type": "NetworkProgress",
    "field": "deliveredAt",
    "path": "progress.deliveredAt",
    "label": "완료 시각",
@@ -3909,7 +3909,7 @@ export const BASE_CALL_FIELDS = {
    }
   },
   {
-   "type": "CallProgress",
+   "type": "NetworkProgress",
    "field": "canceledAt",
    "path": "progress.canceledAt",
    "label": "취소 시각",
@@ -3943,7 +3943,7 @@ export const BASE_CALL_FIELDS = {
    }
   },
   {
-   "type": "CallProgress",
+   "type": "NetworkProgress",
    "field": "proofRule",
    "path": "progress.proofRule",
    "label": "사진 인증 조건",
