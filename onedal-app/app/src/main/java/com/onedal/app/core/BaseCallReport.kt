@@ -19,7 +19,7 @@ object BaseCallReport {
         val call = fill()?.copy(id = orderId)   // 번호는 보내기 직전에 정해진다
         if (call == null) Part()
         else Part(call, listRowText?.takeIf { it.isNotBlank() }?.let { CallEvidence(seen = listOf(EvidenceLine(at = at, screen = "newList", read = "text", rawText = it))) })
-    } catch (e: Exception) {
+    } catch (e: Throwable) {   // TODO() · 재귀 넘침 · 초기화 실패는 Exception 이 아니다
         if (LogOnce.changed("baseCall-failed", e.javaClass.name)) AppLogger.w("BaseCallReport", "🎯 [기본 콜 조립 실패] 옛 보고만 보낸다 — ${e.message}")
         Part()
     }

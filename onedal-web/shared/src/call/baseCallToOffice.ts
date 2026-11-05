@@ -33,12 +33,12 @@ function knownLines(lines: readonly MoneyLine[]): MoneyLine[] {
     return lines.map((line) => (isMoneyKind(line.kind) ? line : { ...line, kind: 'unknown' as const, label: line.label ?? line.kind }));
 }
 
-/* 지금 요금은 목록 값이 있으면 상세가 안 건드린다 — 판정 입력이라 처음 값을 지킨다 */
+/* 지금 요금은 목록 값이 있으면 상세가 안 건드린다 — 판정 입력이라 종류가 달라도 처음 값을 지킨다 */
 const FIRST_WINS: readonly MoneyKind[] = ['total', 'income'];
 const lineKey = (line: MoneyLine) => (line.kind === 'unknown' ? `unknown:${line.label ?? ''}` : line.kind);
 function mergeLines(prev: readonly MoneyLine[], next: readonly MoneyLine[]): MoneyLine[] {
-    const held = prev.filter((line) => FIRST_WINS.includes(line.kind) && (line.won ?? 0) > 0);
-    const incoming = next.filter((line) => !held.some((h) => h.kind === line.kind));
+    const fareHeld = prev.some((line) => FIRST_WINS.includes(line.kind) && (line.won ?? 0) > 0);
+    const incoming = fareHeld ? next.filter((line) => !FIRST_WINS.includes(line.kind)) : next;
     const keys = new Set(incoming.map(lineKey));
     return [...prev.filter((line) => !keys.has(lineKey(line))), ...incoming];
 }
@@ -93,28 +93,28 @@ function fareOf(call: BaseCall): number | undefined {
 /**
  * 옛 콜 칸 — 찾은 칸만 싣는다. `evolveOrder` 는 키가 있으면 빈 값도 앞 기억을 덮는다.
  * 🔴 서버가 정하는 칸(status · capturedAt · isSimulated 등)보다 먼저 합친다. 앱 값이 서버 값을 덮으면 안 된다.
- * 🔴 상세 원문이 온 보고는 지금처럼 연락처 칸을 빈 배열로도 싣는다 — 증거 서랍이 그 글자를 그린다.
+ * 🔴 상세 보고는 지금처럼 연락처 칸을 빈 배열로도 싣는다 — 증거 서랍이 그 글자를 그린다. 첫 보고에는 안 싣는다.
+ * 🔴 상차 · 하차 · 요금은 지금 앱이 늘 보내는 칸이라 없어도 빈 값으로 싣는다. orders.dropoff 는 NOT NULL 이다.
  */
-export function officeOrderOf(call: BaseCall, report: Partial<CallReport> = {}, coordinates: CallCoordinates = {}): Partial<OfficeOrder> & Pick<OfficeOrder, 'id'> {
+export function officeOrderOf(call: BaseCall, report: Partial<CallReport> = {}, coordinates: CallCoordinates = {}, detailReport = false): Partial<OfficeOrder> & Pick<OfficeOrder, 'id' | 'pickup' | 'dropoff' | 'fare'> {
     const { route, money, load, time, job } = call;
     const consign = lineOf(call, 'consign');
     const payment = money.paymentType;
     const billing = money.billingType;
-    const detailed = !!report.rawText;
     return {
         id: call.id,
+        pickup: route.pickup.addressDetail || route.listRegion?.pickup || '',
+        dropoff: route.dropoff.addressDetail || route.listRegion?.dropoff || '',
+        fare: fareOf(call) ?? 0,
         ...present({
             targetApp: call.targetApp,
             dispatcherName: call.dispatcherName,
             dispatcherPhone: call.dispatcherPhone,
             receiptStatus: call.stage,
-            pickup: route.pickup.addressDetail || route.listRegion?.pickup,
-            dropoff: route.dropoff.addressDetail || route.listRegion?.dropoff,
-            pickupDetails: stopDetails(route.pickup) ?? (detailed ? [] : undefined),
-            dropoffDetails: stopDetails(route.dropoff) ?? (detailed ? [] : undefined),
+            pickupDetails: stopDetails(route.pickup) ?? (detailReport ? [] : undefined),
+            dropoffDetails: stopDetails(route.dropoff) ?? (detailReport ? [] : undefined),
             pickupDistance: route.pickupDistance,
             deliveryDistance: route.deliveryDistance,
-            fare: fareOf(call),
             commissionRate: lineOf(call, 'fee')?.rate,
             tollFare: consign?.rate,   // 지금 값은 화면 글자 그대로다(«3,000») — 플러그인이 rate 에 글자를 담는다
             paymentType: payment !== undefined && (PAYMENT_TYPES as readonly string[]).includes(payment) ? (payment as PaymentType) : undefined,

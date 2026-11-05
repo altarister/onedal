@@ -66,8 +66,11 @@ class SessionManager {
     /** 상세 화면에서 참조할 원본 오더 데이터 */
     var lastDetailOrder: SimplifiedOfficeOrder? = null
 
-    /** 📜 누른 콜의 목록 줄 글자 — 상세 글로 덮이기 전 값. 첫 보고의 화면 기록으로 간다 */
-    var tappedListText: String? = null
+    /**
+     * 📜 **이 상세의 목록 콜** — `lastDetailOrder` 와 달리 사진 판독 · 팝업 주소로 덮이지 않는다.
+     * 플러그인이 목록 값을 기본 콜에 채우고, 글자는 첫 보고의 화면 기록으로 간다. 목록 줄을 못 찾은 콜은 비운다.
+     */
+    var listOrder: SimplifiedOfficeOrder? = null
 
     /**
      * 🎯 **앱이 방금 찍은 리스트 카드** — 그 상세가 어느 콜인지 **이미 아는 답**이다 (기사님 지시).
@@ -171,7 +174,7 @@ class SessionManager {
         collectState = CollectState.IDLE
         accumulatedDetailText = ""
         lastDetailOrder = null
-        tappedListText = null
+        listOrder = null
         alarmTappedCard = null
         alarmTappedAtMs = 0L
         settledOpener = null

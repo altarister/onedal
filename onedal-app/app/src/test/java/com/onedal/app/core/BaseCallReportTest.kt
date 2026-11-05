@@ -54,7 +54,12 @@ class BaseCallReportTest {
         assertNull(part.evidence)
     }
 
-    @Test fun `보고 크기는 요청 한도 안이다 — 상세 글 20KB 와 기록 한 줄`() {
+    @Test fun `Error 가 나도 옛 보고는 나간다 — TODO · 재귀 넘침`() {
+        assertNull(BaseCallReport.partOf("c1", "t", null) { TODO("아직") }.baseCall)
+        assertNull(BaseCallReport.partOf("c1", "t", null) { throw StackOverflowError() }.baseCall)
+    }
+
+    @Test fun `보고 크기는 요청 한도 안이다 — 상세 글 20KB 와 빈 기본 콜`() {
         val body = Gson().toJson(DispatchDetailedRequest(deviceId = "d", order = DetailedOfficeOrder(id = "c1", type = "NEW_ORDER", pickup = "a", dropoff = "b", fare = 1, timestamp = "t", rawText = "가".repeat(6700)),
             capturedAt = "t", baseCall = call()))
         val size = body.toByteArray().size

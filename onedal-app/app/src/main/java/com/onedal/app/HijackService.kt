@@ -1876,7 +1876,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
         // ✅ 앱이 계약 버튼을 누르는 콜만 AUTO, 나머지는 전부 MANUAL
         val actualMatchType = session.clickOrigin
-        val baseCallPart = com.onedal.app.core.BaseCallReport.partOf(order.id, order.timestamp, session.tappedListText) {
+        val baseCallPart = com.onedal.app.core.BaseCallReport.partOf(order.id, order.timestamp, session.listOrder?.rawText) {
             com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).baseCallOf(this, order)
         }
         apiClient.sendConfirm(

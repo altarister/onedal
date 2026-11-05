@@ -56,8 +56,8 @@ describe('🔁 문제지의 지금 값이 그대로 나온다', () => {
 });
 
 describe('🔁 칸 규칙', () => {
-    it('찾은 칸만 싣는다 — 빈 칸을 실으면 앞 기억을 지운다', () => {
-        expect(officeOrderOf(empty())).toEqual({ id: 'c1', targetApp: 'insung' });
+    it('🔴 찾은 칸만 싣는다. 상차 · 하차 · 요금은 지금 앱처럼 늘 싣는다 — orders.dropoff 는 NOT NULL', () => {
+        expect(officeOrderOf(empty())).toEqual({ id: 'c1', targetApp: 'insung', pickup: '', dropoff: '', fare: 0 });
     });
     it('요금 — 목록 요금 · 수입 · 운송료 차례, 정수로', () => {
         expect(officeOrderOf(empty({ money: { lines: [{ kind: 'income', won: 34650.4 }, { kind: 'total', won: 45000 }] } })).fare).toBe(45000);
@@ -88,8 +88,8 @@ describe('🔁 지금 서버 값과 같게', () => {
         expect(got).not.toHaveProperty('rawText');
     });
     it('🔴 상세 원문이 온 보고는 연락처를 빈 배열로도 싣는다 — 증거 서랍 글자가 같다', () => {
-        expect(officeOrderOf(empty(), { rawText: '상세 글' }).pickupDetails).toEqual([]);
-        expect(officeOrderOf(empty())).not.toHaveProperty('pickupDetails');
+        expect(officeOrderOf(empty(), { rawText: '상세 글' }, {}, true).pickupDetails).toEqual([]);
+        expect(officeOrderOf(empty(), { rawText: '첫 보고의 화면 글' })).not.toHaveProperty('pickupDetails');
     });
     it('🔴 옛 목록에 없는 계산서 값은 안 넘긴다', () => {
         expect(officeOrderOf(empty({ money: { lines: [], billingType: '세금계산서필' as '계산서' } })).billingType).toBeUndefined();
@@ -101,9 +101,14 @@ describe('🔁 지금 서버 값과 같게', () => {
     it('🔴 목록 → 상세 흐름 — 목록 요금이 있으면 상세 요금이 판정 값을 안 바꾼다', () => {
         const list = empty({ route: { listRegion: { pickup: '독산동', dropoff: '남산동1가' }, pickup: {}, dropoff: {}, pickupDistance: 1.1 }, money: { lines: [{ kind: 'income', won: 34600 }] }, load: { vehicleType: '다' } });
         const detail = empty({ route: { pickup: { addressDetail: '서울 금천구 독산동 1', phone1: '010' }, dropoff: { addressDetail: '서울 중구 남산동1가 2' } }, money: { lines: [{ kind: 'income', won: 34650 }, { kind: 'fee', rate: '23%' }], paymentType: '카드' }, job: { tripType: '편도' } });
-        const got = officeOrderOf(mergeBaseCall(list, detail), { rawText: '상세 글' });
+        const got = officeOrderOf(mergeBaseCall(list, detail), { rawText: '상세 글' }, {}, true);
         expect(got).toMatchObject({ fare: 34600, pickup: '서울 금천구 독산동 1', dropoff: '서울 중구 남산동1가 2', vehicleType: '다', pickupDistance: 1.1, commissionRate: '23%', paymentType: '카드', tripType: '편도' });
         expect(got.pickupDetails).toEqual([{ addressDetail: '서울 금천구 독산동 1', phone1: '010' }]);
+    });
+    it('🔴 상세의 요금 종류가 달라도 목록 요금을 지킨다 — 판정 값이 안 바뀐다', () => {
+        const got = mergeBaseCall(empty({ money: { lines: [{ kind: 'income', won: 34600 }] } }), empty({ money: { lines: [{ kind: 'total', won: 45000 }, { kind: 'freight', won: 45000 }] } }));
+        expect(officeOrderOf(got).fare).toBe(34600);
+        expect(got.money.lines.map((line) => line.kind)).toEqual(['income', 'freight']);
     });
     it('목록 요금이 0 이면 상세 요금으로 채운다', () => {
         const got = mergeBaseCall(empty({ money: { lines: [{ kind: 'income', won: 0 }] } }), empty({ money: { lines: [{ kind: 'income', won: 50000 }] } }));
@@ -138,7 +143,7 @@ describe('🔁 합치기', () => {
     it('🔴 모르는 금액 종류는 unknown 으로 — 요금으로 안 읽는다', () => {
         const got = mergeBaseCall(undefined, empty({ money: { lines: [{ kind: '거리료' as 'unknown', won: 5000 }] } }));
         expect(got.money.lines).toEqual([{ kind: 'unknown', won: 5000, label: '거리료' }]);
-        expect(officeOrderOf(got).fare).toBeUndefined();
+        expect(officeOrderOf(got).fare).toBe(0);
     });
     it('🔴 뜻 모르는 금액은 이름별로 남는다 — 서로 지우지 않는다', () => {
         const got = mergeBaseCall(empty({ money: { lines: [{ kind: 'unknown', won: 65144, label: '수납금액' }] } }), empty({ money: { lines: [{ kind: '거리료' as 'unknown', won: 5000 }] } }));

@@ -77,7 +77,7 @@ fun ScanContext.handlePreConfirmScreen(
             rawText = rawScreenStr
         )
     } else if (matchedOrder != null) {
-        session.tappedListText = matchedOrder.rawText
+        session.listOrder = matchedOrder
         // MANUAL/ALARM 클릭인데 캐시 매칭에 성공한 경우 (원본 데이터 재활용)
         matchedOrder.copy(
             id = session.currentOrderId.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
@@ -85,6 +85,7 @@ fun ScanContext.handlePreConfirmScreen(
             rawText = rawScreenStr
         )
     } else {
+        session.listOrder = null   // 목록 줄을 못 찾았다 — 앞 콜의 글자가 이 콜 기록으로 가지 않게
         // 캐시 매칭 실패 시 화면에서 파싱 폴백 — 요금은 상세 화면의 요금 칸 정의가 먼저(세 배차망 같은 순서 · 29 X12)
         val tempOrder = PageFieldRead.fareFirst(scrapParser.parse(screenTexts), plugin.pages, Page.NEW_CALL, screenTexts)
         tempOrder.copy(
