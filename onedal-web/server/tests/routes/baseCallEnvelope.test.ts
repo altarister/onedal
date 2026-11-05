@@ -8,9 +8,9 @@ import { getUserSession, clearUserSession } from '../../src/state/userSessionSto
 import { approvedUser } from '../fixtures/approvedUser';
 
 /**
- * 🎯 **지금 서버는 보고의 baseCall · evidence 를 안 읽는다** (계획서 C1) — 그래서 새 앱을 먼저 깔아도 콜 값이 같다.
- * 🔴 order 옆 칸이어야 한다. order 안에 넣으면 메모리 콜에 섞여 소켓으로 관제웹에 나간다.
- * D 묶음에서 서버가 읽기 시작하면 이 검사를 그에 맞게 바꾼다.
+ * 🎯 **보고의 baseCall · evidence 는 order 옆 칸이다** (계획서 C1 · D3) — 메모리 콜에 섞이지 않는다.
+ * 🔴 order 안에 넣으면 메모리 콜에 섞여 소켓으로 관제웹에 나간다.
+ * 상세 보고는 옛 길이 값을 낸 칸만 기본 콜 값으로 바꾼다. 비운 칸은 비운 채로 둔다. 기본 콜이 없는 옛 앱 보고는 지금 길 그대로다.
  */
 const U = 'test-base-call-envelope';
 const DEV = 'dev-base-call-envelope';
@@ -58,12 +58,18 @@ describe('🎯 옛 서버 + 새 앱 보고', () => {
         expect(held('a2')).toEqual(before);
         expect(getUserSession(U).pendingOrdersData.get('a2')).not.toHaveProperty('baseCall');
     });
-    it('상세 보고 — baseCall · evidence 를 실어도 콜 값이 같고 메모리에 안 섞인다', async () => {
+    it('상세 보고 — 옛 길이 값을 낸 칸은 기본 콜 값을 쓰고 메모리에 기본 콜이 안 섞인다', async () => {
         await post(detailRouter, '/', { step: 'DETAILED', order: order('b1', '상세 글') });
         await post(detailRouter, '/', { step: 'DETAILED', order: order('b2', '상세 글'), baseCall, evidence });
         expect(getUserSession(U).pendingOrdersData.has('b2')).toBe(true);
-        expect(held('b2')).toEqual(held('b1'));
+        expect(held('b2')).toEqual({ ...held('b1'), pickup: '다른 주소', fare: 1 });
         expect(getUserSession(U).pendingOrdersData.get('b2')).not.toHaveProperty('baseCall');
+        expect(getUserSession(U).pendingOrdersData.get('b2')).not.toHaveProperty('evidence');
+    });
+    it('🔴 옛 길이 비운 칸은 기본 콜에 값이 있어도 비운 채로 둔다', async () => {
+        await post(detailRouter, '/', { step: 'DETAILED', order: order('b3', '상세 글'), baseCall: { ...baseCall, job: { detailMemo: '새로 살린 적요' }, money: { lines: [], billingType: '인수증' } } });
+        expect(getUserSession(U).pendingOrdersData.get('b3').detailMemo).toBeUndefined();
+        expect(getUserSession(U).pendingOrdersData.get('b3').billingType).toBeUndefined();
     });
     it('🔍 첫 보고와 상세 보고의 조각을 합쳐 지금 콜 값과 견준다 — 로그 한 줄', async () => {
         const spy = jest.spyOn(fileLogger, 'slog');

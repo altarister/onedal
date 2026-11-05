@@ -46,6 +46,19 @@ const keep = (o: Record<string, unknown> = {}) => {
         ...o,
     });
 };
+/**
+ * 🎯 원달앱 인성 플러그인이 같은 글에서 채우는 기본 콜 (계획서 D3) — 상세 주소는 상차 칸(앱이 팝업 «위치»로 채운 값) · 전화는 출발지 팝업
+ * 기본 콜 보고로 한 번 더 태워도 같은 콜 찾기가 같은 답이어야 한다.
+ */
+let withBaseCall = false;
+const baseCallOf = (o: Record<string, any>) => {
+    const pickupBlock = String(o.rawText ?? '').split('[도착지상세]')[0];
+    return {
+        id: NEW, targetApp: 'insung',
+        route: { pickup: { addressDetail: o.pickup, customerName: '가나상사', phone1: pickupBlock.match(/전화1 (\S+)/)?.[1] }, dropoff: { addressDetail: o.dropoff, customerName: '다라상회' } },
+        money: { lines: o.fare > 0 ? [{ kind: 'income', won: o.fare }] : [] }, load: {}, time: {}, job: {},
+    };
+};
 /** 상세 보고를 한 번 태우고 서버 답을 돌려준다 */
 const report = async (order: Record<string, unknown>) => {
     const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => {});
@@ -55,6 +68,7 @@ const report = async (order: Record<string, unknown>) => {
     await handlerOf(detailRouter)({ app, headers: {}, body: {
         step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType: 'AUTO',
         order: { id: NEW, type: 'AUTO_CLICK', pickup: PICKUP, dropoff: DROPOFF, fare: FARE, timestamp: new Date().toISOString(), ...order },
+        ...(withBaseCall ? { baseCall: baseCallOf({ pickup: PICKUP, dropoff: DROPOFF, fare: FARE, ...order }) } : {}),
     } }, res);
     spy.mockRestore();
     return answer;
@@ -79,16 +93,20 @@ afterAll(() => {
     clearUserSession(U);
 });
 
+describe.each([['옛 앱 보고', false], ['기본 콜 보고', true]])('%s', (_name, on) => {
+beforeAll(() => { withBaseCall = on; });
+
 describe('🔎 이미 잡은 콜로 돌려주는 경우', () => {
     it('콜 번호가 같으면 나머지가 달라도 잡은 콜이다', async () => {
         keep();
         expectKept(await report({ id: KEPT, fare: 99000, rawText: detailText('010-2222-2222', '팝업 주소 B') }));
     });
-    it('번호가 달라도 전화 · 상차 · 하차 · 요금이 같으면 잡은 콜이다 (팝업 주소는 달라도)', async () => {
+    /* 🔴 새 앱은 상차 칸을 팝업 «위치»로 채워 보낸다(InsungPlugin.fillDetail) — 상차와 팝업 주소가 다른 보고는 옛 앱에서만 생긴다 */
+    (on ? it.skip : it)('번호가 달라도 전화 · 상차 · 하차 · 요금이 같으면 잡은 콜이다 (팝업 주소는 달라도)', async () => {
         keep();
         expectKept(await report({ rawText: detailText('010-1111-1111', '팝업 주소 B') }));
     });
-    it('번호가 달라도 팝업 주소 · 상차 · 하차 · 요금이 같으면 잡은 콜이다 (전화는 달라도)', async () => {
+    (on ? it.skip : it)('번호가 달라도 팝업 주소 · 상차 · 하차 · 요금이 같으면 잡은 콜이다 (전화는 달라도)', async () => {
         keep();
         expectKept(await report({ rawText: detailText('010-2222-2222', '팝업 주소 A') }));
     });
@@ -130,4 +148,5 @@ describe('🔎 끝난 콜', () => {
         keep({ status: 'SAFE_CANCEL' });
         expect(await report({ id: KEPT, rawText: detailText('010-1111-1111', '팝업 주소 A') })).toMatchObject({ action: 'CANCEL' });
     });
+});
 });

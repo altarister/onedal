@@ -1,4 +1,4 @@
-import { baseCallDiff, mergeBaseCall, mergeEvidence, type BaseCall, type CallEvidence, type OfficeOrder } from "@onedal/shared";
+import { baseCallDiff, mergeBaseCall, mergeEvidence, officeValuesOf, type BaseCall, type CallEvidence, type OfficeOrder } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 import { OrderRepository } from "../repositories/OrderRepository";
 
@@ -69,4 +69,16 @@ export function restoreHeldBaseCall(userId: string, id: string, saved: { call?: 
 /** 🧹 기사 세션을 비울 때 그 기사의 합쳐 둔 기본 콜도 비운다 — 로그아웃 · 계정 막힘 뒤 메모리에 전화번호가 남지 않게 */
 export function clearHeldBaseCalls(userId: string): void {
     for (const key of [...held.keys()]) if (key.startsWith(`${userId}:`)) held.delete(key);
+}
+
+/** 🎯 합쳐 둔 기본 콜로 만든 옛 칸 값 — 옛 길이 값을 낸 칸만 (계획서 D3). 기본 콜이 없는 콜(옛 앱)은 빈 묶음 */
+export function officeValuesHeld(userId: string, order: Partial<OfficeOrder> & { id: string }): Partial<OfficeOrder> {
+    const entry = held.get(keyOf(userId, order.id));
+    if (!entry?.call) return {};
+    try {
+        return officeValuesOf(entry.call, order);
+    } catch (e) {
+        slog('경고', `🎯 [기본 콜 옛 칸 실패] ${order.id} — 지금 값을 쓴다 — ${(e as Error).message}`);
+        return {};
+    }
 }

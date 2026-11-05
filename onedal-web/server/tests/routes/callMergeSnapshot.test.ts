@@ -8,7 +8,7 @@ import { OrderRepository } from '../../src/repositories/OrderRepository';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
-import { OFFICE_FIELDS, mergeBaseCall, officeOrderOf } from '@onedal/shared';
+import { BASE_CALL_COLUMN_TYPES, OFFICE_FIELDS, mergeBaseCall, officeOrderOf } from '@onedal/shared';
 
 /**
  * 📐 **비교 기준 — 첫 보고와 상세 보고를 합친 콜 값 · 저장 행** (계획서 C1-1).
@@ -34,14 +34,15 @@ const post = async (router: any, path: string, body: any) => {
 const SHAKY = ['id', 'capturedAt', 'statusUpdatedAt', 'updatedAt', 'createdAt', 'userId', 'judgeUntil', 'detailReceivedAt'];
 const steady = (value: any) => JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(value).filter(([k, v]) => !SHAKY.includes(k) && v !== null))));
 
-async function merged(c: any, index: number) {
+async function merged(c: any, index: number, withBaseCall = false) {
     clearUserSession(U);
     getUserSession(U).isRestored = true;
     const id = `${U}-${index}`;
     const stamp = { id, timestamp: '2026-11-05T10:00:00+09:00' };
     const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => {});
-    await post(ordersRouter, '/confirm', { step: 'BASIC', targetApp: c.network, order: { ...c.confirm, ...stamp, type: 'AUTO_CLICK', rawText: '화면 글' } });
-    await post(detailRouter, '/', { step: 'DETAILED', targetApp: c.network, order: { ...c.detail, ...stamp, type: 'AUTO_CLICK' } });
+    const part = (which: string) => (withBaseCall && c.expectBaseCall ? { baseCall: { id, targetApp: c.network, ...c.expectBaseCall[which] } } : {});
+    await post(ordersRouter, '/confirm', { step: 'BASIC', targetApp: c.network, order: { ...c.confirm, ...stamp, type: 'AUTO_CLICK', rawText: '화면 글' }, ...part('confirm') });
+    await post(detailRouter, '/', { step: 'DETAILED', targetApp: c.network, order: { ...c.detail, ...stamp, type: 'AUTO_CLICK' }, ...part('detail') });
     spy.mockRestore();
     const call = getUserSession(U).pendingOrdersData.get(id);
     OrderRepository.upsertOrder(call, U, 0, call.orderForm === '급송' ? 1 : 0);   // isExpress 는 결재 코드와 같은 규칙 · isShared 는 기준 밖
@@ -66,6 +67,12 @@ describe('📐 합친 콜 값 · 저장 행', () => {
         const got = await merged(c, i);
         expect(got.call).toEqual(c.expectCall);
         expect(got.row).toEqual(c.expectRow);
+    });
+    /* 🎯 계획서 D3 — 기본 콜을 실은 보고로 한 번 더. 옛 칸 값 · 저장 행이 같아야 한다(새로 살린 값은 옛 칸에 안 간다) */
+    it.each(SHEET.cases.filter((c) => c.expectBaseCall).map((c) => [c.network, c.why, c, SHEET.cases.indexOf(c)]))('기본 콜 보고 · %s — %s', async (_n, _w, c, i) => {
+        const got = await merged(c, i, true);
+        expect(got.call).toEqual(c.expectCall);
+        expect(Object.fromEntries(Object.entries(got.row).filter(([k]) => !(k in BASE_CALL_COLUMN_TYPES)))).toEqual(c.expectRow);
     });
 });
 
