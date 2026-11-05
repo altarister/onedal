@@ -128,12 +128,12 @@ describe('🔁 합치기', () => {
         );
         expect(got.route.listRegion).toEqual({ pickup: '경안동', dropoff: '한남동' });
     });
-    it('금액은 종류별로 합친다 — 같은 종류는 나중 값', () => {
+    it('금액은 종류별로 합친다 — 요금 줄이 아니면 같은 종류는 나중 값', () => {
         const got = mergeBaseCall(
-            empty({ money: { lines: [{ kind: 'income', won: 1000 }, { kind: 'fee', rate: '23%' }] } }),
-            empty({ money: { lines: [{ kind: 'income', won: 2000 }] } }),
+            empty({ money: { lines: [{ kind: 'income', won: 1000 }, { kind: 'fee', rate: '10%' }] } }),
+            empty({ money: { lines: [{ kind: 'fee', rate: '23%' }] } }),
         );
-        expect(got.money.lines).toEqual([{ kind: 'fee', rate: '23%' }, { kind: 'income', won: 2000 }]);
+        expect(got.money.lines).toEqual([{ kind: 'income', won: 1000 }, { kind: 'fee', rate: '23%' }]);
     });
     it('🔴 모르는 금액 종류는 unknown 으로 — 요금으로 안 읽는다', () => {
         const got = mergeBaseCall(undefined, empty({ money: { lines: [{ kind: '거리료' as 'unknown', won: 5000 }] } }));
