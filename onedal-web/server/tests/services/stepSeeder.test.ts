@@ -316,3 +316,18 @@ maybe('출생 모델 — 단계가 끝나면 다음이 앞 값을 물려받아 �
         expect(all.every(s => s.row.status !== 'PLANNED')).toBe(true);
     });
 });
+
+/* 🎯 장부에만 있는 콜(KEEP 뒤 · 메모리 콜 없이) — 행에도 묶음을 펼쳐야 상차 시계가 예약 · 적요 시각을 읽는다 (계획서 E3) */
+describe('⏱️ 장부 행만 있는 콜의 상차 마감', () => {
+    it('🔴 예약 날 · 시각이 있으면 그 시각 — 잡은 시각 + 20분이 아니다', () => {
+        putOrder({ reserved: 1, reservedDay: 1, reservedAt: '18:30' });
+        const at = of('CALL_PICKUP').row.deadline_at;
+        expect(kst(at)).toBe('18:30');
+        expect(new Date(at).toISOString().slice(0, 10)).toBe('2026-08-21');
+    });
+    it('🔴 적요의 상차 시각이 있으면 그 시각', () => {
+        putOrder({ itemDescription: '17:40상차 박스 2개' });
+        expect(kst(of('CALL_PICKUP').row.deadline_at)).toBe('17:40');
+    });
+});
+

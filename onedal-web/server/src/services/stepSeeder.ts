@@ -593,7 +593,7 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig,
      *    그때는 **메모리의 콜 객체**를 넘긴다 — 사슬은 하나 그대로다 (규칙 ③).
      */
     fallbackOrder?: any): StepView[] {
-    const o = (db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any) ?? fallbackOrder;
+    const o = OrderRepository.timingRowOf(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any) ?? fallbackOrder;   // 🎯 행에도 시간 계산 묶음 (계획서 E3) · 1초마다 도는 길이라 얇게
     if (!o) return [];
     const born = bornRows(orderId);
     const chain = computeChain(o, born, judgment);

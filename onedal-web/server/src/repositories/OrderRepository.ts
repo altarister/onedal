@@ -135,6 +135,15 @@ export class OrderRepository {
         return { ...row, ...baseCallShapeOf(flat as any, baseCallFromRow(row, row.id, row.targetApp).call) };
     }
 
+    /**
+     * ⏱️ **콜 표의 행에 시간 계산용 묶음만 얇게 펼친다** (계획서 E3) — 연락처 조회 · 기본 콜 열 읽기 없이 행의 옛 칸으로만.
+     * 1초마다 도는 단계 보기(stepsView)가 쓴다. 시간 계산이 읽는 칸(상차 약속 · 짐 글 · 적요)은 옛 칸이 원천이라 값이 같다.
+     */
+    public static timingRowOf<T extends Record<string, any> | undefined>(row: T): T {
+        if (!row) return row;
+        return { ...row, ...baseCallShapeOf({ ...row, reserved: row.reserved == null ? undefined : !!row.reserved } as any) };
+    }
+
     public static setCodCollected(orderId: string, userId: string, received: boolean, amount: number) {
         db.prepare(`UPDATE orders
                     SET settlementStatus = ?, unpaidAmount = ?, settledAt = ?
