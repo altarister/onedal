@@ -11,6 +11,7 @@ import { approvedUser } from '../fixtures/approvedUser';
  *    끝난 콜에 묶이면 취소했다가 다시 잡는 흐름이 막힌다.
  *
  * 🔴 전화 · 팝업 주소는 원달앱이 안 싣는다. 서버가 상세 원문에서 읽으므로 시험도 원문으로 넣는다 — body 에 직접 넣으면 덮인다.
+ * 🔴 앱이 잡은 길(AUTO)만 탄다. 손으로 연 길의 답 모양과 재시작 뒤 되살린 콜의 전화 · 주소는 안 지킨다.
  * 🔴 사례 표는 지금 동작을 적은 것이다. 요금 0 이 새 콜인 것이 맞는지는 따로 볼 일이다.
  */
 const U = 'test-detail-same-call';
@@ -48,8 +49,9 @@ const keep = (o: Record<string, unknown> = {}) => {
 /** 상세 보고를 한 번 태우고 서버 답을 돌려준다 */
 const report = async (order: Record<string, unknown>) => {
     const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => {});
+    let code = 200;
     let answer: any;
-    const res = { status: () => res, json: (body: any) => { answer = body; return res; } };
+    const res = { status: (c: number) => { code = c; return res; }, json: (body: any) => { answer = { code, ...body }; return res; } };
     await handlerOf(detailRouter)({ app, headers: {}, body: {
         step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType: 'AUTO',
         order: { id: NEW, type: 'AUTO_CLICK', pickup: PICKUP, dropoff: DROPOFF, fare: FARE, timestamp: new Date().toISOString(), ...order },
@@ -59,8 +61,8 @@ const report = async (order: Record<string, unknown>) => {
 };
 const expectKept = (answer: any) => expect(answer).toMatchObject({ action: 'ACK', orderId: KEPT });
 const expectNewCall = (answer: any) => {
+    expect(answer?.code).toBe(202);   // 🔴 도중에 터져 500 이 나도 콜은 이미 기억에 있다 — 답의 코드까지 본다
     expect(answer?.orderId).toBeUndefined();
-    expect(answer?.action).not.toBe('CANCEL');
     expect(getUserSession(U).pendingOrdersData.has(NEW)).toBe(true);
 };
 
@@ -105,11 +107,15 @@ describe('🔎 새 콜인 경우', () => {
         keep();
         expectNewCall(await report({ pickup: '경기 광주시 경안동 9-9', rawText: detailText('010-1111-1111', '팝업 주소 A') }));
     });
+    it('전화가 같아도 하차 전체 주소가 다르면 새 콜이다', async () => {
+        keep();
+        expectNewCall(await report({ dropoff: '서울 용산구 한남동 99', rawText: detailText('010-1111-1111', '팝업 주소 A') }));
+    });
     it('전화 · 주소가 같아도 요금이 다르면 새 콜이다', async () => {
         keep();
         expectNewCall(await report({ fare: 60000, rawText: detailText('010-1111-1111', '팝업 주소 A') }));
     });
-    it('요금이 둘 다 0 이면 나머지가 같아도 새 콜이다', async () => {
+    it('잡은 콜의 요금이 0 이면 나머지가 같아도 새 콜이다', async () => {
         keep({ fare: 0 });
         expectNewCall(await report({ fare: 0, rawText: detailText('010-1111-1111', '팝업 주소 A') }));
     });
