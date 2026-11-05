@@ -53,6 +53,11 @@ describe('🔍 견줌 로그', () => {
         expect(() => holdBaseCall('u', 'z', { id: 'z' })).not.toThrow();
         expect(() => compareBaseCall('u', { id: 'z' })).not.toThrow();
     });
+    it('🔴 번호 없는 콜은 합치지 않는다', () => {
+        holdBaseCall('u', 'unknown', call);
+        compareBaseCall('u', { id: 'unknown', fare: 1 });
+        expect(spy).not.toHaveBeenCalled();
+    });
     it('다른 기사의 콜과 섞이지 않는다', () => {
         holdBaseCall('u', 'x2', call);
         compareBaseCall('v', { id: 'x2', fare: 1 });

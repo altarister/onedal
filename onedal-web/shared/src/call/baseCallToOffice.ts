@@ -145,7 +145,7 @@ export function officeOrderOf(call: BaseCall, report: Partial<CallReport> = {}, 
 }
 
 /** 기본 콜에서 만드는 옛 칸 — 견줄 때 쓴다. 보고 봉투 값(번호 · 시각 · 원문)은 안 본다 */
-const OFFICE_FIELDS: ReadonlyArray<keyof OfficeOrder> = [
+export const OFFICE_FIELDS: ReadonlyArray<keyof OfficeOrder> = [
     'fare', 'pickup', 'dropoff', 'vehicleType', 'itemSize', 'itemDescription', 'tagsText', 'reserved', 'reservedDay', 'reservedAt', 'scheduleText',
     'pickupDistance', 'deliveryDistance', 'detailMemo', 'tripType', 'orderForm', 'paymentType', 'billingType', 'commissionRate', 'tollFare',
     'receiptStatus', 'dispatcherName', 'dispatcherPhone', 'postTime', 'pickupDetails', 'dropoffDetails',

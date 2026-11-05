@@ -14,7 +14,7 @@ const keyOf = (userId: string, id: string) => `${userId}:${id}`;
 
 /** 온 조각을 합쳐 둔다 — 조각이 없는 보고(옛 앱)는 아무것도 안 한다 */
 export function holdBaseCall(userId: string, id: string, part: BaseCall | undefined): void {
-    if (!part) return;
+    if (!part || !id || id === 'unknown') return;   // 번호 없는 콜끼리 한 칸에 합쳐지지 않게
     try {
         const key = keyOf(userId, id);
         const prev = held.get(key);

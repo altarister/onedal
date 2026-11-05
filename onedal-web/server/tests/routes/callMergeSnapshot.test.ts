@@ -8,7 +8,7 @@ import { OrderRepository } from '../../src/repositories/OrderRepository';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
-import { mergeBaseCall, officeOrderOf } from '@onedal/shared';
+import { OFFICE_FIELDS, mergeBaseCall, officeOrderOf } from '@onedal/shared';
 
 /**
  * 📐 **비교 기준 — 첫 보고와 상세 보고를 합친 콜 값 · 저장 행** (계획서 C1-1).
@@ -75,7 +75,7 @@ describe('📐 합친 콜 값 · 저장 행', () => {
  * 🔴 연락처 칸은 뺀다. 앱이 살린 상세 주소 · 상호라 옛 값([])과 다르다. 옛 칸에 넘길지는 D3 전에 정한다.
  * 🔴 사례의 `notInOldYet` 칸도 뺀다. 기본 콜에 새로 살린 값이라 옛 칸에는 아직 없다. 넘길지는 D3 전에 기사님께 여쭙는다.
  */
-const COMPARED = ['fare', 'pickup', 'dropoff', 'vehicleType', 'itemSize', 'itemDescription', 'tagsText', 'reserved', 'reservedDay', 'reservedAt', 'scheduleText', 'pickupDistance', 'deliveryDistance', 'detailMemo', 'tripType', 'orderForm', 'paymentType', 'billingType', 'commissionRate', 'tollFare', 'receiptStatus', 'dispatcherName', 'dispatcherPhone', 'postTime'];
+const COMPARED = OFFICE_FIELDS.filter((k) => k !== 'pickupDetails' && k !== 'dropoffDetails');
 const only = (value: any) => Object.fromEntries(COMPARED.filter((k) => value[k] !== undefined && value[k] !== null).map((k) => [k, value[k]]));
 describe('🎯 플러그인이 채운 기본 콜', () => {
     const filled = SHEET.cases.filter((c) => c.expectBaseCall);
