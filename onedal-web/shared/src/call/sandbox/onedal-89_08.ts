@@ -53,6 +53,7 @@
 // - tagsText 를 읽는 곳이 더 있다 · 플렉스 목록 결제는 꼬리표에 섞인다 · 하차 날 배지는 꼬리표로 간다 → 넣음
 // ━━ 리뷰: onedal-1e ━━ 8판
 // - (재리뷰 e57856) networkCollect 는 «안 읽음» · 내 콜 쪽 꼬리표 견본 · «기사가 함께 받는» 문장 → 고침. 화물24시 fare 에 «수»가 들어 있는 것을 코드로 확인해 takeHomeWon 주석을 고침
+// - (방향 재리뷰) 계획서 D3 · C5 · B4 끝 조건 → 계획서에서 고침. 옛 값은 지금처럼 두고 새 값은 BaseCall 에만 둔다. 픽커 itemSize 통줄 · matchType · 선/착불 자리를 고침
 // - (큰 그림) 왕복 · 경유 «적요에서 채운다»는 단정이다 → 기사님 말씀과 «상세를 본 뒤 정한다»로 좁힘. E3 · E1-1 은 계획서에서 고침
 // - 경유지 목록 글자를 addressDetail 에 넣으면 칸의 뜻을 어긴다 → 기사님 답대로 목록을 풀지 않고 상세 · 적요에서 채움
 // - 처음 이름 extraFee 는 셈만 말한다 → collectedFee 로 고침
@@ -118,17 +119,20 @@ export interface MoneyLine {
     label?: string;   // 화면에 적힌 이름 — 사람이 출처를 확인할 때 본다
 }
 
+/** 결제 칸의 값 — 옛 값에 화물24시 «선/착불»을 더한다. 옛 PAYMENT_TYPES 는 그대로 두어 서버 읽기와 화면이 안 바뀐다 */
+export type CallPaymentType = PaymentType | '선/착불';
+
 /** 얼마 버나, 어떻게 받나 — 합치거나 빼지 않고 화면의 금액을 줄로 둔다 */
 export interface CallMoney {
     lines: MoneyLine[];          // 같은 종류가 다시 오면 나중 값이 이긴다
-    paymentType?: PaymentType;   // 언제 어떻게 받나: 신용 · 선불 · 착불 · 카드 · 현금 — 인성 괄호 · 화물24시 결제방법 · 픽커 «착불» 네모 · 플렉스 테두리. 🔴 화물24시 «선/착불»은 PAYMENT_TYPES 에 더해야 읽힌다. 화물24시 «인수증» 콜은 이 칸이 빈다
-    billingType?: BillingType;   // 증빙 방식: 계산서 · 인수증 · 무과세 — 인성 둘째 괄호 · 화물24시 결제방법 «인수증». 🔴 화물24시 정의 표에 billing 줄을 더해야 읽힌다
+    paymentType?: CallPaymentType;  // 언제 어떻게 받나: 신용 · 선불 · 착불 · 카드 · 현금 · 선/착불 — 인성 괄호 · 화물24시 결제방법 · 픽커 «착불» 네모 · 플렉스 테두리. 화물24시 «인수증» 콜은 이 칸이 빈다
+    billingType?: BillingType;   // 증빙 방식: 계산서 · 인수증 · 무과세 — 인성 둘째 괄호 · 화물24시 결제방법 «인수증». 화물24시 플러그인이 결제방법 글자를 뜻대로 나눈다
 }
 
 /** 뭘 싣나 — 배차망이 말한 그대로 둔다. 실리는지는 CallFacts.load 가 답한다 */
 export interface CallLoad {
     vehicleType?: string;        // 콜 차종 낱말 그대로 — «다마스», «1t», «2.5톤/윙», 픽커 «승». 이 짐을 옮기라는 수단이고 내 차와 다른 개념이다
-    itemSize?: string | null;    // 크기 낱말 — 픽커 «소형» · 플렉스 «대박스»(안내 영상 · 안 읽음) · 인성 «다마스-다마»의 «다마»
+    itemSize?: string | null;    // 크기 낱말 — 픽커 목록 «소형». 지금 픽커 사진은 «소형 세 변의 합 …» 줄 통째를 옛 itemSize 에 넣는다. 그 줄은 itemDescription 으로 가고 옛 값은 바꾸는 함수가 다시 만든다 · 플렉스 «대박스»(안내 영상 · 안 읽음) · 인성 «다마스-다마»의 «다마»
     itemDescription?: string;    // 짐 글 — 인성 «박스 1개» · 앞글자 «폰)»(핸드폰), 픽커 «소형 세 변의 합 100cm ∙ 5kg 이하», 플렉스 적요 «박스1개»
     weightKg?: number;           // 🔴 무게 — 픽커 «5kg 이하» · 화물24시 적재중량 «3.85톤»
     sizeCm?: number;             // 🔴 세 변의 합 — 픽커 «100cm»
@@ -191,6 +195,7 @@ export interface BaseCall {
 
 /** 원달앱 보고의 사정 — 기사의 질문이 아니다 */
 export interface CallReport {
+    matchType?: string;                 // 누가 잡았나 AUTO · MANUAL — 보고 봉투 값이라 BaseCall 밖이다 (원달앱)
     type: string;                       // 보고 종류 NEW_ORDER · AUTO_CLICK · MANUAL_CLICK. EventType 밖의 값이 있어 string (원달앱)
     verdict?: string | null;            // 원달앱이 목록에서 내린 판정 (원달앱)
     capturedMode?: string | null;       // 그때 돌던 모드 AUTO · ALARM · MANUAL · SIMULATION (서버)
@@ -220,7 +225,7 @@ export interface EvidenceLine {
     changed?: Array<{ field: string; from: string | null; to: string | null }>;  // 이번에 값이 바뀐 칸 — 같은 값이면 비운다
 }
 
-/** 🔴 기록 — 콜과 따로 저장하고 소켓에 안 싣는다. 읽을 때마다 한 줄 더하고 덮지 않는다. 목록 줄 역사는 지금처럼 intel 표가 갖는다 */
+/** 🔴 기록 — 콜 값과 다른 JSON 칸에 저장하고 소켓에 안 싣는다. 목록 글자 통째도 여기 남는다. 읽을 때마다 한 줄 더하고 덮지 않는다. 목록 줄 역사는 지금처럼 intel 표가 갖는다 */
 export interface CallEvidence {
     seen: EvidenceLine[];
 }

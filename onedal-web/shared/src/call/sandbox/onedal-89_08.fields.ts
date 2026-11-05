@@ -2061,7 +2061,7 @@ export const BASE_CALL_FIELDS = {
    "field": "paymentType",
    "path": "money.paymentType",
    "label": "결제",
-   "desc": "언제 어떻게 받나. 선/착불은 PAYMENT_TYPES 에 더해야 읽힌다. 화물24시 인수증 콜은 이 칸이 빈다",
+   "desc": "언제 어떻게 받나. 화물24시 플러그인이 결제방법 글자에서 선/착불을 담는다. 옛 PAYMENT_TYPES 는 그대로라 지금 서버는 안 읽는다. 화물24시 인수증 콜은 이 칸이 빈다",
    "filledBy": "서버 원문",
    "ledger": "orders.paymentType",
    "pageField": "payment",
@@ -2128,7 +2128,7 @@ export const BASE_CALL_FIELDS = {
    "field": "billingType",
    "path": "money.billingType",
    "label": "계산서",
-   "desc": "증빙 방식. 계산서 오더는 위수탁세금계산서 발행에 동의한 기사만 잡는다. 화물24시 인수증은 운행 뒤 인수증으로 세금계산서를 발행한다는 뜻이다(자막). 🔴 화물24시 정의 표에 billing 줄이 없어 결제방법과 같은 읽는 법으로 더해야 한다",
+   "desc": "증빙 방식. 계산서 오더는 위수탁세금계산서 발행에 동의한 기사만 잡는다. 화물24시 인수증은 운행 뒤 인수증으로 세금계산서를 발행한다는 뜻이다(자막). 화물24시는 billing 줄 없이 플러그인이 결제방법 글자를 뜻대로 나눈다",
    "filledBy": "서버 원문",
    "ledger": "orders.billingType",
    "pageField": "billing",
@@ -2158,7 +2158,7 @@ export const BASE_CALL_FIELDS = {
       },
       {
        "read": "버림",
-       "screen": "새 콜 화면 · 결제방법 칸 (billing 줄 없음, payment 줄이 읽고 버린다)",
+       "screen": "새 콜 화면 · 결제방법 칸 (지금 서버는 payment 줄로 읽고 버린다)",
        "sample": "인수증"
       },
       {
