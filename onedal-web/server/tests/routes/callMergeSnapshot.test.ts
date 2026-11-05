@@ -73,6 +73,7 @@ describe('📐 합친 콜 값 · 저장 행', () => {
  * 🎯 **플러그인이 채운 값 → 합치기 → 옛 칸 = 고정된 합친 값** (계획서 C2 끝 조건).
  * `expectBaseCall` 은 원달앱 `KakaoPickerBaseCallTest` 가 같은 입력으로 내는 값이다 — 두 검사가 이어져야 한다.
  * 🔴 연락처 칸은 뺀다. 앱이 살린 상세 주소 · 상호라 옛 값([])과 다르다. 옛 칸에 넘길지는 D3 전에 정한다.
+ * 🔴 사례의 `notInOldYet` 칸도 뺀다. 기본 콜에 새로 살린 값이라 옛 칸에는 아직 없다. 넘길지는 D3 전에 기사님께 여쭙는다.
  */
 const COMPARED = ['fare', 'pickup', 'dropoff', 'vehicleType', 'itemSize', 'itemDescription', 'tagsText', 'reserved', 'reservedDay', 'reservedAt', 'scheduleText', 'pickupDistance', 'deliveryDistance', 'detailMemo', 'tripType', 'orderForm', 'paymentType', 'billingType', 'commissionRate', 'tollFare', 'receiptStatus', 'dispatcherName', 'dispatcherPhone', 'postTime'];
 const only = (value: any) => Object.fromEntries(COMPARED.filter((k) => value[k] !== undefined && value[k] !== null).map((k) => [k, value[k]]));
@@ -82,6 +83,11 @@ describe('🎯 플러그인이 채운 기본 콜', () => {
     it.each(filled.map((c) => [c.why, c]))('%s', (_w, c) => {
         const id = 'c1';
         const merged = mergeBaseCall({ id, targetApp: c.network, ...c.expectBaseCall.confirm }, { id, targetApp: c.network, ...c.expectBaseCall.detail });
-        expect(only(officeOrderOf(merged, { rawText: c.detail.rawText }, {}, true))).toEqual(only(c.expectCall));
+        const office = only(officeOrderOf(merged, { rawText: c.detail.rawText }, {}, true));
+        for (const key of c.notInOldYet ?? []) {
+            expect(office[key]).toBeDefined();
+            delete office[key];
+        }
+        expect(office).toEqual(only(c.expectCall));
     });
 });

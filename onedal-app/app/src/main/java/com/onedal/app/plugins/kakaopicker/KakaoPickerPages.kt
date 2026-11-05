@@ -43,7 +43,7 @@ object KakaoPickerPages {
             FieldSpec(PageField.PICKUP, "사진 첫 정거장 — 행정동 + 건물", "경기 광주시 경안동 / 람미당", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail"),
             FieldSpec(PageField.CONTACT, "픽업 주소 아래 회색 상호", "분당스퀘어", Seen.REAL, Handling.UNUSED, "",
                 part = "pickup.customer"),
-            FieldSpec(PageField.PICKUP_DISTANCE, "사진 정거장 오른쪽", "픽업 4.7km", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — straightKm 읽고 안 씀"),
+            FieldSpec(PageField.PICKUP_DISTANCE, "사진 정거장 오른쪽", "픽업 4.7km", Seen.REAL, Handling.READ, "KakaoPickerBaseCall — 목록 줄이 없을 때 기본 콜 상차 거리(옛 칸에는 안 넘긴다)"),
             FieldSpec(PageField.CLOCK, "픽업 상호 오른쪽 회색", "15:00까지 픽업", Seen.REAL, Handling.READ, "서버 원문의 [사진] 줄(원달앱 사진 판독 줄 · 57 3단계) — 약속 · 마감에는 아직 안 쓴다(57 5단계 미룸)",
                 read = Regex("""([0-9]{1,2}:[0-9]{2})\s*\S{0,2}\s*픽업(?!예약)"""), part = "pickup"),
             FieldSpec(PageField.DROPOFF, "사진 둘째 정거장", "서울 용산구 한남동 / 아라마크", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail"),

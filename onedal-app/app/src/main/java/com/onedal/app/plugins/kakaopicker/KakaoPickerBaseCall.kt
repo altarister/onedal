@@ -20,7 +20,7 @@ import com.onedal.app.models.SimplifiedOfficeOrder
  * 🎯 **픽커 화면 값을 기본 콜 칸에 담는다** (계획서 C2) — 칸 기준은 shared `call-fields.table`.
  * 찾은 칸만 담는다. 합치기는 서버가 한다.
  * 🔴 뜻이 섞인 옛 값(`itemSize` · `tagsText` · 차종 표식)은 지금 글자 그대로 담는다. 읽는 코드를 옮길 때 나눈다.
- * 🔴 사진 거리(직선)는 안 담는다 — 지금 판정의 `deliveryDistance` 값이 달라진다. 페이지 표에 읽는 법이 없는 숫자 · 시각도 뒤로 둔다.
+ * 🔴 사진 배송 거리는 안 담는다 — 지금 판정의 `deliveryDistance` 값이 달라진다. 사진 픽업 거리는 목록 줄이 없을 때만 담는다. 페이지 표에 읽는 법이 없는 숫자 · 시각도 뒤로 둔다.
  */
 object KakaoPickerBaseCall {
     /**
@@ -39,7 +39,7 @@ object KakaoPickerBaseCall {
                 listRegion = listOrder?.let { CallRouteListRegion(pickup = it.pickup, dropoff = it.dropoff) },
                 pickup = CallStop(addressDetail = order.pickup.takeIf { detailOnly || AddressForm.isFull(it) }, customerName = photo?.pickup?.place),
                 dropoff = CallStop(addressDetail = order.dropoff.takeIf { detailOnly || AddressForm.isFull(it) }, customerName = photo?.dropoff?.place),
-                pickupDistance = order.pickupDistance ?: listOrder?.pickupDistance,
+                pickupDistance = order.pickupDistance ?: listOrder?.pickupDistance ?: photo?.pickup?.straightKm,
                 deliveryDistance = order.deliveryDistance,
             ),
             money = CallMoney(lines = if (order.fare > 0) listOf(MoneyLine(kind = "income", won = order.fare.toDouble())) else emptyList()),
