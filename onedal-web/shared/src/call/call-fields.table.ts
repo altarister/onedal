@@ -4914,11 +4914,11 @@ export const TABLE = /*JSON*/{
    }
   },
   {
-   "type": "MyOrder",
+   "type": "orders 표",
    "field": "ackedAt",
    "path": "ackedAt",
    "label": "폰이 받았음",
-   "desc": "비어 있으면 서버를 다시 켤 때 그 진행 중 콜을 되살리지 않는다",
+   "desc": "비어 있으면 서버를 다시 켤 때 그 진행 중 콜을 되살리지 않는다. 타입에는 없고 orders 칸으로만 있다",
    "filledBy": "서버",
    "ledger": "orders.ackedAt",
    "pageField": "",
