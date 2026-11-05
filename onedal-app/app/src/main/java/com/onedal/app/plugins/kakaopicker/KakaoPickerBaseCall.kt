@@ -1,19 +1,15 @@
 package com.onedal.app.plugins.kakaopicker
 
-import com.onedal.app.core.engine.AddressForm
-import com.onedal.app.core.Page
+import com.onedal.app.core.BaseCallFill
 import com.onedal.app.core.PageField
-import com.onedal.app.core.PageFieldRead
 import com.onedal.app.models.BaseCall
 import com.onedal.app.models.CallJob
 import com.onedal.app.models.CallLoad
 import com.onedal.app.models.CallMoney
 import com.onedal.app.models.CallPromise
 import com.onedal.app.models.CallRoute
-import com.onedal.app.models.CallRouteListRegion
 import com.onedal.app.models.CallStop
 import com.onedal.app.models.CallTime
-import com.onedal.app.models.MoneyLine
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
@@ -29,23 +25,21 @@ object KakaoPickerBaseCall {
      * @param detailText 상세 글 — 사진 판독 줄까지 모은 글
      */
     fun of(order: SimplifiedOfficeOrder, listOrder: SimplifiedOfficeOrder?, photo: PickerDetailFromImage?, detailText: String?): BaseCall {
-        val texts = detailText?.takeIf { it.isNotBlank() }?.let { listOf(it) }
-        fun read(field: PageField, part: String = "") = texts?.let { PageFieldRead.fieldOf(KakaoPickerPages.pages, Page.NEW_CALL, field, it, part) }
-        val detailOnly = listOrder == null
+        val fill = BaseCallFill(KakaoPickerPages.pages, order, listOrder, detailText)
         return BaseCall(
             id = order.id,
             targetApp = "kakaopicker",
             route = CallRoute(
-                listRegion = listOrder?.let { CallRouteListRegion(pickup = it.pickup, dropoff = it.dropoff) },
-                pickup = CallStop(addressDetail = order.pickup.takeIf { detailOnly || AddressForm.isFull(it) }, customerName = photo?.pickup?.place),
-                dropoff = CallStop(addressDetail = order.dropoff.takeIf { detailOnly || AddressForm.isFull(it) }, customerName = photo?.dropoff?.place),
+                listRegion = fill.listRegion,
+                pickup = CallStop(addressDetail = fill.address(order.pickup), customerName = photo?.pickup?.place),
+                dropoff = CallStop(addressDetail = fill.address(order.dropoff), customerName = photo?.dropoff?.place),
                 pickupDistance = order.pickupDistance ?: listOrder?.pickupDistance ?: photo?.pickup?.straightKm,
                 deliveryDistance = order.deliveryDistance,
             ),
-            money = CallMoney(lines = if (order.fare > 0) listOf(MoneyLine(kind = "income", won = order.fare.toDouble())) else emptyList()),
-            load = CallLoad(vehicleType = order.vehicleType, itemSize = order.itemSize, itemDescription = read(PageField.ITEM_SIZE)),
-            time = CallTime(pickup = CallPromise(text = order.scheduleText, reserved = order.reserved, day = order.reservedDay?.toDouble(), at = order.reservedAt, by = read(PageField.CLOCK, "pickup")), dropoff = read(PageField.CLOCK, "dropoff")?.let { CallPromise(by = it) }),
-            job = CallJob(tagsText = order.tagsText, detailMemo = read(PageField.MEMO)),
+            money = CallMoney(lines = listOfNotNull(fill.fareLine("income"))),
+            load = CallLoad(vehicleType = order.vehicleType, itemSize = order.itemSize, itemDescription = fill.read(PageField.ITEM_SIZE)),
+            time = CallTime(pickup = fill.pickupPromise(by = fill.read(PageField.CLOCK, "pickup")), dropoff = fill.read(PageField.CLOCK, "dropoff")?.let { CallPromise(by = it) }),
+            job = CallJob(tagsText = order.tagsText, detailMemo = fill.read(PageField.MEMO)),
         )
     }
 }

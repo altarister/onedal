@@ -1,18 +1,13 @@
 package com.onedal.app.plugins.hwamul24
 
-import com.onedal.app.core.Page
+import com.onedal.app.core.BaseCallFill
 import com.onedal.app.core.PageField
-import com.onedal.app.core.PageFieldRead
-import com.onedal.app.core.engine.AddressForm
 import com.onedal.app.models.BaseCall
-import com.onedal.app.models.CALL_BILLING_TYPES
-import com.onedal.app.models.CALL_PAYMENT_TYPES
 import com.onedal.app.models.CallJob
 import com.onedal.app.models.CallLoad
 import com.onedal.app.models.CallMoney
 import com.onedal.app.models.CallPromise
 import com.onedal.app.models.CallRoute
-import com.onedal.app.models.CallRouteListRegion
 import com.onedal.app.models.CallStop
 import com.onedal.app.models.CallTime
 import com.onedal.app.models.MoneyLine
@@ -31,35 +26,33 @@ object Hwamul24BaseCall {
      * @param detailText 상세 글
      */
     fun of(order: SimplifiedOfficeOrder, listOrder: SimplifiedOfficeOrder?, detailText: String?): BaseCall {
-        val texts = detailText?.takeIf { it.isNotBlank() }?.let { listOf(it) }
-        fun read(field: PageField) = texts?.let { PageFieldRead.fieldOf(Hwamul24Pages.pages, Page.NEW_CALL, field, it) }
-        val detailOnly = listOrder == null
-        val paying = read(PageField.PAYMENT)
+        val fill = BaseCallFill(Hwamul24Pages.pages, order, listOrder, detailText)
+        val paying = fill.read(PageField.PAYMENT)
         return BaseCall(
             id = order.id,
             targetApp = "hwamul24",
             route = CallRoute(
-                listRegion = listOrder?.let { CallRouteListRegion(pickup = it.pickup, dropoff = it.dropoff) },
-                pickup = CallStop(addressDetail = order.pickup.takeIf { detailOnly || AddressForm.isFull(it) }),
-                dropoff = CallStop(addressDetail = order.dropoff.takeIf { detailOnly || AddressForm.isFull(it) }),
+                listRegion = fill.listRegion,
+                pickup = CallStop(addressDetail = fill.address(order.pickup)),
+                dropoff = CallStop(addressDetail = fill.address(order.dropoff)),
                 pickupDistance = order.pickupDistance,
                 deliveryDistance = order.deliveryDistance,
             ),
             money = CallMoney(
                 lines = listOfNotNull(
-                    order.fare.takeIf { it > 0 }?.let { MoneyLine(kind = "total", won = it.toDouble()) },
-                    PageFieldRead.fareOf(Hwamul24Pages.pages, Page.NEW_CALL, texts.orEmpty())?.let { MoneyLine(kind = "freight", won = it.toDouble()) },
+                    fill.fareLine("total"),
+                    fill.detailFare?.let { MoneyLine(kind = "freight", won = it.toDouble()) },
                 ),
-                paymentType = paying?.takeIf { it in CALL_PAYMENT_TYPES },
-                billingType = paying?.takeIf { it in CALL_BILLING_TYPES },
+                paymentType = fill.payment(paying),
+                billingType = fill.billing(paying),
             ),
             load = CallLoad(vehicleType = order.vehicleType),
             time = CallTime(
-                pickup = CallPromise(text = order.scheduleText, reserved = order.reserved, day = order.reservedDay?.toDouble(), at = order.reservedAt),
+                pickup = fill.pickupPromise(),
                 dropoff = order.tagsText?.split(" ")?.firstOrNull { it in Hwamul24Parser.DROPOFF_DAY_BADGES }?.let { CallPromise(text = it) },
                 postTime = order.postTime,
             ),
-            job = CallJob(tagsText = order.tagsText, detailMemo = read(PageField.MEMO)),
+            job = CallJob(tagsText = order.tagsText, detailMemo = fill.read(PageField.MEMO)),
         )
     }
 }

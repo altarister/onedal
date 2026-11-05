@@ -59,6 +59,20 @@ class BaseCallReportTest {
         assertNull(BaseCallReport.partOf("c1", "t", null) { throw StackOverflowError() }.baseCall)
     }
 
+    @Test fun `짧은 주소는 상세 주소가 아니라 목록 동이다 — 목록 콜이 없어도`() {
+        val short = order.copy(pickup = "독산동", dropoff = "서울 용산구 한남동")
+        val fill = BaseCallFill(com.onedal.app.plugins.insung.InsungPages.pages, short, null, null)
+        assertNull(fill.address(short.pickup))
+        assertEquals("서울 용산구 한남동", fill.address(short.dropoff))
+        assertEquals("독산동", fill.listRegion?.pickup)
+        assertNull(fill.listRegion?.dropoff)
+    }
+
+    @Test fun `전체 주소뿐인 손 상세는 목록 동이 없다`() {
+        val full = order.copy(pickup = "경기 광주시 경안동", dropoff = "서울 용산구 한남동")
+        assertNull(BaseCallFill(com.onedal.app.plugins.insung.InsungPages.pages, full, null, null).listRegion)
+    }
+
     @Test fun `보고 크기는 요청 한도 안이다 — 상세 글 20KB 가 원문과 기록에 두 번 · 빈 기본 콜`() {
         val body = Gson().toJson(DispatchDetailedRequest(deviceId = "d", order = DetailedOfficeOrder(id = "c1", type = "NEW_ORDER", pickup = "a", dropoff = "b", fare = 1, timestamp = "t", rawText = "가".repeat(6700)),
             capturedAt = "t", baseCall = call(), evidence = BaseCallReport.partOf("c1", "t", "가".repeat(6700), screen = "newCall") { call() }.evidence))

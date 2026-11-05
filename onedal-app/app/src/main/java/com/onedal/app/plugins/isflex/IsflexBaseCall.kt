@@ -1,20 +1,15 @@
 package com.onedal.app.plugins.isflex
 
-import com.onedal.app.core.Page
+import com.onedal.app.core.BaseCallFill
 import com.onedal.app.core.PageField
-import com.onedal.app.core.PageFieldRead
-import com.onedal.app.core.engine.AddressForm
 import com.onedal.app.models.BaseCall
-import com.onedal.app.models.CALL_PAYMENT_TYPES
 import com.onedal.app.models.CallJob
 import com.onedal.app.models.CallLoad
 import com.onedal.app.models.CallMoney
 import com.onedal.app.models.CallPromise
 import com.onedal.app.models.CallRoute
-import com.onedal.app.models.CallRouteListRegion
 import com.onedal.app.models.CallStop
 import com.onedal.app.models.CallTime
-import com.onedal.app.models.MoneyLine
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
@@ -29,30 +24,28 @@ object IsflexBaseCall {
      * @param detailText 상세 글
      */
     fun of(order: SimplifiedOfficeOrder, listOrder: SimplifiedOfficeOrder?, detailText: String?): BaseCall {
-        val texts = detailText?.takeIf { it.isNotBlank() }?.let { listOf(it) }
-        fun read(field: PageField, part: String = "") = texts?.let { PageFieldRead.fieldOf(IsflexPages.pages, Page.NEW_CALL, field, it, part) }
-        val detailOnly = listOrder == null
+        val fill = BaseCallFill(IsflexPages.pages, order, listOrder, detailText)
         return BaseCall(
             id = order.id,
             targetApp = "isflex",
-            fromOtherOffice = (listOrder?.rawText ?: read(PageField.PICKUP))?.contains("@")?.takeIf { it },
+            fromOtherOffice = (listOrder?.rawText ?: fill.read(PageField.PICKUP))?.contains("@")?.takeIf { it },
             route = CallRoute(
-                listRegion = listOrder?.let { CallRouteListRegion(pickup = it.pickup, dropoff = it.dropoff) },
-                pickup = CallStop(addressDetail = order.pickup.takeIf { detailOnly || AddressForm.isFull(it) }),
-                dropoff = CallStop(addressDetail = order.dropoff.takeIf { detailOnly || AddressForm.isFull(it) }),
+                listRegion = fill.listRegion,
+                pickup = CallStop(addressDetail = fill.address(order.pickup)),
+                dropoff = CallStop(addressDetail = fill.address(order.dropoff)),
                 pickupDistance = order.pickupDistance,
                 deliveryDistance = order.deliveryDistance,
             ),
             money = CallMoney(
-                lines = if (order.fare > 0) listOf(MoneyLine(kind = "income", won = order.fare.toDouble())) else emptyList(),
-                paymentType = read(PageField.PAYMENT)?.takeIf { it in CALL_PAYMENT_TYPES },
+                lines = listOfNotNull(fill.fareLine("income")),
+                paymentType = fill.payment(fill.read(PageField.PAYMENT)),
             ),
             load = CallLoad(vehicleType = order.vehicleType),
             time = CallTime(
-                pickup = CallPromise(text = order.scheduleText, reserved = order.reserved, day = order.reservedDay?.toDouble(), at = order.reservedAt),
-                dropoff = read(PageField.DROPOFF)?.let { IsflexAddress.clean(it).prefix }?.let { CallPromise(text = it) },
+                pickup = fill.pickupPromise(),
+                dropoff = fill.read(PageField.DROPOFF)?.let { IsflexAddress.clean(it).prefix }?.let { CallPromise(text = it) },
             ),
-            job = CallJob(tripType = read(PageField.TAGS), tagsText = order.tagsText, detailMemo = read(PageField.MEMO, "body")),
+            job = CallJob(tripType = fill.read(PageField.TAGS), tagsText = order.tagsText, detailMemo = fill.read(PageField.MEMO, "body")),
         )
     }
 }
