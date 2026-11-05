@@ -149,7 +149,7 @@ export function renderBaseCallColumns(source = readFileSync(SHAPES_PATH, 'utf8')
  * 누가: 서버 콜 표(orders) 열 더하기 · 저장 · 복원 (baseCallRow)
  * 언제: 기본 콜 타입을 고친 뒤 다시 뽑는다
  * 어디서: 🔴 생성 파일 — orderShapes.ts 의 BaseCall 타입에서 뽑는다. 손으로 고치지 말고 cd onedal-web && pnpm gen:pages basecall
- * 무엇을: 끝 칸 하나 = 열 하나. 여러 줄 칸은 JSON 글자. 맨 위 칸은 call_ 를 붙인다
+ * 무엇을: 끝 칸 하나 = 열 하나. 이름은 묶음_경로 — 맨 위 칸의 묶음 이름은 call 이다. 여러 줄 칸은 JSON 글자
  * 왜: 칸이 늘면 열도 따라 늘게 — 손으로 두 벌을 적지 않는다
  */
 export type BaseCallColumnKind = 'TEXT' | 'REAL' | 'BOOL' | 'JSON';

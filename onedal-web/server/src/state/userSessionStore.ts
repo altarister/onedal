@@ -15,6 +15,7 @@ import { slog } from "../utils/fileLogger";
 import { cancelAllWaits, type Wait } from "./waits";
 import { loadFilterValues } from "./filterValues";
 import { jsonArrayOf } from "@onedal/shared";
+import { clearHeldBaseCalls } from "../services/baseCallCompare";
 
 // ━━━ 서비스 권장 기본값 (신규 가입자용) ━━━
 // 노선·반경·할인율은 여기 없다 — 그 값들의 기본값은 shared `DEFAULT_FILTER_VALUES` 하나다
@@ -586,6 +587,7 @@ export function clearUserSession(userId: string): void {
               (로그아웃 뒤 다시 로그인 · 검사의 세션 비우기) */
         cancelAllWaits(session);
         sessions.delete(userId);
+        clearHeldBaseCalls(userId);
         slog('부팅', `🧹 [Session] 유저 ${userId} 메모리 세션 완전 파기 완료`);
     }
 }

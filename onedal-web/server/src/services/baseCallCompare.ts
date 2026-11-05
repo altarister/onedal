@@ -56,9 +56,17 @@ export function saveHeldBaseCall(userId: string, id: string): void {
     }
 }
 
-/** ♻️ 재시작 뒤 콜 표에서 되살린 기본 콜 · 기록을 되돌려 둔다 — 이어 오는 보고가 그 위에 합쳐진다 */
+/**
+ * ♻️ 재시작 뒤 콜 표에서 되살린 기본 콜 · 기록을 되돌려 둔다 — 이어 오는 보고가 그 위에 합쳐진다.
+ * 복원은 덮어쓴다. 복원 전에 먼저 온 조각이 있으면 이어 오는 상세 보고가 다시 합친다.
+ */
 export function restoreHeldBaseCall(userId: string, id: string, saved: { call?: BaseCall; evidence?: CallEvidence }): void {
     if (!saved.call && !saved.evidence) return;
     held.set(keyOf(userId, id), { call: saved.call, evidence: saved.evidence, lastDiff: null });
     if (held.size > KEEP) held.delete(held.keys().next().value as string);
+}
+
+/** 🧹 기사 세션을 비울 때 그 기사의 합쳐 둔 기본 콜도 비운다 — 로그아웃 · 계정 막힘 뒤 메모리에 전화번호가 남지 않게 */
+export function clearHeldBaseCalls(userId: string): void {
+    for (const key of [...held.keys()]) if (key.startsWith(`${userId}:`)) held.delete(key);
 }

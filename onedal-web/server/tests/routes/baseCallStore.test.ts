@@ -4,7 +4,7 @@ import { BASE_CALL_COLUMN_TYPES, baseCallFromRow } from '@onedal/shared';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
 import { compareBaseCall, holdBaseCall, saveHeldBaseCall } from '../../src/services/baseCallCompare';
 import { restoreAndRecalculateSession } from '../../src/state/sessionRestore';
-import { clearUserSession } from '../../src/state/userSessionStore';
+import { clearUserSession, getUserSession } from '../../src/state/userSessionStore';
 import ordersRouter from '../../src/routes/orders';
 import { approvedUser } from '../fixtures/approvedUser';
 import * as fileLogger from '../../src/utils/fileLogger';
@@ -63,6 +63,21 @@ describe('🎯 관제웹 콜 목록', () => {
         expect(mine).toBeDefined();
         expect(Object.keys(mine).filter((k) => k in BASE_CALL_COLUMN_TYPES)).toEqual([]);
         expect(JSON.stringify(mine)).not.toContain('010-1234-5678');
+    });
+});
+
+describe('🧹 세션 비우기', () => {
+    it('기사 세션을 비우면 합쳐 둔 기본 콜도 비운다 — 다른 기사 것은 남는다', () => {
+        const spy = jest.spyOn(fileLogger, 'slog');
+        holdBaseCall(U, `${U}-c`, call());
+        holdBaseCall(`${U}-other`, `${U}-c`, call());
+        getUserSession(U);
+        clearUserSession(U);
+        compareBaseCall(U, { ...order(`${U}-c`), fare: 1 });
+        compareBaseCall(`${U}-other`, { ...order(`${U}-c`), fare: 1 });
+        const lines = spy.mock.calls.map(([, line]) => String(line)).filter((line) => line.includes('🔍 [기본 콜 견줌]'));
+        expect(lines).toHaveLength(1);
+        spy.mockRestore();
     });
 });
 
