@@ -75,6 +75,9 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
         return context.handleInsungPreConfirmExecution(rootNode, screenTexts)
     }
 
+    override fun baseCallOf(context: ScanContext, order: SimplifiedOfficeOrder): com.onedal.app.models.BaseCall? =
+        InsungBaseCall.of(order, context.session.listOrder, context.session.accumulatedDetailText)
+
     /** 🏠 팝업 «위치»를 상차·하차 칸에 — 못 꺼낸 쪽은 목록 짧은 이름 그대로(그러면 상세 요건에서 탈락한다) */
     override fun fillDetail(context: ScanContext, order: SimplifiedOfficeOrder): SimplifiedOfficeOrder {
         val collected = context.session.accumulatedDetailText
