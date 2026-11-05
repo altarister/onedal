@@ -55,7 +55,13 @@ class IsflexBaseCallTest {
         assertNull(call.money.paymentType)
     }
 
-    @Test fun `손으로 연 콜은 목록 동과 공유 표시가 없다`() {
+    @Test fun `손으로 연 콜의 공유 표시는 상세 출발 칸의 «@»로 읽는다`() {
+        val order = SimplifiedOfficeOrder(id = "c", pickup = "서울 강남구 역삼동", dropoff = "서울 강남구 대치동", fare = 8500, timestamp = "t")
+        val call = IsflexBaseCall.of(order, null, "출발지까지 26.7km 오토 출발 @서울 강남구 @역삼동 약 2.3km 도착 서울 강남구 대치동 적요상세 없음 총 수입 8,500원 닫기")
+        assertEquals(true, call.fromOtherOffice)
+    }
+
+    @Test fun `상세 글도 목록 줄도 없으면 목록 동과 공유 표시가 없다`() {
         val order = SimplifiedOfficeOrder(id = "c", pickup = "서울 강남구 역삼동", dropoff = "서울 강남구 대치동", fare = 8500, timestamp = "t")
         val call = IsflexBaseCall.of(order, null, null)
         assertNull(call.route.listRegion)

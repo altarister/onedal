@@ -34,7 +34,7 @@ object IsflexBaseCall {
         return BaseCall(
             id = order.id,
             targetApp = "isflex",
-            fromOtherOffice = listOrder?.rawText?.contains("@")?.takeIf { it },
+            fromOtherOffice = (listOrder?.rawText ?: read(PageField.PICKUP))?.contains("@")?.takeIf { it },
             route = CallRoute(
                 listRegion = listOrder?.let { CallRouteListRegion(pickup = it.pickup, dropoff = it.dropoff) },
                 pickup = CallStop(addressDetail = order.pickup.takeIf { detailOnly || AddressForm.isFull(it) }),

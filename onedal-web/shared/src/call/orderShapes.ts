@@ -389,7 +389,7 @@ export interface CallTime {
 
 /** 조건은 뭔가, 가서 뭘 해야 하나 */
 export interface CallJob {
-    tripType?: string;           // 편도 · 왕복 · 경유 — 인성 «구분» · 줄 바탕색
+    tripType?: string;           // 편도 · 왕복 · 경유 — 인성 «구분» · 줄 바탕색. 옮기는 동안 플렉스는 지금 값 «과적»이 그대로 들어온다. 읽는 코드를 옮길 때 나눈다
     orderForm?: string;          // 보통 · 급송 — 인성 «형태». 지금 인성만 실린다. 급송 판단(dispatchEngine.ts:158 · 576 · 771)이 읽는다
     /**
      * 제 칸이 없는 꼬리표 글자 그대로 — 픽커 «퀵 비즈», 플렉스 «과적», 화물24시 날 배지 «당착». 플렉스 목록은 결제 글자도 여기 섞인다.
