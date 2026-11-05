@@ -142,6 +142,9 @@ const KEEP = {
 
 /** 🧪 검사만 부르는데 알고 남기는 export — 사유 없이는 못 넣는다 (①-2) */
 const TEST_ONLY_KEEP = {
+    mergeBaseCall: '기본 콜 합치기 — 계획서 D1 에서 서버 입구가 부른다',
+    mergeEvidence: '기본 콜 기록 더하기 — 계획서 D1 에서 서버 입구가 부른다',
+    officeOrderOf: '기본 콜 → 옛 콜 — 계획서 D1 에서 서버 입구가 부른다',
     isSkipped: 'shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 milestones.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로.',
     ARRIVAL_REASONS: 'shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 arrivalReasons.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로.',
     getEffectiveDetourRadius: 'shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 dispatchFilter.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로.',
