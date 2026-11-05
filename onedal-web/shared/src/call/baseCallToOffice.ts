@@ -92,6 +92,7 @@ function fareOf(call: BaseCall): number | undefined {
 
 /**
  * 옛 콜 칸 — 찾은 칸만 싣는다. `evolveOrder` 는 키가 있으면 빈 값도 앞 기억을 덮는다.
+ * 🔴 합친 BaseCall 에서 만든 값만 쓴다. 평평한 앞 값 위에 얹으면 빈 상차 · 하차 · 요금이 앞 값을 지운다.
  * 🔴 서버가 정하는 칸(status · capturedAt · isSimulated 등)보다 먼저 합친다. 앱 값이 서버 값을 덮으면 안 된다.
  * 🔴 상세 보고는 지금처럼 연락처 칸을 빈 배열로도 싣는다 — 증거 서랍이 그 글자를 그린다. 첫 보고에는 안 싣는다.
  * 🔴 상차 · 하차 · 요금은 지금 앱이 늘 보내는 칸이라 없어도 빈 값으로 싣는다. orders.dropoff 는 NOT NULL 이다.

@@ -13,6 +13,7 @@ import { approvedUser } from '../fixtures/approvedUser';
  * 📐 **비교 기준 — 첫 보고와 상세 보고를 합친 콜 값 · 저장 행** (계획서 C1-1).
  * 판정이 읽는 값은 앱 파서도 서버 상세 읽기도 아니라 이 합친 값이다. C2 끝 조건이 이 값과 견준다.
  * 🔴 기대값은 지금 동작이다. 팝업 주소 채우기 · 사진 판독 · 필터 판정 · 관제웹 화면은 안 본다.
+ * 🔴 판정 함수는 막아 두어 결재 뒤 값(reservedFor · isShared)은 안 본다. capturedAt · 잡은 방식 칸 · 손으로 연 콜도 안 본다.
  */
 const PATH = join(__dirname, '../../../shared/src/network/callMergeCases.json');
 const SHEET = JSON.parse(readFileSync(PATH, 'utf8'));
@@ -42,7 +43,7 @@ async function merged(c: any, index: number) {
     await post(detailRouter, '/', { step: 'DETAILED', targetApp: c.network, order: { ...c.detail, ...stamp, type: 'AUTO_CLICK' } });
     spy.mockRestore();
     const call = getUserSession(U).pendingOrdersData.get(id);
-    OrderRepository.upsertOrder(call, U, 0, 0);
+    OrderRepository.upsertOrder(call, U, 0, call.orderForm === '급송' ? 1 : 0);   // isExpress 는 결재 코드와 같은 규칙 · isShared 는 기준 밖
     return { call: steady(call), row: steady(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(id)) };
 }
 
