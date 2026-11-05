@@ -55,6 +55,7 @@ object InsungBaseCall {
             money = CallMoney(
                 lines = listOfNotNull(
                     order.fare.takeIf { it > 0 }?.let { MoneyLine(kind = "income", won = it.toDouble()) },
+                    PageFieldRead.fareOf(InsungPages.pages, Page.NEW_CALL, texts.orEmpty())?.takeIf { it != order.fare }?.let { MoneyLine(kind = "unknown", won = it.toDouble(), label = "상세 요금") },   // 목록 요금과 다른 상세 금액 — 판정은 안 읽는다
                     read(PageField.COMMISSION)?.let { MoneyLine(kind = "fee", rate = it) },
                     read(PageField.TOLL)?.let { MoneyLine(kind = "consign", rate = it) },
                 ),

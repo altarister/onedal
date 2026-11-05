@@ -90,4 +90,11 @@ describe('🎯 플러그인이 채운 기본 콜', () => {
         }
         expect(office).toEqual(only(c.expectCall));
     });
+    it.each(filled.filter((c) => c.network === 'insung').map((c) => [c.why, c]))('인성 연락처 칸은 서버 값과 같다 — %s', (_w, c) => {
+        const id = 'c1';
+        const merged = mergeBaseCall({ id, targetApp: c.network, ...c.expectBaseCall.confirm }, { id, targetApp: c.network, ...c.expectBaseCall.detail });
+        const office = officeOrderOf(merged, {}, {}, true);
+        expect(office.pickupDetails).toEqual(c.expectCall.pickupDetails);
+        expect(office.dropoffDetails).toEqual(c.expectCall.dropoffDetails);
+    });
 });
