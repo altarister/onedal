@@ -5,6 +5,8 @@ import com.onedal.app.core.PageField
 import com.onedal.app.core.PageFieldRead
 import com.onedal.app.core.engine.AddressForm
 import com.onedal.app.models.BaseCall
+import com.onedal.app.models.CALL_BILLING_TYPES
+import com.onedal.app.models.CALL_PAYMENT_TYPES
 import com.onedal.app.models.CallJob
 import com.onedal.app.models.CallLoad
 import com.onedal.app.models.CallMoney
@@ -59,8 +61,8 @@ object InsungBaseCall {
                     read(PageField.COMMISSION)?.let { MoneyLine(kind = "fee", rate = it) },
                     read(PageField.TOLL)?.let { MoneyLine(kind = "consign", rate = it) },
                 ),
-                paymentType = read(PageField.PAYMENT),
-                billingType = read(PageField.BILLING),
+                paymentType = read(PageField.PAYMENT)?.takeIf { it in CALL_PAYMENT_TYPES },
+                billingType = read(PageField.BILLING)?.takeIf { it in CALL_BILLING_TYPES },
             ),
             load = CallLoad(vehicleType = order.vehicleType ?: read(PageField.VEHICLE_TYPE), itemSize = order.itemSize, itemDescription = read(PageField.ITEM_SIZE)),
             time = CallTime(

@@ -15,6 +15,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const ts = createRequire(join(here, '../../server/package.json'))('typescript');
 
 export const SHAPES_PATH = join(here, '../../shared/src/call/orderShapes.ts');
+const PAYMENT_PATH = join(here, '../../shared/src/call/paymentTypes.ts');
 export const KOTLIN_PATH = join(here, '../../../onedal-app/app/src/main/java/com/onedal/app/models/BaseCallShape.kt');
 /* 글자로 보내도 되는 별칭 — 그 밖의 참조 · Record · 튜플 · 섞인 합침은 뭉개지 않고 멈춘다 */
 const TEXT_ALIASES = new Set(['MoneyKind', 'CallPaymentType', 'PaymentType', 'BillingType', 'TargetAppType', 'ScreenPage']);
@@ -24,6 +25,14 @@ const KOTLIN_WORDS = new Set(['as', 'break', 'class', 'continue', 'do', 'else', 
 const ROOTS = ['BaseCall', 'CallEvidence'];
 
 const pascal = (word) => word[0].toUpperCase() + word.slice(1);
+
+/** 결제 · 계산서 값 목록을 글자로 — 앱이 자유 글을 걸러 칸 뜻을 지킨다. 못 찾으면 멈춘다 */
+function wordsOf(name, text) {
+    const found = text.match(new RegExp(`export const ${name} = \\[([^\\]]*)\\]`));
+    if (!found) throw new Error(`${name} 값 목록을 못 찾았다`);
+    return [...found[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+}
+const kotlinWords = (words) => `setOf(${words.map((w) => `"${w}"`).join(', ')})`;
 
 export function renderBaseCallKotlin(source = readFileSync(SHAPES_PATH, 'utf8')) {
     const file = ts.createSourceFile('orderShapes.ts', source, ts.ScriptTarget.Latest, true);
@@ -85,10 +94,19 @@ export function renderBaseCallKotlin(source = readFileSync(SHAPES_PATH, 'utf8'))
         const rows = fields.map((f) => `    val ${f.name}: ${f.type}${f.optional ? '? = null' : ''},`).join('\n');
         return `${about ? `/** ${about} */\n` : ''}data class ${name}(\n${rows}\n)`;
     }).join('\n\n');
+    const payment = readFileSync(PAYMENT_PATH, 'utf8');
+    const extraPayment = source.match(/export type CallPaymentType = PaymentType \| '([^']+)'/);
+    if (!extraPayment) throw new Error('CallPaymentType 값을 못 찾았다');
     return `package com.onedal.app.models
 
 // 🔴 생성 파일 — shared/src/call/orderShapes.ts 의 기본 콜 타입에서 뽑는다. 손으로 고치지 말고 cd onedal-web && pnpm gen:pages basecall
 // 플러그인이 채워 보내는 모양이다. 글자 묶음 별칭(MoneyKind · 결제 등)은 글자로 보낸다.
+
+/** 기본 콜 결제 칸에 담는 값 */
+val CALL_PAYMENT_TYPES = ${kotlinWords([...wordsOf('PAYMENT_TYPES', payment), extraPayment[1]])}
+
+/** 기본 콜 계산서 칸에 담는 값 */
+val CALL_BILLING_TYPES = ${kotlinWords(wordsOf('BILLING_TYPES', payment))}
 
 ${body}
 `;

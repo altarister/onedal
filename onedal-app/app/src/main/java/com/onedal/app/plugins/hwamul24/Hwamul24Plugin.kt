@@ -49,4 +49,7 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
     override fun getSafeCancelMs(filter: FilterConfig): Long? = filter.secOf(Hwamul24Pages.safeCancelSecKey)?.times(1000L)
 
     override fun getDetailBackTimeoutMs(filter: FilterConfig): Long? = filter.secOf(Hwamul24Pages.detailBackSecKey)?.times(1000L)
+
+    override fun baseCallOf(context: com.onedal.app.core.engine.ScanContext, order: com.onedal.app.models.SimplifiedOfficeOrder): com.onedal.app.models.BaseCall? =
+        Hwamul24BaseCall.of(order, context.session.listOrder, context.session.accumulatedDetailText)
 }

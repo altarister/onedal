@@ -51,6 +51,11 @@ class InsungBaseCallTest {
         assertEquals("10시전하차", call.job.detailMemo)
     }
 
+    @Test fun `값 목록에 없는 결제 글자는 안 담는다`() {
+        val order = SimplifiedOfficeOrder(id = "c", pickup = "경기 광주시 경안동", dropoff = "서울 용산구 한남동", fare = 1000, timestamp = "t")
+        assertNull(InsungBaseCall.of(order, null, "요금 : 1,000(협의)").money.paymentType)
+    }
+
     @Test fun `글이 비면 찾은 값만 담는다`() {
         val order = SimplifiedOfficeOrder(id = "c", pickup = "경기 광주시 경안동", dropoff = "서울 용산구 한남동", fare = 1000, timestamp = "t", vehicleType = "다")
         val call = InsungBaseCall.of(order, null, " ")

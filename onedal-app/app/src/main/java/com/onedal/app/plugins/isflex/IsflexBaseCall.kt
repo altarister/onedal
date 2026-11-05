@@ -5,6 +5,7 @@ import com.onedal.app.core.PageField
 import com.onedal.app.core.PageFieldRead
 import com.onedal.app.core.engine.AddressForm
 import com.onedal.app.models.BaseCall
+import com.onedal.app.models.CALL_PAYMENT_TYPES
 import com.onedal.app.models.CallJob
 import com.onedal.app.models.CallLoad
 import com.onedal.app.models.CallMoney
@@ -44,7 +45,7 @@ object IsflexBaseCall {
             ),
             money = CallMoney(
                 lines = if (order.fare > 0) listOf(MoneyLine(kind = "income", won = order.fare.toDouble())) else emptyList(),
-                paymentType = read(PageField.PAYMENT),
+                paymentType = read(PageField.PAYMENT)?.takeIf { it in CALL_PAYMENT_TYPES },
             ),
             load = CallLoad(vehicleType = order.vehicleType),
             time = CallTime(

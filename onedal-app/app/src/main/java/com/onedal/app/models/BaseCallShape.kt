@@ -3,6 +3,12 @@ package com.onedal.app.models
 // 🔴 생성 파일 — shared/src/call/orderShapes.ts 의 기본 콜 타입에서 뽑는다. 손으로 고치지 말고 cd onedal-web && pnpm gen:pages basecall
 // 플러그인이 채워 보내는 모양이다. 글자 묶음 별칭(MoneyKind · 결제 등)은 글자로 보낸다.
 
+/** 기본 콜 결제 칸에 담는 값 */
+val CALL_PAYMENT_TYPES = setOf("신용", "선불", "착불", "카드", "현금", "선/착불")
+
+/** 기본 콜 계산서 칸에 담는 값 */
+val CALL_BILLING_TYPES = setOf("계산서", "인수증", "무과세")
+
 /** 🎯 기본 콜 — 콜 한 건을 퀵 기사가 묻는 차례대로 나눈 것 */
 data class BaseCall(
     val id: String,
