@@ -22,6 +22,16 @@ describe('🎯 기본 콜 코틀린 짝', () => {
     it('🔴 묶음 칸을 글자로 뭉개지 않는다 — 기록의 바뀐 칸', () => {
         expect(renderBaseCallKotlin()).toContain('val changed: List<EvidenceLineChanged>? = null');
     });
+    it.each([
+        ['다른 파일의 묶음', 'spec?: CargoSpec'],
+        ['Record', 'dict?: Record<string, number>'],
+        ['튜플', 'pair?: [string, number]'],
+        ['섞인 합침', 'mix?: string | number'],
+        ['코틀린 예약어', 'when?: string'],
+    ])('🔴 %s 는 글자로 뭉개지 않고 멈춘다', (_what, field) => {
+        const bad = readFileSync(SHAPES_PATH, 'utf8').replace('export interface CallJob {', `export interface CallJob {\n    ${field};`);
+        expect(() => renderBaseCallKotlin(bad)).toThrow();
+    });
     it('🔴 뺀 칸은 코틀린에도 없다 — 마일리지 · 요청 시각', () => {
         const stop = renderBaseCallKotlin().match(/data class CallStop\(([\s\S]*?)\n\)/)[1];
         expect(stop).toContain('val loadingMethod');

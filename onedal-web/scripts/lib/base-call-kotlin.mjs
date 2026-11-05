@@ -16,6 +16,10 @@ const ts = createRequire(join(here, '../../server/package.json'))('typescript');
 
 export const SHAPES_PATH = join(here, '../../shared/src/call/orderShapes.ts');
 export const KOTLIN_PATH = join(here, '../../../onedal-app/app/src/main/java/com/onedal/app/models/BaseCallShape.kt');
+/* 글자로 보내도 되는 별칭 — 그 밖의 참조 · Record · 튜플 · 섞인 합침은 뭉개지 않고 멈춘다 */
+const TEXT_ALIASES = new Set(['MoneyKind', 'CallPaymentType', 'PaymentType', 'BillingType', 'TargetAppType', 'ScreenPage']);
+const KOTLIN_WORDS = new Set(['as', 'break', 'class', 'continue', 'do', 'else', 'false', 'for', 'fun', 'if', 'in', 'interface', 'is', 'null', 'object', 'package', 'return', 'super', 'this', 'throw', 'true', 'try', 'typealias', 'typeof', 'val', 'var', 'when', 'while']);
+
 /** 원달앱이 채워 보내는 타입 — 잡은 뒤 값 · 판정 답 · 보고 봉투는 여기 없다 */
 const ROOTS = ['BaseCall', 'CallEvidence'];
 
@@ -26,12 +30,15 @@ export function renderBaseCallKotlin(source = readFileSync(SHAPES_PATH, 'utf8'))
     const interfaces = new Map(file.statements.filter(ts.isInterfaceDeclaration).map((d) => [d.name.text, d]));
     const classes = new Map();
 
+    const isNull = (t) => ts.isLiteralTypeNode(t) && t.literal.kind === ts.SyntaxKind.NullKeyword;
     /** 칸 하나의 코틀린 타입 — 글자 묶음 별칭은 글자로 보낸다 */
     const kotlinType = (node, owner, field) => {
         if (ts.isParenthesizedTypeNode(node)) return kotlinType(node.type, owner, field);
         if (ts.isUnionTypeNode(node)) {
-            const real = node.types.filter((t) => !(ts.isLiteralTypeNode(t) && t.literal.kind === ts.SyntaxKind.NullKeyword));
-            return real.length === 1 ? kotlinType(real[0], owner, field) : 'String';
+            const real = node.types.filter((t) => !isNull(t));
+            if (real.length === 1) return kotlinType(real[0], owner, field);
+            if (real.every((t) => ts.isLiteralTypeNode(t) && ts.isStringLiteral(t.literal))) return 'String';
+            throw new Error(`${owner}.${field}: 섞인 합침은 코틀린으로 못 뽑는다 — ${node.getText()}`);
         }
         if (ts.isArrayTypeNode(node)) return `List<${kotlinType(node.elementType, owner, field)}>`;
         if (ts.isTypeReferenceNode(node) && node.typeName.getText() === 'Array') return `List<${kotlinType(node.typeArguments[0], owner, field)}>`;
@@ -47,11 +54,15 @@ export function renderBaseCallKotlin(source = readFileSync(SHAPES_PATH, 'utf8'))
             addInterface(node.typeName.getText());
             return node.typeName.getText();
         }
-        return 'String';
+        if (ts.isLiteralTypeNode(node) && ts.isStringLiteral(node.literal)) return 'String';
+        if (ts.isTypeReferenceNode(node) && TEXT_ALIASES.has(node.typeName.getText())) return 'String';
+        throw new Error(`${owner}.${field}: 모르는 타입이다. 글자로 뭉개지 않는다 — ${node.getText()}`);
     };
-    const fieldsOf = (members, owner) => members.filter(ts.isPropertySignature).map((m) => ({
-        name: m.name.getText(), optional: !!m.questionToken || (m.type.getText().includes('| null')), type: kotlinType(m.type, owner, m.name.getText()),
-    }));
+    const fieldsOf = (members, owner) => members.filter(ts.isPropertySignature).map((m) => {
+        const name = m.name.getText();
+        if (KOTLIN_WORDS.has(name)) throw new Error(`${owner}.${name}: 코틀린 예약어라 칸 이름으로 못 쓴다`);
+        return { name, optional: !!m.questionToken || (ts.isUnionTypeNode(m.type) && m.type.types.some(isNull)), type: kotlinType(m.type, owner, name) };
+    });
     const addClass = (name, fields, about) => { if (!classes.has(name)) classes.set(name, { fields, about }); };
     const addInterface = (name) => {
         if (classes.has(name)) return;
