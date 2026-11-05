@@ -57,9 +57,9 @@ describe('🎯 옛 서버 + 새 앱 보고', () => {
         expect(held('a2')).toEqual(before);
         expect(getUserSession(U).pendingOrdersData.get('a2')).not.toHaveProperty('baseCall');
     });
-    it('상세 보고 — baseCall 을 실어도 콜 값이 같고 메모리에 안 섞인다', async () => {
+    it('상세 보고 — baseCall · evidence 를 실어도 콜 값이 같고 메모리에 안 섞인다', async () => {
         await post(detailRouter, '/', { step: 'DETAILED', order: order('b1', '상세 글') });
-        await post(detailRouter, '/', { step: 'DETAILED', order: order('b2', '상세 글'), baseCall });
+        await post(detailRouter, '/', { step: 'DETAILED', order: order('b2', '상세 글'), baseCall, evidence });
         expect(getUserSession(U).pendingOrdersData.has('b2')).toBe(true);
         expect(held('b2')).toEqual(held('b1'));
         expect(getUserSession(U).pendingOrdersData.get('b2')).not.toHaveProperty('baseCall');

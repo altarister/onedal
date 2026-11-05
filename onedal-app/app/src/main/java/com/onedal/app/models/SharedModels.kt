@@ -195,8 +195,9 @@ data class DispatchDetailedRequest(
     val targetApp: String = "insung",
     /** 👀 미리보기 콜 — 뜻과 규칙은 `DispatchBasicRequest.isPreview` 에 적었다 */
     val isPreview: Boolean = false,
-    /** 🎯 플러그인이 채운 기본 콜 조각 — 뜻은 `DispatchBasicRequest.baseCall` */
+    /** 🎯 플러그인이 채운 기본 콜 조각과 화면 기록 — 뜻은 `DispatchBasicRequest.baseCall` */
     val baseCall: BaseCall? = null,
+    val evidence: CallEvidence? = null,
 )
 
 // ────────────────────────────────────────────────

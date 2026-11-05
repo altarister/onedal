@@ -115,8 +115,9 @@ export function timeoutActionOf(r: { keep: boolean; who: WhoConfirmed; simulated
 // 1-B. 앱폰 -> 서버: 2차 호출 (상세 페이지 진입 후 상세 정보 파싱 완료 시)
 export interface DispatchDetailedRequest {
     step: 'DETAILED';
-    /** 🎯 플러그인이 채운 기본 콜 조각 — 지금 서버는 안 읽는다 */
+    /** 🎯 플러그인이 채운 기본 콜 조각 · 읽은 상세 글 기록 — 지금 서버는 안 읽는다 */
     baseCall?: BaseCall;
+    evidence?: CallEvidence;
     deviceId: string;
     order: OfficeOrder;
     capturedAt: string;

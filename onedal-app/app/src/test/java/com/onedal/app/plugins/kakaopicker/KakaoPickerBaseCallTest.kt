@@ -3,6 +3,10 @@ package com.onedal.app.plugins.kakaopicker
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.onedal.app.core.BaseCallReport
+import com.onedal.app.core.engine.SessionManager
+import com.onedal.app.models.DetailedOfficeOrder
+import com.onedal.app.models.DispatchDetailedRequest
 import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -20,16 +24,16 @@ class KakaoPickerBaseCallTest {
 
     private fun flat(json: JsonObject, id: String = "c") = gson.fromJson(json.deepCopy().apply { addProperty("id", id); addProperty("timestamp", "t"); addProperty("type", "NEW_ORDER") }, SimplifiedOfficeOrder::class.java)
 
-    /** 첫 보고 · 상세 보고 — 앱은 상세의 주소로 덮은 콜을 보낸다 */
+    /** 첫 보고 · 상세 보고 — `appInput` 이 앱의 세션 값이다. 사진 길은 사진 뒤에 두 보고를 같은 값으로 보낸다(`sameText`) */
     private fun reports(c: JsonObject): Pair<JsonObject, JsonObject> {
         val first = flat(c["confirm"].asJsonObject)
-        val hand = c["why"].asString.contains("사진 길")
-        val list = if (hand) null else first
-        val photo = if (hand) PickerDetailFromImage(pickup = PickerStopFromImage("경기 성남시 수정구 신촌동", null, 18.9, null), dropoff = PickerStopFromImage("서울 광진구 자양2동", "NC이스트폴", 9.7, null), itemSize = null, reserved = false) else null
+        val app = c["appInput"].asJsonObject
+        val list = app["listOrder"]?.let { flat(it.asJsonObject) }
+        val photo = app["photo"]?.let { gson.fromJson(it, PickerDetailFromImage::class.java) }
         val detail = c["detail"].asJsonObject
         val second = first.copy(pickup = detail["pickup"].asString, dropoff = detail["dropoff"].asString, fare = detail["fare"].asInt)
         val toJson = { o: Any -> gson.toJsonTree(o).asJsonObject.apply { remove("id") } }
-        return toJson(KakaoPickerBaseCall.of(first, list, photo, null)) to toJson(KakaoPickerBaseCall.of(second, list, photo, detail["rawText"].asString))
+        return toJson(KakaoPickerBaseCall.of(first, list, photo, detail["rawText"].asString.takeIf { app["sameText"]?.asBoolean == true })) to toJson(KakaoPickerBaseCall.of(second, list, photo, detail["rawText"].asString))
     }
 
     @Test fun `같은 입력은 문제지의 기본 콜이 된다`() {
@@ -39,6 +43,27 @@ class KakaoPickerBaseCallTest {
             assertEquals(c["why"].asString, want["confirm"], first)
             assertEquals(c["why"].asString, want["detail"], second)
         }
+    }
+
+    @Test fun `보고 전체 — 번호 · 목록 동 · 사진 기록이 한 요청에 실린다`() {
+        val list = SimplifiedOfficeOrder(id = "c", pickup = "광주 경안", dropoff = "강남 역삼1", fare = 1000, timestamp = "t")
+        val full = list.copy(pickup = "경기 광주시 경안동", dropoff = "서울 강남구 역삼1동")
+        val part = BaseCallReport.partOf("보낼번호", "t", "상세 글", screen = "newCall", read = "photo") { KakaoPickerBaseCall.of(full, list, null, "상세 글") }
+        val body = gson.toJsonTree(DispatchDetailedRequest(deviceId = "d", order = DetailedOfficeOrder(id = "보낼번호", type = "MANUAL_CLICK", pickup = full.pickup, dropoff = full.dropoff, fare = 1000, timestamp = "t", rawText = "상세 글"),
+            capturedAt = "t", baseCall = part.baseCall, evidence = part.evidence)).asJsonObject
+        assertEquals("보낼번호", body["baseCall"].asJsonObject["id"].asString)
+        assertEquals("광주 경안", body["baseCall"].asJsonObject["route"].asJsonObject["listRegion"].asJsonObject["pickup"].asString)
+        val seen = body["evidence"].asJsonObject["seen"].asJsonArray[0].asJsonObject
+        assertEquals("newCall", seen["screen"].asString)
+        assertEquals("photo", seen["read"].asString)
+        assertEquals("상세 글", seen["rawText"].asString)
+    }
+
+    @Test fun `목록 콜이 바뀌면 앞 콜 사진이 남지 않는다`() {
+        val session = SessionManager()
+        session.lastPhotoDetail = "앞 콜 사진"
+        session.listOrder = null
+        assertNull(session.lastPhotoDetail)
     }
 
     @Test fun `목록 동은 목록 콜에서 오고 상세로 덮이지 않는다`() {

@@ -30,7 +30,7 @@ object KakaoPickerBaseCall {
      */
     fun of(order: SimplifiedOfficeOrder, listOrder: SimplifiedOfficeOrder?, photo: PickerDetailFromImage?, detailText: String?): BaseCall {
         val texts = detailText?.takeIf { it.isNotBlank() }?.let { listOf(it) }
-        fun read(field: PageField) = texts?.let { PageFieldRead.fieldOf(KakaoPickerPages.pages, Page.NEW_CALL, field, it) }
+        fun read(field: PageField, part: String = "") = texts?.let { PageFieldRead.fieldOf(KakaoPickerPages.pages, Page.NEW_CALL, field, it, part) }
         val detailOnly = listOrder == null
         return BaseCall(
             id = order.id,
@@ -44,7 +44,7 @@ object KakaoPickerBaseCall {
             ),
             money = CallMoney(lines = if (order.fare > 0) listOf(MoneyLine(kind = "income", won = order.fare.toDouble())) else emptyList()),
             load = CallLoad(vehicleType = order.vehicleType, itemSize = order.itemSize, itemDescription = read(PageField.ITEM_SIZE)),
-            time = CallTime(pickup = CallPromise(text = order.scheduleText, reserved = order.reserved, day = order.reservedDay?.toDouble(), at = order.reservedAt)),
+            time = CallTime(pickup = CallPromise(text = order.scheduleText, reserved = order.reserved, day = order.reservedDay?.toDouble(), at = order.reservedAt), dropoff = read(PageField.CLOCK, "dropoff")?.let { CallPromise(text = it) }),
             job = CallJob(tagsText = order.tagsText, detailMemo = read(PageField.MEMO)),
         )
     }

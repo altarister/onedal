@@ -71,6 +71,10 @@ class SessionManager {
      * 플러그인이 목록 값을 기본 콜에 채우고, 글자는 첫 보고의 화면 기록으로 간다. 목록 줄을 못 찾은 콜은 비운다.
      */
     var listOrder: SimplifiedOfficeOrder? = null
+        set(value) {
+            field = value
+            lastPhotoDetail = null   // 앞 콜의 상호가 이 콜 값으로 가지 않게
+        }
 
     /** 📸 이 상세의 사진 판독 결과 — 모양은 배차망 플러그인이 안다. 기본 콜을 채울 때 읽는다 */
     var lastPhotoDetail: Any? = null
@@ -178,7 +182,6 @@ class SessionManager {
         accumulatedDetailText = ""
         lastDetailOrder = null
         listOrder = null
-        lastPhotoDetail = null
         alarmTappedCard = null
         alarmTappedAtMs = 0L
         settledOpener = null

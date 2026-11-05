@@ -1924,7 +1924,7 @@ class HijackService : AccessibilityService(), ScanContext {
     override fun sendDetail(order: SimplifiedOfficeOrder) {
         val order = session.withOrderId(order)   // 🔢 /confirm 과 같은 번호
         run {
-            val baseCallPart = com.onedal.app.core.BaseCallReport.partOf(order.id, order.timestamp, null) {
+            val baseCallPart = com.onedal.app.core.BaseCallReport.partOf(order.id, order.timestamp, session.accumulatedDetailText, screen = "newCall", read = if (session.lastPhotoDetail != null) "photo" else "text") {
                 com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).baseCallOf(this, order)
             }
             val payload = DispatchDetailedRequest(
@@ -1944,6 +1944,7 @@ class HijackService : AccessibilityService(), ScanContext {
                 targetApp = currentTargetApp,
                 isPreview = session.isPreview,
                 baseCall = baseCallPart.baseCall,
+                evidence = baseCallPart.evidence,
             )
 
             // 서버 응답("KEEP", "CANCEL") 대기를 위한 안전취소 타이머 가동
