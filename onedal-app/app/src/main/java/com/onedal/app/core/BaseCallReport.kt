@@ -17,6 +17,7 @@ object BaseCallReport {
      */
     fun partOf(orderId: String, at: String, listRowText: String?, fill: () -> BaseCall?): Part = try {
         val call = fill()?.copy(id = orderId)   // 번호는 보내기 직전에 정해진다
+        if (call != null && LogOnce.changed("baseCall-part", call.id)) AppLogger.d("BaseCallReport", LogTag.CALL_STAGE, "🎯 [기본 콜] ${call.targetApp} ${call.id.take(8)} — 요금 줄 ${call.money.lines.size} · 상세 주소 ${!call.route.pickup.addressDetail.isNullOrEmpty()} · 목록 동 ${call.route.listRegion != null}")
         if (call == null) Part()
         else Part(call, listRowText?.takeIf { it.isNotBlank() }?.let { CallEvidence(seen = listOf(EvidenceLine(at = at, screen = "newList", read = "text", rawText = it))) })
     } catch (e: Throwable) {   // TODO() · 재귀 넘침 · 초기화 실패는 Exception 이 아니다

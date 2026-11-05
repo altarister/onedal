@@ -72,6 +72,9 @@ class SessionManager {
      */
     var listOrder: SimplifiedOfficeOrder? = null
 
+    /** 📸 이 상세의 사진 판독 결과 — 모양은 배차망 플러그인이 안다. 기본 콜을 채울 때 읽는다 */
+    var lastPhotoDetail: Any? = null
+
     /**
      * 🎯 **앱이 방금 찍은 리스트 카드** — 그 상세가 어느 콜인지 **이미 아는 답**이다 (기사님 지시).
      *
@@ -175,6 +178,7 @@ class SessionManager {
         accumulatedDetailText = ""
         lastDetailOrder = null
         listOrder = null
+        lastPhotoDetail = null
         alarmTappedCard = null
         alarmTappedAtMs = 0L
         settledOpener = null
