@@ -15,4 +15,5 @@
  */
 export const PAYMENT_TYPES = ['신용', '선불', '착불', '카드', '현금'] as const;
 export type PaymentType = typeof PAYMENT_TYPES[number];
-export type BillingType = '계산서' | '인수증' | '무과세';
+export const BILLING_TYPES = ['계산서', '인수증', '무과세'] as const;
+export type BillingType = typeof BILLING_TYPES[number];

@@ -80,6 +80,37 @@ describe('🔁 칸 규칙', () => {
     });
 });
 
+describe('🔁 지금 서버 값과 같게', () => {
+    it('🔴 빈 글자는 빈 칸이다 — 앞 기억과 목록 동을 안 지운다', () => {
+        const got = officeOrderOf(empty({ route: { listRegion: { pickup: '경안동' }, pickup: { addressDetail: '' }, dropoff: {} }, job: { detailMemo: '', tagsText: '' } }), { rawText: '' });
+        expect(got.pickup).toBe('경안동');
+        expect(got).not.toHaveProperty('detailMemo');
+        expect(got).not.toHaveProperty('rawText');
+    });
+    it('🔴 상세 원문이 온 보고는 연락처를 빈 배열로도 싣는다 — 증거 서랍 글자가 같다', () => {
+        expect(officeOrderOf(empty(), { rawText: '상세 글' }).pickupDetails).toEqual([]);
+        expect(officeOrderOf(empty())).not.toHaveProperty('pickupDetails');
+    });
+    it('🔴 옛 목록에 없는 계산서 값은 안 넘긴다', () => {
+        expect(officeOrderOf(empty({ money: { lines: [], billingType: '세금계산서필' as '계산서' } })).billingType).toBeUndefined();
+        expect(officeOrderOf(empty({ money: { lines: [], billingType: '인수증' } })).billingType).toBe('인수증');
+    });
+    it('탁송료는 화면 글자 그대로', () => {
+        expect(officeOrderOf(empty({ money: { lines: [{ kind: 'consign', rate: '3,000', won: 3000 }] } })).tollFare).toBe('3,000');
+    });
+    it('🔴 목록 → 상세 흐름 — 목록 요금이 있으면 상세 요금이 판정 값을 안 바꾼다', () => {
+        const list = empty({ route: { listRegion: { pickup: '독산동', dropoff: '남산동1가' }, pickup: {}, dropoff: {}, pickupDistance: 1.1 }, money: { lines: [{ kind: 'income', won: 34600 }] }, load: { vehicleType: '다' } });
+        const detail = empty({ route: { pickup: { addressDetail: '서울 금천구 독산동 1', phone1: '010' }, dropoff: { addressDetail: '서울 중구 남산동1가 2' } }, money: { lines: [{ kind: 'income', won: 34650 }, { kind: 'fee', rate: '23%' }], paymentType: '카드' }, job: { tripType: '편도' } });
+        const got = officeOrderOf(mergeBaseCall(list, detail), { rawText: '상세 글' });
+        expect(got).toMatchObject({ fare: 34600, pickup: '서울 금천구 독산동 1', dropoff: '서울 중구 남산동1가 2', vehicleType: '다', pickupDistance: 1.1, commissionRate: '23%', paymentType: '카드', tripType: '편도' });
+        expect(got.pickupDetails).toEqual([{ addressDetail: '서울 금천구 독산동 1', phone1: '010' }]);
+    });
+    it('목록 요금이 0 이면 상세 요금으로 채운다', () => {
+        const got = mergeBaseCall(empty({ money: { lines: [{ kind: 'income', won: 0 }] } }), empty({ money: { lines: [{ kind: 'income', won: 50000 }] } }));
+        expect(officeOrderOf(got).fare).toBe(50000);
+    });
+});
+
 describe('🔁 합치기', () => {
     it('칸별로 합친다 — 뒤 보고에 없는 칸은 남는다', () => {
         const list = empty({ route: { listRegion: { pickup: '경안동' }, pickup: {}, dropoff: {}, pickupDistance: 3 }, load: { vehicleType: '다' } });
@@ -108,6 +139,23 @@ describe('🔁 합치기', () => {
         const got = mergeBaseCall(undefined, empty({ money: { lines: [{ kind: '거리료' as 'unknown', won: 5000 }] } }));
         expect(got.money.lines).toEqual([{ kind: 'unknown', won: 5000, label: '거리료' }]);
         expect(officeOrderOf(got).fare).toBeUndefined();
+    });
+    it('🔴 뜻 모르는 금액은 이름별로 남는다 — 서로 지우지 않는다', () => {
+        const got = mergeBaseCall(empty({ money: { lines: [{ kind: 'unknown', won: 65144, label: '수납금액' }] } }), empty({ money: { lines: [{ kind: '거리료' as 'unknown', won: 5000 }] } }));
+        expect(got.money.lines.map((line) => line.label)).toEqual(['수납금액', '거리료']);
+    });
+    it('🔴 왕복 약속은 칸별로 합치고, 경유지는 빈 목록으로 안 지운다', () => {
+        const got = mergeBaseCall(
+            empty({ route: { pickup: {}, dropoff: {}, viaDropoffs: [{ addressDetail: '풍납동' }] }, time: { returnPickup: { text: '낼7시', at: '07:00' } } }),
+            empty({ route: { pickup: {}, dropoff: {}, viaDropoffs: [] }, time: { returnPickup: { day: 1 } } }),
+        );
+        expect(got.time.returnPickup).toEqual({ text: '낼7시', at: '07:00', day: 1 });
+        expect(got.route.viaDropoffs).toEqual([{ addressDetail: '풍납동' }]);
+    });
+    it('없는 묶음의 키를 만들지 않는다', () => {
+        const got = mergeBaseCall(empty(), empty());
+        expect(Object.keys(got.route).sort()).toEqual(['dropoff', 'pickup']);
+        expect(Object.keys(got.time)).toEqual([]);
     });
     it('기록은 덮지 않고 더한다', () => {
         const got = mergeEvidence({ seen: [{ at: '1', screen: 'newList', rawText: '왕복/낼7시/송파' }] }, { seen: [{ at: '2', screen: 'newCall' }] });

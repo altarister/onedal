@@ -8,7 +8,7 @@
  * 왜: 정의에 없거나 원문에 없는 값을 지어내지 않기 위해서다
  */
 import type { TargetAppType, LocationDetailInfo, DetailedOfficeOrder } from '../index';
-import { PAYMENT_TYPES, type PaymentType, type BillingType } from '../call/paymentTypes';
+import { BILLING_TYPES, PAYMENT_TYPES, type PaymentType, type BillingType } from '../call/paymentTypes';
 import type { PageField, ScreenPage } from './pageFields';
 import { NETWORK_PAGES, fieldsOf } from './networkPages';
 
@@ -117,7 +117,6 @@ const STOP_CONTACT: ReadonlyArray<readonly [key: keyof LocationDetailInfo, field
  *    결제 · 계산서는 알려진 값(PAYMENT_TYPES · 계산서 · 인수증 · 무과세)일 때만 · 적요는 팝업 글(줄바꿈 → 공백)이 먼저, 없으면 본문 «적요상세» 줄(상차 약속 시각이 본문 시각으로 바뀌지 않게).
  *    출발 · 도착 연락처는 그 팝업 머리표가 원문에 있을 때만 한 덩어리(없으면 빈 목록).
  */
-const BILLING_TYPES: readonly BillingType[] = ['계산서', '인수증', '무과세'];
 export type DetailRecord = Partial<Pick<DetailedOfficeOrder, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>>
     & { pickupDetails: LocationDetailInfo[]; dropoffDetails: LocationDetailInfo[] };
 export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecord {

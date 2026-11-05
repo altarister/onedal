@@ -343,7 +343,7 @@ export type MoneyKind =
 export interface MoneyLine {
     kind: MoneyKind;
     won?: number;     // 금액(원)
-    rate?: string;    // 비율이나 식의 글자 — «23%», «(운송료+부가세) x1.298%»
+    rate?: string;    // 비율이나 식의 글자 — «23%», «(운송료+부가세) x1.298%». 탁송료는 화면 금액 글자 그대로 — «3,000»
     label?: string;   // 화면에 적힌 이름 — 사람이 출처를 확인할 때 본다
 }
 
@@ -352,7 +352,7 @@ export type CallPaymentType = PaymentType | '선/착불';
 
 /** 얼마 버나, 어떻게 받나 — 합치거나 빼지 않고 화면의 금액을 줄로 둔다 */
 export interface CallMoney {
-    lines: MoneyLine[];          // 같은 종류가 다시 오면 나중 값이 이긴다
+    lines: MoneyLine[];          // 같은 종류가 다시 오면 나중 값이 이긴다. 요금 줄(total · income)은 처음 값을 지킨다
     paymentType?: CallPaymentType;  // 언제 어떻게 받나: 신용 · 선불 · 착불 · 카드 · 현금 · 선/착불 — 인성 괄호 · 화물24시 결제방법 · 픽커 «착불» 네모 · 플렉스 테두리. 화물24시 «인수증» 콜은 이 칸이 빈다
     billingType?: BillingType;   // 증빙 방식: 계산서 · 인수증 · 무과세 — 인성 둘째 괄호 · 화물24시 결제방법 «인수증». 화물24시 플러그인이 결제방법 글자를 뜻대로 나눈다
 }
