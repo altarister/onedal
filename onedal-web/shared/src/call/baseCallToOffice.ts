@@ -194,6 +194,8 @@ const OFFICE_PATHS: ReadonlyArray<readonly [keyof OfficeOrder, readonly string[]
     ['tripType', ['job', 'tripType']], ['orderForm', ['job', 'orderForm']], ['tagsText', ['job', 'tagsText']], ['detailMemo', ['job', 'detailMemo']],
     ['receiptStatus', ['stage']], ['dispatcherName', ['dispatcherName']], ['dispatcherPhone', ['dispatcherPhone']],
 ];
+/** 종류를 모르는 옛 요금 줄의 이름 — 펼칠 때 만들고, 다시 펼칠 때 걸러 낸다 */
+const OLD_FARE_LABEL = '옛 요금';
 const STOP_CONTACT: ReadonlyArray<keyof LocationDetailInfo> = ['customerName', 'department', 'contactName', 'phone1', 'phone2'];
 
 const filledValue = (value: unknown) => value !== undefined && value !== null && value !== '';
@@ -227,10 +229,10 @@ export function baseCallShapeOf(order: Partial<OfficeOrder>, held?: BaseCall): B
     const heldLines = source?.money?.lines ?? [];
     const fareLine = heldLines.find((line) => (line.kind === 'total' || line.kind === 'income') && line.won === order.fare);
     const lines: MoneyLine[] = [
-        ...(order.fare && order.fare > 0 ? [fareLine ?? { kind: 'unknown' as const, won: order.fare, label: '옛 요금' }] : []),
+        ...(order.fare && order.fare > 0 ? [fareLine ?? { kind: 'unknown' as const, won: order.fare, label: OLD_FARE_LABEL }] : []),
         ...(filledValue(order.commissionRate) ? [{ kind: 'fee' as const, rate: String(order.commissionRate) }] : []),
         ...(filledValue(order.tollFare) ? [{ kind: 'consign' as const, rate: String(order.tollFare) }] : []),
-        ...heldLines.filter((line) => !['total', 'income', 'fee', 'consign'].includes(line.kind)),
+        ...heldLines.filter((line) => !['total', 'income', 'fee', 'consign'].includes(line.kind) && line.label !== OLD_FARE_LABEL),   // 지난번 펼칠 때 만든 «옛 요금» 줄은 다시 안 가져온다
     ];
     (shape.money as CallMoney).lines = lines;
     return shape as BaseCallShape;

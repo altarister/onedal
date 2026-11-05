@@ -50,6 +50,14 @@ describe('🎯 기본 콜 묶음', () => {
         const once = { ...c.expectCall, ...baseCallShapeOf(c.expectCall, mergedOf(c)) };
         expect(baseCallShapeOf(once).route.listRegion).toEqual(mergedOf(c).route.listRegion);
     });
+    it('🔴 옛 앱 콜을 여러 번 펼쳐도 «옛 요금» 줄이 쌓이지 않는다 — 기억 · 평가 · KEEP 마다 펼친다', () => {
+        const flat = { pickup: 'X(건물)', dropoff: '서울 용산구 한남동', fare: 1000 };
+        const once = { ...flat, ...baseCallShapeOf(flat) };
+        const twice = { ...once, ...baseCallShapeOf(once) };
+        const thrice = { ...twice, ...baseCallShapeOf(twice) };
+        expect(thrice.money.lines).toEqual(once.money.lines);
+        expect(once.money.lines).toEqual([{ kind: 'unknown', won: 1000, label: '옛 요금' }]);
+    });
     it('🔴 묶음을 다시 펼쳐도 같다 — 기억에 넣을 때마다 펼친다', () => {
         const c = filled[0];
         const once = { ...c.expectCall, ...baseCallShapeOf(c.expectCall, mergedOf(c)) };
