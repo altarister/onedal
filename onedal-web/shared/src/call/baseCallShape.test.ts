@@ -45,6 +45,11 @@ describe('🎯 기본 콜 묶음', () => {
         expect(shape.money.lines).toEqual([{ kind: 'unknown', won: 34600, label: '옛 요금' }]);
         expect(shape.route.listRegion).toBeUndefined();
     });
+    it('🔴 기본 콜 기억이 밀려도 다시 펼칠 때 새 값이 사라지지 않는다', () => {
+        const c = filled.find((x) => mergedOf(x).route.listRegion);
+        const once = { ...c.expectCall, ...baseCallShapeOf(c.expectCall, mergedOf(c)) };
+        expect(baseCallShapeOf(once).route.listRegion).toEqual(mergedOf(c).route.listRegion);
+    });
     it('🔴 묶음을 다시 펼쳐도 같다 — 기억에 넣을 때마다 펼친다', () => {
         const c = filled[0];
         const once = { ...c.expectCall, ...baseCallShapeOf(c.expectCall, mergedOf(c)) };

@@ -7,6 +7,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
+import { baseCallShapeOf } from "@onedal/shared";
 import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP, geocodeTargetOf } from '@onedal/shared';
 import type { GeocodeSource } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress, TargetAppType } from '@onedal/shared';
@@ -218,6 +219,7 @@ export class OrderEvaluator {
         // 1. 주소 정규화 — 상차·하차는 원달앱이 올린 전체 주소 그대로다(서버는 팝업에서 주소를 꺼내지 않는다)
         securedOrder.pickup = addressOf(this.targetApp, securedOrder.pickup);
         securedOrder.dropoff = addressOf(this.targetApp, securedOrder.dropoff);
+        Object.assign(securedOrder, baseCallShapeOf(securedOrder));   // 🎯 깎은 주소로 묶음도 맞춘다 — 평평한 칸과 갈라지지 않게 (계획서 E)
 
         // Stage 1. 형상 필터
         const { excludedHits } = this.runStage1ShapeFilter(securedOrder, snap.filter, reasons, pros);

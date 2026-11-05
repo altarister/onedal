@@ -80,7 +80,8 @@ router.get("/", requireAuth, (req, res) => {
         res.json({
             orders: (rows as any[]).map(r => ({
                 ...withoutBaseCallColumns(r),   // 🎯 기본 콜 · 화면 기록 열은 관제웹에 안 보낸다 — 전화번호 · 화면 원문 (계획서 D2)
-                ...baseCallShapeOf(r, baseCallFromRow(r, r.id, r.targetApp).call),   // 🎯 실시간 전송과 같은 묶음 (계획서 E)
+                /* 🎯 실시간 전송과 같은 묶음 — 복원과 같은 재료(연락처 · 참거짓)로 만든다 (계획서 E) */
+                ...baseCallShapeOf({ ...r, reserved: r.reserved == null ? undefined : !!r.reserved, ...OrderRepository.stopContactsOf(r.id) }, baseCallFromRow(r, r.id, r.targetApp).call),
                 routePolyline: parsePolyline(r.routePolyline),
                 /** 🎨 구간 경계도 함께 편다 — 궤적과 같은 운명이라야 지도가 색을 잃지 않는다 */
                 sectionEnds: parseSectionEnds(r.sectionEnds),

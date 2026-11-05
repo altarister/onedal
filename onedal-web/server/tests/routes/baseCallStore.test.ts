@@ -24,7 +24,7 @@ const acked = (id: string) => db.prepare(`UPDATE orders SET ackedAt = strftime('
 const rowOf = (id: string) => db.prepare(`SELECT * FROM orders WHERE id = ?`).get(id);
 
 beforeAll(() => approvedUser(U));
-afterAll(() => { db.prepare(`DELETE FROM orders WHERE userId = ?`).run(U); clearUserSession(U); });
+afterAll(() => { db.prepare(`DELETE FROM orderStops WHERE orderId LIKE ?`).run(`${U}-%`); db.prepare(`DELETE FROM orders WHERE userId = ?`).run(U); db.prepare(`DELETE FROM places WHERE address LIKE ?`).run(`${U}-%`); clearUserSession(U); });
 
 describe('🎯 기본 콜 저장', () => {
     it('🔴 콜 표에 기본 콜 열이 다 있다 — 지금 DB 에 열이 붙는다', () => {
@@ -88,12 +88,26 @@ describe('♻️ 재시작 뒤', () => {
         OrderRepository.upsertOrder(order(`${U}-r`), U, 0, 0);
         acked(`${U}-r`);
         OrderRepository.saveBaseCall(`${U}-r`, U, call(), evidence);
+        /* 예약 «참»(행에는 1) · 정거장 연락처 — 콜 목록과 복원이 같은 재료로 묶음을 만드는지 가르는 값 */
+        db.prepare(`UPDATE orders SET reserved = 1 WHERE id = ?`).run(`${U}-r`);
+        db.prepare(`INSERT OR IGNORE INTO places (address, x, y, addressDetail, customerName) VALUES (?, 127.2, 37.4, ?, ?)`).run(`${U}-p`, `${U}-p`, '가나상사');
+        const placeId = db.prepare(`SELECT id FROM places WHERE addressDetail = ?`).get(`${U}-p`).id;
+        db.prepare(`INSERT INTO orderStops (orderId, placeId, stopType, customerNameSnapshot, phoneSnapshot) VALUES (?, ?, 'pickup', '가나상사', '010-1234-5678')`).run(`${U}-r`, placeId);
         clearUserSession(U);
         await restoreAndRecalculateSession(U, { to: () => ({ emit: () => {} }) });
         const spy = jest.spyOn(fileLogger, 'slog');
         compareBaseCall(U, { ...order(`${U}-r`), id: `${U}-r` });
         expect(spy.mock.calls.some(([, line]) => String(line).includes('🔍 [기본 콜 견줌]') && String(line).includes(`${U}-r`))).toBe(true);
         expect(getUserSession(U).pendingOrdersData.get(`${U}-r`).route.pickup.addressDetail).toBe('경기 광주시 경안동 1-2');   // 🎯 복원한 콜에도 묶음
+        /* 🔴 같은 콜의 관제웹 콜 목록 묶음 = 복원(실시간 전송) 묶음 — 연락처 · 참거짓까지 */
+        const layer = ordersRouter.stack.find((l) => l.route?.path === '/' && l.route.methods.get);
+        let body;
+        layer.route.stack[layer.route.stack.length - 1].handle({ user: { id: U }, query: {} }, { status: () => ({ json: (b) => { body = b; } }), json: (b) => { body = b; } });
+        const listed = body.orders.find((o) => o.id === `${U}-r`);
+        const memory = getUserSession(U).pendingOrdersData.get(`${U}-r`);
+        for (const key of ['route', 'money', 'load', 'time', 'job']) expect(listed[key]).toEqual(memory[key]);
+        expect(memory.route.pickup.customerName).toBe('가나상사');
+        expect(memory.time.pickup.reserved).toBe(true);
         spy.mockRestore();
     });
 });

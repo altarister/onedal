@@ -132,7 +132,7 @@ export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder 
  * 옛 칸이 있는 값은 옛 칸에서, 옛 칸이 없는 새 값만 원달앱 기본 콜에서 온다. 읽는 줄은 묶음마다 옮긴다.
  */
 export type BaseCallShape = Partial<Pick<BaseCall, 'requesterName' | 'fromOtherOffice' | 'orderNo' | 'clientOrderNo' | 'stage' | 'route' | 'money' | 'load' | 'time' | 'job'>>;
-export interface OfficeOrder extends BaseCallShape {}
+export interface OfficeOrder extends BaseCallShape {}   // 평평한 칸이 있는 동안 route.*.addressDetail 은 평평한 pickup · dropoff(인성 · 화물24시는 판정 때 깎인 값)와 같다
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 2-A] 심사 중 오더 — 서버 메모리 전용 (아직 내 퀵이 아님)

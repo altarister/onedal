@@ -211,7 +211,9 @@ function setPath(target: Record<string, unknown>, path: readonly string[], value
  * 🔴 옛 요금은 종류(목록 요금 · 수입)를 모른다 — 기본 콜에 같은 금액 줄이 없으면 «옛 요금»으로만 둔다. 종류는 요금을 옮기는 E5 에서 정한다.
  */
 export function baseCallShapeOf(order: Partial<OfficeOrder>, held?: BaseCall): BaseCallShape {
-    const base = JSON.parse(JSON.stringify(held ?? {})) as Record<string, unknown>;
+    /* 기본 콜 기억이 밀렸으면 콜이 이미 가진 묶음에서 새 칸을 가져온다 — 다시 펼쳐도 새 값이 사라지지 않게 */
+    const source = held ?? (order.route ? (order as unknown as BaseCall) : undefined);
+    const base = JSON.parse(JSON.stringify(source ?? {})) as Record<string, unknown>;
     const shape: Record<string, unknown> = {
         ...Object.fromEntries((['requesterName', 'fromOtherOffice', 'orderNo', 'clientOrderNo'] as const).filter((k) => base[k] !== undefined).map((k) => [k, base[k]])),
         route: { ...((base.route as object) ?? {}), pickup: { ...((base.route as CallRoute | undefined)?.pickup ?? {}) }, dropoff: { ...((base.route as CallRoute | undefined)?.dropoff ?? {}) } },
@@ -222,7 +224,7 @@ export function baseCallShapeOf(order: Partial<OfficeOrder>, held?: BaseCall): B
     for (const [side, details] of [['pickup', order.pickupDetails], ['dropoff', order.dropoffDetails]] as const) {
         for (const key of STOP_CONTACT) setPath(route as unknown as Record<string, unknown>, [side, key], details?.[0]?.[key]);
     }
-    const heldLines = held?.money?.lines ?? [];
+    const heldLines = source?.money?.lines ?? [];
     const fareLine = heldLines.find((line) => (line.kind === 'total' || line.kind === 'income') && line.won === order.fare);
     const lines: MoneyLine[] = [
         ...(order.fare && order.fare > 0 ? [fareLine ?? { kind: 'unknown' as const, won: order.fare, label: '옛 요금' }] : []),
