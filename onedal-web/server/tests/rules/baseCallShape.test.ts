@@ -1,4 +1,6 @@
+import { NETWORK_PAGES } from '@onedal/shared';
 import type { BaseCall, CallEvidence, OfficeOrder, ServerCallFields } from '@onedal/shared';
+import { TABLE } from '../../../shared/src/call/call-fields.table';
 
 /**
  * 🎯 **기본 콜 타입 — 네 배차망의 실제 글자가 칸에 들어가고, 지금 칸이 빠짐없이 갈 곳이 있다** (계획서 B2).
@@ -157,6 +159,12 @@ describe('🎯 기본 콜 타입', () => {
         expect(call.route.pickup.addressDetail).toBeTruthy();
         expect(call.route.dropoff.addressDetail).toBeTruthy();
         expect(evidence.seen.length).toBeGreaterThan(0);
+    });
+    it('🔴 정의 표의 화면 칸은 모두 칸 표의 어느 줄에 잇닿는다 — 표가 갈라지면 플러그인 기준이 틀어진다', () => {
+        const linked = new Set((TABLE.rows as readonly { pageField?: string }[]).flatMap((row) => (row.pageField ?? '').split(' · ')).filter(Boolean));
+        const unlinked = Object.entries(NETWORK_PAGES).flatMap(([network, spec]) =>
+            Object.entries(spec.pages).flatMap(([page, lines]) => (lines as { field: string }[]).filter((line) => !linked.has(line.field)).map((line) => `${network} ${page} ${line.field}`)));
+        expect(unlinked).toEqual([]);
     });
     it('지금 칸마다 갈 곳이 적혀 있다', () => {
         for (const goes of [...Object.values(officeOrderFieldMap), ...Object.values(serverFieldMap)]) expect(goes).toBeTruthy();

@@ -2305,7 +2305,8 @@ export const TABLE = /*JSON*/{
       }
      ]
     }
-   }
+   },
+   "desc": "기사님은 차종을 필수로 말씀하셨다(짐의 무게 · 부피를 알 수 있으면 된다). 지금 코드는 요구하지 않는다. 픽커 «승» = 승용차, «승» 없는 퀵 = 수단 상관없음"
   },
   {
    "type": "CallLoad",
@@ -2355,7 +2356,8 @@ export const TABLE = /*JSON*/{
       }
      ]
     }
-   }
+   },
+   "desc": "라면박스 수의 재료, 라면박스 = 41 × 31 × 28cm. 픽커 환산은 초소형 1 · 소형 2 · 중형 3박스로 정했고(차종_기준_계획) 지금 코드는 환산하지 않는다. 다른 배차망은 콜 차종의 표준 박스로 센다"
   },
   {
    "type": "CallLoad",
@@ -2405,7 +2407,8 @@ export const TABLE = /*JSON*/{
       }
      ]
     }
-   }
+   },
+   "desc": "픽커 «라면박스 n개» 표시와 치수 모르는 크기의 원문은 차종_기준_계획의 몫이다"
   },
   {
    "type": "CallLoad",
@@ -3405,6 +3408,11 @@ export const TABLE = /*JSON*/{
        "read": "규칙 필요",
        "screen": "새 콜 화면 · 오더메모 아래 테두리 (안내 그림)",
        "sample": "왕복"
+      },
+      {
+       "read": "잘못 들어감",
+       "screen": "새 콜 화면 · 꼬리표 줄이 이 칸에 들어간다 (지금 서버 DETAIL_RECORD)",
+       "sample": "과적 (뜻이 다르다)"
       }
      ]
     }
@@ -3450,6 +3458,11 @@ export const TABLE = /*JSON*/{
        "read": "안 읽음",
        "screen": "내 콜 화면 · 오른쪽 위 네모",
        "sample": "급송"
+      },
+      {
+       "read": "뜻 확인 필요",
+       "screen": "새 콜 화면 · 사진 띠 글이 실린다",
+       "sample": "상세 사진 띠 글 (뜻이 다르다)"
       }
      ]
     },
@@ -3460,6 +3473,11 @@ export const TABLE = /*JSON*/{
        "read": "규칙 필요",
        "screen": "새 콜 목록 · 차종 아래 배지 (안내 그림)",
        "sample": "급"
+      },
+      {
+       "read": "뜻 확인 필요",
+       "screen": "새 콜 화면 · 출발 «@» 뒤 앞글자가 실린다",
+       "sample": "낼8:30) (뜻이 다르다)"
       }
      ]
     }
@@ -3635,7 +3653,8 @@ export const TABLE = /*JSON*/{
       }
      ]
     }
-   }
+   },
+   "desc": "픽커는 «물품 정보» 원문 + « / » + «유의사항»으로 정했다(차종_기준_계획). 화물24시 화물 글은 지금 콜에 안 실린다"
   },
   {
    "section": "잡은 뒤 진행 — BaseCall 밖 — 콜을 잡은 뒤 배차망 화면에 적힌 진행 사실. 키만 정했고 저장 칸은 없다"
@@ -4580,6 +4599,373 @@ export const TABLE = /*JSON*/{
        "sample": "2023-09-17 19:21"
       }
      ]
+    }
+   }
+  },
+  {
+   "section": "보고 · 좌표 · 서버 값 — BaseCall 밖. 배차망 화면 값이 아니라 원달앱 · 서버가 정한다"
+  },
+  {
+   "type": "CallCoordinates",
+   "field": "pickupX",
+   "path": "pickupX",
+   "label": "상차 좌표 X",
+   "desc": "원달앱 명부 또는 서버 지오코딩",
+   "filledBy": "앱 목록 · 서버 계산",
+   "ledger": "orders 칸 없음 (orderStops)",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "CallCoordinates",
+   "field": "pickupY",
+   "path": "pickupY",
+   "label": "상차 좌표 Y",
+   "desc": "원달앱 명부 또는 서버 지오코딩",
+   "filledBy": "앱 목록 · 서버 계산",
+   "ledger": "orders 칸 없음 (orderStops)",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "CallCoordinates",
+   "field": "dropoffX",
+   "path": "dropoffX",
+   "label": "하차 좌표 X",
+   "desc": "원달앱 명부 또는 서버 지오코딩",
+   "filledBy": "앱 목록 · 서버 계산",
+   "ledger": "orders 칸 없음 (orderStops)",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "CallCoordinates",
+   "field": "dropoffY",
+   "path": "dropoffY",
+   "label": "하차 좌표 Y",
+   "desc": "원달앱 명부 또는 서버 지오코딩",
+   "filledBy": "앱 목록 · 서버 계산",
+   "ledger": "orders 칸 없음 (orderStops)",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "CallReport",
+   "field": "rawText",
+   "path": "rawText",
+   "label": "원문",
+   "desc": "화면 글 전체 · 서버가 다시 잘라 읽는 재료",
+   "filledBy": "앱 목록 · 앱 상세",
+   "ledger": "orders 칸 없음 (intel.rawDetailText)",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "CallReport",
+   "field": "type",
+   "path": "type",
+   "label": "콜 종류",
+   "desc": "직접 잡음 · 체험 여부를 함께 담는다",
+   "filledBy": "앱 · 서버",
+   "ledger": "orders.type",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "CallReport",
+   "field": "capturedMode",
+   "path": "capturedMode",
+   "label": "그때 모드",
+   "desc": "자동 · 알람 · 직접 · 체험 · 모름(옛 줄)",
+   "filledBy": "서버",
+   "ledger": "orders.capturedMode",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "CallReport",
+   "field": "openedBy",
+   "path": "openedBy",
+   "label": "누가 열었나",
+   "desc": "원달앱 / 기사님",
+   "filledBy": "서버",
+   "ledger": "orders.openedBy",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "CallReport",
+   "field": "isSimulated",
+   "path": "isSimulated",
+   "label": "체험",
+   "desc": "예 → 아니오(기사님이 직접 확정할 때)",
+   "filledBy": "서버",
+   "ledger": "orders 칸 없음",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "ServerCallFields",
+   "field": "isPreview",
+   "path": "isPreview",
+   "label": "미리보기",
+   "desc": "확정은 안 하고 판정만 보는 콜 · 예 → 아니오만",
+   "filledBy": "앱 요청 봉투",
+   "ledger": "orders 칸 없음",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "MyOrder",
+   "field": "reservedFor",
+   "path": "reservedFor",
+   "label": "예약 보관 날",
+   "desc": "KEEP 때 정해진다",
+   "filledBy": "서버",
+   "ledger": "orders.reserved_for",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "MyOrder",
+   "field": "ackedAt",
+   "path": "ackedAt",
+   "label": "폰이 받았음",
+   "desc": "비어 있으면 서버를 다시 켤 때 그 진행 중 콜을 되살리지 않는다",
+   "filledBy": "서버",
+   "ledger": "orders.ackedAt",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
+    }
+   }
+  },
+  {
+   "type": "MyOrder",
+   "field": "status",
+   "path": "status",
+   "label": "진행 상태",
+   "desc": "이 콜이 어디까지 왔나 · 값 표는 call-status.table",
+   "filledBy": "서버",
+   "ledger": "orders.status",
+   "pageField": "",
+   "nets": {
+    "insung": {
+     "req": "",
+     "lines": []
+    },
+    "hwamul24": {
+     "req": "",
+     "lines": []
+    },
+    "kakaopicker": {
+     "req": "",
+     "lines": []
+    },
+    "isflex": {
+     "req": "",
+     "lines": []
     }
    }
   }

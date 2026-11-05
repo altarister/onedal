@@ -28,7 +28,6 @@ td.sheetSection{background:#e5e7eb;font-weight:800;padding:6px 8px}td.sheetSecti
 #menu summary{font-size:14px;font-weight:700;margin:10px 0 4px;color:#374151;cursor:pointer}#menu a small{display:block;font-size:11px;color:#6b7280}#menu a.now small{color:#d1d5db}
 h3{font-size:16px;margin:18px 0 8px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.chips>*{padding:3px 8px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;font-size:14px}
 .source{margin-top:28px}.source summary{cursor:pointer;font-weight:700}.source pre{margin-top:8px;padding:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;overflow:auto;font-size:13px;white-space:pre}
-.callSheet td:nth-child(n+12){min-width:300px}
 .usesLine{margin:0 0 8px;font-size:14px}.usesLine details{display:inline-block;vertical-align:top}.useFiles{white-space:pre-wrap;margin-top:4px;padding:6px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:12px}
 body.hasToc main{margin-right:230px}#toc{position:fixed;inset:0 0 0 auto;width:230px;overflow:auto;background:#f3f4f6;border-left:1px solid #d1d5db;padding:12px;box-sizing:border-box}
 .tocTitle{font-size:14px;font-weight:700;margin-bottom:6px;color:#374151}#toc a{display:block;padding:3px 6px;color:#111;text-decoration:none;font-size:13px;word-break:break-all}#toc a.sub{padding-left:16px;color:#4b5563}#toc a.now{background:#1f2937;color:#fff;border-radius:4px}#toc a:hover:not(.now){background:#e5e7eb}
