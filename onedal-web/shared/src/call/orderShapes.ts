@@ -4,7 +4,7 @@
  * 언제: 콜 값을 주고받을 때
  * 어디서: 콜 타입을 쓰는 모든 자리
  * 무엇을: 목록 콜 · 상세 콜 · 대기 콜 · 내 콜 · 판정 기록 타입 · 끝 모습인 기본 콜(BaseCall) 타입
- * 어떻게: 대부분 타입만 두고 값은 EVENT_TYPES 하나다
+ * 어떻게: 대부분 타입만 둔다. 값은 EVENT_TYPES 와 보기 페이지가 읽는 기본 콜 표 둘이다
  * 왜: 같은 콜을 앱마다 다른 모양으로 적지 않기 위해서다
  */
 import type { PaymentType, BillingType } from './paymentTypes';
@@ -517,3 +517,86 @@ export interface NetworkLineRules {
     feeBasis?: 'beforeFee' | 'afterFee' | 'unknown';   // 이 금액 줄이 수수료 앞인가 뒤인가. 지금 표에는 없다
     distanceBasis?: 'straight' | 'road' | 'unknown';   // 이 거리가 직선인가 도로인가
 }
+
+// 끝 모습 — 지금 타입이 이렇게 이어진다. OfficeOrder · DetailedOfficeOrder 이름은 없어진다.
+// SimplifiedOfficeOrder 는 원달앱이 새 모양을 보낼 때까지 전송 모양으로 남는다 (appOrderShape 검사의 기준이다).
+/** 끝 모습의 서버 쪽 콜 — BaseCall 과 보고 값 · 좌표 · 서버 값을 합친다 */
+export type NextServerSide = BaseCall & CallReport & CallCoordinates & ServerCallFields;
+/** 끝 모습의 심사 중 콜 — BaseCall 과 보고 값 · 좌표 · 서버 값을 합친다. 서버 메모리에만 있고, 아직 아무도 안 쓴다 */
+export type NextPendingOrder = NextServerSide & ApproxAddress & QuickFoldFields & { status: OrderStatus; judgeUntil?: number };
+/** 끝 모습의 내 콜 — 기사님이 KEEP 해 내 것이 된 콜. 아직 아무도 안 쓴다 */
+export type NextMyOrder = NextServerSide & {
+    status: MyOrderStatus; reservedFor?: string; completedAt?: string | null; terminatedAt?: string | null;
+    judgment?: JudgmentSnapshot; progress?: NetworkProgress; settlement?: CallSettlement;
+};
+/** 끝 모습의 관제웹 콜 — 심사 중 콜과 내 콜을 한 모양으로 받는다. 아직 아무도 안 쓴다 */
+export type NextSecuredOrder = NextServerSide & ApproxAddress & QuickFoldFields & {
+    status: OrderStatus; completedAt?: string | null; terminatedAt?: string | null; judgeUntil?: number;
+    judgment?: JudgmentSnapshot; progress?: NetworkProgress; settlement?: CallSettlement;
+};
+// 🔴 옮기는 동안: 평평한 칸을 BaseCall 에서 뽑아 주는 함수를 두고 읽는 코드를 묶음별로 옮긴다.
+// 🔴 합치기: evolveOrder 는 얕은 병합이라 route · money 를 통째로 지운다. 칸별로 합치고 금액은 종류별로 합치는 코드와 검사가 필요하다.
+// 🔴 저장: orders 표에 BaseCall 과 기록을 담을 JSON 글자 칸을 더한다 (routePolyline 이 같은 방식).
+
+/** 타입들이 BaseCall 과 어떻게 이어지나 — 페이지 위쪽에 보인다. 들여쓴 타입은 윗줄 타입 안에 있다. 설명은 그 타입의 주석에서 읽는다 */
+export const BASE_CALL_PARTS = {
+    top: true,
+    spanFirst: true,
+    title: '타입 지도',
+    columns: [{ key: 'group', label: '어디에 있나' }, { key: 'type', label: '타입' }, { key: 'about', label: '설명' }],
+    rows: [
+        { group: 'BaseCall', type: 'BaseCall', depth: 0 },
+        { group: 'BaseCall 안', type: 'CallRoute', depth: 0 },
+        { group: 'BaseCall 안', type: 'CallStop', depth: 1 },
+        { group: 'BaseCall 안', type: 'LocationDetailInfo', depth: 2, href: '/shared/call/orderShapes#t-LocationDetailInfo', about: '정거장 한 곳 — 주소 · 상호 · 담당 · 전화. orderShapes 의 기존 타입을 그대로 쓴다' },
+        { group: 'BaseCall 안', type: 'CallMoney', depth: 0 },
+        { group: 'BaseCall 안', type: 'MoneyLine', depth: 1 },
+        { group: 'BaseCall 안', type: 'MoneyKind', depth: 2 },
+        { group: 'BaseCall 안', type: 'CallLoad', depth: 0 },
+        { group: 'BaseCall 안', type: 'CallTime', depth: 0 },
+        { group: 'BaseCall 안', type: 'CallPromise', depth: 1 },
+        { group: 'BaseCall 안', type: 'CallJob', depth: 0 },
+        { group: '밖, 잡은 뒤 콜에 붙음', type: 'NetworkProgress', depth: 0 },
+        { group: '밖, 잡은 뒤 콜에 붙음', type: 'CallSettlement', depth: 0 },
+        { group: '밖, 콜에 함께 붙음', type: 'CallReport', depth: 0 },
+        { group: '밖, 콜에 함께 붙음', type: 'CallCoordinates', depth: 0 },
+        { group: '밖, 따로 저장', type: 'CallEvidence', depth: 0 },
+        { group: '밖, 따로 저장', type: 'EvidenceLine', depth: 1 },
+        { group: '밖, 저장 안 함', type: 'BaseCallFacts', depth: 0 },
+        { group: '끝 모습', type: 'NextPendingOrder', depth: 0 },
+        { group: '끝 모습', type: 'NextMyOrder', depth: 0 },
+        { group: '끝 모습', type: 'NextSecuredOrder', depth: 0 },
+        { group: '콜이 아님', type: 'NetworkLineRules', depth: 0 },
+    ],
+};
+
+/** 칸이 없는 값 — 어디로 가는지와 왜 칸이 없는지 한 줄씩 적는다. 글자는 모두 화면 원문(CallEvidence)에 남는다 */
+export const CALL_VALUES_OUTSIDE = {
+    title: '칸이 없는 값',
+    columns: [{ key: 'goes', label: '갈 곳' }, { key: 'value', label: '화면 값' }, { key: 'network', label: '배차망' }, { key: 'screen', label: '화면' }, { key: 'why', label: '칸이 없는 까닭' }],
+    rows: [
+        { goes: "원문만 남김", value: "화물 글 끝 -A · -D · 화주 옆 동그라미 A", network: "화물24시", screen: "목록 · 상세", why: "뜻을 모른다 (기사님도 모름). 글자는 job.detailMemo 에 남는다" },
+        { goes: "원문만 남김", value: "«짐/» · «짐)» · «X@» · «[착]» · «[1322]» · «27:23» · 완료목표시간", network: "인성", screen: "목록 · 상세", why: "뜻을 모른다. 글자는 route.listRegion 과 원문에 남는다" },
+        { goes: "원문만 남김", value: "#연계# · 3층 계단물건 · 착지시간꼭엄수", network: "화물24시 · 플렉스", screen: "적요 · 화물 글", why: "적요 안의 글이다. 읽는 규칙이 생길 때 칸으로 뺀다. 글자는 job.detailMemo 에 남는다" },
+        { goes: "원문만 남김", value: "배송지 14.8km", network: "카카오픽커", screen: "내 콜 화면", why: "지금 위치에서 배송지까지의 거리로 보인다. 상차지 → 하차지인 deliveryDistance 와 뜻이 달라 넣지 않는다" },
+        { goes: "원문만 남김", value: "인수증 사진 · 물류기기 이동전표", network: "화물24시", screen: "인수증 사진", why: "사진 안의 글자다. 번호 칸을 정할 만큼 읽히지 않았다. 결제방법 인수증은 billingType, 전송 상태는 settlement.receipt 로 간다" },
+        { goes: "원문만 남김", value: "마일리지", network: "인성", screen: "상세 팝업", why: "읽는 코드가 없고 본 견본은 0 이다. 기사님 결정으로 칸을 뺐다" },
+        { goes: "원문만 남김", value: "독차", network: "화물24시", screen: "목록 · 상세", why: "지금 원달앱은 잡음 낱말로 버린다. 콜 고르기에 쓰게 되면 칸을 정한다" },
+        { goes: "계정 표", value: "기간 합계 · 잔액 · 적립금 · 포인트 · 오늘 수익 · 오더 N건 · 산재보험료 부담액 합계", network: "전부", screen: "내 콜 목록 · 정산 화면", why: "콜 한 건의 값이 아니라 기사 계정의 값이다" },
+        { goes: "계정 표", value: "입출금 내역 · 수행내역 머리", network: "인성", screen: "정산 화면", why: "기사 계정의 값이다. 콜 한 건의 금액은 CallSettlement.earned 로 간다" },
+        { goes: "계정 표", value: "차량번호 · 차주명 · 멀티 CID · 운행취소횟수 · 신용도 · 배송 수단 · 보험료", network: "화물24시 · 인성 · 플렉스", screen: "내 콜 화면 · 기사 정보", why: "내 차와 내 계정의 값이다" },
+        { goes: "계정 표", value: "퀵 최대 합짐 개수 6건 · 퀵 서포트 모드 N건", network: "카카오픽커", screen: "목록 · 내 콜 목록", why: "기사 계정의 값이다" },
+        { goes: "거래처 표", value: "화주 업태 · 업종 · 주소 · 전자우편", network: "화물24시", screen: "화주 정보", why: "거래처의 값이다. 콜마다 반복되므로 거래처 표를 만들 때 키를 정한다" },
+        { goes: "배차망 사실", value: "편도 150% · 급송 100% · 픽업 20분 · 하루 02:00~01:59", network: "플렉스 · 인성", screen: "안내 화면", why: "콜이 아니라 배차망의 규칙이다. 정의 표에 둘지는 쓰는 곳이 생길 때 정한다" },
+        { goes: "배차망 사실", value: "적재중량 확인 안내 · 거리는 최단거리라는 안내", network: "화물24시", screen: "상세", why: "배차망 사실이다. 거리 안내는 정의 표 distanceBasis 로 간다" },
+        { goes: "배차망 사실", value: "인성1,5,6,7그룹 / 인성2,3,4그룹 · 파란 세로줄 · 1그룹 / 2그룹", network: "인성", screen: "새 콜 목록 · 설정", why: "인성 2그룹 콜 표시. 기사님 말씀대로 하나로 합쳐질 구분이라 키를 만들지 않는다" },
+        { goes: "화면 표시", value: "확정(10) · 확정(9)", network: "인성", screen: "새 콜 화면", why: "확정 단추의 남은 초 (기사님 확인). 콜 값이 아니라 화면 값이다" },
+        { goes: "화면 표시", value: "선정산 · 후정산", network: "인성", screen: "수행내역", why: "목록을 거르는 동그라미 단추다. 콜의 값은 paymentType 으로 유추한다 (기사님 말씀). 대응 표는 아직 없다" },
+        { goes: "화면 표시", value: "퀵 배송 · 도보배송 · 한차배송 · 대리", network: "카카오픽커", screen: "목록 맨 위", why: "목록을 고르는 단추다. 기사님은 퀵 배송만 켠다. 도보배송 · 한차배송(한 차에 실어 여러 곳에 내림) · 대리(대리운전)는 안 하신다. 원달앱의 퀵 · 도보 판단 코드는 그대로 둔다" },
+        { goes: "화면 표시", value: "목록 모서리 N · 탭 N · 30분/60분 안보기 · 배차취소하기 막대 · 넘기기 단추", network: "화물24시 · 인성 · 플렉스 · 카카오픽커", screen: "목록 · 상세", why: "화면 표시와 단추다" },
+        { goes: "화면 표시", value: "추천 오더 상자", network: "플렉스", screen: "목록", why: "상자 자체는 화면 표시다. 안의 콜은 목록 줄과 같은 칸으로 간다" },
+        { goes: "화면 표시", value: "…원 수행하기 단추", network: "플렉스", screen: "새 콜 화면", why: "같은 화면 «총 수입»과 같은 금액이다 (실물 xml). 금액은 income 으로 간다" },
+        { goes: "화면 표시", value: "도착지에서 현금을 꼭 받으세요!", network: "플렉스", screen: "내 콜 화면", why: "같은 뜻이 paymentType 과 lines collect 에 있다" },
+        { goes: "화면에 없음", value: "인성 내 콜 목록 회사 이름 · 플렉스 내 콜 목록 금액", network: "인성 · 플렉스", screen: "내 콜 목록", why: "정의 표에만 있고 이미지에서 근거를 못 찾았다. 플렉스 안내 영상의 그 화면에는 금액이 없다" },
+    ],
+};

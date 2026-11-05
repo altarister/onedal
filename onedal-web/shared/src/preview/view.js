@@ -311,44 +311,6 @@ function drawNetworkBook(spec, fields) {
     return out;
 }
 
-/* 📋 콜 칸 × 네 배차망 — 필수를 정하는 재료. 콜 칸 표의 칸 + 칸마다 그 값이 나오는 페이지 · 읽나 · 누가 읽나 · 글자/사진 · 본 곳 */
-/* 지금 코드의 필수 — 원달앱 OrderRequirement.kt 의 규칙을 옮겨 적은 것 (코드가 원천이다) */
-const REQUIRED_NOW = { fare: '목록 · 상세', pickup: '목록 · 상세(전체 주소)', dropoff: '목록 · 상세(전체 주소)', pickupDistance: '목록' };
-/* 누가 읽나 · 글자/사진은 칸이 없어 usedAt 글에서 어림한다 — 틀릴 수 있다 */
-function readerOf(row) {
-    if (row.handling !== 'READ') return '';
-    const used = row.usedAt ?? '';
-    const app = !/원달앱은 (아직 )?이 칸을 안/.test(used) && /\b[A-Z][a-z0-9]+[A-Z]\w*|원달앱/.test(used);
-    const server = /서버/.test(used);
-    return [app && '앱', server && '서버'].filter(Boolean).join(' + ') || '모름';
-}
-const photoOf = (row) => (row.handling === 'READ' ? (/사진|Ocr/.test(`${row.usedAt ?? ''}${row.where}`) ? '사진' : '글자') : '');
-/* 콜 칸에 잇는 화면 칸 줄 — 화면 칸 이름이 같으면 잇는다. contact 는 값이 여럿이라 조각으로 가른다 */
-const CONTACT_PART = { dispatcherName: (p) => p === 'dispatcher', dispatcherPhone: (p) => p === 'dispatcherPhone', pickupDetails: (p) => p?.startsWith('pickup.'), dropoffDetails: (p) => p?.startsWith('dropoff.') };
-const matchesRow = (row, field) => row.pageField === field.field && (field.field !== 'contact' || CONTACT_PART[row.key]?.(field.part));
-const fieldLine = (r, pageLabel) => `${pageLabel}${r.part ? ` (${r.part})` : ''}: ${[HANDLING_LABEL[r.handling] ?? r.handling, readerOf(r), photoOf(r), SEEN_LABEL[r.seen] ?? r.seen].filter(Boolean).join(' · ')}`;
-function drawCallSheet(networks, fields, netLabels, table, officeKeys) {
-    const book = fields.find((v) => v.name === 'BASE_PAGE_BOOK').rows.pages;
-    const nets = Object.keys(networks);
-    const labelOf = Object.fromEntries(table.columns.map((c) => [c.key, c.label]));
-    const linesOf = (net, row) => Object.entries(networks[net].pages).flatMap(([page, rows]) => rows.filter((r) => matchesRow(row, r)).map((r) => fieldLine(r, book[page]?.label ?? page)));
-    const written = (cell) => (cell?.text ? `적힌 글${cell.state && cell.state !== '지금' ? `(${cell.state})` : ''}: ${cell.text}` : '');
-    const sheet = draw(table.rows.map((row) => ({
-        [labelOf.id]: row.id, [labelOf.key]: row.key, [labelOf.label]: row.label, [labelOf.desc]: row.desc, [labelOf.kind]: row.kind, [labelOf.required]: row.required,
-        '지금 코드 필수': REQUIRED_NOW[row.key] ?? '', [labelOf.filledBy]: row.filledBy, [labelOf.ledger]: row.ledger, [labelOf.pageField]: row.pageField, [labelOf.ref]: row.ref,
-        ...Object.fromEntries(nets.map((n) => [netLabels[n] ?? n, [...linesOf(n, row), written(row[n])].filter(Boolean).join('\n')])),
-    })));
-    sheet.className = 'callSheet';
-    const missing = officeKeys.filter((k) => !table.rows.some((r) => r.key === k));
-    const unlinked = nets.flatMap((n) => Object.entries(networks[n].pages).flatMap(([page, rows]) => rows.filter((f) => !table.rows.some((r) => matchesRow(r, f))).map((f) => ({
-        '화면 칸': f.part ? `${f.field} · ${f.part}` : f.field, '배차망': netLabels[n] ?? n, '페이지': book[page]?.label ?? page, '화면 자리': f.where, '글자 견본': f.sample, '읽나': HANDLING_LABEL[f.handling] ?? f.handling,
-    }))));
-    const chips = document.createElement('div');
-    chips.className = 'chips';
-    for (const k of missing) { const c = document.createElement('span'); c.textContent = k; chips.append(c); }
-    return [sheet, sectionHead(`표에 없는 OfficeOrder 칸 ${missing.length}개`), chips, sectionHead(`어느 콜 칸에도 안 잇는 화면 칸 ${unlinked.length}줄`), unlinked.length ? draw(unlinked) : paragraph('없음')];
-}
-
 /* 🧩 값 모양에 맞춰 그린다 — 글자 목록은 한 줄 · 묶음은 표 · 모양이 다른 묶음은 항목마다 나눠서 */
 const isPlain = (v) => v && typeof v === 'object' && !Array.isArray(v);
 function drawValue(value) {
@@ -407,7 +369,6 @@ document.title = file;
 document.getElementById('title').textContent = file;
 if (!file.includes('/')) drawFolder().catch((e) => { box.textContent = `못 읽음: ${e}`; });
 else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ values, limit, title, six, reviews, imports, functions, aliases, interfaces, notes }) => {
-    if (new URLSearchParams(location.search).get('view') === 'fields') { location.replace(`/shared/${file}.fields`); return; }
     const sheet = values.find((v) => v.rows?.fieldSheet)?.rows;
     const fieldsOnly = !!sheet || values.some((v) => v.rows?.byInterface);
     if (fieldsOnly) {
@@ -468,7 +429,7 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
     const withUses = (rows, nameKey, usage) => rows.map((row) => ({ ...row, '쓰는 곳': usesCell(usage, row[nameKey]) }));
     const typeShapes = fieldsOnly ? (await fetch(`/shared/_/module/${(sheet ?? values.find((v) => v.rows?.byInterface).rows).typesFrom}`).then((r) => r.json())).interfaces : [];
     const baseShapes = sheet ? (await fetch('/shared/_/module/call/orderShapes').then((r) => r.json())).interfaces : [];
-    const hasFieldPage = (await fetch('/shared/_/menu').then((r) => r.json())).some((m) => m.file === `${file}.fields`);
+    const hasFieldPage = file === 'call/orderShapes';
     const paint = async (usage) => {
     box.textContent = '';
     box.append(paragraph('«쓰는 곳»은 TypeScript 로 찾은 파일 수입니다. as any · 글자로 읽는 곳 · 원달앱 JSON 은 다 못 찾으니, 0이라고 지워도 된다는 뜻은 아닙니다.'));
@@ -496,7 +457,7 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
     }
     if (hasFieldPage) {
         const link = document.createElement('a');
-        link.href = `/shared/${file}.fields`;
+        link.href = '/shared/call/call-fields.table';
         link.textContent = '배차망별 칸 표 보기 →';
         box.append(link);
     }
@@ -532,13 +493,10 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
             links.className = 'chips';
             for (const net of Object.keys(v.rows)) { const a = document.createElement('a'); a.href = `/shared/network/networkPages.${net}`; a.textContent = net; links.append(a); }
             box.append(h, usesLine(usage, v.name), paragraph('네 배차망 파일을 합친 값입니다. 내용은 배차망 페이지에서 봅니다.'), links);
-            const [fields, apps, cf, shapes] = await Promise.all(['network/pageFields', 'network/targetApps', 'call/call-fields.table', 'call/orderShapes'].map((f) => fetch(`/shared/_/module/${f}`).then((r) => r.json())));
-            box.append(sectionHead('콜 칸 × 네 배차망'),
-                paragraph('필수를 정할 때 보는 표입니다. 줄은 콜 칸이고 앞쪽 칸은 콜 칸 표(call-fields) 그대로입니다. 배차망 칸은 정의 표에서 뽑은 줄과 콜 칸 표에 사람이 적은 글입니다.'),
-                paragraph('배차망 칸 한 줄은 «페이지: 읽나 · 누가 읽나 · 글자/사진 · 본 곳»입니다. «누가 읽나»와 «글자/사진»은 정의 표의 «읽는 곳» 글에서 어림한 것이라 틀릴 수 있습니다.'),
-                paragraph('화면 칸 이름으로 이었기 때문에, 이름을 함께 쓰는 콜 칸(예약 · 시각 · 꼬리표 · 물품)에는 같은 줄이 겹쳐 나옵니다. 그 줄이 실제로 어느 콜 칸으로 가는지는 코드를 봐야 합니다.'),
-                paragraph('«지금 코드 필수»는 원달앱 코드의 규칙이고, 픽커 도보 콜만 목록에서 하차가 없어도 됩니다.'),
-                ...drawCallSheet(v.rows, fields.values, apps.values.find((x) => x.name === 'TARGET_APP_LABEL').rows, cf.values.find((x) => x.name === 'TABLE').rows, shapes.interfaces.find((x) => x.name === 'OfficeOrder').rows.map((r) => r['칸'])));
+            const sheetLink = document.createElement('a');
+            sheetLink.href = '/shared/call/call-fields.table';
+            sheetLink.textContent = '콜 칸 × 네 배차망은 기본 콜 칸 표에서 봅니다 →';
+            box.append(sheetLink);
             continue;
         }
         if (isBook(v.rows)) {

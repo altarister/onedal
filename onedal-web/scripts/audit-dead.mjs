@@ -75,19 +75,9 @@ const isRouteFile = (rel) => rel.includes('/routes/');
  * 남길 이유가 사라지면 목록에서 빼고 코드도 지운다.
  */
 const KEEP = {
-    /** 🎯 기본 콜 후보(call/sandbox) — 보기 페이지가 파일째 읽어 보여 준다. 계획서 B2 에서 칸 표는 call-fields.table.ts 로, 예와 대조표는 검사 파일로 옮기며 이 줄을 지운다 */
-    BASE_CALL_FIELDS: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    insungExample: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    insungEvidence: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    pickerExample: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    pickerEvidence: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    isflexExample: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    isflexEvidence: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    officeOrderFieldMap: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    serverFieldMap: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    newNetworkTests: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    BASE_CALL_PARTS: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
-    CALL_VALUES_OUTSIDE: '기본 콜 후보 — 보기 페이지만 읽는다 · 계획서 B2 에서 옮긴다',
+    /** 🎯 기본 콜 표 — 타입 페이지의 지도 · 칸이 없는 값. 보기 페이지만 읽는다 */
+    BASE_CALL_PARTS: '기본 콜 타입 지도 — 보기 페이지만 읽는다',
+    CALL_VALUES_OUTSIDE: '칸이 없는 값과 까닭 — 보기 페이지만 읽는다 · 버려지는 값의 근거',
     /** 🧾 shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 deviceModes.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로 */
     CAPTURED_VIA_LABEL: 'index 나누기로 처음 세임 · 옮기기만 · 지울지는 따로',
     /**
