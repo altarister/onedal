@@ -1,0 +1,68 @@
+// @ts-nocheck
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import db from '../../src/db';
+import detailRouter from '../../src/routes/detail';
+import ordersRouter from '../../src/routes/orders';
+import { OrderRepository } from '../../src/repositories/OrderRepository';
+import * as dispatchEngine from '../../src/services/dispatchEngine';
+import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
+import { approvedUser } from '../fixtures/approvedUser';
+
+/**
+ * 📐 **비교 기준 — 첫 보고와 상세 보고를 합친 콜 값 · 저장 행** (계획서 C1-1).
+ * 판정이 읽는 값은 앱 파서도 서버 상세 읽기도 아니라 이 합친 값이다. C2 끝 조건이 이 값과 견준다.
+ * 🔴 기대값은 지금 동작이다. 팝업 주소 채우기 · 사진 판독 · 필터 판정 · 관제웹 화면은 안 본다.
+ */
+const PATH = join(__dirname, '../../../shared/src/network/callMergeCases.json');
+const SHEET = JSON.parse(readFileSync(PATH, 'utf8'));
+const U = 'test-call-merge';
+const DEV = 'dev-call-merge';
+const io = { to: () => ({ emit: () => {} }) };
+const app = { get: (k: string) => (k === 'io' ? io : undefined) };
+const handlerOf = (router: any, path: string) => {
+    const layer = router.stack.find((l: any) => l.route?.path === path && l.route.methods.post);
+    return layer.route.stack[layer.route.stack.length - 1].handle;
+};
+const post = async (router: any, path: string, body: any) => {
+    const res = { status: () => res, json: () => res };
+    await handlerOf(router, path)({ app, headers: {}, body: { deviceId: DEV, matchType: 'AUTO', capturedAt: '2026-11-05T10:00:00+09:00', ...body } }, res);
+};
+/* 돌릴 때마다 달라지거나 시험 틀이 정한 칸 */
+const SHAKY = ['id', 'capturedAt', 'statusUpdatedAt', 'updatedAt', 'createdAt', 'userId', 'judgeUntil', 'detailReceivedAt'];
+const steady = (value: any) => JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(value).filter(([k, v]) => !SHAKY.includes(k) && v !== null))));
+
+async function merged(c: any, index: number) {
+    clearUserSession(U);
+    getUserSession(U).isRestored = true;
+    const id = `${U}-${index}`;
+    const stamp = { id, timestamp: '2026-11-05T10:00:00+09:00' };
+    const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => {});
+    await post(ordersRouter, '/confirm', { step: 'BASIC', targetApp: c.network, order: { ...c.confirm, ...stamp, type: 'AUTO_CLICK', rawText: '화면 글' } });
+    await post(detailRouter, '/', { step: 'DETAILED', targetApp: c.network, order: { ...c.detail, ...stamp, type: 'AUTO_CLICK' } });
+    spy.mockRestore();
+    const call = getUserSession(U).pendingOrdersData.get(id);
+    OrderRepository.upsertOrder(call, U, 0, 0);
+    return { call: steady(call), row: steady(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(id)) };
+}
+
+beforeAll(() => {
+    db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'merge@test', '합친 값');
+    approvedUser(U);
+    db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
+});
+afterAll(() => {
+    db.prepare(`DELETE FROM user_devices WHERE user_id = ?`).run(U);
+    clearUserSession(U);
+});
+
+describe('📐 합친 콜 값 · 저장 행', () => {
+    it('문제지가 네 배차망을 모두 담는다', () => {
+        expect(new Set(SHEET.cases.map((c) => c.network))).toEqual(new Set(['insung', 'hwamul24', 'kakaopicker', 'isflex']));
+    });
+    it.each(SHEET.cases.map((c, i) => [c.network, c.why, c, i]))('%s — %s', async (_n, _w, c, i) => {
+        const got = await merged(c, i);
+        expect(got.call).toEqual(c.expectCall);
+        expect(got.row).toEqual(c.expectRow);
+    });
+});
