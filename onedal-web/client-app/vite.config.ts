@@ -36,6 +36,26 @@ function sixOf(text: string): { word: string; text: string }[] {
     return line ? [{ word, text: line[1].trim() }] : [];
   });
 }
+/** 파일이 가져오는 것 — shared 안 파일이면 그 페이지 이름(file), 밖이면 비운다 */
+function importsOf(text: string, from: string): { module: string; file: string | null; names: string[] }[] {
+  return [...text.matchAll(/^import\s+(?:type\s+)?([^'"]+?)\s+from\s+['"]([^'"]+)['"]/gm)].map((m) => {
+    const target = path.resolve(path.dirname(from), m[2]);
+    const inside = m[2].startsWith(".") && existsSync(`${target}.ts`) && target.startsWith(SHARED);
+    return {
+      module: m[2],
+      file: inside ? path.relative(SHARED, target).split(path.sep).join("/") : null,
+      names: m[1].replace(/[{}]/g, " ").split(",").map((name) => name.trim().replace(/^type\s+/, "").split(/\s+as\s+/)[0]).filter(Boolean),
+    };
+  });
+}
+/** 파일의 리뷰 — «// ━━ 리뷰: 이름 ━━» 줄부터 다음 리뷰나 주석이 아닌 줄 앞까지 */
+function reviewsOf(text: string): { name: string; note: string; lines: string[] }[] {
+  return [...text.matchAll(/^\/\/ ━━ 리뷰: (.+?) ━━(.*)\n((?:\/\/(?! ━━ 리뷰:).*\n)*)/gm)].map((m) => ({
+    name: m[1],
+    note: m[2].trim(),
+    lines: m[3].split("\n").filter(Boolean).map((line) => line.replace(/^\/\/ ?/, "")),
+  }));
+}
 /** 내보낸 값 하나를 화면으로 보낼 모양으로 — 함수는 빼고, 너무 긴 목록은 자른다 */
 function sharedValue(value: unknown): { rows: unknown; total: number } | null {
   if (typeof value === "function" || value === undefined) return null;
@@ -311,7 +331,7 @@ function sharedPages(): Plugin {
           if (!file) return fail(404, "없는 파일");
           server.ssrLoadModule(file).then(async (loaded) => {
             const values = Object.entries(loaded).map(([name, value]) => ({ name, ...sharedValue(value) })).filter((v) => "rows" in v);
-            json({ limit: SHARED_ROW_LIMIT, title: sharedTitleOf(url.slice("_/module/".length)), six: sixOf(readFileSync(file, "utf-8")), ...(await sharedCodeOf(file)), values });
+            json({ limit: SHARED_ROW_LIMIT, title: sharedTitleOf(url.slice("_/module/".length)), six: sixOf(readFileSync(file, "utf-8")), reviews: reviewsOf(readFileSync(file, "utf-8")), imports: importsOf(readFileSync(file, "utf-8"), file), ...(await sharedCodeOf(file)), values });
           }).catch((e) => fail(500, String(e)));
           return;
         }

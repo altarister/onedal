@@ -40,6 +40,7 @@ async function readInto(td, app, cell, samples) {
 }
 
 /* 📑 오른쪽 목차 — 이 페이지의 제목들. 누르면 그 자리로 가고, 스크롤하면 지금 보는 제목을 표시한다 */
+let hashDone = false;
 function drawToc() {
     document.getElementById('toc')?.remove();
     const heads = [...box.querySelectorAll('h2.value, h3')];
@@ -52,6 +53,9 @@ function drawToc() {
     nav.append(title);
     const links = heads.map((h, i) => {
         h.id = `s${i}`;
+        /* 다른 표 · 다른 페이지에서 타입 이름으로 찾아오는 자리 — #t-타입이름 */
+        const typeName = /^[A-Z]\w+(?= \(칸)/.exec(h.textContent)?.[0];
+        if (typeName && !document.getElementById(`t-${typeName}`)) { const spot = document.createElement('span'); spot.id = `t-${typeName}`; h.prepend(spot); }
         const a = document.createElement('a');
         a.href = `#s${i}`;
         a.textContent = h.textContent.split(' — ')[0];
@@ -68,6 +72,7 @@ function drawToc() {
     };
     window.onscroll = mark;
     mark();
+    if (location.hash && !hashDone) { const spot = document.getElementById(location.hash.slice(1)); if (spot) { spot.scrollIntoView(); hashDone = true; } }
 }
 
 /* 🔎 누가 쓰나 — 요약 글자를 누르면 파일 이름이 펼쳐진다. 값은 개발 서버가 TypeScript 참조 찾기로 계산한다 */
@@ -102,16 +107,98 @@ function usesLine(usage, name) {
     return line;
 }
 
+/* 칸 표 — 한 칸이 줄 하나, 배차망마다 화면 한 줄이 작은 줄 하나. 앞쪽 칸과 필수는 로우스팬으로 합친다 */
+function drawFieldSheet(book, shapes, typesFrom) {
+    const COMMON = [['type', '속한 타입'], ['field', '칸'], ['path', '코드 경로'], ['label', '우리 기준 칸'], ['desc', '설명'], ['filledBy', '누가 채우나'], ['ledger', '장부 칸'], ['pageField', '화면 칸']];
+    const SUB = ['필수', '읽는지', '화면', '글자 견본'];
+    const table = document.createElement('table');
+    table.className = 'grouped';
+    const thead = table.createTHead();
+    const top = thead.insertRow();
+    const under = thead.insertRow();
+    const headCell = (row, words, tone, spans) => { const th = document.createElement('th'); th.textContent = words; if (tone) th.className = `tone-${tone}`; Object.assign(th, spans); row.append(th); };
+    for (const [, label] of COMMON) headCell(top, label, null, { rowSpan: 2 });
+    for (const g of book.groups) { headCell(top, g.label, g.key, { colSpan: SUB.length }); for (const s of SUB) headCell(under, s, g.key, {}); }
+    const body = table.createTBody();
+    const put = (tr, words, spans, cls) => { const td = tr.insertCell(); td.className = `plain${cls ? ` ${cls}` : ''}`; td.textContent = words; Object.assign(td, spans); return td; };
+    const shapeOf = (name) => shapes.find((s) => s.name === name);
+    for (const row of book.rows) {
+        if (row.section) {
+            const td = body.insertRow().insertCell();
+            td.colSpan = COMMON.length + book.groups.length * SUB.length;
+            td.className = 'sheetSection';
+            const label = document.createElement('span');
+            label.textContent = row.section;
+            td.append(label);
+            continue;
+        }
+        const lineCount = Math.max(1, ...book.groups.map((g) => row.nets[g.key].lines.length));
+        const trs = Array.from({ length: lineCount }, () => body.insertRow());
+        const span = { rowSpan: lineCount };
+        const typeCell = put(trs[0], '', span);
+        const link = document.createElement('a');
+        link.href = row.type === 'LocationDetailInfo' ? '/shared/call/orderShapes#t-LocationDetailInfo' : `/shared/${typesFrom}#t-${row.type}`;
+        link.textContent = row.type;
+        typeCell.append(link);
+        put(trs[0], row.field, span);
+        put(trs[0], row.path, span);
+        put(trs[0], row.label, span);
+        const comment = shapeOf(row.type)?.rows.find((f) => f['칸'] === row.field);
+        put(trs[0], comment?.['설명'] ?? row.desc ?? '', span);
+        put(trs[0], row.filledBy, span);
+        put(trs[0], row.ledger, span);
+        put(trs[0], row.pageField, span);
+        for (const g of book.groups) {
+            const { req, lines } = row.nets[g.key];
+            put(trs[0], req, span, 'group-start');
+            if (lines.length === 0) { put(trs[0], '없음', span, 'none'); put(trs[0], '—', span, 'none'); put(trs[0], '—', span, 'none'); continue; }
+            lines.forEach((line, at) => {
+                const rest = at === lines.length - 1 ? { rowSpan: lineCount - at } : {};
+                put(trs[at], line.read, rest);
+                put(trs[at], line.screen, rest);
+                put(trs[at], line.sample, rest);
+            });
+        }
+    }
+    const scroller = document.createElement('div');
+    scroller.className = 'tableScroll';
+    scroller.append(table);
+    return scroller;
+}
+
 function draw(rows, book) {
     const columns = book ? book.columns.map((c) => c.key) : [...new Set(rows.flatMap((r) => Object.keys(r)))];
     const labelOf = (k) => book?.columns.find((c) => c.key === k)?.label ?? k;
+    /* 묶음 머리글이 있는 표는 두 줄 머리글로 그리고 정렬하지 않는다 */
+    const grouped = book?.columns.some((c) => c.group);
     let sort = null;
     const el = document.createElement('table');
     const paint = () => {
         el.textContent = '';
-        const head = el.createTHead().insertRow();
-        for (const c of columns) {
+        if (grouped) {
+            el.className = 'grouped';
+            const thead = el.createTHead();
+            const top = thead.insertRow();
+            const under = thead.insertRow();
+            const headCell = (row, words, tone, spans) => {
+                const th = document.createElement('th');
+                th.textContent = words;
+                if (tone) th.className = `tone-${tone}`;
+                Object.assign(th, spans);
+                row.append(th);
+            };
+            for (const c of book.columns) {
+                if (!c.group) headCell(top, c.label, null, { rowSpan: 2 });
+                else {
+                    if (book.columns.find((x) => x.group === c.group) === c) headCell(top, c.group, c.tone, { colSpan: book.columns.filter((x) => x.group === c.group).length });
+                    headCell(under, c.label, c.tone, {});
+                }
+            }
+        }
+        const head = grouped ? null : el.createTHead().insertRow();
+        if (!grouped) for (const c of columns) {
             const th = document.createElement('th');
+            if (book?.spanFirst) { th.textContent = labelOf(c); head.append(th); continue; }
             const b = document.createElement('button');
             b.textContent = `${labelOf(c)} ${sort?.key === c ? (sort.desc ? '▼' : '▲') : '↕'}`;
             b.addEventListener('click', () => { sort = sort?.key !== c ? { key: c, desc: false } : sort.desc ? null : { key: c, desc: true }; paint(); });
@@ -131,8 +218,17 @@ function draw(rows, book) {
             for (const c of columns) {
                 const td = tr.insertCell();
                 td.className = 'plain';
+                if (grouped) { const col = book.columns.find((x) => x.key === c); if (col.group && book.columns.find((x) => x.group === col.group) === col) td.classList.add('group-start'); }
                 const cell = rows[i][c];
-                if (cell?.files) td.append(usesBox(cell));
+                if (cell?.chain) cell.chain.forEach((part, at) => {
+                    if (at > 0) td.append(cell.sep ?? ' → ');
+                    if (!part.href) { td.append(part.text); return; }
+                    const link = document.createElement('a');
+                    link.href = part.href;
+                    link.textContent = part.text;
+                    td.append(link);
+                });
+                else if (cell?.files) td.append(usesBox(cell));
                 else if (cell && typeof cell === 'object' && 'text' in cell) {
                     if (cell.state && cell.state !== '지금') { const s = document.createElement('div'); s.className = 'state'; s.textContent = cell.state; td.append(s); }
                     td.append(cell.text);
@@ -140,9 +236,22 @@ function draw(rows, book) {
                 } else td.textContent = text(cell);
             }
         }
+        /* 첫 칸이 같은 줄끼리 합친다 */
+        if (book?.spanFirst) {
+            let first = null;
+            for (const tr of [...el.tBodies[0].rows]) {
+                if (first && first.textContent === tr.cells[0].textContent) { first.rowSpan += 1; tr.deleteCell(0); }
+                else first = tr.cells[0];
+            }
+        }
     };
     paint();
-    return el;
+    if (!grouped) return el;
+    /* 넓은 표는 자기 상자 안에서만 가로로 민다 — 양쪽 메뉴를 덮지 않는다 */
+    const scroller = document.createElement('div');
+    scroller.className = 'tableScroll';
+    scroller.append(el);
+    return scroller;
 }
 
 /* 🗂️ 배차망 정의 표 — 종류가 다른 내용을 한 표에 펼치지 않고 페이지별 칸 · 화면 위 팝업 · 화면 알아보기 · 규칙 · 차종 낱말 · 메모로 나눠 그린다 */
@@ -297,9 +406,16 @@ async function drawFolder() {
 document.title = file;
 document.getElementById('title').textContent = file;
 if (!file.includes('/')) drawFolder().catch((e) => { box.textContent = `못 읽음: ${e}`; });
-else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ values, limit, title, six, functions, aliases, interfaces, notes }) => {
+else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ values, limit, title, six, reviews, imports, functions, aliases, interfaces, notes }) => {
+    if (new URLSearchParams(location.search).get('view') === 'fields') { location.replace(`/shared/${file}.fields`); return; }
+    const sheet = values.find((v) => v.rows?.fieldSheet)?.rows;
+    const fieldsOnly = !!sheet || values.some((v) => v.rows?.byInterface);
+    if (fieldsOnly) {
+        document.body.classList.add('fullTable');
+        document.querySelectorAll('main > :not(h1):not(#box):not(#six)').forEach((node) => node.remove());
+    }
     if (title) { document.title = title; document.getElementById('title').textContent = `${title} — ${file}`; }
-    box.after(sourceBlock());
+    if (!fieldsOnly) box.after(sourceBlock());
     const sixBox = document.getElementById('six');
     if (six.length === 0) sixBox.textContent = '6하원칙 없음';
     for (const s of six) {
@@ -309,6 +425,40 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
         line.append(word, s.text);
         sixBox.append(line);
     }
+    if (imports.length > 0) {
+        const block = document.createElement('section');
+        block.className = 'imports';
+        const name = document.createElement('h3');
+        name.textContent = `가져온 것 ${imports.length}곳`;
+        block.append(name);
+        for (const item of imports) {
+            const line = document.createElement('div');
+            const source = document.createElement(item.file ? 'a' : 'span');
+            source.textContent = item.file ?? item.module;
+            if (item.file) source.href = `/shared/${item.file}`;
+            line.append(source, ' : ');
+            item.names.forEach((word, at) => {
+                if (at > 0) line.append(' · ');
+                if (!item.file) { line.append(word); return; }
+                const link = document.createElement('a');
+                link.href = `/shared/${item.file}#t-${word}`;
+                link.textContent = word;
+                line.append(link);
+            });
+            block.append(line);
+        }
+        sixBox.after(block);
+    }
+    for (const review of [...reviews].reverse()) {
+        const block = document.createElement('section');
+        block.className = 'review';
+        const name = document.createElement('h3');
+        name.textContent = `리뷰: ${review.name} ${review.note}`.trim();
+        const body = document.createElement('div');
+        body.textContent = review.lines.join('\n');
+        block.append(name, body);
+        sixBox.after(block);
+    }
     const heading = (words) => {
         const h = document.createElement('h2');
         h.className = 'value';
@@ -316,17 +466,58 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
         return h;
     };
     const withUses = (rows, nameKey, usage) => rows.map((row) => ({ ...row, '쓰는 곳': usesCell(usage, row[nameKey]) }));
+    const typeShapes = fieldsOnly ? (await fetch(`/shared/_/module/${(sheet ?? values.find((v) => v.rows?.byInterface).rows).typesFrom}`).then((r) => r.json())).interfaces : [];
+    const baseShapes = sheet ? (await fetch('/shared/_/module/call/orderShapes').then((r) => r.json())).interfaces : [];
+    const hasFieldPage = (await fetch('/shared/_/menu').then((r) => r.json())).some((m) => m.file === `${file}.fields`);
     const paint = async (usage) => {
     box.textContent = '';
     box.append(paragraph('«쓰는 곳»은 TypeScript 로 찾은 파일 수입니다. as any · 글자로 읽는 곳 · 원달앱 JSON 은 다 못 찾으니, 0이라고 지워도 된다는 뜻은 아닙니다.'));
     if (functions.length > 0) box.append(heading(`함수 ${functions.length}개`), draw(withUses(functions, '함수', usage)));
-    if (aliases.length > 0) box.append(heading(`타입 ${aliases.length}개`), draw(withUses(aliases, '타입', usage)));
+    const fieldBook = values.find((v) => v.rows?.byInterface)?.rows;
+    if (sheet) {
+        const back = document.createElement('a');
+        back.href = `/shared/${sheet.typesFrom}`;
+        back.textContent = '← 타입 페이지로';
+        box.append(back, paragraph(sheet.about), drawFieldSheet(sheet, [...typeShapes, ...baseShapes], sheet.typesFrom));
+        return;
+    }
+    if (fieldBook && fieldsOnly) {
+        /* 칸 표만 한 장으로 — 설명은 칸 주석 한 곳에서 읽고, 상속 링크는 파일 페이지로 간다 */
+        const rows = fieldBook.rows.map((row) => {
+            const comment = typeShapes.find((s) => s.name === row.owner)?.rows.find((f) => f['칸'] === row.key.split('.').pop());
+            const chain = row.inherit.chain.map((part) => (part.href?.startsWith('#') ? { ...part, href: `/shared/${fieldBook.typesFrom}${part.href}` } : part));
+            return { ...row, inherit: { chain }, ...(comment ? { desc: comment['설명'] } : {}) };
+        });
+        const back = document.createElement('a');
+        back.href = `/shared/${fieldBook.typesFrom}`;
+        back.textContent = '← 타입 페이지로';
+        box.append(back, paragraph(fieldBook.about), draw(rows, fieldBook));
+        return;
+    }
+    if (hasFieldPage) {
+        const link = document.createElement('a');
+        link.href = `/shared/${file}.fields`;
+        link.textContent = '배차망별 칸 표 보기 →';
+        box.append(link);
+    }
+    /* 타입 지도 — 이 페이지에 있는 타입 이름은 그 자리로 가는 링크다 */
+    const typeNames = new Set([...interfaces.map((shape) => shape.name), ...aliases.map((alias) => alias['타입'])]);
+    const typeAbout = (name) => interfaces.find((shape) => shape.name === name)?.about ?? aliases.find((alias) => alias['타입'] === name)?.['기능'] ?? '';
+    for (const v of values.filter((value) => value.rows?.top)) {
+        box.append(heading(v.rows.title), draw(v.rows.rows.map((row) => ({ ...row, type: { sep: '', chain: [...(row.depth ? [{ text: `${'\u3000'.repeat(row.depth)}└ ` }] : []), row.href ? { text: row.type, href: row.href } : typeNames.has(row.type) ? { text: row.type, href: `#t-${row.type}` } : { text: row.type }] }, about: row.about ?? typeAbout(row.type) })), v.rows));
+    }
+    if (aliases.length > 0) {
+        const table = draw(withUses(aliases, '타입', usage));
+        [...table.tBodies[0].rows].forEach((tr) => { tr.id = `t-${tr.cells[0].textContent}`; });
+        box.append(heading(`타입 ${aliases.length}개`), table);
+    }
     for (const shape of interfaces) {
         const rows = shape.rows.map((row) => ({ ...row, '같은 이름 칸이 있는 타입': usage?.fields[shape.name]?.[row['칸']]?.join(' · ') ?? '' }));
         box.append(heading(`${shape.name} (칸 ${shape.rows.length}개) — ${shape.about}`), usesLine(usage, shape.name), draw(rows));
     }
     if (functions.length + aliases.length + interfaces.length + values.length === 0) box.textContent = '표로 볼 것이 없습니다.';
     for (const v of values) {
+        if (v.rows?.byInterface || v.rows?.fieldSheet || v.rows?.top) continue;
         if (/^network\/networkPages\.\w+$/.test(file)) {
             const fields = await fetch('/shared/_/module/network/pageFields').then((r) => r.json());
             box.append(usesLine(usage, v.name), ...drawNetworkBook(v.rows, fields.values));
