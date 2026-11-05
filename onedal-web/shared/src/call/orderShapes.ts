@@ -370,7 +370,7 @@ export interface CallLoad {
 
 /** 약속 한 건 — 상차와 하차가 같은 모양이다 */
 export interface CallPromise {
-    text?: string;               // 화면 글자 그대로. 옮기는 동안은 지금 scheduleText 값을 담는다 — 인성은 하차 앞글자, 화물24시는 하차 날 표시가 섞일 수 있다 — 인성 «낼7시/» · 픽커 «내일 14:00 픽업예약» · «18:28까지 배송»
+    text?: string;               // 화면 글자 그대로. 옮기는 동안은 지금 scheduleText 값을 담는다 — 인성은 하차 앞글자, 화물24시는 하차 날 표시가 섞일 수 있다 — 인성 «낼7시/» · 픽커 «내일 14:00 픽업예약»
     reserved?: boolean | null;   // 예약 표시가 있나. 지금 코드는 화물24시 «당상» 같은 날 표시도 예약으로 읽는다(ReservationText.kt). 뜻을 나누는 것은 따로 승인을 받는다
     day?: number | null;         // 며칠 뒤인가 (0 = 오늘). null = 날 모름
     at?: string | null;          // 그 시각 HH:MM — 글자에 아래 두 칸의 낱말이 없으면 여기. 플렉스 «10시도착»

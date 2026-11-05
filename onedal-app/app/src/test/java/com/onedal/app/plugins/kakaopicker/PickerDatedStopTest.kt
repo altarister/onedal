@@ -35,6 +35,8 @@ class PickerDatedStopTest {
     @Test fun `읍 면도 목록 줄 열쇠로 - 사진으로 목록 줄을 찾아 요금을 가져온다`() {
         val d = PickerScreenOcr.parseDetail(lines)!!
         assertEquals(13013, KakaoPickerParser.photoMatchCard(d.pickup, d.dropoff, listOf(listCard))?.fare)
+        // 손으로 연 상세의 목록 줄 — 글자로 찾은 줄이 없으면 사진으로 찾은 그 줄
+        assertEquals(13013, PickerDetailOcrParser().listRowOf(d, null, listOf(listCard))?.fare)
         val m = KakaoPickerParser.matchListCard(listOf("픽업지 경기 용인시 처인구 모현읍 아인라이크", "물품 정보", "소형", "넘기기", "수락하기"), listOf(listCard))
         assertEquals(13013, m.card?.fare)
     }
