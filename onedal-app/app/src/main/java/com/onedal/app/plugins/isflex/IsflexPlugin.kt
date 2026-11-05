@@ -57,6 +57,9 @@ class IsflexPlugin(private val context: Context? = null) : IDispatchAppPlugin {
     override fun fillDetail(context: ScanContext, order: SimplifiedOfficeOrder): SimplifiedOfficeOrder =
         IsflexParser.fillFromDetail(order, LocalDateTime.now())
 
+    override fun baseCallOf(context: ScanContext, order: SimplifiedOfficeOrder): com.onedal.app.models.BaseCall? =
+        IsflexBaseCall.of(order, context.session.listOrder, context.session.accumulatedDetailText)
+
     override var lastHoldKey: String? = null
         private set
 
