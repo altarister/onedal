@@ -106,6 +106,15 @@ describe('🔎 이미 잡은 콜로 돌려주는 경우', () => {
         keep();
         expectKept(await report({ rawText: detailText('010-1111-1111', '팝업 주소 B') }));
     });
+    /* 🎯 새 앱 꼴 — 상차 칸이 팝업 «위치»다. 위 두 규칙을 새 앱이 실제로 보내는 입력으로 본다 */
+    (on ? it : it.skip)('새 앱 — 번호가 달라도 전화 · 상차 · 하차 · 요금이 같으면 잡은 콜이다', async () => {
+        keep({ pickup: '팝업 주소 A' });
+        expectKept(await report({ pickup: '팝업 주소 A', rawText: detailText('010-1111-1111', '팝업 주소 A') }));
+    });
+    (on ? it : it.skip)('새 앱 — 번호가 달라도 팝업 주소 · 상차 · 하차 · 요금이 같으면 잡은 콜이다 (전화는 달라도)', async () => {
+        keep({ pickup: '팝업 주소 A' });
+        expectKept(await report({ pickup: '팝업 주소 A', rawText: detailText('010-2222-2222', '팝업 주소 A') }));
+    });
     (on ? it.skip : it)('번호가 달라도 팝업 주소 · 상차 · 하차 · 요금이 같으면 잡은 콜이다 (전화는 달라도)', async () => {
         keep();
         expectKept(await report({ rawText: detailText('010-2222-2222', '팝업 주소 A') }));

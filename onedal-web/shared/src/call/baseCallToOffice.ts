@@ -171,6 +171,7 @@ export function baseCallDiff(call: BaseCall, order: Partial<OfficeOrder>): strin
 
 /**
  * 🎯 **옛 길이 값을 낸 칸만 기본 콜 값으로 바꾼다** (계획서 D3) — 옛 길이 비운 칸은 비운 채로 둔다.
+ * 0 · 아니오(거짓)는 «모름»이 아니라 찬 값이다.
  * 배차망 이름으로 가르지 않는다 — «옛 값이 있나»라는 사실로만 가른다. 새로 살린 값을 옛 칸으로 넘기는 일은 E 단계에서 따로 정한다.
  */
 export function officeValuesOf(call: BaseCall, order: Partial<OfficeOrder>): Partial<OfficeOrder> {
