@@ -18,7 +18,7 @@
  *
  * 잃는 것
  * - 같은 뜻의 값이 화면마다 다르면 칸에는 나중 값만 남는다. 앞 값은 기록의 changed 와 원문에서 본다.
- * - 읽는 코드의 경로가 바뀐다 (order.pickup → order.route.firstSeen.pickup 또는 order.route.pickup.addressDetail).
+ * - 읽는 코드의 경로가 바뀐다 (order.pickup → order.route.listRegion.pickup 또는 order.route.pickup.addressDetail).
  *
  * 모름
  * - 픽커 «최종 수익» · 플렉스 «총 수입»이 수수료를 뺀 값인가, 화물24시 «수납금액»의 뜻, 플렉스 탁송 금액의 뜻, 화물24시 «-A» · «-D» · 동그라미 «A», 인성 «짐/» · «짐)» · «X@» · «[착]» (기사님도 모름)
@@ -83,11 +83,11 @@ export interface CallRoute {
      * 앞글자는 퀵사가 편한 대로 올려 일정하지 않아 풀지 않는다. 뜻은 상세 · 적요에서 읽고, 글자는 목록 기록과 원문에 남는다.
      * 지금은 원달앱이 상세 주소로 덮은 뒤 보내므로 원달앱이 따로 실어야 한다.
      */
-    firstSeen?: { pickup?: string; dropoff?: string };
+    listRegion?: { pickup?: string; dropoff?: string };
     /**
      * 상차지. addressDetail 은 내비에 찍을 주소(인성 팝업 «위치» · 픽커 사진 정거장 · 플렉스 상세).
      * 더 자세한 값이 오면 나중 값이 이긴다. 주소가 아닌 글(인성 내 콜의 상호)은 넣지 않는다.
-     * region 은 지역 이름만 담는다. 목록 글자는 위 firstSeen 의 몫이다.
+     * region 은 지역 이름만 담는다. 목록 글자는 위 listRegion 의 몫이다.
      */
     pickup: CallStop;
     dropoff: CallStop;            // 마지막 하차지 — 상차지와 같은 모양 (인성 «도착지상세» · 픽커 둘째 정거장)
@@ -132,7 +132,7 @@ export interface CallMoney {
 /** 뭘 싣나 — 배차망이 말한 그대로 둔다. 실리는지는 BaseCallFacts.load 가 답한다 */
 export interface CallLoad {
     vehicleType?: string;        // 콜 차종 낱말 그대로 — «다마스», «1t», «2.5톤/윙», 픽커 «승». 이 짐을 옮기라는 수단이고 내 차와 다른 개념이다
-    itemSize?: string | null;    // 크기 낱말 — 픽커 목록 «소형». 지금 픽커 사진은 «소형 세 변의 합 …» 줄 통째를 옛 itemSize 에 넣는다. 그 줄은 itemDescription 으로 가고 옛 값은 바꾸는 함수가 다시 만든다 · 플렉스 «대박스»(안내 영상 · 안 읽음) · 인성 «다마스-다마»의 «다마»
+    itemSize?: string | null;    // 크기 낱말 — 픽커 목록 «소형». 옮기는 동안은 지금 값을 담는다 — 픽커 사진은 «소형 세 변의 합 …» 줄 통째다. 낱말로 나누는 것은 읽는 코드를 옮길 때 한다 · 플렉스 «대박스»(안내 영상 · 안 읽음) · 인성 «다마스-다마»의 «다마»
     itemDescription?: string;    // 짐 글 — 인성 «박스 1개» · 앞글자 «폰)»(핸드폰), 픽커 «소형 세 변의 합 100cm ∙ 5kg 이하», 플렉스 적요 «박스1개»
     weightKg?: number;           // 🔴 무게 — 픽커 «5kg 이하» · 화물24시 적재중량 «3.85톤»
     sizeCm?: number;             // 🔴 세 변의 합 — 픽커 «100cm»
@@ -142,8 +142,8 @@ export interface CallLoad {
 
 /** 약속 한 건 — 상차와 하차가 같은 모양이다 */
 export interface CallPromise {
-    text?: string;               // 화면 글자 그대로 — 인성 «낼7시/» · 픽커 «내일 14:00 픽업예약» · «18:28까지 배송»
-    reserved?: boolean | null;   // 예약 표시가 있나. 화물24시 «당상»은 날 표시라 예약이 아니다
+    text?: string;               // 화면 글자 그대로. 옮기는 동안은 지금 scheduleText 값을 담는다 — 인성은 하차 앞글자, 화물24시는 하차 날 표시가 섞일 수 있다 — 인성 «낼7시/» · 픽커 «내일 14:00 픽업예약» · «18:28까지 배송»
+    reserved?: boolean | null;   // 예약 표시가 있나. 지금 코드는 화물24시 «당상» 같은 날 표시도 예약으로 읽는다(ReservationText.kt). 뜻을 나누는 것은 따로 승인을 받는다
     day?: number | null;         // 며칠 뒤인가 (0 = 오늘). null = 날 모름
     at?: string | null;          // 그 시각 HH:MM — 글자에 아래 두 칸의 낱말이 없으면 여기. 플렉스 «10시도착»
     after?: string | null;       // 🔴 그 시각 이후 HH:MM — 글자에 «이후» · «후» · «부터», 또는 A-B 의 A. 화물24시 «09시 이후 상차» · 인성 «낼11-12시/»
@@ -156,7 +156,7 @@ export interface CallTime {
     dropoff?: CallPromise;       // 🔴 하차 약속 — 인성 «낼8/», 픽커 «18:28까지 배송». 지금은 칸이 없어 버린다
     returnPickup?: CallPromise;  // 🔴 왕복 콜에서 하차지에서 다시 실어 출발지로 돌아가는 약속 — 인성 «왕복/낼7시/송파»의 «낼7시». 목록은 풀지 않는다. 왕복인지는 상세 구분 칸으로 안다. 기사님 말씀대로 약속은 적요에 풀려 들어가고, 채우는 규칙은 왕복 콜 상세를 본 뒤 정한다
     remaining?: string;          // 🔴 남은 시간 글자 — 픽커 «배송 31분 남음 준비 17분 포함» · «36분 지연»
-    postTime?: string;           // 콜을 올린 시각 — 화물24시 «등록시간». 인성에는 이 칸이 없다 (지금 코드가 약속 시각을 넣는다)
+    postTime?: string;           // 콜을 올린 시각 — 화물24시 «등록시간». 인성에는 이 칸이 없다. 옮기는 동안은 지금 값을 담는다 (인성은 줄의 첫 HH:MM)
 }
 
 /** 조건은 뭔가, 가서 뭘 해야 하나 */
@@ -182,7 +182,7 @@ export interface BaseCall {
     dispatcherName?: string;     // ☎️ 콜을 올린 사무실 — 인성 상세 머리 줄. 다른 배차망은 비어 있다
     dispatcherPhone?: string;    // ☎️ 그 사무실 전화 — 인성 상세 머리 줄
     requesterName?: string;      // 🔴 콜을 맡긴 사람이나 상호 — 인성 의뢰지 줄 «쑥쑥 TEST». «***» 은 빈 값
-    fromOtherOffice?: boolean;   // 🔴 공유콜인가 — 인성 · 플렉스 목록 맨 앞 «@». 목록 값을 상세가 덮지 않는다. 합짐 여부 isShared 와 다른 값이다
+    fromOtherOffice?: boolean;   // 🔴 공유콜인가 — 인성 · 플렉스 목록 맨 앞 «@». 플렉스는 줄마다 붙어 늘 true 라 가르는 힘이 없다. 목록 값을 상세가 덮지 않는다. 합짐 여부 isShared 와 다른 값이다
     orderNo?: string;            // 🔴 배차망 오더번호 — 화물24시 «화물번호:3-9483-2159» · 픽커 «F2609011638JDU17». 지금은 안 읽는다
     clientOrderNo?: string;      // 🔴 가게 · 제휴사 주문번호 — 픽커 «요기요 주문번호 : 903»
     stage?: string;              // 배차망이 적은 진행 글자 — 인성 «상태 : 신규», 픽커 «픽업 준비 14분 남음» (지금 receiptStatus). 우리 쪽 콜 상태와 다르다
@@ -195,6 +195,7 @@ export interface BaseCall {
 
 /** 원달앱 보고의 사정 — 기사의 질문이 아니다 */
 export interface CallReport {
+    timestamp?: string;                 // 원달앱이 콜을 읽은 시각 — 옛 timestamp (원달앱)
     matchType?: string;                 // 누가 잡았나 AUTO · MANUAL — 보고 봉투 값이라 BaseCall 밖이다 (원달앱)
     type: string;                       // 보고 종류 NEW_ORDER · AUTO_CLICK · MANUAL_CLICK. EventType 밖의 값이 있어 string (원달앱)
     verdict?: string | null;            // 원달앱이 목록에서 내린 판정 (원달앱)
@@ -243,7 +244,7 @@ export interface NetworkProgress {
     proofRule?: string;          // 사진 인증 조건 — 픽커 «물품과 장소가 함께 보이도록 촬영해주세요»
 }
 
-/** 돈 받기 — 콜을 잡은 뒤 돈을 받는 과정. BaseCall 밖이고 orderId 로 콜에 붙는다. 🔴 앞 세 칸만 지금 있는 칸이고 나머지는 키만 정했다. 옛 SettlementInfo 와 orders.dueDate 는 쓰는 코드가 없어 이어받지 않는다 */
+/** 돈 받기 — 콜을 잡은 뒤 돈을 받는 과정. BaseCall 밖이고 orderId 로 콜에 붙는다. 🔴 앞 세 칸만 지금 있는 칸이고 나머지는 키만 정했다. 옛 SettlementInfo 와 orders.dueDate 는 읽는 코드가 없어 이어받지 않는다 */
 export interface CallSettlement {
     status?: '미정산' | '수령' | '미수금';  // 우리 쪽 수금 상태 — orders.settlementStatus 의 지금 값 그대로. 착불이 아닌 콜은 미정산에 머문다
     unpaidWon?: number;          // 못 받은 돈 — orders.unpaidAmount
@@ -266,13 +267,13 @@ export interface CallSettlement {
 
 /** 판정 · 화면이 읽는 답 — 저장하지 않고 BaseCall 에서 뽑는다. 판정 코드는 배차망을 몰라도 된다 */
 export interface BaseCallFacts {
-    listKey: string | null;      // 같은 콜 찾기 글자 — route.firstSeen. detail.ts:142 자리
-    navAddress: { pickup: string | null; dropoff: string | null };  // 내비에 찍을 주소 — addressDetail, 없으면 firstSeen. geocodeTargetOf 자리
+    listKey: string | null;      // 같은 콜 찾기 글자 — route.listRegion. detail.ts:142 자리
+    navAddress: { pickup: string | null; dropoff: string | null };  // 내비에 찍을 주소 — addressDetail, 없으면 listRegion. geocodeTargetOf 자리
     phone: { pickup?: string; dropoff?: string };  // 걸 번호 — 기존 stopPhoneOf
     money: {
         grossWon: number | null;     // 수수료 전 합계. 모르면 null
         takeHomeWon: number | null;  // 🔴 손에 오는 돈. 처음에는 지금 fare 와 같은 값을 돌려 판정을 안 바꾼다. 인성 요금은 이미 수수료 뒤라 다시 빼지 않는다. 화물24시 fare 는 목록 요금이라 collectedFee 가 들어 있다. 🔴 뺄지는 그 돈의 뜻을 안 뒤 정한다. criteria.ts:125 자리
-        collectWon: number | null;   // 현장에서 받을 돈. 화물24시 선/착불 콜은 목록 요금(운송료 + collectedFee)으로 본다
+        collectWon: number | null;   // 현장에서 받을 돈. 화물24시 선/착불 콜의 금액은 «수»의 뜻을 안 뒤 정한다
         takeHomeBasis: 'beforeFee' | 'afterFee' | 'unknown';  // takeHomeWon 이 수수료 앞인가 뒤인가 — 정의 표 feeBasis. 비어 있으면 unknown
     };
     load: {
@@ -402,12 +403,12 @@ export const isflexEvidence: CallEvidence = {
 export const officeOrderFieldMap: Record<keyof OfficeOrder, string> = {
     id: 'id (그대로)',
     type: 'CallReport.type',
-    timestamp: 'CallEvidence.seen[].at',
+    timestamp: 'CallReport.timestamp',
     rawText: 'CallReport.rawText (가장 늦은 상세) · CallEvidence.seen[].rawText (전부)',
     verdict: 'CallReport.verdict',
     isSimulated: 'CallReport.isSimulated',
-    pickup: 'route.firstSeen.pickup (목록 동 이름) · route.pickup.addressDetail (전체 주소)',
-    dropoff: 'route.firstSeen.dropoff (목록 동 이름) · route.dropoff.addressDetail (전체 주소)',
+    pickup: 'route.listRegion.pickup (목록 동 이름) · route.pickup.addressDetail (전체 주소)',
+    dropoff: 'route.listRegion.dropoff (목록 동 이름) · route.dropoff.addressDetail (전체 주소)',
     pickupX: 'CallCoordinates (그대로)',
     pickupY: 'CallCoordinates (그대로)',
     dropoffX: 'CallCoordinates (그대로)',
@@ -505,7 +506,7 @@ export const CALL_VALUES_OUTSIDE = {
     columns: [{ key: 'goes', label: '갈 곳' }, { key: 'value', label: '화면 값' }, { key: 'network', label: '배차망' }, { key: 'screen', label: '화면' }, { key: 'why', label: '칸이 없는 까닭' }],
     rows: [
         { goes: "원문만 남김", value: "화물 글 끝 -A · -D · 화주 옆 동그라미 A", network: "화물24시", screen: "목록 · 상세", why: "뜻을 모른다 (기사님도 모름). 글자는 job.detailMemo 에 남는다" },
-        { goes: "원문만 남김", value: "«짐/» · «짐)» · «X@» · «[착]» · «[1322]» · «27:23» · 완료목표시간", network: "인성", screen: "목록 · 상세", why: "뜻을 모른다. 글자는 route.firstSeen 과 원문에 남는다" },
+        { goes: "원문만 남김", value: "«짐/» · «짐)» · «X@» · «[착]» · «[1322]» · «27:23» · 완료목표시간", network: "인성", screen: "목록 · 상세", why: "뜻을 모른다. 글자는 route.listRegion 과 원문에 남는다" },
         { goes: "원문만 남김", value: "#연계# · 3층 계단물건 · 착지시간꼭엄수", network: "화물24시 · 플렉스", screen: "적요 · 화물 글", why: "적요 안의 글이다. 읽는 규칙이 생길 때 칸으로 뺀다. 글자는 job.detailMemo 에 남는다" },
         { goes: "원문만 남김", value: "배송지 14.8km", network: "카카오픽커", screen: "내 콜 화면", why: "지금 위치에서 배송지까지의 거리로 보인다. 상차지 → 하차지인 deliveryDistance 와 뜻이 달라 넣지 않는다" },
         { goes: "원문만 남김", value: "인수증 사진 · 물류기기 이동전표", network: "화물24시", screen: "인수증 사진", why: "사진 안의 글자다. 번호 칸을 정할 만큼 읽히지 않았다. 결제방법 인수증은 billingType, 전송 상태는 settlement.receipt 로 간다" },

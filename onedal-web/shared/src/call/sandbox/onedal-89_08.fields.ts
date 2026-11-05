@@ -480,8 +480,8 @@ export const BASE_CALL_FIELDS = {
   },
   {
    "type": "CallRoute",
-   "field": "firstSeen.pickup",
-   "path": "route.firstSeen.pickup",
+   "field": "listRegion.pickup",
+   "path": "route.listRegion.pickup",
    "label": "목록 상차 동",
    "desc": "앱이 목록 글자에서 앞글자를 뗀 동 이름. 같은 콜 찾기에 쓴다",
    "filledBy": "앱 목록",
@@ -532,8 +532,8 @@ export const BASE_CALL_FIELDS = {
   },
   {
    "type": "CallRoute",
-   "field": "firstSeen.dropoff",
-   "path": "route.firstSeen.dropoff",
+   "field": "listRegion.dropoff",
+   "path": "route.listRegion.dropoff",
    "label": "목록 하차 동",
    "desc": "앱이 목록 글자에서 앞글자를 뗀 동 이름. 같은 콜 찾기에 쓴다",
    "filledBy": "앱 목록",
@@ -2652,7 +2652,7 @@ export const BASE_CALL_FIELDS = {
       {
        "read": "콜에 저장",
        "screen": "새 콜 목록 · 상차 배지",
-       "sample": "[예약] 배지 = 있음 (당상은 날 표시라 예약이 아니다)"
+       "sample": "당상 · [예약] 배지 = 있음 (지금 코드는 날 표시도 예약으로 읽는다)"
       },
       {
        "read": "안 읽음",
