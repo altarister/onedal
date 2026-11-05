@@ -80,6 +80,16 @@ class SessionManager {
     var lastPhotoDetail: Any? = null
 
     /**
+     * 📸 사진 판독 결과를 둔다 — 손으로 연 상세는 사진으로 찾은 목록 줄도 함께.
+     * 앱이 눌러 연 콜의 목록 줄은 누른 그 줄이라 그대로 둔다.
+     * 🔴 `listOrder` 를 놓으면 사진 값이 비워지므로 목록 콜이 먼저다.
+     */
+    fun holdPhotoDetail(detail: Any?, handListRow: SimplifiedOfficeOrder?) {
+        if (!openedByApp) listOrder = handListRow
+        lastPhotoDetail = detail
+    }
+
+    /**
      * 🎯 **앱이 방금 찍은 리스트 카드** — 그 상세가 어느 콜인지 **이미 아는 답**이다 (기사님 지시).
      *
      * 앱이 직접 그 줄을 찍고 들어간 상세는 대조하지 않는다 — 상세 글자로 되찾으면

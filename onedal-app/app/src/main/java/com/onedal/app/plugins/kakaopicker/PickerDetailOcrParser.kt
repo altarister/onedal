@@ -69,6 +69,10 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
         is VerifyResult.Success -> r.order
     }
 
+    /** 📸 공통 규격(`DetailVerifier`) — `verify` 가 요금을 복원하는 그 목록 줄 */
+    override fun listRowOf(parsed: PickerDetailFromImage, matchedListOrder: SimplifiedOfficeOrder?, recent: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? =
+        matchedListOrder ?: KakaoPickerParser.photoMatchCard(parsed.pickup, parsed.dropoff, recent, parsed.finalIncome == null)
+
     sealed class VerifyResult {
         data class Success(val order: SimplifiedOfficeOrder, val detail: PickerDetailFromImage) : VerifyResult()
     }
@@ -101,7 +105,7 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
         } else {
             // 🧾 상세 글자로 못 가르면 사진의 상차·하차·픽업 km 로 한 번 더 — 꼭 한 줄일 때만 (`photoMatchCard`)
             val fareUnread = parsed.finalIncome == null
-            val baseOrder = matchedListOrder ?: KakaoPickerParser.photoMatchCard(parsed.pickup, parsed.dropoff, recent, fareUnread)
+            val baseOrder = listRowOf(parsed, matchedListOrder, recent)
             // 🍷 쌍둥이 콜의 낮은 요금으로 골랐으면 꼬리 글(이미 있는 tagsText 칸 · 서버 판정 규칙은 이 칸을 안 읽는다)
             //    목록 줄로 찾았든 사진으로 찾았든 같은 꼬리 글 (`twinNoteOf` 한 벌)
             val twinNote = if (fareUnread) KakaoPickerParser.twinNoteOf(baseOrder, recent) else null

@@ -66,6 +66,30 @@ class KakaoPickerBaseCallTest {
         assertNull(session.lastPhotoDetail)
     }
 
+    @Test fun `손 상세는 사진으로 찾은 목록 줄과 사진 값이 함께 남는다`() {
+        val row = SimplifiedOfficeOrder(id = "c", pickup = "광주 경안", dropoff = "강남 역삼1", fare = 1000, timestamp = "t")
+        val session = SessionManager()
+        session.holdPhotoDetail("사진", row)
+        assertEquals(row, session.listOrder)
+        assertEquals("사진", session.lastPhotoDetail)
+    }
+
+    @Test fun `앱이 연 콜은 누른 목록 줄을 사진 대조로 바꾸지 않는다`() {
+        val tapped = SimplifiedOfficeOrder(id = "c", pickup = "광주 경안", dropoff = "강남 역삼1", fare = 1000, timestamp = "t")
+        val session = SessionManager().apply { openedByApp = true; listOrder = tapped }
+        session.holdPhotoDetail("사진", null)
+        assertEquals(tapped, session.listOrder)
+        assertEquals("사진", session.lastPhotoDetail)
+    }
+
+    @Test fun `시각은 약속 글자 칸이 아니라 «까지» 칸에 담는다`() {
+        val order = SimplifiedOfficeOrder(id = "c", pickup = "a", dropoff = "b", fare = 1000, timestamp = "t")
+        val time = KakaoPickerBaseCall.of(order, null, null, "경기 성남시 수정구 신촌동 픽업 18.9km\n15:00까지 픽업\n서울 광진구 자양2동 배송 9.7km\n18:28까지 배송").time
+        assertEquals("15:00", time.pickup?.by)
+        assertEquals("18:28", time.dropoff?.by)
+        assertNull(time.dropoff?.text)
+    }
+
     @Test fun `목록 동은 목록 콜에서 오고 상세로 덮이지 않는다`() {
         val list = SimplifiedOfficeOrder(id = "c", pickup = "광주 경안", dropoff = "강남 역삼1", fare = 1000, timestamp = "t")
         val call = KakaoPickerBaseCall.of(list.copy(pickup = "경기 광주시 경안동", dropoff = "서울 강남구 역삼1동"), list, null, null)

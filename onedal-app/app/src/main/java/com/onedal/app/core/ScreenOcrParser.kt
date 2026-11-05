@@ -44,4 +44,11 @@ interface DetailVerifier<T> : ScreenOcrParser<T> {
         rawScreenStr: String,
         recent: List<com.onedal.app.models.SimplifiedOfficeOrder>,
     ): com.onedal.app.models.SimplifiedOfficeOrder
+
+    /** 손으로 연 상세의 목록 줄 — 사진 값으로 찾은 줄까지. 못 찾으면 null */
+    fun listRowOf(
+        parsed: T,
+        matchedListOrder: com.onedal.app.models.SimplifiedOfficeOrder?,
+        recent: List<com.onedal.app.models.SimplifiedOfficeOrder>,
+    ): com.onedal.app.models.SimplifiedOfficeOrder? = matchedListOrder
 }

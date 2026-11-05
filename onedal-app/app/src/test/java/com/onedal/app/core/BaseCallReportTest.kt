@@ -59,11 +59,11 @@ class BaseCallReportTest {
         assertNull(BaseCallReport.partOf("c1", "t", null) { throw StackOverflowError() }.baseCall)
     }
 
-    @Test fun `보고 크기는 요청 한도 안이다 — 상세 글 20KB 와 빈 기본 콜`() {
+    @Test fun `보고 크기는 요청 한도 안이다 — 상세 글 20KB 가 원문과 기록에 두 번 · 빈 기본 콜`() {
         val body = Gson().toJson(DispatchDetailedRequest(deviceId = "d", order = DetailedOfficeOrder(id = "c1", type = "NEW_ORDER", pickup = "a", dropoff = "b", fare = 1, timestamp = "t", rawText = "가".repeat(6700)),
-            capturedAt = "t", baseCall = call()))
+            capturedAt = "t", baseCall = call(), evidence = BaseCallReport.partOf("c1", "t", "가".repeat(6700), screen = "newCall") { call() }.evidence))
         val size = body.toByteArray().size
-        println("📏 [보고 크기] 상세 글 6,700자 + 기본 콜 = $size 바이트")
+        println("📏 [보고 크기] 상세 글 6,700자 두 번 + 기본 콜 = $size 바이트")
         assertTrue("요청 한도 100KB 안", size < 100_000)
     }
 }

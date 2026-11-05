@@ -362,7 +362,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                 )
                 session.setOrderId(orderWithId.id)
                 session.lastDetailOrder = orderWithId
-                session.lastPhotoDetail = detail
+                session.holdPhotoDetail(detail, verifier.listRowOf(detail, matchedListCard, recentListOrders))
                 session.isPreview = true
                 session.accumulatedDetailText = detailText
 
