@@ -53,6 +53,7 @@
 // - tagsText 를 읽는 곳이 더 있다 · 플렉스 목록 결제는 꼬리표에 섞인다 · 하차 날 배지는 꼬리표로 간다 → 넣음
 // ━━ 리뷰: onedal-1e ━━ 8판
 // - (재리뷰 e57856) networkCollect 는 «안 읽음» · 내 콜 쪽 꼬리표 견본 · «기사가 함께 받는» 문장 → 고침. 화물24시 fare 에 «수»가 들어 있는 것을 코드로 확인해 takeHomeWon 주석을 고침
+// - (큰 그림) 왕복 · 경유 «적요에서 채운다»는 단정이다 → 기사님 말씀과 «상세를 본 뒤 정한다»로 좁힘. E3 · E1-1 은 계획서에서 고침
 // - 경유지 목록 글자를 addressDetail 에 넣으면 칸의 뜻을 어긴다 → 기사님 답대로 목록을 풀지 않고 상세 · 적요에서 채움
 // - 처음 이름 extraFee 는 셈만 말한다 → collectedFee 로 고침
 // - «빈나감»은 tripType 이 아니다 → tagsText. «왕복/» · 날짜 · 요일 · «경» · «카고,» · «용/소» · «@내일9시/급»(영상_2257) 줄 → 넣음
@@ -89,7 +90,7 @@ export interface CallRoute {
      */
     pickup: CallStop;
     dropoff: CallStop;            // 마지막 하차지 — 상차지와 같은 모양 (인성 «도착지상세» · 픽커 둘째 정거장)
-    viaDropoffs?: CallStop[];     // 🔴 경유 콜에서 dropoff 전에 먼저 내리는 곳들의 주소, 차례대로. 목록 «풍납동>논현동»은 풀지 않고 상세 · 적요에서 채운다
+    viaDropoffs?: CallStop[];     // 🔴 경유 콜에서 dropoff 전에 먼저 내리는 곳들의 주소, 차례대로. 목록 «풍납동>논현동»은 풀지 않는다. 경유인지는 상세 구분 칸으로 안다. 기사님 말씀대로 적요에 풀려 들어가고, 채우는 규칙은 경유 콜 상세를 본 뒤 정한다
     pickupDistance?: number;      // 내 위치 → 상차지 km, 화면 값 — 인성 거리 칸 윗줄 · 픽커 목록 «4.7km» (사진 «픽업 18.9km»는 지금 버린다)
     deliveryDistance?: number;    // 상차지 → 하차지 km, 화면 값 — 인성 거리 칸 아랫줄 · 플렉스 «약 2.3km» (픽커 «배송 9.7km»는 지금 버린다)
 }
@@ -149,7 +150,7 @@ export interface CallPromise {
 export interface CallTime {
     pickup?: CallPromise;        // 상차 약속
     dropoff?: CallPromise;       // 🔴 하차 약속 — 인성 «낼8/», 픽커 «18:28까지 배송». 지금은 칸이 없어 버린다
-    returnPickup?: CallPromise;  // 🔴 왕복 콜에서 하차지에서 다시 실어 출발지로 돌아가는 약속 — 인성 «왕복/낼7시/송파»의 «낼7시». 목록은 풀지 않고 적요에서 채운다
+    returnPickup?: CallPromise;  // 🔴 왕복 콜에서 하차지에서 다시 실어 출발지로 돌아가는 약속 — 인성 «왕복/낼7시/송파»의 «낼7시». 목록은 풀지 않는다. 왕복인지는 상세 구분 칸으로 안다. 기사님 말씀대로 약속은 적요에 풀려 들어가고, 채우는 규칙은 왕복 콜 상세를 본 뒤 정한다
     remaining?: string;          // 🔴 남은 시간 글자 — 픽커 «배송 31분 남음 준비 17분 포함» · «36분 지연»
     postTime?: string;           // 콜을 올린 시각 — 화물24시 «등록시간». 인성에는 이 칸이 없다 (지금 코드가 약속 시각을 넣는다)
 }
@@ -428,8 +429,8 @@ export const officeOrderFieldMap: Record<keyof OfficeOrder, string> = {
     tripType: 'job.tripType',
     orderForm: 'job.orderForm',
     detailMemo: 'job.detailMemo',
-    pickupDetails: 'route.pickup (배열 → 하나. 지금 읽는 곳은 [0] 뿐)',
-    dropoffDetails: 'route.dropoff (배열 → 하나)',
+    pickupDetails: 'route.pickup (배열 → 하나. 지금 읽는 곳은 [0] 뿐. 읽는 곳 없는 mileage · requestedTime 은 안 옮긴다)',
+    dropoffDetails: 'route.dropoff (배열 → 하나. 읽는 곳 없는 mileage · requestedTime 은 안 옮긴다)',
     companyName: '갈 곳 없음 — 채우는 곳이 없다',
     pickupTime: '갈 곳 없음 — 시험 파서만 채운다',
     targetApp: 'targetApp (그대로)',
