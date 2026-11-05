@@ -33,9 +33,11 @@ class CallSnapshotTest {
 
     @Test fun `같은 화면 글자는 같은 콜 값이 된다`() {
         assertTrue("문제지가 비었다", cases.isNotEmpty())
-        for (c in cases) {
-            val network = c["network"].asString
-            assertEquals("$network ${c["why"].asString}", c["expect"].asJsonObject, valuesOf(network, c["texts"].asJsonArray.map { it.asString }))
+        /* 틀린 줄을 한 번에 다 보인다 — 첫 줄에서 멈추면 묶음 작업 중 한 줄씩만 보인다 */
+        val wrong = cases.mapNotNull { c ->
+            val got = valuesOf(c["network"].asString, c["texts"].asJsonArray.map { it.asString })
+            if (got == c["expect"].asJsonObject) null else "${c["network"].asString} ${c["why"].asString}\n  기대 ${c["expect"]}\n  실제 $got"
         }
+        assertEquals(wrong.joinToString("\n"), 0, wrong.size)
     }
 }

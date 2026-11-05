@@ -70,6 +70,9 @@ android {
          */
         unitTests.all {
             it.testLogging { showStandardStreams = true }
+            /* 공통 문제지를 입력으로 올린다 — 문제지만 고치면 Gradle 이 안 돌리고 초록으로 남는다 */
+            it.inputs.file(rootProject.file("../onedal-web/shared/src/network/pageReadCases.json"))
+            it.inputs.file(rootProject.file("../onedal-web/shared/src/network/callSnapshotCases.json"))
         }
     }
 }
