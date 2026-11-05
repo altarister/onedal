@@ -76,9 +76,11 @@ export function mergeBaseCall(prev: BaseCall | undefined, next: BaseCall): BaseC
     };
 }
 
-/** 기록은 덮지 않고 더한다 */
+/** 기록은 덮지 않고 더한다 — 같은 화면 · 같은 방법 · 같은 글자를 다시 보낸 줄은 안 더한다(미리보기 → 확정 재전송) */
 export function mergeEvidence(prev: CallEvidence | undefined, next: CallEvidence): CallEvidence {
-    return { seen: [...(prev?.seen ?? []), ...next.seen] };
+    const keyOf = (line: CallEvidence['seen'][number]) => `${line.screen ?? ''}|${line.read ?? ''}|${line.rawText ?? ''}`;
+    const known = new Set((prev?.seen ?? []).map(keyOf));
+    return { seen: [...(prev?.seen ?? []), ...next.seen.filter((line) => !known.has(keyOf(line)))] };
 }
 
 const lineOf = (call: BaseCall, kind: MoneyKind) => call.money.lines.find((line) => line.kind === kind);

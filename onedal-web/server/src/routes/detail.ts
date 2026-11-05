@@ -22,7 +22,7 @@ import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import type { SafeCancelWarning } from "@onedal/shared";
 import { decide } from "../state/decisions";
 import { isAppTooOld } from "../state/phoneStatus";
-import { holdBaseCall, compareBaseCall } from "../services/baseCallCompare";
+import { holdBaseCall, compareBaseCall, saveHeldBaseCall } from "../services/baseCallCompare";
 
 /** 🧾 «늘 있던 칸이 없다»를 찍은 날 — (배차망 | 빠진 칸 묶음) → 날짜(KST) */
 const missingAlwaysLogged = new Map<string, string>();
@@ -165,6 +165,9 @@ router.post("/", async (req, res) => {
         if (existingMatch) matchedId = existingMatch.id;
 
         if (matchedId) {
+            /* 🎯 이미 확정된 콜에 다시 온 조각 — 그 콜에 합쳐 기본 콜 열만 고친다 (계획서 D2) */
+            holdBaseCall(userId, matchedId, payload.baseCall, (payload as any).evidence);
+            saveHeldBaseCall(userId, matchedId);
             slog('콜단계', `🔄 [동기화] 기존 확정 콜(ID: ${matchedId})의 재열람 인지. 진짜 ID 반환.`);
             return res.json({ deviceId: 'server', action: 'ACK', orderId: matchedId });
         }
@@ -191,7 +194,7 @@ router.post("/", async (req, res) => {
             return res.json({ deviceId: 'server', action: 'CANCEL' });
         }
         /* 🔍 기본 콜로 만든 옛 칸과 지금 콜 값을 견준다 — 쓰는 값은 그대로다 (계획서 D1) */
-        holdBaseCall(userId, realOrderId, payload.baseCall);
+        holdBaseCall(userId, realOrderId, payload.baseCall, (payload as any).evidence);
         compareBaseCall(userId, pendingOrder);
         /* 📱 /confirm 이 빠져도 KEEP 이 폰에 실리게 — 그 기기 칸이 **비어 있을 때만** 채운다. 다른 콜로 차 있으면 앞 콜 정리는 /confirm 몫이다 */
         if (realOrderId !== 'unknown' && !session.deviceEvaluatingMap.has(payload.deviceId)) {

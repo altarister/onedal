@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
-import { KOTLIN_PATH, SHAPES_PATH, renderBaseCallKotlin, wordsOf } from '../../../scripts/lib/base-call-kotlin.mjs';
+import { COLUMNS_PATH, KOTLIN_PATH, SHAPES_PATH, renderBaseCallColumns, renderBaseCallKotlin, wordsOf } from '../../../scripts/lib/base-call-kotlin.mjs';
 
 /**
  * 🎯 **원달앱 기본 콜 모양은 orderShapes 에서 뽑은 그대로다** (계획서 B3).
@@ -10,6 +10,9 @@ import { KOTLIN_PATH, SHAPES_PATH, renderBaseCallKotlin, wordsOf } from '../../.
 describe('🎯 기본 콜 코틀린 짝', () => {
     it('다시 뽑은 글 = 파일', () => {
         expect(readFileSync(KOTLIN_PATH, 'utf8')).toBe(renderBaseCallKotlin());
+    });
+    it('🗄️ 다시 뽑은 열 목록 = 파일', () => {
+        expect(readFileSync(COLUMNS_PATH, 'utf8')).toBe(renderBaseCallColumns());
     });
     it('🔴 결제 값 목록이 비거나 글자를 못 뽑으면 멈춘다', () => {
         expect(() => wordsOf('PAYMENT_TYPES', `export const PAYMENT_TYPES = ["신용"] as const;`)).toThrow('비었다');

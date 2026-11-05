@@ -16,6 +16,7 @@ const ts = createRequire(join(here, '../../server/package.json'))('typescript');
 
 export const SHAPES_PATH = join(here, '../../shared/src/call/orderShapes.ts');
 const PAYMENT_PATH = join(here, '../../shared/src/call/paymentTypes.ts');
+export const COLUMNS_PATH = join(here, '../../shared/src/call/baseCallColumns.ts');
 export const KOTLIN_PATH = join(here, '../../../onedal-app/app/src/main/java/com/onedal/app/models/BaseCallShape.kt');
 /* 글자로 보내도 되는 별칭 — 그 밖의 참조 · Record · 튜플 · 섞인 합침은 뭉개지 않고 멈춘다 */
 const TEXT_ALIASES = new Set(['MoneyKind', 'CallPaymentType', 'PaymentType', 'BillingType', 'TargetAppType', 'ScreenPage']);
@@ -36,7 +37,8 @@ export function wordsOf(name, text) {
 }
 const kotlinWords = (words) => `setOf(${words.map((w) => `"${w}"`).join(', ')})`;
 
-export function renderBaseCallKotlin(source = readFileSync(SHAPES_PATH, 'utf8')) {
+/** 기본 콜 타입 → 코틀린 모양 묶음(이름 → 칸들) — 코틀린 글과 저장 열 목록이 같이 쓴다 */
+function classesOf(source) {
     const file = ts.createSourceFile('orderShapes.ts', source, ts.ScriptTarget.Latest, true);
     const interfaces = new Map(file.statements.filter(ts.isInterfaceDeclaration).map((d) => [d.name.text, d]));
     const classes = new Map();
@@ -91,7 +93,11 @@ export function renderBaseCallKotlin(source = readFileSync(SHAPES_PATH, 'utf8'))
         classes.set(name, { fields: [...inherited, ...fieldsOf(decl.members, name)], about: doc ? ts.getTextOfJSDocComment(doc.comment)?.split('\n')[0] : null });
     };
     ROOTS.forEach(addInterface);
+    return classes;
+}
 
+export function renderBaseCallKotlin(source = readFileSync(SHAPES_PATH, 'utf8')) {
+    const classes = classesOf(source);
     const body = [...classes].map(([name, { fields, about }]) => {
         const rows = fields.map((f) => `    val ${f.name}: ${f.type}${f.optional ? '? = null' : ''},`).join('\n');
         return `${about ? `/** ${about} */\n` : ''}data class ${name}(\n${rows}\n)`;
@@ -111,5 +117,51 @@ val CALL_PAYMENT_TYPES = ${kotlinWords([...wordsOf('PAYMENT_TYPES', payment), ..
 val CALL_BILLING_TYPES = ${kotlinWords(wordsOf('BILLING_TYPES', payment))}
 
 ${body}
+`;
+}
+
+/* 콜 표에 같은 값이 이미 있는 칸 — 열을 따로 만들지 않는다 */
+const ALREADY_IN_ORDERS = new Set(['id', 'targetApp']);
+const KIND_OF = { String: 'TEXT', Double: 'REAL', Boolean: 'BOOL' };
+
+/**
+ * 🗄️ **기본 콜 → 콜 표 열 목록** — 끝 칸 하나가 열 하나다. 이름은 묶음(맨 위 칸은 call)과 경로를 밑줄로 잇는다.
+ * 여러 줄인 칸은 JSON 글자 한 열. 요금 두 열(목록 요금 · 수입)은 금액 줄에서 뽑아 SQL 이 읽게 한다.
+ */
+export function renderBaseCallColumns(source = readFileSync(SHAPES_PATH, 'utf8')) {
+    const classes = classesOf(source);
+    const rows = [];
+    const walk = (name, path) => {
+        for (const f of classes.get(name).fields) {
+            if (path.length === 0 && ALREADY_IN_ORDERS.has(f.name)) continue;
+            const at = [...path, f.name];
+            if (f.type.startsWith('List<')) rows.push({ path: at, kind: 'JSON' });
+            else if (classes.has(f.type)) walk(f.type, at);
+            else if (KIND_OF[f.type]) rows.push({ path: at, kind: KIND_OF[f.type] });
+            else throw new Error(`${at.join('.')}: 열 종류를 모른다 — ${f.type}`);
+        }
+    };
+    walk('BaseCall', []);
+    const column = (path) => (path.length === 1 ? ['call', ...path] : path).join('_');
+    const lines = rows.map((r) => `    { column: '${column(r.path)}', path: [${r.path.map((p) => `'${p}'`).join(', ')}], kind: '${r.kind}' },`);
+    return `/**
+ * 기본 콜 저장 열 목록
+ * 누가: 서버 콜 표(orders) 열 더하기 · 저장 · 복원 (baseCallRow)
+ * 언제: 기본 콜 타입을 고친 뒤 다시 뽑는다
+ * 어디서: 🔴 생성 파일 — orderShapes.ts 의 BaseCall 타입에서 뽑는다. 손으로 고치지 말고 cd onedal-web && pnpm gen:pages basecall
+ * 무엇을: 끝 칸 하나 = 열 하나. 여러 줄 칸은 JSON 글자. 맨 위 칸은 call_ 를 붙인다
+ * 왜: 칸이 늘면 열도 따라 늘게 — 손으로 두 벌을 적지 않는다
+ */
+export type BaseCallColumnKind = 'TEXT' | 'REAL' | 'BOOL' | 'JSON';
+
+export const BASE_CALL_COLUMNS: ReadonlyArray<{ column: string; path: readonly string[]; kind: BaseCallColumnKind }> = [
+${lines.join('\n')}
+];
+
+/** 금액 줄에서 뽑아 SQL 이 읽는 요금 열 — 판정이 읽는 두 종류 */
+export const BASE_CALL_FARE_COLUMNS = { total: 'money_total_won', income: 'money_income_won' } as const;
+
+/** 화면 기록 열 */
+export const CALL_EVIDENCE_COLUMN = 'call_evidence';
 `;
 }

@@ -15,6 +15,7 @@ import { getActivePolyline, originOf } from "./geoMotion";
 import { composeMergedRoute, planArrivalStops, type PromiseOrderOpts, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, type RouteHolder } from "./routeComposer";
 import { firmPromiseMsOf, birthFirstStep, refreshPlannedSteps, stepsView } from "./stepSeeder";
 import { routeTlOf } from "./routeTl";
+import { saveHeldBaseCall } from "./baseCallCompare";
 import { DEFAULT_JUDGMENT, routeNeedsRecompute } from "@onedal/shared";
 import type { JudgmentConfig } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -157,6 +158,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
             const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
             const isExpress = (cached as any).orderForm === '급송' ? 1 : 0;
             OrderRepository.upsertOrder(cached as any, userId, isShared, isExpress);
+            saveHeldBaseCall(userId, orderId);   // 🎯 기본 콜 · 화면 기록도 같은 행에 (계획서 D2)
             const terminatedAt = OrderRepository.updateOrderStatus(orderId, userId, 'SAFE_CANCEL');
             if (terminatedAt) (cached as any).terminatedAt = terminatedAt;   // 🧹 화면으로 가는 메모리 콜에도 (전수표 #65)
             slog('콜단계', `✅ [상태 동기화] ${orderId} - 강제 정리도 장부에 기록 (상태: SAFE_CANCEL)`);
@@ -577,6 +579,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
 
                 // 1. orders 등록 (v5 전체 컬럼)
                 OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
+                saveHeldBaseCall(userId, cachedOrder.id);   // 🎯 기본 콜 · 화면 기록도 같은 행에 (계획서 D2)
 
                 // 2. places UPSERT 및 orderStops 추가 (상차지)
                 const p = stopPlaceFrom(cachedOrder.pickupDetails?.[0], cachedOrder.pickup, cachedOrder.pickupX, cachedOrder.pickupY);
@@ -770,6 +773,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
                 const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
                 const isExpress = (cachedForLedger as any).orderForm === '급송' ? 1 : 0;
                 OrderRepository.upsertOrder(cachedForLedger as any, userId, isShared, isExpress);
+                saveHeldBaseCall(userId, orderId);   // 🎯 기본 콜 · 화면 기록도 같은 행에 (계획서 D2)
                 const terminatedAt = OrderRepository.updateOrderStatus(orderId, userId, endStatus);
                 if (terminatedAt) (cachedForLedger as any).terminatedAt = terminatedAt;   // 🧹 화면으로 가는 메모리 콜에도 (전수표 #65)
                 slog('콜단계', `✅ [상태 동기화] ${orderId} - DB 업데이트 완료 (상태: ${endStatus})`);

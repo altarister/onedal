@@ -21,7 +21,8 @@ import { getActiveCalls } from "../core/activeCalls";
 import { buildOrderSync, filterVersionOf } from "../core/helpers";
 import { stepRecordsOf } from "../services/stepSeeder";
 import { slog } from "../utils/fileLogger";
-import { clockText } from "@onedal/shared";
+import { clockText, baseCallFromRow } from "@onedal/shared";
+import { restoreHeldBaseCall } from "../services/baseCallCompare";
 import { applyRouteAndSave, applySoloRouteAndSave, lastSyncLogSig, promiseOrderOpts, rebuildDestinationKeywords } from "../services/dispatchEngine";
 
 /**
@@ -341,6 +342,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 contacts: OrderRepository.stopContactsOf(row.id),
             });
             rememberOrder(session, order as any);
+            /* 🎯 기본 콜 · 화면 기록은 콜 값에 안 붙이고 따로 되돌린다 — 소켓에 실리지 않게 (계획서 D2) */
+            restoreHeldBaseCall(userId, row.id, baseCallFromRow(row, row.id, row.targetApp));
         }
 
         /**

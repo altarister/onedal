@@ -1,6 +1,7 @@
 import db from "../db";
 import { MyOrder, PendingOrder, SecuredOrder, LET_GO_STATUSES } from "@onedal/shared";
-import type { CargoReport, LocationDetailInfo } from "@onedal/shared";
+import type { CargoReport, LocationDetailInfo, BaseCall, CallEvidence } from "@onedal/shared";
+import { baseCallRowOf } from "@onedal/shared";
 
 export class OrderRepository {
     /**
@@ -112,6 +113,18 @@ export class OrderRepository {
      */
 
     /** 착불 수령 기록 — orders 테이블 (정산은 별도 페이지의 일) */
+    /**
+     * 🎯 **기본 콜 · 화면 기록을 그 콜 행에 쓴다** (계획서 D2) — 행이 있을 때만. 빈 값은 앞 값을 지우지 않는다.
+     * SQL 은 열 목록에서 만든다 — 손으로 물음표를 세지 않는다.
+     */
+    public static saveBaseCall(orderId: string, userId: string, call: BaseCall | undefined, evidence: CallEvidence | undefined): void {
+        if (!call && !evidence?.seen?.length) return;
+        const row = baseCallRowOf(call, evidence);
+        const columns = Object.keys(row);
+        db.prepare(`UPDATE orders SET ${columns.map((c) => `${c} = COALESCE(?, ${c})`).join(', ')} WHERE id = ? AND userId = ?`)
+            .run(...columns.map((c) => row[c]), orderId, userId);
+    }
+
     public static setCodCollected(orderId: string, userId: string, received: boolean, amount: number) {
         db.prepare(`UPDATE orders
                     SET settlementStatus = ?, unpaidAmount = ?, settledAt = ?

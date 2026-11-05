@@ -1,7 +1,7 @@
 import type { CallOption } from '@onedal/shared';
 import { dwellRatesOf, JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, buildDefaultCallOptions,
          STEP_TABLES, FILTER_FIELDS, QUAD_FIELDS, RADIUS_BASE_KM_DEFAULT,
-         DEFAULT_FILTER_VALUES, DEFAULT_QUAD_SHAPE } from "@onedal/shared";
+         DEFAULT_FILTER_VALUES, DEFAULT_QUAD_SHAPE, BASE_CALL_COLUMN_TYPES } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
 import { slog } from "./utils/fileLogger";
@@ -776,6 +776,9 @@ ensureColumns('orders', { goalCity: 'TEXT' });
 ensureColumns('orders', { reserved: 'INTEGER', reservedDay: 'INTEGER', reservedAt: 'TEXT' });
 /** 📅 **예약 보관 날 `YYYY-MM-DD`** — 오늘 뒤면 이 콜은 진행 중이 아니라 예약 보관이다. 서버가 다시 떠도 보관을 되살린다 (`services/reservedOrders.ts`) */
 ensureColumns('orders', { reserved_for: 'TEXT' });
+
+/* 🎯 원달앱이 채운 기본 콜과 화면 기록 — 열 목록은 기본 콜 타입에서 뽑는다(shared baseCallRow · 계획서 D2). 옛 행은 NULL(모름) */
+ensureColumns('orders', BASE_CALL_COLUMN_TYPES);
 
 // 어느 배차망에서 온 콜인가 (insung/hwamul24/kakaopicker) — 배차망별 콜 검색·분석의 근거 (기사님)
 ensureColumns('orders', { targetApp: 'TEXT',

@@ -9,7 +9,7 @@ import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { slotProblems, renderBasePageDoc, networkNames } from './lib/base-page-doc.mjs';
-import { renderBaseCallKotlin, KOTLIN_PATH } from './lib/base-call-kotlin.mjs';
+import { renderBaseCallKotlin, KOTLIN_PATH, COLUMNS_PATH, renderBaseCallColumns } from './lib/base-call-kotlin.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fail = (msg) => { console.error(`❌ ${msg}`); process.exit(1); };
@@ -18,6 +18,8 @@ const fail = (msg) => { console.error(`❌ ${msg}`); process.exit(1); };
 if (process.argv[2] === 'basecall') {
     writeFileSync(KOTLIN_PATH, renderBaseCallKotlin());
     console.log(`✅ ${KOTLIN_PATH}`);
+    writeFileSync(COLUMNS_PATH, renderBaseCallColumns());
+    console.log(`✅ ${COLUMNS_PATH}`);
     process.exit(0);
 }
 
