@@ -28,6 +28,7 @@ import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOf
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
 import { slog } from '../utils/fileLogger';
 import { jsonArrayOf, asShaped } from "@onedal/shared";
+import type { ShapedGroups } from "@onedal/shared";
 
 /** 🧭 경로가 아는 시각 — `deriveRouteTimeline` 의 결과를 그대로 받는다 (파생 한 곳 · 규칙 ③) */
 export type RouteTl = Pick<RouteTimelineEntry, 'orderId' | 'stopType' | 'etaMs'>[];
@@ -81,7 +82,7 @@ const bornRows = (orderId: string) => bornRowsIn(db, orderId);
  * 실측이 있으면 실측이, 굳은 약속이 있으면 약속이 이긴다 — 없을 때만 추정한다.
  * 태어난 행의 값은 여기서 **읽기만** 한다 (다시 쓰지 않는다).
  */
-function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: JudgmentConfig,
+function computeChain(o: Record<string, any> & ShapedGroups, born: Partial<Record<StepId, any>>, judgment?: JudgmentConfig,
     routeTl?: RouteTl) {
     const cfg = judgment ?? DEFAULT_JUDGMENT;
     /**

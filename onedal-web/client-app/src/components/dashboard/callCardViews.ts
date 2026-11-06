@@ -1,4 +1,4 @@
-import { hhmmText, manwonText, stopPhoneOf, unitPoints, dwellMinutes, protectionMinutes, afterworkMinutes, jsonArrayOf } from '@onedal/shared';
+import { hhmmText, manwonText, stopPhoneOf, unitPoints, dwellMinutes, protectionMinutes, afterworkMinutes, jsonArrayOf, asShaped } from '@onedal/shared';
 import type { DwellUnknown } from '@onedal/shared';
 import type { SecuredOrder, StepViewRow, RouteTimelineEntry, CallTiming } from '@onedal/shared';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -279,13 +279,14 @@ export function stopBlocksOf({ route, timeline, visitOrder, timing, etas, seeded
 // ─────────────────────────── 판정 근거 서랍 ───────────────────────────
 /** 🗄️ 원본 칸 — 서랍 아래에 `route.<칸> : 값` 으로 그린다 (차례가 화면 차례다). 옮긴 칸은 이름을 그대로 두고 값만 묶음에서 읽는다 */
 export function rawFieldsOf(route: SecuredOrder): Array<[string, unknown]> {
+    const shaped = asShaped(route);
     return Object.entries({
         id: route.id, type: route.type, status: route.status,
-        receiptStatus: route.receiptStatus, itemDescription: route.load?.itemDescription,
-        vehicleType: route.load?.vehicleType, commissionRate: route.commissionRate,
+        receiptStatus: route.receiptStatus, itemDescription: shaped.load.itemDescription,
+        vehicleType: shaped.load.vehicleType, commissionRate: route.commissionRate,
         tollFare: route.tollFare, paymentType: route.paymentType,
-        billingType: route.billingType, tripType: route.job?.tripType,   // 🎯 서랍 글자는 옛 이름, 값은 묶음 (계획서 E2)
-        orderForm: route.job?.orderForm, distanceKm: route.distanceKm,
+        billingType: route.billingType, tripType: shaped.job.tripType,   // 🎯 서랍 글자는 옛 이름, 값은 묶음 (계획서 E2)
+        orderForm: shaped.job.orderForm, distanceKm: route.distanceKm,
         dispatcherName: route.dispatcherName, dispatcherPhone: route.dispatcherPhone,
         companyName: route.companyName, pickup: route.pickup, dropoff: route.dropoff,
         fare: route.fare, timestamp: route.timestamp, postTime: route.time?.postTime,
