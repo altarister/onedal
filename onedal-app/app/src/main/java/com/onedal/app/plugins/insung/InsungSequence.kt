@@ -61,6 +61,10 @@ fun ScanContext.isPopupResidue(rawScreenStr: String): Boolean {
     return resid
 }
 
+/** 💰 손으로 확정한 콜의 요금 — 목록 규칙(차종 다음 칸)이 못 읽으면 내 콜 화면 정의(«요금 :» · «실운임 :»)로 · InsungPages MY_CALL FARE 의 READ */
+internal fun screenFareOf(listRuleFare: Int, screenTexts: List<String>): Int =
+    listRuleFare.takeIf { it > 0 } ?: (com.onedal.app.core.PageFieldRead.fareOf(InsungPages.pages, com.onedal.app.core.Page.MY_CALL, screenTexts) ?: 0)
+
 /** 화면 텍스트에서 SimplifiedOfficeOrder 를 생성하는 공통 로직 */
 fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOfficeOrder {
     val tempOrder = scrapParser.parse(screenTexts)
@@ -91,9 +95,7 @@ fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOffic
         dropoff = tempOrder.dropoff.takeIf {
             it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
         } ?: "배차값없음",
-        /* 💰 목록 규칙(차종 다음 칸)이 못 읽으면 내 콜 화면 정의(«요금 : N»)로 — InsungPages MY_CALL FARE 의 READ */
-        fare = tempOrder.fare.takeIf { it > 0 }
-            ?: (com.onedal.app.core.PageFieldRead.fareOf(InsungPages.pages, com.onedal.app.core.Page.MY_CALL, screenTexts) ?: 0),
+        fare = screenFareOf(tempOrder.fare, screenTexts),
         timestamp = nowTimestamp(),
         rawText = screenTexts.joinToString(" ")
     )
