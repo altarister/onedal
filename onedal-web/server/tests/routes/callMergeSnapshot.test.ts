@@ -91,13 +91,10 @@ describe('📐 합친 콜 값 · 저장 행', () => {
     });
     /**
      * 🎯 계획서 F2-a — order 없이 기본 콜 + 봉투만 보낸 새 앱 보고. 옛 칸 값 · 저장 행이 같아야 한다.
-     * 🔴 차이 목록 — 1:1 이 아닌 값은 «같다»가 아니라 여기 적는다. 앱이 그렇게 보내지 않게 고치는 날(F2-b) 지운다.
+     * 🔴 차이 목록 — 1:1 이 아닌 값은 «같다»가 아니라 사례의 passedButDiffers 에 적는다(픽커 사진 길: 사진 직선 km 가 거리 칸에 있다).
+     *    원달앱이 그렇게 보내지 않게 고치는 날(F2-b · KakaoPickerBaseCall 의 사진 거리 대신 채우기) 그 칸을 지운다.
      */
-    const NO_ORDER_DIFF: Record<string, string[]> = {
-        /* 픽커 사진 길: 기본 콜 거리 칸에 사진 직선 km 가 들어 있다 — F2-b 에 원달앱 KakaoPickerBaseCall 의 사진 거리 대신 채우기를 걷는다 */
-        '규칙: 픽커 사진 길': ['pickupDistance'],
-    };
-    const diffOf = (c) => Object.entries(NO_ORDER_DIFF).find(([why]) => c.why.startsWith(why))?.[1] ?? [];
+    const diffOf = (c) => c.passedButDiffers ?? [];
     const without = (o, keys) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
     it.each(SHEET.cases.filter((c) => c.expectBaseCall).map((c) => [c.network, c.why, c, SHEET.cases.indexOf(c)]))('새 앱 보고(order 없음) · %s — %s', async (_n, _w, c, i) => {
         const got = await merged(c, i, 'noOrder');
@@ -172,6 +169,20 @@ describe('🎯 빈 기본 콜 — 빈 옛 보고와 같은 결과', () => {
         spy.mockRestore();
         expect(session.pendingOrdersData.get(`${U}-held-no`)?.pickup).toBe('경기 광주시 경안동 1-2');
         expect(session.pendingOrdersData.has('unknown')).toBe(false);
+    });
+    /* 🔢 번호가 빈 상세 조각은 기기가 심사 중인 콜의 앞 기억과 합쳐 만든다 — 이번 조각만으로 만들면 빈 상차 · 요금이 앞 값을 지운다 */
+    it('🔴 번호가 빈 상세 조각도 /confirm 때 받은 상차 · 요금을 지우지 않는다', async () => {
+        clearUserSession(U);
+        const session = getUserSession(U);
+        session.isRestored = true;
+        const id = `${U}-held-keep`;
+        const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => {});
+        await post(ordersRouter, '/confirm', { step: 'BASIC', targetApp: 'insung', report: { type: 'AUTO_CLICK', rawText: '화면 글' }, baseCall: { id, targetApp: 'insung', route: { pickup: { addressDetail: '경기 광주시 경안동 1-2' }, dropoff: { addressDetail: '서울 용산구 한남동 12' } }, money: { lines: [{ kind: 'income', won: 30000 }] }, load: {}, time: {}, job: {} } });
+        session.deviceEvaluatingMap.set(DEV, id);
+        await answerOf({ matchType: 'AUTO', report: { type: 'AUTO_CLICK', rawText: '상세 글' }, baseCall: { id: '', targetApp: 'insung', route: { pickup: {}, dropoff: {} }, money: { lines: [] }, load: {}, time: {}, job: {} } });
+        spy.mockRestore();
+        const call = session.pendingOrdersData.get(id);
+        expect([call?.pickup, call?.fare]).toEqual(['경기 광주시 경안동 1-2', 30000]);
     });
     it.each([['자동', 'AUTO', 'AUTO_CLICK'], ['손 확정', 'MANUAL', 'MANUAL_CLICK']])('%s', async (_n, matchType, type) => {
         const old = await run(`${U}-empty-old-${matchType}`, matchType, type, false);

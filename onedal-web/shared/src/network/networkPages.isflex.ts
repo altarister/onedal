@@ -23,7 +23,7 @@ export const ISFLEX_PAGES: NetworkPageSpec = /*JSON*/{
   "excludeScan": ["memo", "tags"],
   "excludeScanWhy": "적요(«적요상세» 다음) · 꼬리표(차종 뒤 «과적» 등)만 — 주소 낱말로 좋은 콜이 떨어지지 않게(픽커와 같은 태도)",
   "officeFields": ["fare", "pickup", "dropoff", "vehicleType", "itemSize", "itemDescription", "tagsText", "reserved", "reservedDay", "reservedAt", "scheduleText", "pickupDistance", "deliveryDistance", "detailMemo", "tripType", "orderForm", "paymentType", "billingType", "commissionRate", "tollFare", "receiptStatus", "dispatcherName", "dispatcherPhone", "postTime"],
-  "officeFieldsWhy": "연락처는 옛 칸에 없었다(기사님 D3 «안 넘긴다»)",
+  "officeFieldsWhy": "연락처는 옛 칸에 없었다(기사님 D3 «안 넘긴다») · 상차 · 하차 · 요금은 표와 상관없이 싣는다(옛 앱이 늘 보낸 칸)",
   "addressCut": null,
   "addressCutWhy": "지우지 않는다 — 출발지 앞 «@» · 예약 · 마감 앞글자는 원달앱이 걷어내 보낸다(앞뒤 공백만)",
   "vehicleWords": [

@@ -23,7 +23,7 @@ export const HWAMUL24_PAGES: NetworkPageSpec = /*JSON*/{
   "excludeScan": ["memo", "payment"],
   "excludeScanWhy": "기사님 «화물24시는 화물정보»(+ 결제방법 «착불») — 화주 이름 줄(«화물과퀵») · «60분 안보기» · 버튼 · 주소는 안 본다",
   "officeFields": ["fare", "pickup", "dropoff", "vehicleType", "itemSize", "itemDescription", "tagsText", "reserved", "reservedDay", "reservedAt", "scheduleText", "pickupDistance", "deliveryDistance", "tripType", "orderForm", "paymentType", "commissionRate", "tollFare", "receiptStatus", "dispatcherName", "dispatcherPhone", "postTime"],
-  "officeFieldsWhy": "화물 글(detailMemo) · 인수증(billingType) · 연락처는 옛 칸에 없었다 — 넘기면 짐 초안 · 화면이 바뀐다(기사님 D3 «안 넘긴다»)",
+  "officeFieldsWhy": "화물 글(detailMemo) · 인수증(billingType) · 연락처는 옛 칸에 없었다 — 넘기면 짐 초안 · 화면이 바뀐다(기사님 D3 «안 넘긴다») · 상차 · 하차 · 요금은 표와 상관없이 싣는다(옛 앱이 늘 보낸 칸)",
   "addressCut": ",[\\s\\S]*$",
   "addressCutWhy": "첫 쉼표부터 끝(뒤 상세 주소)을 지운다",
   "vehicleWords": [

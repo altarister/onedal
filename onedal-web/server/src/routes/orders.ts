@@ -13,7 +13,7 @@
  */
 
 import { Router } from "express";
-import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
+import type { DispatchBasicRequest, IncomingBasicRequest, PendingOrder, OrderStatus } from "@onedal/shared";
 import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
@@ -110,21 +110,22 @@ router.get("/", requireAuth, (req, res) => {
 // 다이어그램 Line 58~62 대응
 router.post("/confirm", (req, res) => {
     try {
-        const payload = req.body as DispatchConfirmRequest;
+        const incoming = req.body as IncomingBasicRequest;
 
-        if (payload.step !== 'BASIC') {
+        if (incoming.step !== 'BASIC') {
             return res.status(400).json({ error: "이 엔드포인트는 step=BASIC 전용입니다. 상세 보고는 POST /api/orders/detail 을 사용하세요." });
         }
         /* 🚫 블루투스 받기 전 원달앱은 확정 · 상세도 거절 — 결재가 그 폰에 갈 길이 없다(보고 문이 알아본 폰) */
-        if (isAppTooOld(payload.deviceId)) return res.status(426).json({ error: '원달앱을 새로 깔아 주세요 — 블루투스 받기 전 판입니다', code: 'APP_TOO_OLD' });
+        if (isAppTooOld(incoming.deviceId)) return res.status(426).json({ error: '원달앱을 새로 깔아 주세요 — 블루투스 받기 전 판입니다', code: 'APP_TOO_OLD' });
 
         // 🔑 [하드 락] 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth)
-        const auth = authDevice(payload.deviceId, deviceTokenOf(req));
+        const auth = authDevice(incoming.deviceId, deviceTokenOf(req));
         if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
         const userId = auth.userId;
         /* 🎯 새 앱 보고(order 없음)는 합친 기본 콜로 order 를 만든다 — 그 뒤 길은 옛 보고와 같다 (계획서 F2-a) */
-        const fromBaseCall = orderOfNewAppReport(userId, payload);
-        if (fromBaseCall) (payload as { order: unknown }).order = fromBaseCall;
+        const fromBaseCall = orderOfNewAppReport(userId, incoming);
+        /* order 도 기본 콜도 없는 보고는 옛 길처럼 그 자리에서 실패한다 */
+        const payload = { ...incoming, order: incoming.order ?? fromBaseCall } as DispatchBasicRequest;
         /* 👥 남의 콜 id 로 온 선점 보고는 받지 않는다 */
         if (ownedByOther(userId, payload.order?.id)) {
             slog('통신', `🚫 [남의 콜] /confirm ${payload.order?.id} — 이 폰의 기사 콜이 아니다`);

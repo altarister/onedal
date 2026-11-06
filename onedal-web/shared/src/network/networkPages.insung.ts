@@ -23,7 +23,7 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
   "excludeScan": ["memo", "payment", "tags"],
   "excludeScanWhy": "기사님 «인성은 적요»(+ 결제 괄호 «(착불)» · 구분 «왕복») — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다",
   "officeFields": ["fare", "pickup", "dropoff", "vehicleType", "itemSize", "itemDescription", "tagsText", "reserved", "reservedDay", "reservedAt", "scheduleText", "pickupDistance", "deliveryDistance", "detailMemo", "tripType", "orderForm", "paymentType", "billingType", "commissionRate", "tollFare", "receiptStatus", "dispatcherName", "dispatcherPhone", "postTime", "pickupDetails", "dropoffDetails"],
-  "officeFieldsWhy": "옛 길이 낸 칸 전부 — 연락처도 원달앱이 팝업에서 읽어 서버 상세 읽기와 같은 값이다",
+  "officeFieldsWhy": "옛 길이 낸 칸 전부 — 연락처도 원달앱이 팝업에서 읽어 서버 상세 읽기와 같은 값이다 · 상차 · 하차 · 요금은 표와 상관없이 싣는다(옛 앱이 늘 보낸 칸)",
   "addressCut": "\\(.*?\\)$",
   "addressCutWhy": "끝에 붙는 «(건물명)»을 지운다 — 첫 «(»부터 끝까지",
   "vehicleWords": [

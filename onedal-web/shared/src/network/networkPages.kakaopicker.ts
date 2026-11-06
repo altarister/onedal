@@ -23,7 +23,7 @@ export const KAKAO_PICKER_PAGES: NetworkPageSpec = /*JSON*/{
   "excludeScan": ["itemSize", "memo"],
   "excludeScanWhy": "기사님 «카카오픽커는 물품정보»+«가» 유의사항 — 둘 다 «최종 수익» · 버튼 앞에서 끝난다 · 픽업지 주소 · 목록 잔상은 안 본다",
   "officeFields": ["fare", "pickup", "dropoff", "vehicleType", "itemSize", "itemDescription", "tagsText", "reserved", "reservedDay", "reservedAt", "scheduleText", "pickupDistance", "deliveryDistance", "tripType", "orderForm", "paymentType", "billingType", "commissionRate", "tollFare", "receiptStatus", "dispatcherName", "dispatcherPhone", "postTime"],
-  "officeFieldsWhy": "유의사항(detailMemo) · 연락처는 옛 칸에 없었다(기사님 D3 «안 넘긴다») — 거리는 목록 줄 값이 옛 칸이다",
+  "officeFieldsWhy": "유의사항(detailMemo) · 연락처는 옛 칸에 없었다(기사님 D3 «안 넘긴다») — 거리는 목록 줄 값이 옛 칸이다 · 상차 · 하차 · 요금은 표와 상관없이 싣는다(옛 앱이 늘 보낸 칸)",
   "addressCut": null,
   "addressCutWhy": "지우지 않는다 — 원달앱이 이미 «구 동»으로 정리해 보낸다(앞뒤 공백만)",
   "networkMarkers": [["리스트 설정"], ["넘기기", "수락하기"], ["시작하기"], ["물품이 안전하게 전달"], ["밀어서 픽업 완료"], ["밀어서 사진 촬영"], ["배송 시간"], ["물품 파손"], ["픽업 준비"], ["픽업지 근처에"], ["픽업지 정보"], ["도착지 정보"], ["픽업지 주소 복사하기"], ["픽업지에 전화하기"], ["도착지 주소 복사하기"], ["도착지에 전화하기"]],

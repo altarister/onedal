@@ -140,6 +140,14 @@ export interface DispatchDetailedRequest {
 // 두 가지 Step을 묶어주는 유니온 타입
 export type DispatchConfirmRequest = DispatchBasicRequest | DispatchDetailedRequest;
 
+/**
+ * 🎯 **원달앱이 보내는 보고 모양** (계획서 F2-a) — 옛 앱은 order 를, 새 앱은 order 없이 기본 콜 + 봉투를 보낸다.
+ * 서버 입구가 새 앱 보고의 order 를 만든 뒤에는 `DispatchBasicRequest` · `DispatchDetailedRequest` 로 넘긴다.
+ */
+type NewAppReport = { order?: undefined; baseCall: BaseCall; report?: ReportEnvelope };
+export type IncomingBasicRequest = DispatchBasicRequest | (Omit<DispatchBasicRequest, 'order' | 'baseCall'> & NewAppReport);
+export type IncomingDetailedRequest = DispatchDetailedRequest | (Omit<DispatchDetailedRequest, 'order' | 'baseCall'> & NewAppReport);
+
 // 2. 서버 -> 앱폰: Piggyback 통신 응답 (가성비 연산 후 최종 지시)
 export interface DispatchConfirmResponse {
     deviceId: string;                 // 수락한 앱폰 ID
