@@ -146,6 +146,19 @@ export function officeOrderOf(call: BaseCall, report: Partial<CallReport> = {}, 
     };
 }
 
+/**
+ * 🎯 **새 앱 보고(order 없음)의 옛 콜 칸** (계획서 F2-a · 기사님 «가») — `officeOrderOf` 에서 넘기는 칸(`fields`)만 남긴다.
+ * `fields` 는 배차망 정의 표의 `officeFields` 다 — 부르는 쪽이 찾아 넘긴다(빠뜨리면 타입이 막는다).
+ * 상차 · 하차 · 요금은 표와 상관없이 싣는다 — 옛 앱이 늘 보낸 칸이다. 보고 봉투 값(갈래 · 시각 · 원문)도 그대로 싣는다.
+ * 🔴 합친 기본 콜로 부른다 — 이번 조각으로 부르면 빈 값이 앞 기억을 지운다.
+ */
+export function officeOrderForReport(call: BaseCall, report: Partial<CallReport>, coordinates: CallCoordinates, detailReport: boolean, fields: ReadonlyArray<keyof OfficeOrder>): ReturnType<typeof officeOrderOf> {
+    const office: Record<string, unknown> = officeOrderOf(call, report, coordinates, detailReport);
+    const keep = new Set<string>([...fields, 'pickup', 'dropoff', 'fare']);
+    for (const field of OFFICE_FIELDS) if (!keep.has(field)) delete office[field];
+    return office as ReturnType<typeof officeOrderOf>;
+}
+
 /** 기본 콜에서 만드는 옛 칸 — 견줄 때 쓴다. 보고 봉투 값(번호 · 시각 · 원문)은 안 본다 */
 export const OFFICE_FIELDS: ReadonlyArray<keyof OfficeOrder> = [
     'fare', 'pickup', 'dropoff', 'vehicleType', 'itemSize', 'itemDescription', 'tagsText', 'reserved', 'reservedDay', 'reservedAt', 'scheduleText',

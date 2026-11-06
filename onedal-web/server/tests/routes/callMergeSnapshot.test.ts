@@ -36,15 +36,28 @@ const SHAKY = ['id', 'capturedAt', 'statusUpdatedAt', 'updatedAt', 'createdAt', 
 const SHAPE = ['route', 'money', 'load', 'time', 'job', 'stage', 'requesterName', 'fromOtherOffice', 'orderNo', 'clientOrderNo'];
 const steady = (value: any) => JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(value).filter(([k, v]) => !SHAKY.includes(k) && !SHAPE.includes(k) && v !== null))));
 
-async function merged(c: any, index: number, withBaseCall = false) {
+/**
+ * 🎯 **보고 길 셋** (계획서 F2-a) — 옛 앱(order 만) · 지금 앱(order + 기본 콜) · 새 앱(기본 콜 + 봉투, order 없음).
+ * 새 앱 길도 옛 칸 값 · 저장 행이 같아야 한다. 넘기는 칸은 배차망 정의 표의 officeFields 가 정한다.
+ */
+type ReportWay = 'order' | 'withBaseCall' | 'noOrder';
+async function merged(c: any, index: number, way: ReportWay | boolean = 'order') {
+    if (way === true) way = 'withBaseCall';
+    if (way === false) way = 'order';
+    const withBaseCall = way !== 'order';
     clearUserSession(U);
     getUserSession(U).isRestored = true;
     const id = `${U}-${index}`;
     const stamp = { id, timestamp: '2026-11-05T10:00:00+09:00' };
     const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => {});
     const part = (which: string) => (withBaseCall && c.expectBaseCall ? { baseCall: { id, targetApp: c.network, ...c.expectBaseCall[which] } } : {});
-    await post(ordersRouter, '/confirm', { step: 'BASIC', targetApp: c.network, order: { ...c.confirm, ...stamp, type: 'AUTO_CLICK', rawText: '화면 글' }, ...part('confirm') });
-    await post(detailRouter, '/', { step: 'DETAILED', targetApp: c.network, order: { ...c.detail, ...stamp, type: 'AUTO_CLICK' }, ...part('detail') });
+    if (way === 'noOrder') {
+        await post(ordersRouter, '/confirm', { step: 'BASIC', targetApp: c.network, report: { type: 'AUTO_CLICK', rawText: '화면 글', timestamp: stamp.timestamp }, ...part('confirm') });
+        await post(detailRouter, '/', { step: 'DETAILED', targetApp: c.network, report: { type: 'AUTO_CLICK', rawText: c.detail.rawText, timestamp: stamp.timestamp }, ...part('detail') });
+    } else {
+        await post(ordersRouter, '/confirm', { step: 'BASIC', targetApp: c.network, order: { ...c.confirm, ...stamp, type: 'AUTO_CLICK', rawText: '화면 글' }, ...part('confirm') });
+        await post(detailRouter, '/', { step: 'DETAILED', targetApp: c.network, order: { ...c.detail, ...stamp, type: 'AUTO_CLICK' }, ...part('detail') });
+    }
     spy.mockRestore();
     const call = getUserSession(U).pendingOrdersData.get(id);
     OrderRepository.upsertOrder(call, U, 0, isExpressOf(call) ? 1 : 0);   // isExpress 는 결재 코드와 같은 규칙 · isShared 는 기준 밖
@@ -76,6 +89,22 @@ describe('📐 합친 콜 값 · 저장 행', () => {
         expect(got.call).toEqual(c.expectCall);
         expect(Object.fromEntries(Object.entries(got.row).filter(([k]) => !(k in BASE_CALL_COLUMN_TYPES)))).toEqual(c.expectRow);
     });
+    /**
+     * 🎯 계획서 F2-a — order 없이 기본 콜 + 봉투만 보낸 새 앱 보고. 옛 칸 값 · 저장 행이 같아야 한다.
+     * 🔴 차이 목록 — 1:1 이 아닌 값은 «같다»가 아니라 여기 적는다. 앱이 그렇게 보내지 않게 고치는 날(F2-b) 지운다.
+     */
+    const NO_ORDER_DIFF: Record<string, string[]> = {
+        /* 픽커 사진 길: 기본 콜 거리 칸에 사진 직선 km 가 들어 있다 — F2-b 에 원달앱 KakaoPickerBaseCall 의 사진 거리 대신 채우기를 걷는다 */
+        '규칙: 픽커 사진 길': ['pickupDistance'],
+    };
+    const diffOf = (c) => Object.entries(NO_ORDER_DIFF).find(([why]) => c.why.startsWith(why))?.[1] ?? [];
+    const without = (o, keys) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
+    it.each(SHEET.cases.filter((c) => c.expectBaseCall).map((c) => [c.network, c.why, c, SHEET.cases.indexOf(c)]))('새 앱 보고(order 없음) · %s — %s', async (_n, _w, c, i) => {
+        const got = await merged(c, i, 'noOrder');
+        const diff = diffOf(c);
+        expect(without(got.call, diff)).toEqual(without(c.expectCall, diff));
+        expect(without(Object.fromEntries(Object.entries(got.row).filter(([k]) => !(k in BASE_CALL_COLUMN_TYPES))), diff)).toEqual(without(c.expectRow, diff));
+    });
 });
 
 /**
@@ -105,5 +134,48 @@ describe('🎯 플러그인이 채운 기본 콜', () => {
         const office = officeOrderOf(merged, {}, {}, true);
         expect(office.pickupDetails).toEqual(c.expectCall.pickupDetails);
         expect(office.dropoffDetails).toEqual(c.expectCall.dropoffDetails);
+    });
+});
+
+/**
+ * 🎯 **빈 기본 콜** (계획서 F2-a) — 원달앱이 기본 콜을 못 채워 번호 · 배차망만 보낸 새 앱 보고는
+ *    상차 · 하차 · 요금이 빈 옛 앱 보고와 같은 결과다. 자동 콜과 손으로 확정한 콜 두 갈래.
+ */
+describe('🎯 빈 기본 콜 — 빈 옛 보고와 같은 결과', () => {
+    const answerOf = async (body: any) => {
+        let code = 200; let answer: any;
+        const res = { status: (c: number) => { code = c; return res; }, json: (b: any) => { answer = { code, ...b }; return res; } };
+        await handlerOf(detailRouter, '/')({ app, headers: {}, body: { deviceId: DEV, capturedAt: '2026-11-05T10:00:00+09:00', step: 'DETAILED', targetApp: 'insung', ...body } }, res);
+        return answer;
+    };
+    const run = async (id: string, matchType: string, type: string, newApp: boolean) => {
+        clearUserSession(U);
+        getUserSession(U).isRestored = true;
+        const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => {});
+        const body = newApp
+            ? { matchType, report: { type, timestamp: '2026-11-05T10:00:00+09:00' }, baseCall: { id, targetApp: 'insung', route: { pickup: {}, dropoff: {} }, money: { lines: [] }, load: {}, time: {}, job: {} } }
+            : { matchType, order: { id, type, pickup: '', dropoff: '', fare: 0, timestamp: '2026-11-05T10:00:00+09:00' } };
+        const answer = await answerOf(body);
+        const called = spy.mock.calls.length;
+        spy.mockRestore();
+        const call = getUserSession(U).pendingOrdersData.get(id) ?? getUserSession(U).myOrders.find((o) => o.id === id);
+        return { answer: { ...answer, orderId: undefined }, called, call: call && steady({ ...call, id: undefined }) };
+    };
+    /* 🔢 번호가 빈 기본 콜(픽커 목록 줄 꼴)은 옛 길의 «번호 없는 콜» 갈래 — 기기가 심사 중인 콜 번호를 쓴다 */
+    it('🔴 번호가 빈 기본 콜은 기기가 심사 중인 콜 번호로 간다', async () => {
+        clearUserSession(U);
+        const session = getUserSession(U);
+        session.isRestored = true;
+        session.deviceEvaluatingMap.set(DEV, `${U}-held-no`);
+        const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => {});
+        await answerOf({ matchType: 'AUTO', report: { type: 'AUTO_CLICK' }, baseCall: { id: '', targetApp: 'insung', route: { pickup: { addressDetail: '경기 광주시 경안동 1-2' }, dropoff: { addressDetail: '서울 용산구 한남동 12' } }, money: { lines: [{ kind: 'income', won: 30000 }] }, load: {}, time: {}, job: {} } });
+        spy.mockRestore();
+        expect(session.pendingOrdersData.get(`${U}-held-no`)?.pickup).toBe('경기 광주시 경안동 1-2');
+        expect(session.pendingOrdersData.has('unknown')).toBe(false);
+    });
+    it.each([['자동', 'AUTO', 'AUTO_CLICK'], ['손 확정', 'MANUAL', 'MANUAL_CLICK']])('%s', async (_n, matchType, type) => {
+        const old = await run(`${U}-empty-old-${matchType}`, matchType, type, false);
+        const neu = await run(`${U}-empty-new-${matchType}`, matchType, type, true);
+        expect(neu).toEqual(old);
     });
 });

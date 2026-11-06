@@ -1,4 +1,4 @@
-import { baseCallDiff, mergeBaseCall, mergeEvidence, officeValuesOf, type BaseCall, type CallEvidence, type OfficeOrder } from "@onedal/shared";
+import { baseCallDiff, mergeBaseCall, mergeEvidence, officeValuesOf, officeOrderForReport, officeFieldsOf, type BaseCall, type CallEvidence, type OfficeOrder, type ReportEnvelope } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 import { OrderRepository } from "../repositories/OrderRepository";
 
@@ -86,4 +86,19 @@ export function officeValuesHeld(userId: string, order: Partial<OfficeOrder> & {
 /** 🎯 합쳐 둔 원달앱 기본 콜 — 콜을 기억에 넣을 때 묶음을 펼치는 데 쓴다(계획서 E). 없으면 undefined */
 export function heldBaseCallOf(userId: string, id: string): BaseCall | undefined {
     return held.get(keyOf(userId, id))?.call;
+}
+
+/**
+ * 🎯 **새 앱 보고(order 없음) → 옛 콜 칸** (계획서 F2-a · 기사님 «가») — 이 콜의 앞 기억과 이번 조각을 합친 기본 콜로 만든다.
+ * 넘기는 칸은 배차망 정의 표(`officeFields`)만 — 옛 길이 비워 둔 값이 읽는 줄로 흐르지 않게. 그 뒤 길은 옛 앱 보고와 같다.
+ * 번호가 비면 «unknown» — 옛 길의 «번호 없는 콜» 갈래로 간다. order 가 있거나 기본 콜이 없으면 만들지 않는다.
+ * 연락처 칸은 찾은 것만 싣는다 — 옛 앱 상세 보고는 연락처를 안 실었고 서버가 상세 글에서 읽는다(빈 배열을 싣지 않는다).
+ */
+export function orderOfNewAppReport(userId: string, body: { order?: unknown; baseCall?: BaseCall; report?: ReportEnvelope }): OfficeOrder | undefined {
+    if (body.order || !body.baseCall) return undefined;
+    const piece = body.baseCall;
+    const held = piece.id ? heldBaseCallOf(userId, piece.id) : undefined;
+    const { pickupX, pickupY, dropoffX, dropoffY, ...report } = body.report ?? {};
+    const office = officeOrderForReport(mergeBaseCall(held, piece), report, { pickupX, pickupY, dropoffX, dropoffY }, false, officeFieldsOf(piece.targetApp));
+    return { ...office, id: piece.id || 'unknown' } as OfficeOrder;
 }

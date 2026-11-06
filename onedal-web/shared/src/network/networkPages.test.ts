@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { NETWORK_PAGES, STANDARD_SCREENS, fieldsOf } from './networkPages';
+import { NETWORK_PAGES, STANDARD_SCREENS, fieldsOf, officeFieldsOf } from './networkPages';
+import { OFFICE_FIELDS } from '../call/baseCallToOffice';
 import { PAGE_FIELDS, SCREEN_PAGES, BASE_PAGES, BASE_PAGE_OF, basePageOf, type PageField, type ScreenPage } from './pageFields';
 import { TARGET_APPS, type TargetAppType } from '../index';
 import { pageFieldOf, pageFareOf, excludeScanTextOf, missingAlwaysOf } from './pageRead';
@@ -349,4 +350,23 @@ describe('🧾 늘 있던 칸이 없나', () => {
     it('물품 정보 이름표가 바뀌면(리뉴얼) 그 칸이 빠졌다고 말한다', () => {
         expect(missingAlwaysOf('kakaopicker', 'newCall', `${ACC.replace('물품 정보', '배송 물품')}\n${PHOTO}`)).toEqual(['itemSize']);
     });
+});
+
+/**
+ * 🎯 **옛 칸으로 넘기는 칸** (계획서 F2-a · 기사님 «가») — 표에서 뺀 칸 = 문제지가 «옛 칸에 없던 값»으로 적은 칸.
+ * 비인성 연락처는 옛 칸 값이 상세 글 읽기에서 나와 기본 콜 값과 다르다(callMergeSnapshot 이 따로 뺀다) — 뺀 칸에 든다.
+ * 픽커 거리는 목록 줄 값이 옛 칸이라 넘긴다 — 사진 직선 거리 한 사례는 callMergeSnapshot 의 차이 목록이 맡는다.
+ */
+describe('🎯 옛 칸으로 넘기는 칸 (officeFields)', () => {
+    const SHEET = JSON.parse(readFileSync(join(__dirname, 'callMergeCases.json'), 'utf8')) as { cases: Array<{ network: string; notInOldYet?: string[] }> };
+    const CONTACTS = ['pickupDetails', 'dropoffDetails'];
+    const NOT_DIFF = { kakaopicker: ['pickupDistance'] } as Record<string, string[]>;
+    it.each(['insung', 'hwamul24', 'kakaopicker', 'isflex'])('%s — 뺀 칸 = 옛 칸에 없던 값', (net) => {
+        const dropped = OFFICE_FIELDS.filter((f) => !officeFieldsOf(net).includes(f)).sort();
+        const notInOld = new Set(SHEET.cases.filter((c) => c.network === net).flatMap((c) => c.notInOldYet ?? []));
+        if (net !== 'insung') CONTACTS.forEach((f) => notInOld.add(f));
+        (NOT_DIFF[net] ?? []).forEach((f) => notInOld.delete(f));
+        expect(dropped).toEqual([...notInOld].sort());
+    });
+    it('🔴 모르는 배차망은 아무 칸도 안 넘긴다 — 새 배차망이 표를 안 적으면 다 막힌다', () => expect(officeFieldsOf('onecall')).toEqual([]));
 });

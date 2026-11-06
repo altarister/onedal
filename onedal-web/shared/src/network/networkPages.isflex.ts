@@ -22,6 +22,8 @@ export const ISFLEX_PAGES: NetworkPageSpec = /*JSON*/{
   "rulesWhy": "자동이 없다 — «…원 수행하기»가 곧 계약이고 확정 뒤 임의 취소가 안 되며 취소마다 다음 확정이 10초 막혀 원달앱이 누르지 않는다 · 안전취소가 없다 · 상세 머묾 시간은 자기 칸(isflexAlarmDetailSec — 픽커 칸과 따로) · 패키지 글자는 «quickflex»(«insung» 은 인성 표가 이미 실물 insung.quickflex 에 건다)",
   "excludeScan": ["memo", "tags"],
   "excludeScanWhy": "적요(«적요상세» 다음) · 꼬리표(차종 뒤 «과적» 등)만 — 주소 낱말로 좋은 콜이 떨어지지 않게(픽커와 같은 태도)",
+  "officeFields": ["fare", "pickup", "dropoff", "vehicleType", "itemSize", "itemDescription", "tagsText", "reserved", "reservedDay", "reservedAt", "scheduleText", "pickupDistance", "deliveryDistance", "detailMemo", "tripType", "orderForm", "paymentType", "billingType", "commissionRate", "tollFare", "receiptStatus", "dispatcherName", "dispatcherPhone", "postTime"],
+  "officeFieldsWhy": "연락처는 옛 칸에 없었다(기사님 D3 «안 넘긴다»)",
   "addressCut": null,
   "addressCutWhy": "지우지 않는다 — 출발지 앞 «@» · 예약 · 마감 앞글자는 원달앱이 걷어내 보낸다(앞뒤 공백만)",
   "vehicleWords": [

@@ -22,7 +22,7 @@ import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import type { SafeCancelWarning } from "@onedal/shared";
 import { decide } from "../state/decisions";
 import { isAppTooOld } from "../state/phoneStatus";
-import { holdBaseCall, compareBaseCall, saveHeldBaseCall, officeValuesHeld, heldBaseCallOf } from "../services/baseCallCompare";
+import { holdBaseCall, compareBaseCall, saveHeldBaseCall, officeValuesHeld, heldBaseCallOf, orderOfNewAppReport } from "../services/baseCallCompare";
 
 /** 🧾 «늘 있던 칸이 없다»를 찍은 날 — (배차망 | 빠진 칸 묶음) → 날짜(KST) */
 const missingAlwaysLogged = new Map<string, string>();
@@ -44,6 +44,9 @@ router.post("/", async (req, res) => {
         const auth = authDevice(payload.deviceId, deviceTokenOf(req));
         if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
         const userId = auth.userId;
+        /* 🎯 새 앱 보고(order 없음)는 합친 기본 콜로 order 를 만든다 — 그 뒤 길은 옛 보고와 같다 (계획서 F2-a) */
+        const fromBaseCall = orderOfNewAppReport(userId, payload);
+        if (fromBaseCall) (payload as { order: unknown }).order = fromBaseCall;
         /* 👥 남의 콜 id 로 온 상세는 받지 않는다 — 기사 둘이 한 서버를 쓴다 */
         if (ownedByOther(userId, payload.order?.id)) {
             slog('통신', `🚫 [남의 콜] /detail ${payload.order?.id} — 이 폰의 기사 콜이 아니다`);

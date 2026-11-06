@@ -22,6 +22,8 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
   "rulesWhy": "자동에서 원달앱이 확정을 누르고 안전취소 시간 안에 결재를 기다린다 · 상세 머묾 시간은 없다(팝업 셋을 다 읽고 보낸다)",
   "excludeScan": ["memo", "payment", "tags"],
   "excludeScanWhy": "기사님 «인성은 적요»(+ 결제 괄호 «(착불)» · 구분 «왕복») — 주소 · 화주 이름 · 화면 머리 · 버튼은 안 본다",
+  "officeFields": ["fare", "pickup", "dropoff", "vehicleType", "itemSize", "itemDescription", "tagsText", "reserved", "reservedDay", "reservedAt", "scheduleText", "pickupDistance", "deliveryDistance", "detailMemo", "tripType", "orderForm", "paymentType", "billingType", "commissionRate", "tollFare", "receiptStatus", "dispatcherName", "dispatcherPhone", "postTime", "pickupDetails", "dropoffDetails"],
+  "officeFieldsWhy": "옛 길이 낸 칸 전부 — 연락처도 원달앱이 팝업에서 읽어 서버 상세 읽기와 같은 값이다",
   "addressCut": "\\(.*?\\)$",
   "addressCutWhy": "끝에 붙는 «(건물명)»을 지운다 — 첫 «(»부터 끝까지",
   "vehicleWords": [

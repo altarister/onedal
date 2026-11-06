@@ -7,7 +7,7 @@
  * 어떻게: 배차망 파일 넷을 가져와 한 표로 묶고 함수로 묻는다
  * 왜: 어떤 배차망이든 같은 순서로 돌고 다른 것은 표의 값뿐이게 하기 위해서다
  */
-import type { TargetAppType } from '../index';
+import type { TargetAppType, OfficeOrder } from '../index';
 import type { PageField, ScreenPage, BaseSlot } from './pageFields';
 import { basePageOf, CALL_OVERLAY_LABEL } from './pageFields';
 import type { VehicleType } from '../cargo/vehicles';
@@ -80,6 +80,14 @@ export interface NetworkPageSpec {
     excludeScan: PageField[];
     /** 그 칸들로 정한 까닭 한 줄(기사님 말) */
     excludeScanWhy: string;
+    /**
+     * 🎯 **옛 칸으로 넘기는 칸** (계획서 F2-a · 기사님 «가») — 새 원달앱이 order 없이 기본 콜만 보낼 때 서버가 이 칸만 옛 콜 칸으로 넘긴다.
+     * 허용 목록이다 — 표에 없으면 안 넘긴다. 옛 길이 비워 둔 값(화물 글 · 유의사항 · 인수증 · 연락처)이 읽는 줄로 흐르지 않게.
+     * 판정이 새 값을 봐야 하는 날 이 줄을 바꾼다. 검사 `networkPages.test.ts`(뺀 칸 = 문제지의 «옛 칸에 없던 값»).
+     */
+    officeFields: ReadonlyArray<keyof OfficeOrder>;
+    /** 그 칸들로 정한 까닭 한 줄 */
+    officeFieldsWhy: string;
     /**
      * ⚙️ **배차망 규칙 넷** — 원달앱 플러그인 · 서버가 이 표 값을 읽는다(손으로 따로 적지 않는다 · 배차망_모드표.md 의 «모드» · «시간» 장이 이것을 가리킨다).
      * `modes` 그 배차망에서 되는 모드(관제웹이 보내는 이름) · `packageKeywords` 배차망 앱을 알아보는 패키지 글자 ·
@@ -231,6 +239,11 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = {
 };
 
 /** 📄 그 배차망 · 그 페이지의 칸 */
+/** 🎯 그 배차망이 옛 칸으로 넘기는 칸 — 모르는 배차망은 없다(아무 칸도 안 넘긴다) */
+export function officeFieldsOf(targetApp: string | null | undefined): ReadonlyArray<keyof OfficeOrder> {
+    return (NETWORK_PAGES as Partial<Record<string, NetworkPageSpec>>)[targetApp ?? '']?.officeFields ?? [];
+}
+
 export function fieldsOf(app: TargetAppType, page: ScreenPage): NetworkFieldSpec[] {
     return NETWORK_PAGES[app]?.pages[page] ?? [];
 }

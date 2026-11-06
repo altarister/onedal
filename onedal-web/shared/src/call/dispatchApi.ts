@@ -8,7 +8,7 @@
  * 왜: 보내는 쪽과 받는 쪽이 같은 모양을 봐야 하기 때문이다
  */
 import { isManualLineage } from './callStatus';
-import type { BaseCall, CallEvidence, SimplifiedOfficeOrder, OfficeOrder } from './orderShapes';
+import type { BaseCall, CallEvidence, SimplifiedOfficeOrder, OfficeOrder, CallReport, CallCoordinates } from './orderShapes';
 import type { AutoDispatchFilter } from '../filter/dispatchFilter';
 import type { DeviceModeType } from '../device/deviceModes';
 import type { ScreenContextType } from '../network/screenKinds';
@@ -59,12 +59,20 @@ export interface EdgeDeviceTelemetry {
     visibleOrders?: SimplifiedOfficeOrder[];
 }
 
+/**
+ * 🎯 **새 앱 보고의 봉투** (계획서 F2-a) — order 대신 실리는 보고 값. 서버가 읽는 것만 둔다(갈래 · 원문 · 시각 · 좌표).
+ * 새 앱은 order 없이 `baseCall` + `report` 를 보낸다 — 서버 입구가 합친 기본 콜로 order 를 만든다(`orderOfNewAppReport`).
+ */
+export type ReportEnvelope = Partial<Pick<CallReport, 'type' | 'rawText' | 'timestamp'>> & CallCoordinates;
+
 // 1-A. 앱폰 -> 서버: 1차 호출 (리스트 창에서 '확정' 버튼 클릭 직후)
 export interface DispatchBasicRequest {
     step: 'BASIC';
-    /** 🎯 플러그인이 채운 기본 콜 조각 · 누른 목록 줄 기록 — 지금 서버는 안 읽는다 */
+    /** 🎯 플러그인이 채운 기본 콜 조각 · 누른 목록 줄 기록 — 서버가 합쳐 둔다 · order 가 없으면 이것으로 order 를 만든다 */
     baseCall?: BaseCall;
     evidence?: CallEvidence;
+    /** 🎯 새 앱 보고의 봉투 — order 가 없을 때 */
+    report?: ReportEnvelope;
     deviceId: string;
     order: SimplifiedOfficeOrder;
     capturedAt: string;
@@ -115,9 +123,11 @@ export function timeoutActionOf(r: { keep: boolean; who: WhoConfirmed; simulated
 // 1-B. 앱폰 -> 서버: 2차 호출 (상세 페이지 진입 후 상세 정보 파싱 완료 시)
 export interface DispatchDetailedRequest {
     step: 'DETAILED';
-    /** 🎯 플러그인이 채운 기본 콜 조각 · 읽은 상세 글 기록 — 지금 서버는 안 읽는다 */
+    /** 🎯 플러그인이 채운 기본 콜 조각 · 읽은 상세 글 기록 — 서버가 합쳐 둔다 · order 가 없으면 이것으로 order 를 만든다 */
     baseCall?: BaseCall;
     evidence?: CallEvidence;
+    /** 🎯 새 앱 보고의 봉투 — order 가 없을 때 */
+    report?: ReportEnvelope;
     deviceId: string;
     order: OfficeOrder;
     capturedAt: string;

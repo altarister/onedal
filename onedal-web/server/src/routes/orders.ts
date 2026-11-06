@@ -35,7 +35,7 @@ import { reportSourceOf } from "../core/helpers";
 import { ownsOrder, ownedByOther } from "../core/orderOwner";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import { isAppTooOld } from "../state/phoneStatus";
-import { holdBaseCall, heldBaseCallOf } from "../services/baseCallCompare";
+import { holdBaseCall, heldBaseCallOf, orderOfNewAppReport } from "../services/baseCallCompare";
 import { withoutBaseCallColumns, baseCallShapeOf, stopAddressOf } from "@onedal/shared";
 
 /* 펼친 행에서 묶음 키만 — 나머지는 아래 칸 손질이 정한다 */
@@ -122,6 +122,9 @@ router.post("/confirm", (req, res) => {
         const auth = authDevice(payload.deviceId, deviceTokenOf(req));
         if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
         const userId = auth.userId;
+        /* 🎯 새 앱 보고(order 없음)는 합친 기본 콜로 order 를 만든다 — 그 뒤 길은 옛 보고와 같다 (계획서 F2-a) */
+        const fromBaseCall = orderOfNewAppReport(userId, payload);
+        if (fromBaseCall) (payload as { order: unknown }).order = fromBaseCall;
         /* 👥 남의 콜 id 로 온 선점 보고는 받지 않는다 */
         if (ownedByOther(userId, payload.order?.id)) {
             slog('통신', `🚫 [남의 콜] /confirm ${payload.order?.id} — 이 폰의 기사 콜이 아니다`);
