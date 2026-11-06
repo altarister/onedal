@@ -84,7 +84,8 @@ export function mergeEvidence(prev: CallEvidence | undefined, next: CallEvidence
 }
 
 const lineOf = (call: BaseCall, kind: MoneyKind) => call.money.lines.find((line) => line.kind === kind);
-const stopDetails = (stop: CallStop): LocationDetailInfo[] | undefined => (Object.keys(present(stop)).some((k) => k !== 'loadingMethod') ? [present({ ...stop, loadingMethod: undefined }) as LocationDetailInfo] : undefined);
+/** 연락처 줄 — 고객 · 부서 · 담당 · 전화 중 하나라도 있을 때만. 주소만 있는 정거장은 연락처가 아니다(서버가 팝업에서 읽은 전화를 지우지 않는다) */
+const stopDetails = (stop: CallStop): LocationDetailInfo[] | undefined => (STOP_CONTACT.some((k) => filledValue(stop[k])) ? [present({ ...stop, loadingMethod: undefined }) as LocationDetailInfo] : undefined);
 
 /** 요금 — 목록 요금 · 없으면 수입 줄 · 없으면 운송료 줄 · 없으면 «옛 요금»(원달앱이 기본 콜을 못 채워 옛 양식에서 만든 줄 · 계획서 F2-b). 배차망 이름으로 가르지 않는다 */
 function fareOf(call: BaseCall): number | undefined {
@@ -210,7 +211,7 @@ const OFFICE_PATHS: ReadonlyArray<readonly [keyof OfficeOrder, readonly string[]
 ];
 /** 종류를 모르는 옛 요금 줄의 이름 — 펼칠 때 만들고, 다시 펼칠 때 걸러 낸다 */
 const OLD_FARE_LABEL = '옛 요금';
-const STOP_CONTACT: ReadonlyArray<keyof LocationDetailInfo> = ['customerName', 'department', 'contactName', 'phone1', 'phone2'];
+const STOP_CONTACT: ReadonlyArray<keyof LocationDetailInfo & keyof CallStop> = ['customerName', 'department', 'contactName', 'phone1', 'phone2'];
 
 const filledValue = (value: unknown) => value !== undefined && value !== null && value !== '';
 function setPath(target: Record<string, unknown>, path: readonly string[], value: unknown): void {

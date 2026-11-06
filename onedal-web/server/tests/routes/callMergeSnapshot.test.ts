@@ -8,7 +8,7 @@ import { OrderRepository } from '../../src/repositories/OrderRepository';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
-import { BASE_CALL_COLUMN_TYPES, OFFICE_FIELDS, isExpressOf, mergeBaseCall, officeOrderOf } from '@onedal/shared';
+import { BASE_CALL_COLUMN_TYPES, OFFICE_FIELDS, isExpressOf, mergeBaseCall, officeFieldsOf, officeOrderOf } from '@onedal/shared';
 
 /**
  * 📐 **비교 기준 — 첫 보고와 상세 보고를 합친 콜 값 · 저장 행** (계획서 C1-1).
@@ -107,17 +107,19 @@ describe('📐 합친 콜 값 · 저장 행', () => {
 /**
  * 🎯 **플러그인이 채운 값 → 합치기 → 옛 칸 = 고정된 합친 값** (계획서 C2 끝 조건).
  * `expectBaseCall` 은 원달앱 `KakaoPickerBaseCallTest` 가 같은 입력으로 내는 값이다 — 두 검사가 이어져야 한다.
- * 🔴 연락처 칸은 뺀다. 앱이 살린 상세 주소 · 상호라 옛 값([])과 다르다. 옛 칸에 넘길지는 D3 전에 정한다.
- * 🔴 사례의 `notInOldYet` 칸도 뺀다. 기본 콜에 새로 살린 값이라 옛 칸에는 아직 없다. 넘길지는 D3 전에 기사님께 여쭙는다.
+ * 🔴 연락처 칸은 배차망 정의 표가 넘기는 칸(officeFields)일 때만 견준다 — 픽커 사진 상호는 기본 콜에만 있고 옛 칸으로 안 간다.
+ * 🔴 사례의 `notInOldYet` 칸은 뺀다. 기본 콜에 새로 살린 값이라 옛 칸에는 아직 없다. 넘길지는 D3 전에 기사님께 여쭙는다.
  */
-const COMPARED = OFFICE_FIELDS.filter((k) => k !== 'pickupDetails' && k !== 'dropoffDetails');
-const only = (value: any) => Object.fromEntries(COMPARED.filter((k) => value[k] !== undefined && value[k] !== null).map((k) => [k, value[k]]));
+const CONTACT_FIELDS = ['pickupDetails', 'dropoffDetails'];
+const comparedOf = (network: string) => OFFICE_FIELDS.filter((k) => !CONTACT_FIELDS.includes(k) || officeFieldsOf(network).includes(k));
+const onlyOf = (network: string) => (value: any) => Object.fromEntries(comparedOf(network).filter((k) => value[k] !== undefined && value[k] !== null).map((k) => [k, value[k]]));
 describe('🎯 플러그인이 채운 기본 콜', () => {
     const filled = SHEET.cases.filter((c) => c.expectBaseCall);
     it('픽커 사례가 있다', () => expect(filled.length).toBeGreaterThan(0));
     it.each(filled.map((c) => [c.why, c]))('%s', (_w, c) => {
         const id = 'c1';
         const merged = mergeBaseCall({ id, targetApp: c.network, ...c.expectBaseCall.confirm }, { id, targetApp: c.network, ...c.expectBaseCall.detail });
+        const only = onlyOf(c.network);
         const office = only(officeOrderOf(merged, { rawText: c.detail.rawText }, {}, true));
         for (const key of c.notInOldYet ?? []) {
             expect(office[key]).toBeDefined();
@@ -131,6 +133,17 @@ describe('🎯 플러그인이 채운 기본 콜', () => {
         const office = officeOrderOf(merged, {}, {}, true);
         expect(office.pickupDetails).toEqual(c.expectCall.pickupDetails);
         expect(office.dropoffDetails).toEqual(c.expectCall.dropoffDetails);
+    });
+    /**
+     * 🧯 원달앱 최소 기본 콜(플러그인이 못 채워 주소 · 요금만) — 서버가 상세 원문 팝업에서 읽은 전화가 남는다.
+     *    주소만 있는 정거장은 연락처가 아니라 옛 칸 연락처를 바꾸지 않는다. 옛 앱 · 새 앱 두 길.
+     */
+    const insung = SHEET.cases.find((c) => c.network === 'insung' && c.detail.rawText.includes('[출발지상세]'));
+    const minimalOf = (pickup: string, dropoff: string) => ({ route: { pickup: { addressDetail: pickup }, dropoff: { addressDetail: dropoff } }, money: { lines: [{ kind: 'unknown', won: insung.detail.fare, label: '옛 요금' }] }, load: {}, time: {}, job: {} });
+    it.each([['기본 콜 보고', 'withBaseCall'], ['새 앱 보고(order 없음)', 'noOrder']])('🔴 인성 최소 기본 콜 · %s — 팝업 전화가 남는다', async (_n, way) => {
+        const c = { ...insung, expectBaseCall: { confirm: minimalOf(insung.confirm.pickup, insung.confirm.dropoff), detail: minimalOf(insung.detail.pickup, insung.detail.dropoff) } };
+        const got = await merged(c, SHEET.cases.length, way);
+        expect([got.call.pickupDetails, got.call.dropoffDetails]).toEqual([insung.expectCall.pickupDetails, insung.expectCall.dropoffDetails]);
     });
 });
 

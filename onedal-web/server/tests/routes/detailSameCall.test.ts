@@ -167,3 +167,31 @@ describe('🔎 끝난 콜', () => {
     });
 });
 });
+
+/**
+ * 🎯 **새 앱 보고(order 없음 · 계획서 F2-b)** — 팝업 주소 비교는 연락처 줄에서만 선다.
+ *    주소만 있는 정거장(원달앱 최소 기본 콜 · 팝업 머리표 없는 보고)은 연락처 줄을 안 만든다 — 실서버 옛 길과 같다.
+ */
+describe('🔎 새 앱 보고 — 팝업 주소 비교', () => {
+    const reportNew = async (baseCall: Record<string, unknown>, rawText: string) => {
+        const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => {});
+        let code = 200;
+        let answer: any;
+        const res = { status: (c: number) => { code = c; return res; }, json: (body: any) => { answer = { code, ...body }; return res; } };
+        await handlerOf(detailRouter)({ app, headers: {}, body: {
+            step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType: 'AUTO',
+            report: { type: 'AUTO_CLICK', rawText, timestamp: new Date().toISOString() },
+            baseCall: { id: NEW, targetApp: 'insung', load: {}, time: {}, job: {}, money: { lines: [{ kind: 'income', won: FARE }] }, ...baseCall },
+        } }, res);
+        spy.mockRestore();
+        return answer;
+    };
+    it('팝업에서 읽은 줄 — 번호 · 전화가 달라도 팝업 주소 · 상차 · 하차 · 요금이 같으면 잡은 콜이다', async () => {
+        keep({ pickup: '팝업 주소 A' });
+        expectKept(await reportNew({ route: { pickup: { addressDetail: '팝업 주소 A', customerName: '가나상사', phone1: '010-2222-2222' }, dropoff: { addressDetail: DROPOFF, customerName: '다라상회' } } }, detailText('010-2222-2222', '팝업 주소 A')));
+    });
+    it('주소만 있는 최소 기본 콜 — 팝업 머리표가 없으면 상차 · 하차 · 요금이 같아도 새 콜이다', async () => {
+        keep({ pickupDetails: [{ addressDetail: PICKUP }] });
+        expectNewCall(await reportNew({ route: { pickup: { addressDetail: PICKUP }, dropoff: { addressDetail: DROPOFF } } }, '전표\n요금 : 50,000'));
+    });
+});

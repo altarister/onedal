@@ -7,12 +7,13 @@ import * as fileLogger from '../../src/utils/fileLogger';
 
 /**
  * 🔍 **기본 콜과 지금 콜 값 견주기** (계획서 D1) — 문제지의 차이 칸을 전부 설명할 수 있다.
- * 인성 연락처는 같고, 다른 배차망 연락처 · `notInOldYet` 칸만 다르다. 연락처를 옛 칸에 넘길지는 D3 전에 정한다.
+ * 인성 연락처는 같고, 다른 배차망은 연락처가 있는 정거장(픽커 사진 상호) · `notInOldYet` 칸만 다르다. 주소만 있는 정거장은 연락처가 아니다.
  */
 const SHEET = JSON.parse(readFileSync(join(__dirname, '../../../shared/src/network/callMergeCases.json'), 'utf8'));
 const filled = SHEET.cases.filter((c) => c.expectBaseCall);
 const mergedOf = (c) => mergeBaseCall({ id: 'c', targetApp: c.network, ...c.expectBaseCall.confirm }, { id: 'c', targetApp: c.network, ...c.expectBaseCall.detail });
-const stops = (m) => ['pickup', 'dropoff'].filter((side) => Object.keys(m.route[side]).length > 0).map((side) => `${side}Details`);
+const CONTACT = ['customerName', 'department', 'contactName', 'phone1', 'phone2'];
+const stops = (m) => ['pickup', 'dropoff'].filter((side) => CONTACT.some((k) => m.route[side][k])).map((side) => `${side}Details`);
 
 describe('🔍 기본 콜과 지금 콜 값', () => {
     it.each(filled.map((c) => [c.why, c]))('다른 칸을 설명할 수 있다 — %s', (_w, c) => {
