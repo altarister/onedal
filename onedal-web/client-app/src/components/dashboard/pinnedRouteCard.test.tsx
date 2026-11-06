@@ -128,3 +128,17 @@ describe('🎯 급송 표시 — 묶음의 형태를 읽는다 (계획서 E2)', 
         expect(draw({ route: { ...ROUTE, orderForm: '급송', job: { orderForm: '보통' } } })).not.toContain('>급송<');
     });
 });
+
+describe('🎯 차종 · 품목 — 묶음에서 읽는다 (계획서 E4)', () => {
+    it('차종 · 품목 표시는 묶음(load)의 값', () => {
+        const html = draw({ route: { ...ROUTE, vehicleType: '옛차종', itemDescription: '옛품목', load: { vehicleType: '다마스', itemDescription: '쇼핑백 2개' } } });
+        expect(html).toContain('다마스');
+        expect(html).not.toContain('옛차종');
+        expect(html).toContain('쇼핑백 2개');
+        expect(html).not.toContain('옛품목');
+    });
+    it('판정 중인 콜도 차종 표시는 묶음의 값', () => {
+        const html = draw({ route: { ...ROUTE, status: 'ORDER_SECURED_EVALUATING', vehicleType: '옛차종', load: { vehicleType: '다마스' } } });
+        expect(html).not.toContain('옛차종');
+    });
+});

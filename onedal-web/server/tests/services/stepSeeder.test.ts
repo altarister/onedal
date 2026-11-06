@@ -137,6 +137,13 @@ maybe('출생 모델 — KEEP 은 첫 행만 낳는다', () => {
         expect(r.planned_source).toBe('MEMO');
     });
 
+    /* 🎯 기본 콜 열의 적요(원달앱이 보낸 화물 글 · 유의사항)는 옛 칸이 비면 짐 초안에 안 들어간다 (계획서 E4 · 기사님 «가») */
+    it('🔴 행의 기본 콜 적요 열에만 짐 글이 있으면 차종 기본값이다 — 출처는 VEHICLE', () => {
+        putOrder({ job_detailMemo: '라면박스 30개 수작업' });
+        birthFirstStep(USER, ORDER_ID);
+        expect(of('CALL_PICKUP').row.planned_source).toBe('VEHICLE');
+    });
+
     it('적요에 아무 힌트가 없으면 차종 기본값 — 출처는 VEHICLE', () => {
         putOrder({ detailMemo: '문의는 사무실로' });
         birthFirstStep(USER, ORDER_ID);

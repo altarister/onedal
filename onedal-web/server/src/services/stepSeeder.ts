@@ -96,8 +96,8 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     //       옛 시트는 열릴 때마다 파싱했다 — 이제 태어날 때 한 번 읽어 계획에 넣고,
     //       화면은 `planned_source` 배지(📄 적요에서 읽음 · 🚚 차종 기본값)만 그린다.
     const loaded = born.LOADED, callP = born.CALL_PICKUP, callD = born.CALL_DROPOFF;
-    const vehicleCargo = defaultCargoByVehicle(o.vehicleType);
-    const hints = parseCargoHints(o.itemDescription, o.detailMemo);
+    const vehicleCargo = defaultCargoByVehicle(o.load.vehicleType);
+    const hints = parseCargoHints(o.load.itemDescription, o.job.detailMemo);
     // 단위 없는 개수는 못 믿는다 — "30개"가 박스인지 마대인지 모른다
     const memoQty = hints.unit != null && hints.quantity != null ? hints.quantity : null;
     const unit = loaded?.actual_unit ?? callP?.planned_unit ?? hints.unit ?? vehicleCargo?.unit ?? null;

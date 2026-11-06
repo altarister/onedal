@@ -187,3 +187,11 @@ describe('🎯 증거 서랍 «원본 칸» — 이름은 옛 칸 그대로, 값
         expect(f.orderForm).toBe('급송');
     });
 });
+
+describe('🎯 증거 서랍 «원본 칸» — 차종 · 품목 값은 묶음에서 (계획서 E4)', () => {
+    it('vehicleType · itemDescription 글자 이름 그대로, 값은 load', () => {
+        const f = Object.fromEntries(rawFieldsOf({ ...ROUTE, vehicleType: '옛', itemDescription: '옛', load: { vehicleType: '다마스', itemDescription: '박스' } }));
+        expect(f.vehicleType).toBe('다마스');
+        expect(f.itemDescription).toBe('박스');
+    });
+});

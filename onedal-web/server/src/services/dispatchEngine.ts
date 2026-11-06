@@ -718,7 +718,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
          *    잡은 콜을 다 더해 세면 KEEP 은 예약인데 3~4콜에서 «만재»로 막힌다.
          */
         const myVehicle = SettingsRepository.getKakaoRoutingOptions(userId).vehicleType || '1t';
-        const loadedVehicles = getActiveCalls(session).map(c => c.vehicleType || myVehicle);
+        const loadedVehicles = getActiveCalls(session).map(c => asShaped(c).load.vehicleType || myVehicle);
 
         // [자체 리뷰 C] 차종을 인식하지 못하면 보수적으로 "내 차를 가득 채운 것"으로 계산한다.
         // 안전한 방향이지만 그만큼 합짐 콜 잡기 범위가 좁아지므로, 조용히 넘어가면 안 된다.

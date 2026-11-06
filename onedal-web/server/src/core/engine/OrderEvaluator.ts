@@ -605,11 +605,12 @@ export class OrderEvaluator {
     private runStage1ShapeFilter(order: SecuredOrder | PendingOrder, filter: any, reasons: string[], pros: string[]): { excludedHits: string[] } {
         
         // 1) 차종 검사 — 배차망은 줄여 적는다(«승»). 원달앱처럼 줄임말을 맞춰 본다
-        if (filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 && order.vehicleType) {
-            if (!filter.allowedVehicleTypes.includes(normalizeVehicleType(order.vehicleType) ?? order.vehicleType)) {
-                reasons.push(`차종(${order.vehicleType}) 불일치`);
+        const vehicleType = asShaped(order).load.vehicleType;   // 🎯 차종은 묶음에서 읽는다 (계획서 E4)
+        if (filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 && vehicleType) {
+            if (!filter.allowedVehicleTypes.includes(normalizeVehicleType(vehicleType) ?? vehicleType)) {
+                reasons.push(`차종(${vehicleType}) 불일치`);
             } else {
-                pros.push(`차종(${order.vehicleType}) 일치`);
+                pros.push(`차종(${vehicleType}) 일치`);
             }
         }
 
@@ -707,7 +708,7 @@ export class OrderEvaluator {
             const routingOpts = SettingsRepository.getKakaoRoutingOptions(userId);
             const base = PricingEngine.calculateDynamicFare(
                 order.kakaoSoloDistanceKm,
-                order.vehicleType || undefined,
+                asShaped(order).load.vehicleType || undefined,
                 routingOpts.vehicleType,
                 pricing
             );

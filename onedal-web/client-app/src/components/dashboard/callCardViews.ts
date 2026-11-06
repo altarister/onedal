@@ -281,8 +281,8 @@ export function stopBlocksOf({ route, timeline, visitOrder, timing, etas, seeded
 export function rawFieldsOf(route: SecuredOrder): Array<[string, unknown]> {
     return Object.entries({
         id: route.id, type: route.type, status: route.status,
-        receiptStatus: route.receiptStatus, itemDescription: route.itemDescription,
-        vehicleType: route.vehicleType, commissionRate: route.commissionRate,
+        receiptStatus: route.receiptStatus, itemDescription: route.load?.itemDescription,
+        vehicleType: route.load?.vehicleType, commissionRate: route.commissionRate,
         tollFare: route.tollFare, paymentType: route.paymentType,
         billingType: route.billingType, tripType: route.job?.tripType,   // 🎯 서랍 글자는 옛 이름, 값은 묶음 (계획서 E2)
         orderForm: route.job?.orderForm, distanceKm: route.distanceKm,

@@ -6,7 +6,7 @@ import { planArrivalStops } from '../services/routeComposer';
 import type { RouteSnapshot } from '../services/routeComposer';
 import { stepsView, stepRecordsOf, plannedDwellOf } from '../services/stepSeeder';
 import { slog } from '../utils/fileLogger';
-import { clockText } from "@onedal/shared";
+import { clockText, asShaped } from "@onedal/shared";
 import { getActiveCalls } from "./activeCalls";
 
 /**
@@ -60,7 +60,7 @@ export function computeLoadedPoints(
             pointsByOrder[c.id] = reported;
             if (!actual) anyDeclaredOnly = true;
         } else {
-            const guess = VEHICLE_CAPACITY[normalizeVehicleType(c.vehicleType || myVehicle) || myVehicle] ?? 0;
+            const guess = VEHICLE_CAPACITY[normalizeVehicleType(asShaped(c).load.vehicleType || myVehicle) || myVehicle] ?? 0;
             points += guess;
             pointsByOrder[c.id] = guess;
             anyEstimated = true;

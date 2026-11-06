@@ -271,6 +271,7 @@ export default function PinnedRouteCard({
      */
     // 🎛️ 판정 기준 탭의 시간 4칸을 함께 — 조립은 derivationInputsOf 한 곳 (서버·타임라인과 동일)
     const { rules: jdRules, unk: jdUnk } = derivationInputsOf(useJudgmentStore.getState().judgment);
+    const { load } = asShaped(route);   // 🎯 차종 · 품목은 묶음에서 읽는다 (계획서 E4)
     const timing = deriveCallTiming(asShaped(route), cargoReports, milestoneLog, Date.now(), jdRules, jdUnk);
     const soloKm = timing.soloKm;
     const soloMin = timing.soloMinutes;
@@ -315,9 +316,9 @@ export default function PinnedRouteCard({
                       * 🚚 **이 콜이 부르는 차종** — 단가가 여기서 나온다 (내 차종은 폴백일 뿐).
                       *    조회용 리스트 헤더는 첫 글자만 적으므로 **덱에서는 온전히 적는다.**
                       */}
-                    {judging && route.vehicleType && (
+                    {judging && load.vehicleType && (
                         <span className="px-1.5 rounded-[5px] text-[11px] font-black border
-                                         bg-surface-alt border-border-card text-text-primary">{route.vehicleType}</span>
+                                         bg-surface-alt border-border-card text-text-primary">{load.vehicleType}</span>
                     )}
                     {/**
                       * 🚨 **급송(독차)** — 서버와 같은 `isExpressOf`(묶음의 형태)로 가른다 — 서버는 DB(`isExpress`)에
@@ -729,7 +730,7 @@ export default function PinnedRouteCard({
                                         <div className="mt-1.5 flex flex-col gap-1.5 rounded-lg border border-border-card bg-surface-alt/30 px-2.5 py-2 text-[11.5px]">
                                             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-text-muted tabular-nums">
                                                 <span>잡은 시각 <b className="text-text-primary">{clockText(route.capturedAt) ?? '-'}</b></span>
-                                                {route.vehicleType && <span className="px-1.5 rounded-[5px] font-black border bg-surface-alt border-border-card text-text-primary">{route.vehicleType}</span>}
+                                                {load.vehicleType && <span className="px-1.5 rounded-[5px] font-black border bg-surface-alt border-border-card text-text-primary">{load.vehicleType}</span>}
                                                 {route.commissionRate && <span>· 수수료 {route.commissionRate}</span>}
                                                 {route.time?.pickup?.text && <span className="text-warning font-bold">🕒 {route.time?.pickup?.text}</span>}
                                             </div>
@@ -738,11 +739,11 @@ export default function PinnedRouteCard({
                                               * 🔴 짐이 없으면 안 그린다 — 적요에서 짜내지 않는다 (규칙 ④).
                                               * ~ 는 아직 통화 전(추정 약속) · 지나간 정거장은 안 센다.
                                               */}
-                                            {(route.itemDescription || budgets.length > 0 || deadlineAt) && (
+                                            {(load.itemDescription || budgets.length > 0 || deadlineAt) && (
                                                 <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
-                                                    {route.itemDescription && (
+                                                    {load.itemDescription && (
                                                         <span className="px-2 py-0.5 rounded-md border font-black bg-surface-alt/60 border-border-card text-text-primary">
-                                                            📦 {route.itemDescription}
+                                                            📦 {load.itemDescription}
                                                         </span>
                                                     )}
                                                     {budgets.length > 0 && <span className="text-text-muted font-bold">버퍼</span>}
