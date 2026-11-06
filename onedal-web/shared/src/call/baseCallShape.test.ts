@@ -2,7 +2,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
-import { OFFICE_FIELDS, asShaped, baseCallShapeOf, collectWonOf, fareWonOf, isExpressOf, mergeBaseCall, officeOrderOf } from './baseCallToOffice';
+import { OFFICE_FIELDS, asShaped, baseCallShapeOf, collectWonOf, fareWonOf, isExpressOf, mergeBaseCall, officeOrderOf, stopAddressOf } from './baseCallToOffice';
 
 /**
  * 🎯 **콜에 펼친 기본 콜 묶음** (계획서 E) — 옛 칸이 있는 값은 옛 칸에서, 옛 칸이 없는 새 값만 원달앱 기본 콜에서.
@@ -127,4 +127,22 @@ describe('💵 받을 현금 (collectWonOf)', () => {
     });
     it('받을 현금 줄이 없으면 요금 — 옛 앱 · 원달앱이 잡은 콜 · 다른 배차망', () => expect(collectWonOf({ ...baseCallShapeOf({ fare: 30000 }) })).toBe(30000));
     it('둘 다 없으면 0', () => expect(collectWonOf({ money: { lines: [] } })).toBe(0));
+});
+
+/* 📍 정거장 주소 — 묶음의 주소 칸 · 비면 목록 지역 글자 (계획서 E7 · officeOrderOf 와 같은 규칙) */
+describe('📍 정거장 주소 (stopAddressOf)', () => {
+    it.each(filled.map((c) => [c.why, c]))('문제지 콜을 펼치면 주소 = 옛 칸 — %s', (_w, c) => {
+        const o = { ...c.expectCall, ...baseCallShapeOf(c.expectCall, mergedOf(c)) };
+        expect([stopAddressOf(o, 'pickup'), stopAddressOf(o, 'dropoff')]).toEqual([c.expectCall.pickup ?? '', c.expectCall.dropoff ?? '']);
+    });
+    it('묶음이 있으면 묶음의 주소 — 옛 칸이 아니다', () => {
+        expect(stopAddressOf({ pickup: '옛', route: { pickup: { addressDetail: '경기 광주시 경안동 1-2' }, dropoff: {} } }, 'pickup')).toBe('경기 광주시 경안동 1-2');
+    });
+    it('주소 칸이 비면 목록 지역 글자', () => {
+        expect(stopAddressOf({ route: { pickup: {}, dropoff: {}, listRegion: { dropoff: '한남동' } } }, 'dropoff')).toBe('한남동');
+    });
+    it('묶음이 없는 콜은 옛 칸 · 둘 다 없으면 빈 글자', () => {
+        expect(stopAddressOf({ pickup: '경안동' }, 'pickup')).toBe('경안동');
+        expect(stopAddressOf({}, 'dropoff')).toBe('');
+    });
 });

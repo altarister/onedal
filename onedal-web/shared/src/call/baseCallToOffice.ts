@@ -258,6 +258,15 @@ export function collectWonOf(order: Pick<BaseCallShape, 'money'>): number {
     return order.money?.lines?.find((l) => l.kind === 'collect')?.won ?? fareWonOf(order);
 }
 
+/**
+ * 📍 **정거장 주소 글자** — 묶음의 주소 칸, 비면 목록 지역 글자 (계획서 E7 · `officeOrderOf` 와 같은 규칙).
+ * 깎지 않는다 — 배차망 꼬리 글자를 다듬는 일은 `addressOf`(지오코딩 · 판정)의 몫이다. 묶음이 없는 콜은 옛 칸으로 펼쳐 읽는다.
+ */
+export function stopAddressOf(order: Partial<Pick<OfficeOrder, 'pickup' | 'dropoff' | 'route'>>, side: 'pickup' | 'dropoff'): string {
+    const route = order.route ?? baseCallShapeOf(order).route;
+    return route?.[side]?.addressDetail || route?.listRegion?.[side] || '';
+}
+
 /** 🚨 **급송 콜인가** — 묶음의 형태(job.orderForm) 하나로 가른다. 서버 저장 · 관제웹 표시가 같은 함수를 쓴다 (계획서 E2) */
 export function isExpressOf(order: Pick<BaseCallShape, 'job'>): boolean {
     return order.job?.orderForm === '급송';

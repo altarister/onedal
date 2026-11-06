@@ -10,6 +10,8 @@
 import type { TargetAppType, LocationDetailInfo, DetailedOfficeOrder } from '../index';
 import { BILLING_TYPES, PAYMENT_TYPES, type PaymentType, type BillingType } from '../call/paymentTypes';
 import type { PageField, ScreenPage } from './pageFields';
+import type { BaseCallShape } from '../call/orderShapes';
+import { stopAddressOf } from '../call/baseCallToOffice';
 import { NETWORK_PAGES, fieldsOf } from './networkPages';
 
 /**
@@ -83,7 +85,7 @@ export function addressOf(app: TargetAppType, raw: string): string {
 
 type GeoSide = 'pickup' | 'dropoff';
 /** 지오코딩 재료 — 콜 글 · 상세 팝업 주소 · 지금 좌표 · 그 좌표를 찍은 글(메모리만 · 저장 칸 아님) */
-export type GeocodeSource = Partial<Record<GeoSide, string> & Record<`${GeoSide}X` | `${GeoSide}Y`, number>
+export type GeocodeSource = Partial<Record<GeoSide, string> & Pick<BaseCallShape, 'route'> & Record<`${GeoSide}X` | `${GeoSide}Y`, number>
     & Record<`${GeoSide}GeoText`, string>
     & Record<`${GeoSide}Details`, ReadonlyArray<{ addressDetail?: string }>>>;
 /**
@@ -93,7 +95,7 @@ export type GeocodeSource = Partial<Record<GeoSide, string> & Record<`${GeoSide}
  */
 export function geocodeTargetOf(app: TargetAppType, order: GeocodeSource, side: GeoSide): { text: string; need: boolean } {
     const detail = order[`${side}Details`]?.[0]?.addressDetail?.trim();
-    const text = addressOf(app, detail || order[side] || '');
+    const text = addressOf(app, detail || stopAddressOf(order, side));   // 📍 팝업 위치가 먼저 · 다음은 묶음의 주소 (계획서 E7)
     const need = !order[`${side}X`] || !order[`${side}Y`] || order[`${side}GeoText`] !== text;
     return { text, need };
 }

@@ -7,7 +7,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { baseCallShapeOf, asShaped, fareWonOf } from "@onedal/shared";
+import { baseCallShapeOf, asShaped, fareWonOf, stopAddressOf } from "@onedal/shared";
 import type { BaseCallShape } from "@onedal/shared";
 import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP, geocodeTargetOf } from '@onedal/shared';
 import type { GeocodeSource } from '@onedal/shared';
@@ -83,7 +83,7 @@ export function evaluationInputsOf(userId: string, session: ReturnType<typeof ge
      */
     /* 🏠 오늘 콜은 KEEP 과 같은 목표 시(관내 콜은 그 목적지 시 · 그 밖은 필터값) — 복귀를 켠 뒤 관내 콜을 «집 방향»으로 깎지 않는다 (38 F41 · `keepGoalCityOf`) */
     const goalNow = () => reservedLater ? (session.baseFilter.destinationCity ?? '')
-        : keepGoalCityOf({ dropoff: String(order.dropoff ?? ''), destCities: destCitiesOf(session), dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) }).city;
+        : keepGoalCityOf({ dropoff: stopAddressOf(order, 'dropoff'), destCities: destCitiesOf(session), dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) }).city;
     /**
      * 🔙 등 뒤 상차의 여유(상차 반경) — 내일 콜은 **내일의 반경**(기본 설정 값). 오늘 자동 반경으로 줄인 값으로 재면 내일 콜을 등 뒤로 깎는다.
      *    기본 값이 비면 오늘 반경으로 물러서지 않고 «모름»(null) — 깎지 않는다.
@@ -173,7 +173,7 @@ export class OrderEvaluator {
     public prefetch(userId: string, order: { pickup?: string; dropoff?: string; time?: BaseCallShape['time']; capturedAt?: string; timestamp?: string }): Promise<void> {
         return hedgeBudget.run({ left: 2, used: 0 }, async () => {
             try {
-                if (!process.env.KAKAO_REST_API_KEY || !order.pickup || !order.dropoff) return;
+                if (!process.env.KAKAO_REST_API_KEY || !stopAddressOf(order, 'pickup') || !stopAddressOf(order, 'dropoff')) return;
                 const [p, d] = await Promise.all([
                     geocodeCallAddress(geocodeTargetOf(this.targetApp as TargetAppType, order as GeocodeSource, 'pickup').text),
                     geocodeCallAddress(geocodeTargetOf(this.targetApp as TargetAppType, order as GeocodeSource, 'dropoff').text),
@@ -214,7 +214,7 @@ export class OrderEvaluator {
         let timeExt = "카카오 연산 실패";
 
         slog('판정', `\n======================================================`);
-        slog('판정', `[서버-사이드 카카오 연산] 🚀 ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
+        slog('판정', `[서버-사이드 카카오 연산] 🚀 ${stopAddressOf(securedOrder, 'pickup')} ➡️ ${stopAddressOf(securedOrder, 'dropoff')}`);
         if (reservedLater) slog('판정', `   - ${reservedLaterLineOf(reservedForOf(asShaped(securedOrder)), snap.origin, snap.pickupRadiusKm)}`);
 
         // 1. 주소 정규화 — 상차·하차는 원달앱이 올린 전체 주소 그대로다(서버는 팝업에서 주소를 꺼내지 않는다)
@@ -268,7 +268,7 @@ export class OrderEvaluator {
                     const who = callName({ target: snap.filter.callTarget,
                                            index: snap.activeCalls.length, candidate: true });
                     const missing = !securedOrder.pickupX ? '상차지' : '하차지';
-                    const addr = (!securedOrder.pickupX ? securedOrder.pickup : securedOrder.dropoff) || '';
+                    const addr = stopAddressOf(securedOrder, !securedOrder.pickupX ? 'pickup' : 'dropoff');
                     reasons.push(`${who}의 ${missing} 주소를 찾지 못했습니다`);
                     slog('경고', `   - ❌ ${who}: ${missing} 좌표 변환 실패 — '${addr}'`);
                 }
@@ -675,7 +675,7 @@ export class OrderEvaluator {
             if (keywords.length === 0) {
                 reasons.push(`경유 미확정 (경로가 아직 안 잡혔습니다)`);
             } else {
-                const dropoffText = order.dropoff || '';
+                const dropoffText = stopAddressOf(order, 'dropoff');   // 📍 묶음의 주소 (계획서 E7)
                 // 🗺️ 사전 확장 매칭 (④) — "남동"⊂"남동구" 부분 문자열 오탐을 트랩으로 거른다
                 const matched = anyRegionHit(dropoffText, keywords, filter.keywordTraps, filter.destinationDongSigungu);
                 if (!matched) {

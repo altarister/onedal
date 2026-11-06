@@ -1,4 +1,4 @@
-import { type DecisionStatus } from '@onedal/shared';
+import { type DecisionStatus, stopAddressOf } from '@onedal/shared';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { unreadableAfter, type Unreadable } from '../lib/unreadable';
 import { reportWebCode } from '../lib/webCodeVersion';
@@ -140,7 +140,7 @@ export function useOrderEngine() {
         // 1단계: 1차 선점 수신 (BASIC) — 닫기/취소 버튼 노출
         const onOrderEvaluating = (secured: SecuredOrder) => {
             setUnreadable(prev => unreadableAfter(prev, { type: 'evaluating' }));
-            logRoadmapEvent("콜단계", "웹", `🟢 [웹 수신] order-evaluating | ID: ${secured.id} | 기기: ${secured.capturedDeviceId} | ${secured.dropoff}`, "관제대시보드");
+            logRoadmapEvent("콜단계", "웹", `🟢 [웹 수신] order-evaluating | ID: ${secured.id} | 기기: ${secured.capturedDeviceId} | ${stopAddressOf(secured, 'dropoff')}`, "관제대시보드");
             logRoadmapEvent("화면", "웹", `확정페이지 진입 (선점 수신으로 상세 모드 구동)`, "관제대시보드");
             logRoadmapEvent("화면", "웹", "심사석에 심사 중 콜 — 판정 전이라 무채색", "관제대시보드");
 

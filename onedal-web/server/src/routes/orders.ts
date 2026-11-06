@@ -36,7 +36,7 @@ import { ownsOrder, ownedByOther } from "../core/orderOwner";
 import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import { isAppTooOld } from "../state/phoneStatus";
 import { holdBaseCall, heldBaseCallOf } from "../services/baseCallCompare";
-import { withoutBaseCallColumns, baseCallShapeOf } from "@onedal/shared";
+import { withoutBaseCallColumns, baseCallShapeOf, stopAddressOf } from "@onedal/shared";
 
 /* 펼친 행에서 묶음 키만 — 나머지는 아래 칸 손질이 정한다 */
 const pickShape = (row: Record<string, any>) => Object.fromEntries(['route', 'money', 'load', 'time', 'job', 'stage', 'requesterName', 'fromOtherOffice', 'orderNo', 'clientOrderNo'].filter((k) => row[k] !== undefined).map((k) => [k, row[k]]));
@@ -233,7 +233,7 @@ router.post("/confirm", (req, res) => {
         if (io) {
             slog('통신', `📤 [Socket 푸시] order-evaluating (${pendingOrder.id}) - 상태: ${pendingOrder.status}`);
             io.to(userId).emit("order-evaluating", pendingOrder);
-            slog('콜단계', `⏱️ [1차 선점 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${deviceLabelOf(payload.deviceId)})`);
+            slog('콜단계', `⏱️ [1차 선점 수신] ${stopAddressOf(pendingOrder, 'pickup')} ➡️ ${stopAddressOf(pendingOrder, 'dropoff')} (기기: ${deviceLabelOf(payload.deviceId)})`);
             logRoadmapEvent('콜단계', "서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");
             logRoadmapEvent('콜단계', "서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
 

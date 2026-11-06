@@ -3,7 +3,7 @@ import {
     CALL_NOTE_MEMO_MAX, CARGO_UNITS, LEGACY_CARGO_UNITS, CONTENT_KINDS, DEVICE_OFFLINE_LABEL, IN_PROGRESS_STATUSES, WORD_KINDS, isTargetApp, isoKst, restoreWindow, runningModeOf, isDeviceMode,
     type CargoReport, type CargoUnit, type OpsAgreement, type OpsCallNote,
     type ContentKind, type OpsAnomaly, type OpsAudit, type OpsCall, type OpsContent, type OpsCounts, type OpsMember,
-    type OpsMemberDetail, type OpsJudgedCall, type JudgedCallInfo, type JudgedFilterInfo, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind,
+    type OpsMemberDetail, type OpsJudgedCall, type JudgedCallInfo, type JudgedFilterInfo, type OpsNotice, type OpsPhone, type OpsScreenWord, type TargetAppType, type WordKind, stopAddressOf,
 } from "@onedal/shared";
 import db from "../db";
 import { getUserDevicesSnapshot, getActiveDevicesSnapshot } from "../state/deviceSessions";
@@ -510,7 +510,7 @@ router.get("/board/member", (req, res) => {
     const j = session ? judgingCallOf(buildOrderSync(session).active as Array<Record<string, any>>) : undefined;
     const body: OpsBoardMember = {
         location: loc ? { lat: loc.y, lng: loc.x, at: loc.at != null ? new Date(loc.at).toISOString() : null, source: loc.source ?? null, isFallback: !!loc.isFallback, region: nearestDong({ lng: loc.x, lat: loc.y }).region } : null,
-        judging: j ? { id: j.id, pickup: j.pickup ?? null, dropoff: j.dropoff ?? null, status: j.status ?? null, isPreview: !!j.isPreview, fare: j.fare ?? null, judgment: j.judgment ?? null } : null,
+        judging: j ? { id: j.id, pickup: stopAddressOf(j, 'pickup') || null, dropoff: stopAddressOf(j, 'dropoff') || null, status: j.status ?? null, isPreview: !!j.isPreview, fare: j.fare ?? null, judgment: j.judgment ?? null } : null,
         newWords: recentNewWords(7),
     };
     res.json(body);

@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder, EmergencyAlert } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, fareWonOf, asShaped, baseCallShapeOf, detailRecordOf, missingAlwaysOf, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, fareWonOf, asShaped, baseCallShapeOf, stopAddressOf, detailRecordOf, missingAlwaysOf, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -150,8 +150,8 @@ router.post("/", async (req, res) => {
             const phone2 = pendingOrder.pickupDetails?.[0]?.phone1;
             const isPhoneMatch = (phone1 === phone2) && !!phone1;
 
-            const isPickupAddressMatch = existingOrder.pickup === pendingOrder.pickup;
-            const isDropoffAddressMatch = existingOrder.dropoff === pendingOrder.dropoff;
+            const isPickupAddressMatch = stopAddressOf(existingOrder, 'pickup') === stopAddressOf(pendingOrder, 'pickup');   // 📍 146 에서 다시 펼친 묶음의 주소 (계획서 E7)
+            const isDropoffAddressMatch = stopAddressOf(existingOrder, 'dropoff') === stopAddressOf(pendingOrder, 'dropoff');
             const existingFare = fareWonOf(asShaped(existingOrder));
             const isFareMatch = existingFare > 0 && existingFare === fareWonOf(asShaped(pendingOrder));
 
@@ -269,8 +269,8 @@ router.post("/", async (req, res) => {
              */
             const unreadable: string[] = [];
             if (fareWonOf(asShaped(pendingOrder)) <= 0) unreadable.push('요금');   // 💰 기억에 넣으며 펼친 묶음의 요금 (계획서 E5)
-            if (!pendingOrder.pickup || pendingOrder.pickup === '배차값없음') unreadable.push('상차지');
-            if (!pendingOrder.dropoff || pendingOrder.dropoff === '배차값없음') unreadable.push('하차지');
+            if (!stopAddressOf(pendingOrder, 'pickup') || stopAddressOf(pendingOrder, 'pickup') === '배차값없음') unreadable.push('상차지');
+            if (!stopAddressOf(pendingOrder, 'dropoff') || stopAddressOf(pendingOrder, 'dropoff') === '배차값없음') unreadable.push('하차지');
 
             if (unreadable.length > 0) {
                 const what = unreadable.join('·');
@@ -345,7 +345,7 @@ router.post("/", async (req, res) => {
                     forceCancelEvaluatingOrder(userId, pendingOrder.id, io);
                     if (io) io.to(userId).emit("handler-error", {
                         event: 'manual-confirm',
-                        message: `수동 콜(${pendingOrder.pickup} → ${pendingOrder.dropoff}) 확정에 실패했습니다. 배차망에서 직접 확인해 주세요.`,
+                        message: `수동 콜(${stopAddressOf(pendingOrder, 'pickup')} → ${stopAddressOf(pendingOrder, 'dropoff')}) 확정에 실패했습니다. 배차망에서 직접 확인해 주세요.`,
                     });
                 });
             return;
@@ -376,8 +376,8 @@ router.post("/", async (req, res) => {
                     const warning: SafeCancelWarning = {
                         orderId: payload.order.id,
                         deviceId: payload.deviceId,
-                        pickup: pendingOrder.pickup,
-                        dropoff: pendingOrder.dropoff,
+                        pickup: stopAddressOf(pendingOrder, 'pickup'),
+                        dropoff: stopAddressOf(pendingOrder, 'dropoff'),
                         message: `${cancelSec}초 안전취소!`,   // ⚠️ 는 관제웹 경고 줄이 붙인다
                         timestamp: new Date().toISOString(),
                     };

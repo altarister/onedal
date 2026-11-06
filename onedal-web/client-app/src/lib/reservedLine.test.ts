@@ -18,6 +18,13 @@ describe('📅 예약 한 줄', () => {
         expect(line.text).toBe(`10/1(목) · 09:00 · ${line.route} · 3.0만 · 🔵`);
     });
 
+    /* 📍 상차→하차 글자는 묶음의 주소에서 (계획서 E7) */
+    it('상차→하차는 묶음의 주소', () => {
+        const line = reservedLineOf({ ...base, pickup: '경기 이천시 신둔면 1', dropoff: '경기 여주시 가남읍 2', reservedFor: '2026-10-01', route: { pickup: { addressDetail: '경기 광주시 경안동 1-2' }, dropoff: { addressDetail: '서울 용산구 한남동 12' } } });
+        expect(line.route).toContain('한남동');
+        expect(line.route).toContain('경안동');
+    });
+
     it('🔴 모르는 것은 지어내지 않는다 — 시각 없음 «--:--» · 판정 없음 «—»', () => {
         const line = reservedLineOf({ ...base, reservedFor: '2026-10-01' });
         expect(line.at).toBe('--:--');

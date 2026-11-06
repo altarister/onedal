@@ -27,3 +27,10 @@ describe('📍 geocodeTargetOf', () => {
         expect(geocodeTargetOf('insung', { pickup: '초월읍', pickupX: 1, pickupY: 2 }, 'pickup').need).toBe(true);
     });
 });
+
+/* 📍 콜 글은 묶음의 주소에서 — 팝업 위치가 먼저인 차례는 그대로 (계획서 E7) */
+describe('📍 geocodeTargetOf — 묶음의 주소', () => {
+    const shaped = { pickup: '옛 글', route: { pickup: { addressDetail: '경기 광주시 경안동 1-2' }, dropoff: {} } };
+    it('🔴 콜 글은 묶음의 주소', () => expect(geocodeTargetOf('insung', shaped, 'pickup').text).toBe('경기 광주시 경안동 1-2'));
+    it('🔴 팝업 위치가 있으면 그것이 먼저', () => expect(geocodeTargetOf('insung', { ...shaped, pickupDetails: [{ addressDetail: DETAIL }] }, 'pickup').text).toBe(DETAIL));
+});

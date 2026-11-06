@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { deckOfCycle, type SecuredOrder, manwonText, ORDER_STATUS_LABEL, fareWonOf, asShaped } from '@onedal/shared';
+import { deckOfCycle, type SecuredOrder, manwonText, ORDER_STATUS_LABEL, fareWonOf, asShaped, stopAddressOf } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { reservedLineOf } from '../../lib/reservedLine';
@@ -162,7 +162,7 @@ export default function Drawer({ open, onClose, activeRoute, reserved = [], onDe
                                 <span className="text-[13px] font-bold text-text-primary truncate">
                                     {FINISHED_TABS.find(t => t.key === tab)?.mark}{' '}
                                     {/* 🔴 `getAddressLabel` 이 빈 주소에 «배차값없음» 을 돌려준다 — 여기서 또 감싸지 않는다 */}
-                                    {getAddressLabel(c.pickup)} → {getAddressLabel(c.dropoff)}
+                                    {getAddressLabel(stopAddressOf(c, 'pickup'))} → {getAddressLabel(stopAddressOf(c, 'dropoff'))}
                                 </span>
                                 <span className="text-[12px] font-bold tabular-nums text-text-muted shrink-0">
                                     {won(fareWonOf(asShaped(c)))}

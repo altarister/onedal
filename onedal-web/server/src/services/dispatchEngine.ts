@@ -16,7 +16,7 @@ import { composeMergedRoute, planArrivalStops, type PromiseOrderOpts, applyRoute
 import { firmPromiseMsOf, birthFirstStep, refreshPlannedSteps, stepsView } from "./stepSeeder";
 import { routeTlOf } from "./routeTl";
 import { saveHeldBaseCall } from "./baseCallCompare";
-import { DEFAULT_JUDGMENT, routeNeedsRecompute, isExpressOf, asShaped } from "@onedal/shared";
+import { DEFAULT_JUDGMENT, routeNeedsRecompute, isExpressOf, asShaped, stopAddressOf } from "@onedal/shared";
 import type { JudgmentConfig } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { countCancel, countKeep, writesLedger } from "../core/cancelCount";
@@ -581,14 +581,14 @@ export async function handleDecision(userId: string, orderId: string, status: De
                 saveHeldBaseCall(userId, cachedOrder.id);   // 🎯 기본 콜 · 화면 기록도 같은 행에 (계획서 D2)
 
                 // 2. places UPSERT 및 orderStops 추가 (상차지)
-                const p = stopPlaceFrom(cachedOrder.pickupDetails?.[0], cachedOrder.pickup, cachedOrder.pickupX, cachedOrder.pickupY);
+                const p = stopPlaceFrom(cachedOrder.pickupDetails?.[0], stopAddressOf(cachedOrder, 'pickup'), cachedOrder.pickupX, cachedOrder.pickupY);
                 const pPlaceId = PlaceRepository.upsertPlace(userId, p.address, p.name, p.region, p.x, p.y, p.phone);
                 if (pPlaceId) {
                     OrderRepository.insertOrderStop(cachedOrder.id, pPlaceId, 'pickup', p.name, p.phone);
                 }
 
                 // 3. places UPSERT 및 orderStops 추가 (하차지)
-                const d = stopPlaceFrom(cachedOrder.dropoffDetails?.[0], cachedOrder.dropoff, cachedOrder.dropoffX, cachedOrder.dropoffY);
+                const d = stopPlaceFrom(cachedOrder.dropoffDetails?.[0], stopAddressOf(cachedOrder, 'dropoff'), cachedOrder.dropoffX, cachedOrder.dropoffY);
                 const dPlaceId = PlaceRepository.upsertPlace(userId, d.address, d.name, d.region, d.x, d.y, d.phone);
                 if (dPlaceId) {
                     OrderRepository.insertOrderStop(cachedOrder.id, dPlaceId, 'dropoff', d.name, d.phone);
@@ -638,7 +638,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
              *    하차의 **행정 시**가 오늘 목적지 시인가 하나로 가른다(`keepGoalCityOf`).
              * 🔴 넣기 **전에** 적는다 — 승격본·캐시본 둘 다 (화면·장부가 갈리지 않게)
              */
-            const goal = keepGoalCityOf({ dropoff: String((cachedOrder as any).dropoff ?? ''), destCities: destCitiesOf(session),
+            const goal = keepGoalCityOf({ dropoff: stopAddressOf(cachedOrder, 'dropoff'), destCities: destCitiesOf(session),
                 dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) });
             confirmedOrder.goalCity = goal.city || undefined;
             (cachedOrder as any).goalCity = confirmedOrder.goalCity;

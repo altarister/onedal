@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { stopAddressOf } from '@onedal/shared';
 import { socket } from '../../lib/socket';
 import { telHref } from '../../lib/routeUtils';
 import { callNow } from '../../lib/phoneCall';
@@ -68,7 +69,7 @@ export default function CargoMismatchBanner({ orders }: { orders: SecuredOrder[]
                                     {where} 짐이 신고와 다릅니다 — 실제가 {a.ratio.toFixed(1)}배 {bigger ? '많음' : '적음'}
                                 </p>
                                 <p className="text-xs text-text-muted mt-0.5 break-keep">
-                                    {order ? `${order.pickup} → ${order.dropoff}` : a.orderId.slice(0, 8)}
+                                    {order ? `${stopAddressOf(order, 'pickup')} → ${stopAddressOf(order, 'dropoff')}` : a.orderId.slice(0, 8)}
                                     {bigger && ' · 이대로 실으면 남은 합짐 계획이 깨집니다'}
                                 </p>
                             </div>

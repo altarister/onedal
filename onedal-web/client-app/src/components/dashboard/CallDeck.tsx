@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
-import { deriveCallTiming, derivationInputsOf, asShaped } from '@onedal/shared';
+import { deriveCallTiming, derivationInputsOf, asShaped, stopAddressOf } from '@onedal/shared';
 import type { RouteTimelineEntry } from '@onedal/shared';
 import { pickAutoFocus } from '../../lib/deckFocus';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -302,7 +302,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                                         {seq ?? '?'}
                                     </span>
                                     <span className={`truncate px-1 py-0.5 ${gone ? 'text-text-muted' : 'text-text-primary'}`}>
-                                        {getAddressLabel(stop === 'pickup' ? o.pickup : o.dropoff)}
+                                        {getAddressLabel(stopAddressOf(o, stop === 'pickup' ? 'pickup' : 'dropoff'))}
                                         {stop === 'dropoff' && showBoard && o.goalCity && <span className="ml-1 text-[9.5px] font-bold text-info">🎯{o.goalCity}</span>}
                                     </span>
                                     {/* ☎️ 통화로 정한 약속은 **보라** — 글자를 더하면 격자가 깨진다 (폭 0인 신호) */}

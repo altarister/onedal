@@ -1,4 +1,4 @@
-import { isTerminal, isDeliveredCall, hasVisitedStop } from '@onedal/shared';
+import { isTerminal, isDeliveredCall, hasVisitedStop, stopAddressOf, type BaseCallShape } from '@onedal/shared';
 
 /**
  * 👣 **다녀온 정거장의 순서 — 번호를 세는 목록** (기사님 실측).
@@ -43,8 +43,9 @@ export interface VisitedStop {
 interface DeckCall {
     id: string;
     status?: string | null;
-    pickup: string;
-    dropoff: string;
+    pickup?: string;
+    dropoff?: string;
+    route?: BaseCallShape['route'];   // 📍 정거장 이름은 묶음의 주소에서 (계획서 E7)
     pickupX?: number | null;
     pickupY?: number | null;
     dropoffX?: number | null;
@@ -69,10 +70,10 @@ export function visitedSequenceOf<T extends DeckCall>(
         if (isTerminal(r.status ?? undefined) && !isDeliveredCall(r)) continue;
         if (hasVisitedStop(r, 'pickup'))
             out.push({ x: r.pickupX ?? null, y: r.pickupY ?? null, type: '상차', orderId: r.id, no: 0,
-                       name: nameOf(r.pickup), at: msOf(r.arrivedPickupAt) });
+                       name: nameOf(stopAddressOf(r, 'pickup')), at: msOf(r.arrivedPickupAt) });
         if (hasVisitedStop(r, 'dropoff'))
             out.push({ x: r.dropoffX ?? null, y: r.dropoffY ?? null, type: '하차', orderId: r.id, no: 0,
-                       name: nameOf(r.dropoff), at: msOf(r.arrivedDropoffAt) });
+                       name: nameOf(stopAddressOf(r, 'dropoff')), at: msOf(r.arrivedDropoffAt) });
     }
     /**
      * 🕐 **시각을 모르면 뒤로 보낸다** — `0` 을 넣으면 «아주 옛날»이라 ✓1 을 훔친다
