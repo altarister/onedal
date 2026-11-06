@@ -141,6 +141,7 @@ describe('🎯 플러그인이 채운 기본 콜', () => {
     const insung = SHEET.cases.find((c) => c.network === 'insung' && c.detail.rawText.includes('[출발지상세]'));
     const minimalOf = (pickup: string, dropoff: string) => ({ route: { pickup: { addressDetail: pickup }, dropoff: { addressDetail: dropoff } }, money: { lines: [{ kind: 'unknown', won: insung.detail.fare, label: '옛 요금' }] }, load: {}, time: {}, job: {} });
     it.each([['기본 콜 보고', 'withBaseCall'], ['새 앱 보고(order 없음)', 'noOrder']])('🔴 인성 최소 기본 콜 · %s — 팝업 전화가 남는다', async (_n, way) => {
+        expect(insung).toBeDefined();   // 문제지에 팝업 머리표가 든 인성 사례가 있어야 이 검사가 선다
         const c = { ...insung, expectBaseCall: { confirm: minimalOf(insung.confirm.pickup, insung.confirm.dropoff), detail: minimalOf(insung.detail.pickup, insung.detail.dropoff) } };
         const got = await merged(c, SHEET.cases.length, way);
         expect([got.call.pickupDetails, got.call.dropoffDetails]).toEqual([insung.expectCall.pickupDetails, insung.expectCall.dropoffDetails]);

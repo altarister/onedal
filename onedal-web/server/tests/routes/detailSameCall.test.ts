@@ -190,7 +190,7 @@ describe('🔎 새 앱 보고 — 팝업 주소 비교', () => {
         keep({ pickup: '팝업 주소 A' });
         expectKept(await reportNew({ route: { pickup: { addressDetail: '팝업 주소 A', customerName: '가나상사', phone1: '010-2222-2222' }, dropoff: { addressDetail: DROPOFF, customerName: '다라상회' } } }, detailText('010-2222-2222', '팝업 주소 A')));
     });
-    it('주소만 있는 최소 기본 콜 — 팝업 머리표가 없으면 상차 · 하차 · 요금이 같아도 새 콜이다', async () => {
+    it('지금 동작 기록 — 주소만 있는 최소 기본 콜은 팝업 머리표가 없으면 상차 · 하차 · 요금이 같아도 새 콜이다 (실서버 옛 길과 같다)', async () => {
         keep({ pickupDetails: [{ addressDetail: PICKUP }] });
         expectNewCall(await reportNew({ route: { pickup: { addressDetail: PICKUP }, dropoff: { addressDetail: DROPOFF } } }, '전표\n요금 : 50,000'));
     });
