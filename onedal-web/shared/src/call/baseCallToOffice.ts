@@ -259,12 +259,12 @@ export function collectWonOf(order: Pick<BaseCallShape, 'money'>): number {
 }
 
 /**
- * 📍 **정거장 주소 글자** — 묶음의 주소 칸, 비면 목록 지역 글자 (계획서 E7 · `officeOrderOf` 와 같은 규칙).
+ * 📍 **정거장 주소 글자** — 묶음의 주소 칸 (계획서 E7). 비면 빈 글자 — 목록 지역으로 대신하지 않는다. 빈 글자는 «못 읽음» 경고의 재료라, 대신할지는 F3 에서 정한다.
  * 깎지 않는다 — 배차망 꼬리 글자를 다듬는 일은 `addressOf`(지오코딩 · 판정)의 몫이다. 묶음이 없는 콜은 옛 칸으로 펼쳐 읽는다.
  */
 export function stopAddressOf(order: Partial<Pick<OfficeOrder, 'pickup' | 'dropoff' | 'route'>>, side: 'pickup' | 'dropoff'): string {
     const route = order.route ?? baseCallShapeOf(order).route;
-    return route?.[side]?.addressDetail || route?.listRegion?.[side] || '';
+    return route?.[side]?.addressDetail || '';
 }
 
 /** 🚨 **급송 콜인가** — 묶음의 형태(job.orderForm) 하나로 가른다. 서버 저장 · 관제웹 표시가 같은 함수를 쓴다 (계획서 E2) */

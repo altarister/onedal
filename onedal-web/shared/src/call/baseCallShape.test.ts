@@ -138,8 +138,8 @@ describe('📍 정거장 주소 (stopAddressOf)', () => {
     it('묶음이 있으면 묶음의 주소 — 옛 칸이 아니다', () => {
         expect(stopAddressOf({ pickup: '옛', route: { pickup: { addressDetail: '경기 광주시 경안동 1-2' }, dropoff: {} } }, 'pickup')).toBe('경기 광주시 경안동 1-2');
     });
-    it('주소 칸이 비면 목록 지역 글자', () => {
-        expect(stopAddressOf({ route: { pickup: {}, dropoff: {}, listRegion: { dropoff: '한남동' } } }, 'dropoff')).toBe('한남동');
+    it('🔴 주소 칸이 비면 빈 글자 — 목록 지역으로 대신하지 않는다(«못 읽음» 경고가 꺼지지 않게)', () => {
+        expect(stopAddressOf({ route: { pickup: {}, dropoff: {}, listRegion: { dropoff: '한남동' } } }, 'dropoff')).toBe('');
     });
     it('묶음이 없는 콜은 옛 칸 · 둘 다 없으면 빈 글자', () => {
         expect(stopAddressOf({ pickup: '경안동' }, 'pickup')).toBe('경안동');
