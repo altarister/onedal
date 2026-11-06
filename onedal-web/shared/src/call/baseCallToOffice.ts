@@ -86,9 +86,10 @@ export function mergeEvidence(prev: CallEvidence | undefined, next: CallEvidence
 const lineOf = (call: BaseCall, kind: MoneyKind) => call.money.lines.find((line) => line.kind === kind);
 const stopDetails = (stop: CallStop): LocationDetailInfo[] | undefined => (Object.keys(present(stop)).some((k) => k !== 'loadingMethod') ? [present({ ...stop, loadingMethod: undefined }) as LocationDetailInfo] : undefined);
 
-/** 요금 — 목록 요금 · 없으면 수입 줄 · 없으면 운송료 줄. 배차망 이름으로 가르지 않는다 */
+/** 요금 — 목록 요금 · 없으면 수입 줄 · 없으면 운송료 줄 · 없으면 «옛 요금»(원달앱이 기본 콜을 못 채워 옛 양식에서 만든 줄 · 계획서 F2-b). 배차망 이름으로 가르지 않는다 */
 function fareOf(call: BaseCall): number | undefined {
-    const won = lineOf(call, 'total')?.won ?? lineOf(call, 'income')?.won ?? lineOf(call, 'freight')?.won;
+    const won = lineOf(call, 'total')?.won ?? lineOf(call, 'income')?.won ?? lineOf(call, 'freight')?.won
+        ?? call.money.lines.find((line) => line.kind === 'unknown' && line.label === OLD_FARE_LABEL)?.won;
     return won === undefined ? undefined : Math.round(won);
 }
 

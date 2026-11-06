@@ -64,6 +64,12 @@ describe('🔁 칸 규칙', () => {
         expect(officeOrderOf(empty({ money: { lines: [{ kind: 'freight', won: 60000 }, { kind: 'income', won: 34650.4 }] } })).fare).toBe(34650);
         expect(officeOrderOf(empty({ money: { lines: [{ kind: 'freight', won: 60000 }] } })).fare).toBe(60000);
     });
+    /* 🎯 원달앱이 기본 콜을 못 채워 옛 양식에서 만든 최소 기본 콜은 종류 모르는 «옛 요금» 한 줄을 싣는다 (계획서 F2-b) */
+    it('🔴 «옛 요금» 줄은 마지막 대체로 요금 — 다른 이름의 종류 모르는 줄은 아니다', () => {
+        expect(officeOrderOf(empty({ money: { lines: [{ kind: 'unknown', won: 30000, label: '옛 요금' }] } })).fare).toBe(30000);
+        expect(officeOrderOf(empty({ money: { lines: [{ kind: 'unknown', won: 61000, label: '상세 요금' }] } })).fare).toBe(0);
+        expect(officeOrderOf(empty({ money: { lines: [{ kind: 'unknown', won: 30000, label: '옛 요금' }, { kind: 'income', won: 25000 }] } })).fare).toBe(25000);
+    });
     it('상세 주소가 있으면 상세 주소, 없으면 목록 동', () => {
         const call = empty({ route: { listRegion: { pickup: '경안동' }, pickup: { addressDetail: '경기 광주시 경안동 1-2' }, dropoff: {} } });
         expect(officeOrderOf(call).pickup).toBe('경기 광주시 경안동 1-2');

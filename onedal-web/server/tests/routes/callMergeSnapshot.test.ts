@@ -184,6 +184,18 @@ describe('🎯 빈 기본 콜 — 빈 옛 보고와 같은 결과', () => {
         const call = session.pendingOrdersData.get(id);
         expect([call?.pickup, call?.fare]).toEqual(['경기 광주시 경안동 1-2', 30000]);
     });
+    /* 🧯 원달앱 최소 기본 콜(플러그인이 못 채워 평평 콜에서 · 계획서 F2-b) — 요금은 «옛 요금» 한 줄 · 서버가 만든 콜의 요금이 0 이 아니다 */
+    it('🔴 «옛 요금» 한 줄뿐인 최소 기본 콜도 요금이 선다', async () => {
+        clearUserSession(U);
+        const session = getUserSession(U);
+        session.isRestored = true;
+        const id = `${U}-minimal`;
+        const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => {});
+        await post(ordersRouter, '/confirm', { step: 'BASIC', targetApp: 'kakaopicker', report: { type: 'AUTO_CLICK', rawText: '목록 글', timestamp: '2026-11-05T10:00:00+09:00' }, baseCall: { id, targetApp: 'kakaopicker', route: { listRegion: { pickup: '광주 경안', dropoff: '강남 역삼1' }, pickup: {}, dropoff: {} }, money: { lines: [{ kind: 'unknown', won: 30000, label: '옛 요금' }] }, load: { vehicleType: '다마스' }, time: { pickup: {} }, job: {} } });
+        spy.mockRestore();
+        const call = session.pendingOrdersData.get(id);
+        expect([call?.pickup, call?.fare, call?.vehicleType]).toEqual(['광주 경안', 30000, '다마스']);
+    });
     it.each([['자동', 'AUTO', 'AUTO_CLICK'], ['손 확정', 'MANUAL', 'MANUAL_CLICK']])('%s', async (_n, matchType, type) => {
         const old = await run(`${U}-empty-old-${matchType}`, matchType, type, false);
         const neu = await run(`${U}-empty-new-${matchType}`, matchType, type, true);

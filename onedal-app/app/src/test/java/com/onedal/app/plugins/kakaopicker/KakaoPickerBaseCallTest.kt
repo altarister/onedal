@@ -5,7 +5,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.onedal.app.core.BaseCallReport
 import com.onedal.app.core.engine.SessionManager
-import com.onedal.app.models.DetailedOfficeOrder
+import com.onedal.app.models.ReportEnvelope
 import com.onedal.app.models.DispatchDetailedRequest
 import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
@@ -48,8 +48,8 @@ class KakaoPickerBaseCallTest {
     @Test fun `보고 전체 — 번호 · 목록 동 · 사진 기록이 한 요청에 실린다`() {
         val list = SimplifiedOfficeOrder(id = "c", pickup = "광주 경안", dropoff = "강남 역삼1", fare = 1000, timestamp = "t")
         val full = list.copy(pickup = "경기 광주시 경안동", dropoff = "서울 강남구 역삼1동")
-        val part = BaseCallReport.partOf("보낼번호", "t", "상세 글", screen = "newCall", read = "photo") { KakaoPickerBaseCall.of(full, list, null, "상세 글") }
-        val body = gson.toJsonTree(DispatchDetailedRequest(deviceId = "d", order = DetailedOfficeOrder(id = "보낼번호", type = "MANUAL_CLICK", pickup = full.pickup, dropoff = full.dropoff, fare = 1000, timestamp = "t", rawText = "상세 글"),
+        val part = BaseCallReport.partOf(full.copy(id = "보낼번호"), "kakaopicker", "상세 글", screen = "newCall", read = "photo") { KakaoPickerBaseCall.of(full, list, null, "상세 글") }
+        val body = gson.toJsonTree(DispatchDetailedRequest(deviceId = "d", report = ReportEnvelope(type = "MANUAL_CLICK", rawText = "상세 글", timestamp = "t"),
             capturedAt = "t", baseCall = part.baseCall, evidence = part.evidence)).asJsonObject
         assertEquals("보낼번호", body["baseCall"].asJsonObject["id"].asString)
         assertEquals("광주 경안", body["baseCall"].asJsonObject["route"].asJsonObject["listRegion"].asJsonObject["pickup"].asString)

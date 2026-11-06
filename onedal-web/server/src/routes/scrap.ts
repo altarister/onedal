@@ -161,6 +161,7 @@ router.post("/", (req, res) => {
                 screenOverlay: typeof (req.body as any).screenOverlay === 'string' ? (req.body as any).screenOverlay : undefined,
                 suppliedMode: (req.body as any).suppliedMode,
                 supplyLinked: (req.body as any).supplyLinked,
+                reportsBaseCall: (req.body as any).reportsBaseCall,
                 nearbyPermitted: (req.body as any).nearbyPermitted,
                 batteryExempt: (req.body as any).batteryExempt,
             });

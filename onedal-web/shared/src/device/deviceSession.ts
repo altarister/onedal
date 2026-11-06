@@ -255,6 +255,8 @@ export interface DeviceSession {
      */
     suppliedMode?: string;
     supplyLinked?: boolean;
+    /** 🎯 원달앱이 order 없이 기본 콜만 보내는 판인가(«새 양식» 표시 · 계획서 F2-b) — 지금은 받아 적기만, F2-c 가 옛 앱을 가르는 데 쓴다 */
+    reportsBaseCall?: boolean;
     nearbyPermitted?: boolean;
     batteryExempt?: boolean;
     /** 🎛️ 서버가 이 폰에 보내는 모드(`modeSentToPhone`) — 기기 목록에만 · 살아 있는 폰만(꺼진 폰은 없음) */

@@ -35,7 +35,7 @@ import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.core.engine.DetailCollectMachine
 import com.onedal.app.core.engine.SafeCancelTimer
 import com.onedal.app.core.TelemetryManager
-import com.onedal.app.models.DetailedOfficeOrder
+import com.onedal.app.models.ReportEnvelope
 import com.onedal.app.models.DispatchBasicRequest
 import com.onedal.app.models.DispatchDetailedRequest
 import com.onedal.app.models.EmergencyReason
@@ -1876,14 +1876,14 @@ class HijackService : AccessibilityService(), ScanContext {
 
         // ✅ 앱이 계약 버튼을 누르는 콜만 AUTO, 나머지는 전부 MANUAL
         val actualMatchType = session.clickOrigin
-        val baseCallPart = com.onedal.app.core.BaseCallReport.partOf(order.id, order.timestamp, session.listOrder?.rawText) {
+        val baseCallPart = com.onedal.app.core.BaseCallReport.partOf(order, currentTargetApp, session.listOrder?.rawText) {
             com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).baseCallOf(this, order)
         }
         apiClient.sendConfirm(
             DispatchBasicRequest(
                 step = "BASIC",
                 deviceId = apiClient.getDeviceId(),
-                order = order,
+                report = ReportEnvelope(type = order.type, rawText = order.rawText, timestamp = order.timestamp),   // 🎯 order 대신 봉투 (계획서 F2-b)
                 capturedAt = order.timestamp,
                 matchType = actualMatchType,
                 targetApp = currentTargetApp,
@@ -1924,21 +1924,13 @@ class HijackService : AccessibilityService(), ScanContext {
     override fun sendDetail(order: SimplifiedOfficeOrder) {
         val order = session.withOrderId(order)   // 🔢 /confirm 과 같은 번호
         run {
-            val baseCallPart = com.onedal.app.core.BaseCallReport.partOf(order.id, order.timestamp, session.accumulatedDetailText, screen = "newCall", read = if (session.lastPhotoDetail != null) "photo" else "text") {
+            val baseCallPart = com.onedal.app.core.BaseCallReport.partOf(order, currentTargetApp, session.accumulatedDetailText, screen = "newCall", read = if (session.lastPhotoDetail != null) "photo" else "text") {
                 com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).baseCallOf(this, order)
             }
             val payload = DispatchDetailedRequest(
                 step = "DETAILED",
                 deviceId = apiClient.getDeviceId(),
-                order = DetailedOfficeOrder(
-                    id = order.id,
-                    type = order.type,
-                    pickup = order.pickup,
-                    dropoff = order.dropoff,
-                    fare = order.fare,
-                    timestamp = order.timestamp,
-                    rawText = session.accumulatedDetailText
-                ),
+                report = ReportEnvelope(type = order.type, rawText = session.accumulatedDetailText, timestamp = order.timestamp),   // 🎯 order 대신 봉투 (계획서 F2-b)
                 capturedAt = order.timestamp,
                 matchType = session.clickOrigin,
                 targetApp = currentTargetApp,

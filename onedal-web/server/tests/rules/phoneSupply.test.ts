@@ -156,6 +156,14 @@ describe('📡 관제앱 공급', () => {
             expect(ok.status).toBe(200);
             expect(isAppTooOld(DEV4)).toBe(false);
         });
+        /* 🎯 «새 양식» 표시(계획서 F2-b) — 원달앱이 order 없이 기본 콜만 보내는 판인가. 지금은 받아 적기만 · F2-c 가 옛 앱을 가르는 데 쓴다 */
+        it('🔴 «새 양식» 표시를 받아 적는다 · 없으면 적지 않는다(지금은 거절 안 함)', async () => {
+            await post(scrapRouter, '/', { data: [], deviceId: DEV4, supplyLinked: true });
+            expect((getUserDevicesSnapshot(U4).find(d => d.deviceId === DEV4) as any)?.reportsBaseCall).toBeUndefined();
+            const ok = await post(scrapRouter, '/', { data: [], deviceId: DEV4, supplyLinked: true, reportsBaseCall: true });
+            expect(ok.status).toBe(200);
+            expect((getUserDevicesSnapshot(U4).find(d => d.deviceId === DEV4) as any)?.reportsBaseCall).toBe(true);
+        });
     });
 });
 

@@ -360,7 +360,8 @@ describe('🎯 옛 칸으로 넘기는 칸 (officeFields)', () => {
     type Case = { network: string; notInOldYet?: string[]; passedButDiffers?: string[]; oldReadsFromText?: string[] };
     const SHEET = JSON.parse(readFileSync(join(__dirname, 'callMergeCases.json'), 'utf8')) as { cases: Case[] };
     const all = (cases: Case[], key: 'notInOldYet' | 'passedButDiffers' | 'oldReadsFromText') => new Set(cases.flatMap((c) => c[key] ?? []));
-    it.each(['insung', 'hwamul24', 'kakaopicker', 'isflex'])('%s — 뺀 칸 = 옛 칸에 없던 값 · 상세 글에서 읽는 칸', (net) => {
+    /* 등록된 배차망 전체 — 새 배차망이 TARGET_APPS 에 들어오면 표를 안 적은 날 여기서 빨갛다 */
+    it.each([...TARGET_APPS])('%s — 뺀 칸 = 옛 칸에 없던 값 · 상세 글에서 읽는 칸', (net) => {
         const cases = SHEET.cases.filter((c) => c.network === net);
         const dropped = OFFICE_FIELDS.filter((f) => !officeFieldsOf(net).includes(f)).sort();
         const differs = all(cases, 'passedButDiffers');

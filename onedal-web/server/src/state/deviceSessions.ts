@@ -122,6 +122,8 @@ export interface DeviceStatusExtras {
     /** 📶 관제앱이 블루투스로 준 마지막 모드 · 공급 연결 · 근처 기기 허락 · 배터리 예외(원달앱 보고) */
     suppliedMode?: string;
     supplyLinked?: boolean;
+    /** 🎯 원달앱이 order 없이 기본 콜만 보내는 판인가(«새 양식» 표시 · 계획서 F2-b) — 지금은 받아 적기만, F2-c 가 옛 앱을 가르는 데 쓴다 */
+    reportsBaseCall?: boolean;
     nearbyPermitted?: boolean;
     batteryExempt?: boolean;
     /** 🎛️ 이 배차망에서 실제로 도는 모드 — 원달앱이 플러그인 `availableModes` 로 계산한다 (`DeviceSession.effectiveMode`) */
@@ -260,6 +262,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     /* 📶 블루투스 · 폰 사실 넷 — 받아 적기만(옛 원달앱은 안 보냄 → 그대로) */
     if (typeof extras?.suppliedMode === 'string') session.suppliedMode = extras.suppliedMode;
     if (typeof extras?.supplyLinked === 'boolean') session.supplyLinked = extras.supplyLinked;
+    if (typeof extras?.reportsBaseCall === 'boolean') session.reportsBaseCall = extras.reportsBaseCall;
     if (typeof extras?.nearbyPermitted === 'boolean') session.nearbyPermitted = extras.nearbyPermitted;
     if (typeof extras?.batteryExempt === 'boolean') session.batteryExempt = extras.batteryExempt;
     /* 🎛️ 자동 잡기 허락이 지금 살아 있나 — 폰 보고마다 적는다(메모리). 꺼지면 AUTO 명령도 폰은 ALARM 이라 관제웹 «적용중» · 도는 모드가 이것을 본다 (shared `phoneModeOf`) */

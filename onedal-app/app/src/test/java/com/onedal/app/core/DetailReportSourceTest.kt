@@ -15,7 +15,7 @@ class DetailReportSourceTest {
     private val order = SimplifiedOfficeOrder(id = "c", pickup = "a", dropoff = "b", fare = 1, timestamp = "t")
 
     @Test fun `실물 픽커 화면의 상세 보고는 source real`() {
-        val json = Gson().toJson(DispatchBasicRequest(deviceId = "d", order = order, capturedAt = "t",
+        val json = Gson().toJson(DispatchBasicRequest(deviceId = "d", report = com.onedal.app.models.ReportEnvelope(type = order.type, timestamp = "t"), capturedAt = "t", baseCall = BaseCallReport.minimalOf(order, "kakaopicker"),
             source = TargetApp.sourceOf("com.kakaomobility.flexer")))
         assertTrue(json, json.contains("\"source\":\"real\""))
     }

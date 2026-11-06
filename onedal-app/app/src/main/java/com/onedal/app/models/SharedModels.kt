@@ -138,24 +138,13 @@ data class SimplifiedOfficeOrder(
 )
 
 // ────────────────────────────────────────────────
-// 2. 상세 콜 데이터 (웹의 DetailedOfficeOrder 대응)
-//    3단계(상세 페이지 스크래핑) 구현 시 사용
+// 2. 보고 봉투 (웹의 ReportEnvelope 대응 · 계획서 F2-b)
+//    order 대신 실리는 보고 값 — 서버가 읽는 것만 (갈래 · 원문 · 시각)
 // ────────────────────────────────────────────────
-data class DetailedOfficeOrder(
-    // SimplifiedOfficeOrder 필드 포함
-    val id: String,
-    val type: String = "NEW_ORDER",
-    val pickup: String,
-    val dropoff: String,
-    val fare: Int = 0,
-    val timestamp: String,
+data class ReportEnvelope(
+    val type: String,
     val rawText: String? = null,
-    val pickupX: Double? = null,
-    val pickupY: Double? = null,
-    val dropoffX: Double? = null,
-    val dropoffY: Double? = null,
-    val pickupDistance: Double? = null
-    // 상세 칸(배차사 · 수수료 · 적요 …)은 원달앱이 채우지 않는다 — 서버가 rawText 에서 뽑는다(server/utils/parser.ts)
+    val timestamp: String,
 )
 
 // ────────────────────────────────────────────────
@@ -164,7 +153,8 @@ data class DetailedOfficeOrder(
 data class DispatchBasicRequest(
     val step: String = "BASIC",
     val deviceId: String,
-    val order: SimplifiedOfficeOrder,
+    /** 🎯 보고 봉투 — order 대신 (계획서 F2-b) */
+    val report: ReportEnvelope,
     val capturedAt: String,
     val matchType: String = "AUTO",
     val targetApp: String = "insung",
@@ -181,22 +171,24 @@ data class DispatchBasicRequest(
      * 서버가 판정 뒤 접기(foldAfter)와 관제웹 남은 시간 막대를 가른다. 🔴 보호 분기(matchType)와는 따로다(#75)
      */
     val openedByApp: Boolean? = null,
-    /** 🎯 플러그인이 채운 기본 콜 조각과 화면 기록 — 없으면 Gson 이 빼서 옛 보고와 글자가 같다 */
-    val baseCall: BaseCall? = null,
+    /** 🎯 플러그인이 채운 기본 콜 조각 — 늘 싣는다. 플러그인이 못 채우면 앱 안 평평 콜로 만든 최소 기본 콜(`BaseCallReport`) */
+    val baseCall: BaseCall,
+    /** 🧾 화면 기록 — 읽은 글자가 없으면 Gson 이 뺀다 */
     val evidence: CallEvidence? = null,
 )
 
 data class DispatchDetailedRequest(
     val step: String = "DETAILED",
     val deviceId: String,
-    val order: DetailedOfficeOrder,
+    /** 🎯 보고 봉투 — order 대신 (계획서 F2-b) */
+    val report: ReportEnvelope,
     val capturedAt: String,
     val matchType: String = "AUTO",
     val targetApp: String = "insung",
     /** 👀 미리보기 콜 — 뜻과 규칙은 `DispatchBasicRequest.isPreview` 에 적었다 */
     val isPreview: Boolean = false,
     /** 🎯 플러그인이 채운 기본 콜 조각과 화면 기록 — 뜻은 `DispatchBasicRequest.baseCall` */
-    val baseCall: BaseCall? = null,
+    val baseCall: BaseCall,
     val evidence: CallEvidence? = null,
 )
 
@@ -258,6 +250,8 @@ data class ScrapPayload(
     /** 📶 관제앱이 블루투스로 준 마지막 모드 · 공급 연결 · 근처 기기 허락 · 배터리 예외 — 서버가 받아 적어 관제웹 «적용중» · 연결 배지를 그린다 */
     val suppliedMode: String? = null,
     val supplyLinked: Boolean? = null,
+    /** 🎯 «새 양식» 표시 — 이 원달앱은 확정 · 상세 보고에 order 없이 기본 콜만 싣는다(계획서 F2-b) · 서버가 옛 앱을 가르는 데 쓴다(F2-c) */
+    val reportsBaseCall: Boolean = true,
     val nearbyPermitted: Boolean? = null,
     val batteryExempt: Boolean? = null,
     /**

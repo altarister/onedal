@@ -259,20 +259,20 @@ class ApiClient(
                     val (code, body) = result
                     if (code == 200 || code == 202) {
                         AppLogger.d(TAG, LogTag.NETWORK, "🌐 [post /detail response / $code] 접수 완료 — 결재는 블루투스로 온다")
-                        callbackExecutor.execute { onAccepted(payload.order.id) }
+                        callbackExecutor.execute { onAccepted(payload.baseCall.id) }
                         // 성공적으로 큐에 등록되었으므로 여기서 판단 콜백을 부르지 않는다 — 결재는 블루투스로 온다
                     } else {
                         AppLogger.e(TAG, LogTag.NETWORK, "❌ [post /detail response / $code] $body")
                         // 타임아웃 등의 이유로 실패 시 CANCEL로 간주하여 뱉기
-                        DetailFailure.notify(callbackExecutor, payload.order.id, onDecisionReceived)
+                        DetailFailure.notify(callbackExecutor, payload.baseCall.id, onDecisionReceived)
                     }
                 } else {
                     AppLogger.e(TAG, LogTag.NETWORK, "❌ [Detail 전송 실패] 재시도 포함 모든 시도 실패")
-                    DetailFailure.notify(callbackExecutor, payload.order.id, onDecisionReceived)
+                    DetailFailure.notify(callbackExecutor, payload.baseCall.id, onDecisionReceived)
                 }
             } catch (e: Exception) {
                 AppLogger.e(TAG, LogTag.NETWORK, "❌ [Detail 전송 실패] ${e.message}")
-                DetailFailure.notify(callbackExecutor, payload.order.id, onDecisionReceived)
+                DetailFailure.notify(callbackExecutor, payload.baseCall.id, onDecisionReceived)
             }
         }
     }
