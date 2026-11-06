@@ -152,6 +152,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
     const hourly = route.judgment?.axes?.find(a => a.key === 'money')?.value;
     const twin = twinFareNoteOf(route.job?.tagsText);   // 🎯 묶음의 꼬리표 (계획서 E2)
     const score = route.judgment?.score;
+    const fare = fareWonOf(asShaped(route));   // 💰 요금은 묶음의 요금 줄에서 (계획서 E5)
     const routeText = cleanRoute(route.kakaoTimeExt);
     const negatives = route.rejectionReasons ?? [];
     const positives = route.approvalReasons ?? [];
@@ -262,7 +263,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     </span>
                 )}
                 <span className="tabular-nums" style={{ fontSize: 19, fontWeight: 900 }}>
-                    {fareWonOf(asShaped(route)) > 0 ? `${manwonText(fareWonOf(asShaped(route)))}원` : '금액미상'}
+                    {fare > 0 ? `${manwonText(fare)}원` : '금액미상'}
                 </span>
             </span>
         </div>

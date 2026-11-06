@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder, EmergencyAlert } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, fareWonOf, asShaped, detailRecordOf, missingAlwaysOf, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, fareWonOf, asShaped, baseCallShapeOf, detailRecordOf, missingAlwaysOf, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -22,7 +22,7 @@ import { authDevice, deviceTokenOf, deviceLabelOf } from "../core/deviceAuth";
 import type { SafeCancelWarning } from "@onedal/shared";
 import { decide } from "../state/decisions";
 import { isAppTooOld } from "../state/phoneStatus";
-import { holdBaseCall, compareBaseCall, saveHeldBaseCall, officeValuesHeld } from "../services/baseCallCompare";
+import { holdBaseCall, compareBaseCall, saveHeldBaseCall, officeValuesHeld, heldBaseCallOf } from "../services/baseCallCompare";
 
 /** 🧾 «늘 있던 칸이 없다»를 찍은 날 — (배차망 | 빠진 칸 묶음) → 날짜(KST) */
 const missingAlwaysLogged = new Map<string, string>();
@@ -142,6 +142,8 @@ router.post("/", async (req, res) => {
         holdBaseCall(userId, realOrderId, payload.baseCall, (payload as any).evidence);
         compareBaseCall(userId, pendingOrder);
         pendingOrder = { ...pendingOrder, ...officeValuesHeld(userId, pendingOrder) } as typeof pendingOrder;
+        /* 🎯 평평한 칸이 다 정해졌다 — 같은 콜 찾기 전에 묶음을 다시 펼친다. 안 펼치면 /confirm 때의 낡은 요금을 읽는다 (계획서 E5 · rememberOrder 와 같은 펼침) */
+        Object.assign(pendingOrder, baseCallShapeOf(pendingOrder, heldBaseCallOf(userId, realOrderId)));
 
         const checkMatch = (existingOrder: SecuredOrder | PendingOrder) => {
             const phone1 = existingOrder.pickupDetails?.[0]?.phone1;
@@ -150,7 +152,8 @@ router.post("/", async (req, res) => {
 
             const isPickupAddressMatch = existingOrder.pickup === pendingOrder.pickup;
             const isDropoffAddressMatch = existingOrder.dropoff === pendingOrder.dropoff;
-            const isFareMatch = existingOrder.fare > 0 && existingOrder.fare === pendingOrder.fare;
+            const existingFare = fareWonOf(asShaped(existingOrder));
+            const isFareMatch = existingFare > 0 && existingFare === fareWonOf(asShaped(pendingOrder));
 
             const p1Addr = existingOrder.pickupDetails?.[0]?.addressDetail;
             const p2Addr = pendingOrder.pickupDetails?.[0]?.addressDetail;

@@ -119,8 +119,9 @@ describe('🔎 이미 잡은 콜로 돌려주는 경우', () => {
     (on ? it.skip : it)('번호가 달라도 팝업 주소 · 상차 · 하차 · 요금이 같으면 잡은 콜이다 (전화는 달라도)', async () => {
         keep();
         expectKept(await report({ rawText: detailText('010-2222-2222', '팝업 주소 A') }));
-    });    /* 🔴 요금 비교는 옛 칸으로 한다 — 이 순간 묶음에는 /confirm 때의 낡은 요금이 남아 있다 (계획서 E5 · 묶음은 기억에 넣을 때 다시 펼친다) */
-    it('🔴 /confirm 때 요금을 못 읽은 콜도 상세가 요금을 채우면 잡은 콜이다 — 낡은 묶음의 요금으로 비교하지 않는다', async () => {
+    });
+    /* 🔴 같은 콜 찾기 전에 묶음을 다시 펼친다 — 안 펼치면 /confirm 때의 낡은 요금으로 비교한다 (계획서 E5) */
+    it('🔴 /confirm 때 요금을 못 읽은 콜도 상세가 요금을 채우면 잡은 콜이다 — 다시 펼친 묶음의 요금으로 비교한다', async () => {
         keep({ pickup: '팝업 주소 A' });
         const stale = { id: NEW, pickup: '팝업 주소 A', dropoff: DROPOFF, fare: 0 };
         getUserSession(U).pendingOrdersData.set(NEW, { ...stale, ...baseCallShapeOf(stale) });
