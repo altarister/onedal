@@ -7,6 +7,7 @@ import { activeDevices } from '../../src/state/deviceRegistry';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { restoredOrderFrom } from '../../src/state/sessionRestore';
 import { approvedUser } from '../fixtures/approvedUser';
+import { newAppReport } from '../fixtures/newAppReport';
 
 /**
  * 🖱️ **잡은 방식 = 그때 도는 모드 + 상세페이지로 진입시킨 주체** (29 P5-1 · 27 10줄 · 기사님 Q8 가).
@@ -23,10 +24,10 @@ const report = (effectiveMode: string) =>
 const confirm = async (id: string, openedByApp: unknown) => {
     const layer = (ordersRouter as any).stack.find((l: any) => l.route?.path === '/confirm' && l.route.methods.post);
     const res: any = { status: () => res, json: () => res };
-    await layer.route.stack[layer.route.stack.length - 1].handle({ app, body: {
+    await layer.route.stack[layer.route.stack.length - 1].handle({ app, body: newAppReport({
         step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType: 'MANUAL', openedByApp, isPreview: true,
         order: { id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 신둔면', fare: 38500, rawText: '' },
-    } }, res);
+    }) }, res);
     return getUserSession(U).pendingOrdersData.get(id) as any;
 };
 const ledger = (id: string) => db.prepare(`SELECT capturedMode, openedBy FROM orders WHERE id = ?`).get(id) as any;

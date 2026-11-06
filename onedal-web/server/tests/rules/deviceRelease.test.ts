@@ -6,6 +6,7 @@ import { getUserSession, clearUserSession } from '../../src/state/userSessionSto
 import { armWait } from '../../src/state/waits';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { approvedUser } from '../fixtures/approvedUser';
+import { newAppReport } from '../fixtures/newAppReport';
 
 /**
  * 📱 **폰의 «심사 중» 표시는 풀려야 한다 · /confirm 이 빠져도 KEEP 이 폰에 실린다** (서버 병목 4·5 · onedal-1f «가»).
@@ -30,10 +31,10 @@ const call = async (router: any, body: any) => {
     await handlerOf(router)({ body, app }, res);
     return out;
 };
-const detail = (id: string) => call(detailRouter, {
+const detail = (id: string) => call(detailRouter, newAppReport({
     step: 'DETAILED', deviceId: DEV, targetApp: 'insung',
     order: { id, pickup: '경기 이천시 부발읍', dropoff: '경기 여주시 가남읍', fare: 30000, vehicleType: '다마스', rawText: '' },
-});
+}));
 let savedKey: string | undefined;
 
 beforeAll(() => {
@@ -137,10 +138,10 @@ describe('⚠️ 안전취소 경고 문구의 초는 그 배차망의 DB 값이
     it('🔴 인성 안전취소를 45초로 두면 경고는 45초에 오고 문구도 «45초»다', async () => {
         jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
         getUserSession(U2).deviceEvaluatingMap.set(DEV2, 'sc-a');
-        await call(detailRouter, {
+        await call(detailRouter, newAppReport({
             step: 'DETAILED', deviceId: DEV2, targetApp: 'insung',
             order: { id: 'sc-a', pickup: '경기 이천시 부발읍', dropoff: '경기 여주시 가남읍', fare: 30000, vehicleType: '다마스', rawText: '' },
-        });
+        }));
         payloads.length = 0;
         jest.advanceTimersByTime(46_000);
         const warn = payloads.find(p => p.ev === 'safecancel-warning');

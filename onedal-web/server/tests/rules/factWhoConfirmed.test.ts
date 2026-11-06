@@ -6,6 +6,7 @@ import * as devices from '../../src/state/deviceRegistry';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
 import { whoConfirmed } from '@onedal/shared';
+import { newAppReport } from '../fixtures/newAppReport';
 
 /**
  * ✋ **사실 ③ «확정을 누가 눌렀나» — 서버의 지금 답** (31 P0 · S1~S3).
@@ -26,10 +27,10 @@ const handlerOf = (router: any) => {
 const detail = async (id: string, matchType: 'AUTO' | 'MANUAL', isPreview = false) => {
     let out: any = null, code = 200;
     const res: any = { status: (c: number) => { code = c; return res; }, json: (b: any) => { out = b; return res; } };
-    await handlerOf(detailRouter)({ app, body: {
+    await handlerOf(detailRouter)({ app, body: newAppReport({
         step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType, isPreview,
         order: { id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 신둔면', fare: 38500, vehicleType: '다마스', rawText: '' },
-    } }, res);
+    }) }, res);
     return { code, out };
 };
 let savedKey: string | undefined;

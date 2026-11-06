@@ -4,6 +4,7 @@ import ordersRouter from '../../src/routes/orders';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
+import { newAppReport } from '../fixtures/newAppReport';
 
 /**
  * 🖱️ **잡은 방식 기록 — 원달앱이 보낸 값 그대로 · 모르면 비움** (31 P0 · S6 · 29 N2 «지금» 칸).
@@ -17,10 +18,10 @@ const app = { get: () => ({ to: () => ({ emit: () => {} }) }) };
 const confirm = async (id: string, capturedVia: unknown) => {
     const layer = (ordersRouter as any).stack.find((l: any) => l.route?.path === '/confirm' && l.route.methods.post);
     const res: any = { status: () => res, json: () => res };
-    await layer.route.stack[layer.route.stack.length - 1].handle({ app, body: {
+    await layer.route.stack[layer.route.stack.length - 1].handle({ app, body: newAppReport({
         step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType: 'AUTO', capturedVia,
         order: { id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 신둔면', fare: 38500, rawText: '' },
-    } }, res);
+    }) }, res);
     return getUserSession(U).pendingOrdersData.get(id) as any;
 };
 const ledgerVia = (id: string) => (db.prepare(`SELECT capturedVia FROM orders WHERE id = ?`).get(id) as any)?.capturedVia;

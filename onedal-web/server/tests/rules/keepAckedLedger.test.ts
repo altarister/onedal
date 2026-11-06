@@ -7,6 +7,7 @@ import { ackDecision } from '../../src/state/decisions';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { restoreWhere, RESTORABLE_STATUSES } from '@onedal/shared';
 import { approvedUser } from '../fixtures/approvedUser';
+import { newAppReport } from '../fixtures/newAppReport';
 
 /**
  * 🧾 **장부의 «확정»은 폰이 받았다고 답해야 되살린다** (35 X7 ② · 기사님 «가»).
@@ -86,10 +87,10 @@ describe('🧾 받았음이 없는 확정은 되살리지 않는다', () => {
         let out: any = null;
         const res = { status: () => res, json: (b: any) => { out = b; return res; } };
         const layer = detailRouter.stack.find((l: any) => l.route?.path === '/' && l.route.methods.post);
-        await layer.route.stack[layer.route.stack.length - 1].handle({ body: {
+        await layer.route.stack[layer.route.stack.length - 1].handle({ body: newAppReport({
             step: 'DETAILED', deviceId: DEV, targetApp: 'insung',
             order: { id, pickup: '경기 이천시 부발읍', dropoff: '경기 여주시 가남읍', fare: 30000, vehicleType: '다마스', rawText: '' },
-        }, app }, res);
+        }), app }, res);
         const session = getUserSession(U);
         db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp)
                     VALUES (?, 'NEW_ORDER', 'ORDER_CONFIRMED', ?, ?, ?, '상', '하', 30000, 'insung')`).run(id, U, todayAt(10), todayAt(10));

@@ -5,6 +5,7 @@ import ordersRouter from '../../src/routes/orders';
 import { activeDevices } from '../../src/state/deviceRegistry';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
+import { newAppReport } from '../fixtures/newAppReport';
 
 /**
  * 🐥 **체험 콜 표시는 «보고 때의 폰 모드» — 서버의 지금 답** (31 P0 · S5 · 29 N4 «지금» 칸).
@@ -26,8 +27,8 @@ const post = async (router: any, path: string, body: any) => {
     await handlerOf(router, path)({ app, body }, res);
 };
 const order = (id: string) => ({ id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 신둔면', fare: 38500, vehicleType: '다마스', rawText: '' });
-const confirm = (id: string, matchType = 'AUTO') => post(ordersRouter, '/confirm', { step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType, order: order(id) });
-const detail = (id: string, matchType = 'AUTO') => post(detailRouter, '/', { step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType, order: order(id) });
+const confirm = (id: string, matchType = 'AUTO') => post(ordersRouter, '/confirm', newAppReport({ step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType, order: order(id) }));
+const detail = (id: string, matchType = 'AUTO') => post(detailRouter, '/', newAppReport({ step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType, order: order(id) }));
 const modeIs = (mode: string) => activeDevices.set(DEV, { deviceId: DEV, userId: U, lastSeen: Date.now(), status: 'ONLINE', mode, stats: { polled: 0, grabbed: 0, canceled: 0 } } as any);
 const simulated = (id: string) => (getUserSession(U).pendingOrdersData.get(id) as any)?.isSimulated;
 let savedKey: string | undefined;

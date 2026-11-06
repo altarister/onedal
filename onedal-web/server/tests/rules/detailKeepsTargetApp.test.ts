@@ -5,6 +5,7 @@ import ordersRouter from '../../src/routes/orders';
 import { activeDevices } from '../../src/state/deviceRegistry';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
+import { newAppReport } from '../fixtures/newAppReport';
 
 /**
  * 🌐 **상세만 온 콜도 배차망이 콜에 남는다** (57 2단계).
@@ -26,8 +27,8 @@ const post = async (router: any, path: string, body: any) => {
     const res: any = { status: () => res, json: () => res };
     await handlerOf(router, path)({ app, body }, res);
 };
-const detail = (id: string, targetApp?: string) => post(detailRouter, '/', { step: 'DETAILED', deviceId: DEV, targetApp, matchType: 'MANUAL', isPreview: true, order: ORDER(id) });
-const confirm = (id: string, targetApp: string) => post(ordersRouter, '/confirm', { step: 'BASIC', deviceId: DEV, targetApp, matchType: 'MANUAL', isPreview: true, order: ORDER(id) });
+const detail = (id: string, targetApp?: string) => post(detailRouter, '/', newAppReport({ step: 'DETAILED', deviceId: DEV, targetApp, matchType: 'MANUAL', isPreview: true, order: ORDER(id) }));
+const confirm = (id: string, targetApp: string) => post(ordersRouter, '/confirm', newAppReport({ step: 'BASIC', deviceId: DEV, targetApp, matchType: 'MANUAL', isPreview: true, order: ORDER(id) }));
 let savedKey: string | undefined;
 
 beforeAll(() => {

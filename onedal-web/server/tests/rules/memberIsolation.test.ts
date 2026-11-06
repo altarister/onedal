@@ -11,6 +11,7 @@ import ordersRouter from '../../src/routes/orders';
 import { requireOps } from '../../src/middlewares/authMiddleware';
 import { ownsOrder } from '../../src/core/orderOwner';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
+import { newAppReport } from '../fixtures/newAppReport';
 
 /**
  * 👥 **회원끼리 막기 — 문 5개 · 콜 주인** (기사님 «가» · onedal-1f «가»).
@@ -93,7 +94,7 @@ describe('👥 콜 주인', () => {
 
     it('🔴 폰 문 /api/orders/detail — 남의 콜 id 로 오면 403', async () => {
         const { status } = await call(handle(detailRouter, 'post', '/'), {
-            body: { step: 'DETAILED', deviceId: DA, targetApp: 'insung', order: { id: 'iso-b-order', pickup: '서울', dropoff: '부산', fare: 10000, rawText: '' } },
+            body: newAppReport({ step: 'DETAILED', deviceId: DA, targetApp: 'insung', order: { id: 'iso-b-order', pickup: '서울', dropoff: '부산', fare: 10000, rawText: '' } }),
         });
         expect(status).toBe(403);
     });
@@ -103,7 +104,7 @@ describe('👥 콜 주인', () => {
     });
     it('🔴 폰 문 /api/orders/confirm — 남의 콜 id 로 오면 403', async () => {
         const { status } = await call(handle(ordersRouter, 'post', '/confirm'), {
-            body: { step: 'BASIC', deviceId: DA, targetApp: 'insung', order: { id: 'iso-b-order', pickup: '서울', dropoff: '부산', fare: 10000, rawText: '' } },
+            body: newAppReport({ step: 'BASIC', deviceId: DA, targetApp: 'insung', order: { id: 'iso-b-order', pickup: '서울', dropoff: '부산', fare: 10000, rawText: '' } }),
         });
         expect(status).toBe(403);
     });

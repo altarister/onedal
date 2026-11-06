@@ -4,6 +4,7 @@ import detailRouter from '../../src/routes/detail';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
+import { newAppReport } from '../fixtures/newAppReport';
 
 /**
  * 📝 **상세 보고의 원문이 비면 앞서 받은 원문을 덮지 않는다** (기사님 «가» · onedal-69 «가»).
@@ -23,10 +24,10 @@ const report = async (id: string, rawText: string, targetApp = 'hwamul24') => {
     let seen: string | undefined;
     const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async (_u: string, order: any) => { seen = order.rawText; });
     const res = { status: () => res, json: () => res };
-    await handlerOf(detailRouter)({ app, headers: {}, body: {
+    await handlerOf(detailRouter)({ app, headers: {}, body: newAppReport({
         step: 'DETAILED', deviceId: DEV, targetApp,
         order: { id, pickup: '경기 군포시 부곡동', dropoff: '서울 중구 을지로6가', fare: 60000, rawText },
-    } }, res);
+    }) }, res);
     spy.mockRestore();
     return seen;
 };

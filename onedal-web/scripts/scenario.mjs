@@ -39,6 +39,7 @@ import { spawn, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { existsSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { newAppReport } from './lib/newAppReport.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const SERVER = join(ROOT, 'server');
@@ -499,6 +500,9 @@ async function ledger() {
         id, pickup: src.pickup, dropoff: src.dropoff, fare: src.fare,
         vehicleType: src.vehicleType || '1t', timestamp: capturedAt,
         itemDescription: '장부 검사', rawText,
+        /* 원달앱 인성 플러그인이 위 팝업에서 읽어 기본 콜에 담는 연락처 — 같은 글자 */
+        pickupDetails: [{ customerName: '장부 상차지', phone1: '010-0000-1001' }],
+        dropoffDetails: [{ customerName: '장부 하차지', phone1: '010-0000-2001' }],
     };
     const post = (path, body) => fetch(`http://localhost:${PORT}/api/orders${path}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -506,10 +510,10 @@ async function ledger() {
 
     // ① 리스트에서 확정 (앱 1차) → ② 상세 수집 (앱 2차, 여기서 콜 객체가 새로 조립된다)
     //    MANUAL 은 즉시 KEEP 이라 관제웹 결재 없이 장부까지 간다 (직접콜 무심사 — 설계)
-    const base = { deviceId: dev.device_id, capturedAt, matchType: 'MANUAL' };
-    await post('/confirm', { ...base, step: 'BASIC', order });
+    const base = { deviceId: dev.device_id, capturedAt, matchType: 'MANUAL', targetApp: 'insung' };   // 원달앱은 늘 배차망을 싣는다
+    await post('/confirm', newAppReport({ ...base, step: 'BASIC', order }));
     await wait(400);
-    await post('/detail', { ...base, step: 'DETAILED', order });
+    await post('/detail', newAppReport({ ...base, step: 'DETAILED', order }));
 
     // 카카오 경로 계산 + 확정까지 기다린다
     let row = null;
@@ -600,9 +604,9 @@ async function ledger() {
     {
         const cid = `${id}-cancel`;
         const cancelOrder = { ...order, id: cid };
-        await post('/confirm', { ...base, step: 'BASIC', matchType: 'AUTO', order: cancelOrder });
+        await post('/confirm', newAppReport({ ...base, step: 'BASIC', matchType: 'AUTO', order: cancelOrder }));
         await wait(400);
-        await post('/detail', { ...base, step: 'DETAILED', matchType: 'AUTO', order: cancelOrder });
+        await post('/detail', newAppReport({ ...base, step: 'DETAILED', matchType: 'AUTO', order: cancelOrder }));
         await wait(4000);                                     // 카카오 연산이 끝나길 기다린다
         await post('/decision', { orderId: cid, action: 'CANCEL', deviceId: dev.device_id });
 
@@ -630,11 +634,11 @@ async function ledger() {
     {
         const fid = `${id}-force`;
         const forceOrder = { ...order, id: fid };
-        await post('/confirm', { ...base, step: 'BASIC', matchType: 'AUTO', order: forceOrder });
+        await post('/confirm', newAppReport({ ...base, step: 'BASIC', matchType: 'AUTO', order: forceOrder }));
         await wait(600);
         // 상세를 보내지 않고 화면 이탈을 흉내낸다 — 새 콜 진입이 기존 평가 콜을 강제 정리한다
         const nextOrder = { ...order, id: `${id}-next` };
-        await post('/confirm', { ...base, step: 'BASIC', matchType: 'AUTO', order: nextOrder });
+        await post('/confirm', newAppReport({ ...base, step: 'BASIC', matchType: 'AUTO', order: nextOrder }));
 
         let frow = null;
         for (let i = 0; i < 10 && !frow; i++) {

@@ -6,6 +6,7 @@ import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { bootstrapUserSession, restoreAndRecalculateSession } from '../../src/state/sessionRestore';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
+import { newAppReport } from '../fixtures/newAppReport';
 
 /**
  * ⏳ **서버 재시작 직후 관제웹이 붙기 전에 /detail 이 오면 먼저 되살린다** (서버 병목 10 · 기사님 «가» · onedal-1f «가»).
@@ -73,10 +74,10 @@ describe('⏳ 되살리기 먼저', () => {
             seen = getUserSession(uid).myOrders.map((o: any) => o.id);
         });
         const res = { status: () => res, json: () => res };
-        await handlerOf(detailRouter)({ app, body: {
+        await handlerOf(detailRouter)({ app, body: newAppReport({
             step: 'DETAILED', deviceId: DEV, targetApp: 'insung',
             order: { id: `${U}-new`, pickup: '경기 이천시', dropoff: '경기 여주시', fare: 30000, vehicleType: '다마스', rawText: '' },
-        } }, res);
+        }) }, res);
         expect(seen).toContain(`${U}-kept`);
         spy.mockRestore();
     });
@@ -153,10 +154,10 @@ describe('🧾 재시작 직후 판정 중 콜은 확정 콜이 아니다', () =
         const spy = jest.spyOn(dispatchEngine, 'evaluateNewOrder').mockImplementation(async () => { evaluated = true; });
         let body: any = null;
         const res = { status: () => res, json: (b: any) => { body = b; return res; } };
-        await handlerOf(detailRouter)({ app, body: {
+        await handlerOf(detailRouter)({ app, body: newAppReport({
             step: 'DETAILED', deviceId: DEV, targetApp: 'insung',
             order: { id: `${U}-eval2`, pickup: '경기 광주시', dropoff: '경기 이천시', fare: 30000, vehicleType: '다마스', rawText: '' },
-        } }, res);
+        }) }, res);
         spy.mockRestore();
         /* 재열람은 «진짜 ID»(orderId)를 실은 ACK 로 끝난다 — 보통 판정 길의 ACK 에는 orderId 가 없다 */
         expect(body?.orderId).toBeUndefined();

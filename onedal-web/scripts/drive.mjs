@@ -43,6 +43,7 @@ import { createRequire } from 'node:module';
 import { existsSync, rmSync, mkdirSync, mkdtempSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { newAppReport } from './lib/newAppReport.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const SERVER = join(ROOT, 'server');
@@ -178,13 +179,13 @@ async function appUploads(deviceId, id, pk, dp, label) {
         pickupX: pk.x, pickupY: pk.y, dropoffX: dp.x, dropoffY: dp.y,
         deliveryDistance: 30,
     };
-    const base = { deviceId, capturedAt: new Date().toISOString(), matchType: 'AUTO' };
+    const base = { deviceId, capturedAt: new Date().toISOString(), matchType: 'AUTO', targetApp: 'insung' };   // 원달앱은 늘 배차망을 싣는다
     const post = (path, body) => fetch(`http://localhost:${PORT}/api/orders${path}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
-    await post('/confirm', { ...base, step: 'BASIC', order });
+    await post('/confirm', newAppReport({ ...base, step: 'BASIC', order }));
     await wait(500);
-    await post('/detail', { ...base, step: 'DETAILED', order });
+    await post('/detail', newAppReport({ ...base, step: 'DETAILED', order }));
 }
 
 /** 기기를 등록한다 — 미등록 기기의 보고는 서버가 막는다 (실제 앱도 PIN 연동을 거친다) */
