@@ -1,4 +1,4 @@
-import { reservedForOf, WEEKDAY_KO, type SecuredOrder, manwonText } from '@onedal/shared';
+import { reservedForOf, WEEKDAY_KO, type SecuredOrder, manwonText, asShaped } from '@onedal/shared';
 import { getAddressLabel } from './routeUtils';
 import { verdictOf, COLOR_DOT } from '@onedal/shared';
 
@@ -15,7 +15,7 @@ export function reservedDayLabel(reservedFor: string | null | undefined): string
 
 type ReservedFields = { reservedFor?: string | null; time?: SecuredOrder['time']; capturedAt?: string };
 /** 보관 날 — 적힌 것(`reservedFor` · 보관된 콜)이 먼저, 없으면 잡은 날 + 예약 날(`time.pickup.day` · 서버와 같은 `reservedForOf`). 오늘 콜이면 null */
-const reservedDayOf = (c: ReservedFields) => c.reservedFor || reservedForOf({ ...c, time: c.time });
+const reservedDayOf = (c: ReservedFields) => c.reservedFor || reservedForOf(asShaped(c));
 
 /** 📅 상태바 한 줄 심사석의 짧은 꼴 «10/3» (시각·요일 없음) — 오늘 콜이면 null */
 export function reservedShortOf(c: ReservedFields): string | null {

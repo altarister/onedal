@@ -1,6 +1,6 @@
 import db from "../db";
 import { MyOrder, PendingOrder, SecuredOrder, LET_GO_STATUSES } from "@onedal/shared";
-import type { CargoReport, LocationDetailInfo, BaseCall, CallEvidence } from "@onedal/shared";
+import type { CargoReport, LocationDetailInfo, BaseCall, CallEvidence, ShapedGroups } from "@onedal/shared";
 import { baseCallRowOf, baseCallShapeOf, baseCallFromRow } from "@onedal/shared";
 
 export class OrderRepository {
@@ -129,19 +129,19 @@ export class OrderRepository {
      * 🎯 **콜 표의 행에 기본 콜 묶음을 펼친다** (계획서 E) — 관제웹 콜 목록 · 단계 시트가 같이 쓴다.
      * 복원과 같은 재료(연락처 · 참거짓 예약)로 만들어 기억 속 콜과 같은 묶음이 된다. 행이 없으면 없다.
      */
-    public static shapedRowOf<T extends Record<string, any> | undefined>(row: T): T {
-        if (!row) return row;
+    public static shapedRowOf<T extends Record<string, any>>(row: T | undefined): (T & ShapedGroups) | undefined {
+        if (!row) return undefined;
         const flat = { ...row, reserved: row.reserved == null ? undefined : !!row.reserved, ...OrderRepository.stopContactsOf(row.id) };
-        return { ...row, ...baseCallShapeOf(flat as any, baseCallFromRow(row, row.id, row.targetApp).call) };
+        return { ...row, ...baseCallShapeOf(flat as any, baseCallFromRow(row, row.id, row.targetApp).call) } as T & ShapedGroups;
     }
 
     /**
      * ⏱️ **콜 표의 행에 시간 계산용 묶음만 얇게 펼친다** (계획서 E3) — 연락처 조회 · 기본 콜 열 읽기 없이 행의 옛 칸으로만.
      * 1초마다 도는 단계 보기(stepsView)가 쓴다. 시간 계산이 읽는 칸(상차 약속 · 짐 글 · 적요)은 옛 칸이 원천이라 값이 같다.
      */
-    public static timingRowOf<T extends Record<string, any> | undefined>(row: T): T {
-        if (!row) return row;
-        return { ...row, ...baseCallShapeOf({ ...row, reserved: row.reserved == null ? undefined : !!row.reserved } as any) };
+    public static timingRowOf<T extends Record<string, any>>(row: T | undefined): (T & ShapedGroups) | undefined {
+        if (!row) return undefined;
+        return { ...row, ...baseCallShapeOf({ ...row, reserved: row.reserved == null ? undefined : !!row.reserved } as any) } as T & ShapedGroups;
     }
 
     public static setCodCollected(orderId: string, userId: string, received: boolean, amount: number) {

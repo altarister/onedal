@@ -14,12 +14,12 @@ export function routeTlOf(userId: string): RouteTl | undefined {
         const session = getUserSession(userId);
         const sync = buildOrderSync(session);
         if (!sync.routeStops.length) return undefined;
-        const active = session.myOrders.filter((o: any) => !isTerminal(o.status));
+        const active = session.myOrders.filter((o) => !isTerminal(o.status));
         // ⏱️ 판정 기준 탭의 시간 4칸 → 파생 입력, 조립은 derivationInputsOf 한 곳 (관제웹과 같은 함수)
         const cfg = session.judgment;
         const inputs = cfg ? derivationInputsOf(cfg) : undefined;
         const dwellLedgerOf = (id: string) => dwellLedgerFor(id);
-        return deriveRouteTimeline(sync.routeStops as any, (active as any[]).map(asShaped),
+        return deriveRouteTimeline(sync.routeStops as any, active.map(asShaped),
             id => stepRecordsOf(id).reports as any,       // 🔄 파생 치환 ② — 새 장부가 재료
             id => stepRecordsOf(id).milestones as any,
             Date.now(), sync.routeComputedAt, inputs?.rules, inputs?.unk, dwellLedgerOf);

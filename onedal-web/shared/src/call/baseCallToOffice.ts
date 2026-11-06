@@ -252,9 +252,8 @@ export type ShapedGroups = Required<Pick<BaseCallShape, 'route' | 'money' | 'loa
  */
 export function asShaped<T extends Partial<OfficeOrder>>(order: T): T & ShapedGroups {
     if (order.route && order.money && order.load && order.time && order.job) return order as T & ShapedGroups;
-    /* 묶음이 하나라도 있으면 이미 펼친 콜이다 — 빠진 묶음만 빈 칸으로 채운다(가진 값을 옛 칸으로 덮지 않는다) */
-    if (order.route || order.money || order.load || order.time || order.job) {
-        return { ...order, route: order.route ?? { pickup: {}, dropoff: {} }, money: order.money ?? { lines: [] }, load: order.load ?? {}, time: order.time ?? {}, job: order.job ?? {} } as T & ShapedGroups;
-    }
-    return { ...order, ...baseCallShapeOf(order) } as T & ShapedGroups;
+    /* 가진 묶음은 그대로 두고 빠진 묶음만 옛 칸에서 펼친다 — 가진 값을 덮지 않고, 빠진 값은 확실한 원천(옛 칸)에서 온다.
+       «빠짐»은 «없음»이다 — 빈 묶음({})은 펼친 결과로 본다(서버가 늘 다섯을 한꺼번에 만든다) */
+    const fill = baseCallShapeOf(order);
+    return { ...order, route: order.route ?? fill.route, money: order.money ?? fill.money, load: order.load ?? fill.load, time: order.time ?? fill.time, job: order.job ?? fill.job } as T & ShapedGroups;
 }

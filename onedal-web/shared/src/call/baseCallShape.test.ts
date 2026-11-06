@@ -86,6 +86,11 @@ describe('🎯 묶음이 있는 콜로 (asShaped)', () => {
         expect(got.time.pickup.day).toBe(1);
         expect(got.route).toEqual({ pickup: {}, dropoff: {} });
     });
+    it('🔴 빠진 묶음은 옛 칸으로 채운다 — 예약 콜이 오늘 콜이 되지 않는다', () => {
+        const flat = { pickup: 'a', dropoff: 'b', fare: 1, reservedDay: 1, reservedAt: '18:30', itemDescription: '17:40상차' };
+        const { time, ...noTime } = { ...flat, ...baseCallShapeOf(flat) };
+        expect(asShaped(noTime).time.pickup).toEqual({ day: 1, at: '18:30' });
+    });
     it('🔴 묶음이 없는 콜은 옛 칸으로 펼친다 — 예약 날 · 적요가 비지 않는다', () => {
         const got = asShaped({ pickup: 'a', dropoff: 'b', fare: 1, reservedDay: 1, reservedAt: '09:00', detailMemo: '17:40상차' });
         expect(got.time.pickup).toEqual({ day: 1, at: '09:00' });
