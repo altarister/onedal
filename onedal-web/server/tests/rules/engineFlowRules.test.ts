@@ -288,6 +288,14 @@ describe('📦 마일스톤', () => {
         await reportMilestone(U, `${U}-pre`, 'DELIVERED', 'MANUAL', io);
         expect(cod).not.toHaveBeenCalled();
     });
+    /* 💵 받을 현금 줄이 있으면 미수금은 요금이 아니라 받을 현금이다 — 인성 «고객에게 받을 금액» (기사님 2-2 나) */
+    it('🔴 착불 미수금은 받을 현금 줄의 금액 · 없으면 요금', async () => {
+        const cod = jest.spyOn(OrderRepository, 'setCodCollected');
+        confirmed(`${U}-cod2`, { paymentType: '착불' });
+        db.prepare(`UPDATE orders SET money_lines = ? WHERE id = ?`).run(JSON.stringify([{ kind: 'income', won: 20000 }, { kind: 'collect', won: 26000 }]), `${U}-cod2`);
+        await reportMilestone(U, `${U}-cod2`, 'DELIVERED', 'MANUAL', io);
+        expect(cod).toHaveBeenCalledWith(`${U}-cod2`, U, false, 26000);
+    });
 
     it('🔴 하차하면 남은 콜로 경로를 다시 잰다', async () => {
         confirmed(`${U}-d1`);

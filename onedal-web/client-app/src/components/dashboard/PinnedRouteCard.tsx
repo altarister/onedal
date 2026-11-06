@@ -1,4 +1,4 @@
-import { verdictOf, manwonText, wonText, isExpressOf, type DecisionStatus, asShaped, fareWonOf } from '@onedal/shared';
+import { verdictOf, manwonText, wonText, isExpressOf, type DecisionStatus, asShaped, fareWonOf, collectWonOf } from '@onedal/shared';
 import { BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -653,7 +653,7 @@ export default function PinnedRouteCard({
                                         <div className="flex items-center gap-2 bg-warning/12 border border-warning/40 rounded-md px-2 py-2">
                                             <span>💵</span>
                                             <span className="text-[12px] font-bold text-warning">
-                                                착불 — 하차 시 <b>{wonText(fare)}</b> 직접 수령
+                                                착불 — 하차 시 <b>{wonText(collectWonOf(asShaped(route)))}</b> 직접 수령
                                             </span>
                                         </div>
                                     )}

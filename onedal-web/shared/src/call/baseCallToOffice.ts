@@ -250,6 +250,14 @@ export function fareWonOf(order: Pick<BaseCallShape, 'money'>): number {
     return line?.won ?? 0;
 }
 
+/**
+ * 💵 **착불 현장에서 받을 현금(원)** — 받을 현금 줄(collect · 인성 «고객에게 받을 금액»). 없으면 요금 (기사님 2-2 나).
+ * 받을 현금 줄은 원달앱이 확정 뒤 화면을 읽은 콜에만 있다 — 원달앱이 잡은 콜 · 옛 앱 · 다른 배차망은 요금이다.
+ */
+export function collectWonOf(order: Pick<BaseCallShape, 'money'>): number {
+    return order.money?.lines?.find((l) => l.kind === 'collect')?.won ?? fareWonOf(order);
+}
+
 /** 🚨 **급송 콜인가** — 묶음의 형태(job.orderForm) 하나로 가른다. 서버 저장 · 관제웹 표시가 같은 함수를 쓴다 (계획서 E2) */
 export function isExpressOf(order: Pick<BaseCallShape, 'job'>): boolean {
     return order.job?.orderForm === '급송';

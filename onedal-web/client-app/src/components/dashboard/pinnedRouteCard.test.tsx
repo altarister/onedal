@@ -150,3 +150,11 @@ describe('💰 요금 표시 — 묶음의 요금 줄에서 (계획서 E5)', () 
         expect(html).not.toContain('1.2만');
     });
 });
+
+describe('💵 착불 — 콜 줄은 기사님 몫, 직접 수령은 받을 현금 (기사님 2-2 나)', () => {
+    it('콜 줄 3.5만 · 직접 수령 45,000원', () => {
+        const html = draw({ route: { ...ROUTE, paymentType: '착불', fare: 34650, money: { lines: [{ kind: 'income', won: 34650 }, { kind: 'collect', won: 45000 }] } } });
+        expect(html).toContain('3.5만');
+        expect(html).toContain('45,000원');
+    });
+});

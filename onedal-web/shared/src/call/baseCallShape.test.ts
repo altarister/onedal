@@ -2,7 +2,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
-import { OFFICE_FIELDS, asShaped, baseCallShapeOf, fareWonOf, isExpressOf, mergeBaseCall, officeOrderOf } from './baseCallToOffice';
+import { OFFICE_FIELDS, asShaped, baseCallShapeOf, collectWonOf, fareWonOf, isExpressOf, mergeBaseCall, officeOrderOf } from './baseCallToOffice';
 
 /**
  * 🎯 **콜에 펼친 기본 콜 묶음** (계획서 E) — 옛 칸이 있는 값은 옛 칸에서, 옛 칸이 없는 새 값만 원달앱 기본 콜에서.
@@ -115,4 +115,16 @@ describe('💰 요금 (fareWonOf)', () => {
     it('🔴 종류 모르는 다른 이름의 줄(«상세 요금»)은 요금이 아니다', () =>
         expect(fareWonOf(shapedOf({ fare: 0 }, heldWith([{ kind: 'unknown', won: 61000, label: '상세 요금' }])))).toBe(0));
     it('요금 줄이 없으면 0', () => expect(fareWonOf({ money: { lines: [] } })).toBe(0));
+});
+
+/* 💵 받을 현금 — 착불 현장에서 받는 돈. 받을 현금 줄이 없으면 요금 (기사님 2-2 나 · 인성 «고객에게 받을 금액») */
+describe('💵 받을 현금 (collectWonOf)', () => {
+    const heldWith = (lines) => ({ id: 'c', targetApp: 'insung', route: { pickup: {}, dropoff: {} }, money: { lines }, load: {}, time: {}, job: {} });
+    it('받을 현금 줄이 있으면 그 줄 — 요금과 다른 돈', () => {
+        const flat = { fare: 34650 };
+        const o = { ...flat, ...baseCallShapeOf(flat, heldWith([{ kind: 'income', won: 34650 }, { kind: 'collect', won: 45000 }])) };
+        expect([fareWonOf(o), collectWonOf(o)]).toEqual([34650, 45000]);
+    });
+    it('받을 현금 줄이 없으면 요금 — 옛 앱 · 원달앱이 잡은 콜 · 다른 배차망', () => expect(collectWonOf({ ...baseCallShapeOf({ fare: 30000 }) })).toBe(30000));
+    it('둘 다 없으면 0', () => expect(collectWonOf({ money: { lines: [] } })).toBe(0));
 });

@@ -1,6 +1,7 @@
 package com.onedal.app.plugins.insung
 
 import com.onedal.app.core.BaseCallFill
+import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.models.BaseCall
 import com.onedal.app.models.CallJob
@@ -51,6 +52,7 @@ object InsungBaseCall {
                 lines = listOfNotNull(
                     fill.fareLine("income"),
                     fill.detailFare?.takeIf { it != order.fare }?.let { MoneyLine(kind = "unknown", won = it.toDouble(), label = "상세 요금") },   // 목록 요금과 다른 상세 금액 — 판정은 안 읽는다
+                    fill.read(PageField.FARE, "collect", Page.MY_CALL)?.replace(",", "")?.toDoubleOrNull()?.let { MoneyLine(kind = "collect", won = it) },   // 💵 확정 뒤 화면 «고객에게 받을 금액» — 받을 현금(기사님 2-2 나). 그 줄이 있는 화면에서만 찾힌다
                     fill.read(PageField.COMMISSION)?.let { MoneyLine(kind = "fee", rate = it) },
                     fill.read(PageField.TOLL)?.let { MoneyLine(kind = "consign", rate = it) },
                 ),

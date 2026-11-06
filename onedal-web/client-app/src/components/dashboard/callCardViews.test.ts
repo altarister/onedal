@@ -205,3 +205,10 @@ describe('💰 요금 — 묶음의 요금 줄에서 (계획서 E5)', () => {
         expect(Object.fromEntries(rawFieldsOf(withLines)).fare).toBe(70000);
     });
 });
+
+describe('💵 착불 받을 돈 — 받을 현금 줄 (기사님 2-2 나)', () => {
+    it('받을 현금 줄이 있으면 요금이 아니라 그 값', () => {
+        const r = { ...ROUTE, money: { lines: [{ kind: 'income', won: 34650 }, { kind: 'collect', won: 45000 }] }, route: { pickup: {}, dropoff: {} }, load: {}, time: {}, job: {} };
+        expect(stepPaneOf({ route: r, step: STEPS[5], seededSteps: STEPS }).codAmount).toBe(45000);
+    });
+});

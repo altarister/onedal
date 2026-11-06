@@ -1,4 +1,4 @@
-import { hhmmText, manwonText, stopPhoneOf, unitPoints, dwellMinutes, protectionMinutes, afterworkMinutes, jsonArrayOf, asShaped, fareWonOf } from '@onedal/shared';
+import { hhmmText, manwonText, stopPhoneOf, unitPoints, dwellMinutes, protectionMinutes, afterworkMinutes, jsonArrayOf, asShaped, fareWonOf, collectWonOf } from '@onedal/shared';
 import type { DwellUnknown } from '@onedal/shared';
 import type { SecuredOrder, StepViewRow, RouteTimelineEntry, CallTiming } from '@onedal/shared';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -60,7 +60,7 @@ export function stepPaneOf({ route, step: x, seededSteps, timeline }: {
     const callPRow = seededSteps.find(y => y.step === 'CALL_PICKUP')?.row;
     return {
         key: `${route.id}:${x.step}`,
-        codAmount: route.paymentType === '착불' ? fareWonOf(asShaped(route)) : null,   // 💰 요금은 묶음의 요금 줄에서 (계획서 E5)
+        codAmount: route.paymentType === '착불' ? collectWonOf(asShaped(route)) : null,   // 💵 받을 현금 — 없으면 요금 (기사님 2-2 나)
         place: {
             name: dd?.contactName || dd?.customerName || undefined,
             address: dd?.addressDetail || (xPickup ? route.pickup : route.dropoff),

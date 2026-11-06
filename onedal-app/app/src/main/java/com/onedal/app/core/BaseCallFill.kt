@@ -17,8 +17,8 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 class BaseCallFill(private val pages: PageSpecs, private val order: SimplifiedOfficeOrder, private val listOrder: SimplifiedOfficeOrder?, detailText: String?) {
     private val texts = detailText?.takeIf { it.isNotBlank() }?.let { listOf(it) }
 
-    /** 상세 칸 하나 — 서버와 같은 정의 표 */
-    fun read(field: PageField, part: String = ""): String? = texts?.let { PageFieldRead.fieldOf(pages, Page.NEW_CALL, field, it, part) }
+    /** 상세 칸 하나 — 서버와 같은 정의 표 · 다른 화면의 줄은 `page` 로 (확정 뒤 화면의 받을 현금 줄 등) */
+    fun read(field: PageField, part: String = "", page: Page = Page.NEW_CALL): String? = texts?.let { PageFieldRead.fieldOf(pages, page, field, it, part) }
 
     /** 상세 글의 요금 */
     val detailFare: Int? get() = texts?.let { PageFieldRead.fareOf(pages, Page.NEW_CALL, it) }

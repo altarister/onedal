@@ -16,7 +16,7 @@ import { getActiveCalls } from "../core/activeCalls";
 import { buildOrderSync, setOrderStatus } from "../core/helpers";
 import { stepRecordsOf, stepsView, bridgeUndoMilestone, milestoneAlreadyRecorded } from "./stepSeeder";
 import { slog } from "../utils/fileLogger";
-import { wonText } from "@onedal/shared";
+import { wonText, collectWonOf } from "@onedal/shared";
 import { recalcRouteIfStopsChanged } from "./dispatchEngine";
 
 /** 🚏 도착 마일스톤이 적히는 콜 칸 — 값만 받는 셈 (마일스톤). 도착이 아니면 null */
@@ -190,11 +190,11 @@ export async function reportMilestone(
         // 그때 0 원으로 조용히 넘기면 **받지도 못한 돈이 정산된 것처럼 사라진다.**
         // 현장을 막지 않으면서(버튼을 강제하지 않는다) 기록만 안전한 쪽으로 남긴다.
         try {
-            const row = db.prepare(`SELECT paymentType, fare, settlementStatus FROM orders WHERE id = ? AND userId = ?`)
-                          .get(orderId, userId) as any;
+            const row = OrderRepository.shapedRowOf(db.prepare(`SELECT * FROM orders WHERE id = ? AND userId = ?`)
+                          .get(orderId, userId) as Record<string, any> | undefined);   // 💵 받을 현금은 묶음의 요금 줄에서 (기사님 2-2 나)
             if (row?.paymentType === '착불' && (!row.settlementStatus || row.settlementStatus === '미정산')) {
-                OrderRepository.setCodCollected(orderId, userId, false, row.fare ?? 0);
-                console.warn(`💵 [착불 미확인] ${orderId.slice(0, 8)} — 수령 여부를 고르지 않고 하차 완료. ${wonText(row.fare ?? 0)}을 미수금으로 잡습니다`);
+                OrderRepository.setCodCollected(orderId, userId, false, collectWonOf(row));
+                console.warn(`💵 [착불 미확인] ${orderId.slice(0, 8)} — 수령 여부를 고르지 않고 하차 완료. ${wonText(collectWonOf(row))}을 미수금으로 잡습니다`);
                 // 화면은 sync(orders 필드)로 안다 — 따로 정산 이벤트를 쏘지 않는다
             }
         } catch (e) {

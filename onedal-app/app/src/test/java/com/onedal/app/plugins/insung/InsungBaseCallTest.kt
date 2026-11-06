@@ -51,6 +51,18 @@ class InsungBaseCallTest {
         assertEquals("10시전하차", call.job.detailMemo)
     }
 
+    /* 💵 확정 뒤 화면(완료 탭)의 «고객에게 받을 금액» 은 받을 현금 줄 — 요금은 «실운임» (영상 1743 · 기사님 2-2 나) */
+    @Test fun `확정 뒤 착불 화면은 받을 현금 줄을 따로 담는다`() {
+        val order = SimplifiedOfficeOrder(id = "c", pickup = "경기 광주시 경안동", dropoff = "서울 용산구 한남동", fare = 34650, timestamp = "t")
+        val lines = InsungBaseCall.of(order, null, "고객에게 받을 금액 45,000\n실운임 : 34,650(착불)").money.lines.map { it.kind to it.won }
+        assertEquals(listOf("income" to 34650.0, "collect" to 45000.0), lines)
+    }
+
+    @Test fun `받을 금액 줄이 없는 상세는 받을 현금 줄이 없다`() {
+        val order = SimplifiedOfficeOrder(id = "c", pickup = "경기 광주시 경안동", dropoff = "서울 용산구 한남동", fare = 50000, timestamp = "t")
+        assertEquals(listOf("income"), InsungBaseCall.of(order, null, "상태 : 신규\n요금 : 50,000(착불)").money.lines.map { it.kind })
+    }
+
     @Test fun `값 목록에 없는 결제 글자는 안 담는다`() {
         val order = SimplifiedOfficeOrder(id = "c", pickup = "경기 광주시 경안동", dropoff = "서울 용산구 한남동", fare = 1000, timestamp = "t")
         assertNull(InsungBaseCall.of(order, null, "요금 : 1,000(협의)").money.paymentType)

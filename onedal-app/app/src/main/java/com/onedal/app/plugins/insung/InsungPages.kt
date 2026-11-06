@@ -105,8 +105,10 @@ object InsungPages {
             /* 확정 뒤 상세 = 완료 탭에서 연 콜 — 인성설명서 장면 1621 · 자막 16:29 */
             FieldSpec(PageField.PICKUP, "출발지 줄", "오티디코퍼레이션/ 아크앤북동탄호수점 / 1시/", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen"),
             FieldSpec(PageField.DROPOFF, "도착지 줄", "서울강남구 / 역삼동 / 이희억", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen"),
-            FieldSpec(PageField.FARE, "요금 줄 «요금 :» · 착불이면 «고객에게 받을 금액» 줄 — 확정 뒤 상세의 «실운임 :» 은 수수료를 뺀 값이라 안 읽는다(영상 1621 · 1743)", "고객에게 받을 금액 45,000", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen — PageFieldRead",
-                read = Regex("""(?:요금\s*:|고객에게 받을 금액)\s*([\d,]+)(?![\d.])""")),
+            FieldSpec(PageField.FARE, "요금 줄 «요금 :» · 확정 뒤 상세는 «실운임 :» — 목록 요금 · 확정 전 «요금» 과 같은 돈(수수료 뺀 몫 · 영상 1556 ↔ 1621 · 1743)", "실운임 : 22,330(신용)", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen — PageFieldRead",
+                read = Regex("""(?:요금|실운임)\s*:\s*([\d,]+)(?![\d.])""")),
+            FieldSpec(PageField.FARE, "착불 «고객에게 받을 금액» 줄 — 수수료 앞 받을 현금이라 요금이 아니다(영상 1743 · 기사님 2-2 나)", "고객에게 받을 금액 45,000", Seen.REAL, Handling.READ, "InsungBaseCall — 받을 현금 줄(collect)",
+                read = Regex("""고객에게 받을 금액\s*([\d,]+)(?![\d.])"""), part = "collect"),
             FieldSpec(PageField.CONTACT, "머리 줄", "(주)신한로직스-1588-5480", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.MEMO, "적요 칸", "1시상차 6박스 …", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.STAGE, "상태 줄", "상태 : 배송", Seen.REAL, Handling.UNUSED),
