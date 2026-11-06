@@ -95,7 +95,7 @@ export function computeLoadedPoints(
  */
 export function getStopTiming(orderId: string, unk?: DwellUnknown,
     /** KEEP 전이라 `orders` 행이 아직 없을 때 넘기는 **메모리의 콜** (판정 경로가 그렇다) */
-    order?: unknown,
+    order?: Record<string, any>,
     /**
      * 🔴 **판정 기준 설정** — 안 넘기면 사슬이 기본값으로 돌아 **판정 기준 탭의
      *    정차 값이 안 닿는다** (리뷰에서 잡힘). 7단계로 올린 값이
@@ -152,7 +152,7 @@ export function getStopTiming(orderId: string, unk?: DwellUnknown,
  */
 export function totalDetourCost(driveDiffMin: number, incomingOrderId: string, unk?: DwellUnknown,
     /** KEEP 전에는 `orders` 행이 없다 — 판정 경로는 메모리의 콜을 함께 넘긴다 */
-    order?: unknown,
+    order?: Record<string, any>,
     /** 판정 기준 설정 — 정차 값이 여기서 사슬까지 간다 */
     cfg?: JudgmentConfig): {
     total: number; drive: number; dwell: number; hasUnknown: boolean;

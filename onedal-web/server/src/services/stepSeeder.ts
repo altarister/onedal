@@ -27,7 +27,7 @@ import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOf
          soloMinutesOf, derivationInputsOf, dwellLedgerOfSteps } from '@onedal/shared';
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
 import { slog } from '../utils/fileLogger';
-import { jsonArrayOf } from "@onedal/shared";
+import { jsonArrayOf, asShaped } from "@onedal/shared";
 
 /** 🧭 경로가 아는 시각 — `deriveRouteTimeline` 의 결과를 그대로 받는다 (파생 한 곳 · 규칙 ③) */
 export type RouteTl = Pick<RouteTimelineEntry, 'orderId' | 'stopType' | 'etaMs'>[];
@@ -592,8 +592,8 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig,
      *    KEEP 을 누르니까. 그래서 DB 만 보면 판정 시점의 콜을 통째로 못 본다.
      *    그때는 **메모리의 콜 객체**를 넘긴다 — 사슬은 하나 그대로다 (규칙 ③).
      */
-    fallbackOrder?: any): StepView[] {
-    const o = OrderRepository.timingRowOf(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as Record<string, any> | undefined) ?? fallbackOrder;   // 🎯 행에도 시간 계산 묶음 (계획서 E3) · 1초마다 도는 길이라 얇게
+    fallbackOrder?: Record<string, any>): StepView[] {
+    const o = OrderRepository.timingRowOf(db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as Record<string, any> | undefined) ?? (fallbackOrder && asShaped(fallbackOrder));   // 🎯 행에도 시간 계산 묶음 (계획서 E3) · 1초마다 도는 길이라 얇게
     if (!o) return [];
     const born = bornRows(orderId);
     const chain = computeChain(o, born, judgment);
