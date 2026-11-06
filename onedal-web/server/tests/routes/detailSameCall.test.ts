@@ -4,6 +4,7 @@ import detailRouter from '../../src/routes/detail';
 import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
+import { baseCallShapeOf } from '@onedal/shared';
 
 /**
  * 🔎 **상세 보고가 이미 잡은 콜의 재열람인가, 새 콜인가** — `routes/detail.ts` 의 같은 콜 찾기를 실제 라우트로 지킨다.
@@ -118,6 +119,12 @@ describe('🔎 이미 잡은 콜로 돌려주는 경우', () => {
     (on ? it.skip : it)('번호가 달라도 팝업 주소 · 상차 · 하차 · 요금이 같으면 잡은 콜이다 (전화는 달라도)', async () => {
         keep();
         expectKept(await report({ rawText: detailText('010-2222-2222', '팝업 주소 A') }));
+    });    /* 🔴 요금 비교는 옛 칸으로 한다 — 이 순간 묶음에는 /confirm 때의 낡은 요금이 남아 있다 (계획서 E5 · 묶음은 기억에 넣을 때 다시 펼친다) */
+    it('🔴 /confirm 때 요금을 못 읽은 콜도 상세가 요금을 채우면 잡은 콜이다 — 낡은 묶음의 요금으로 비교하지 않는다', async () => {
+        keep({ pickup: '팝업 주소 A' });
+        const stale = { id: NEW, pickup: '팝업 주소 A', dropoff: DROPOFF, fare: 0 };
+        getUserSession(U).pendingOrdersData.set(NEW, { ...stale, ...baseCallShapeOf(stale) });
+        expectKept(await report({ pickup: '팝업 주소 A', rawText: detailText('010-1111-1111', '팝업 주소 A') }));
     });
 });
 

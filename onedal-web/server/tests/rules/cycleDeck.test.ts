@@ -137,9 +137,9 @@ describe('경계 — 완료분이 계산에 섞이지 않는다', () => {
         const head = readFileSync(join(__dirname,
             '../../../client-app/src/components/dashboard/VehicleStatusPanel.tsx'), 'utf8');
         expect(head).toMatch(/const confirmedCalls = liveCalls\.filter\(o => !isEvaluating\(o\.status\)\)/);
-        expect(head).toMatch(/confirmedCalls\.reduce\(\(sum, o\) => sum \+ \(o\.fare \|\| 0\)/);
+        expect(head).toMatch(/confirmedCalls\.reduce\(\(sum, o\) => sum \+ fareWonOf\(asShaped\(o\)\)/);
         // 🔴 심사 중·끝난 콜이 섞인 배열로 더하지 않는다
-        expect(head).not.toMatch(/liveCalls\.reduce\(\(sum, o\) => sum \+ \(o\.fare/);
+        expect(head).not.toMatch(/liveCalls\.reduce\(\(sum, o\) => sum \+ (\(o\.fare|fareWonOf)/);
     });
 
     /* 🚩 카운트다운은 시트 상태바 조각(`useDepartureDue`)이다 — 진행 중인 콜만 넘긴다 */

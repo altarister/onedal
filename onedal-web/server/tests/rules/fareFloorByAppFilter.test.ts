@@ -36,3 +36,14 @@ describe('💸 첫짐 하한 — 원달앱이 걸렀나', () => {
         expect(src).not.toMatch(/targetApp === ['"]/);
     });
 });
+
+/* 💰 하한은 묶음의 요금 줄을 읽는다 — 펼친 콜에서는 옛 요금 칸과 같은 값이다 (계획서 E5) */
+describe('💰 첫짐 하한 — 묶음의 요금', () => {
+    const lines = (won: number) => ({ money: { lines: [{ kind: 'income', won }] }, route: { pickup: {}, dropoff: {} }, load: {}, time: {}, job: {} });
+    it('🔴 묶음 요금이 최소 금액 위면 옛 칸이 밑이어도 통과', () => {
+        expect(run('insung', { fare: 8000, ...lines(30000) }).reasons.some(r => FLOOR.test(r))).toBe(false);
+    });
+    it('🔴 묶음 요금이 최소 금액 밑이면 옛 칸이 위여도 미달', () => {
+        expect(run('insung', { fare: 30000, ...lines(8000) }).reasons.some(r => FLOOR.test(r))).toBe(true);
+    });
+});

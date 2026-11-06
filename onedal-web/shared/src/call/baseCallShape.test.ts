@@ -2,7 +2,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
-import { OFFICE_FIELDS, asShaped, baseCallShapeOf, isExpressOf, mergeBaseCall, officeOrderOf } from './baseCallToOffice';
+import { OFFICE_FIELDS, asShaped, baseCallShapeOf, fareWonOf, isExpressOf, mergeBaseCall, officeOrderOf } from './baseCallToOffice';
 
 /**
  * 🎯 **콜에 펼친 기본 콜 묶음** (계획서 E) — 옛 칸이 있는 값은 옛 칸에서, 옛 칸이 없는 새 값만 원달앱 기본 콜에서.
@@ -98,3 +98,21 @@ describe('🎯 묶음이 있는 콜로 (asShaped)', () => {
     });
 });
 
+/* 💰 요금 — 묶음의 요금 줄에서 한 줄만 고른다. 펼친 콜에서는 옛 요금 칸과 같은 값이다 (계획서 E5) */
+describe('💰 요금 (fareWonOf)', () => {
+    const shapedOf = (flat, held?) => ({ ...flat, ...baseCallShapeOf(flat, held) });
+    const heldWith = (lines) => ({ id: 'c', targetApp: 'insung', route: { pickup: {}, dropoff: {} }, money: { lines }, load: {}, time: {}, job: {} });
+    it.each(filled.map((c) => [c.why, c]))('문제지 콜을 펼치면 요금 = 옛 요금 칸 — %s', (_w, c) => {
+        expect(fareWonOf(shapedOf(c.expectCall, mergedOf(c)))).toBe(c.expectCall.fare ?? 0);
+    });
+    it('기본 콜이 없는 콜은 «옛 요금» 줄', () => expect(fareWonOf(shapedOf({ fare: 34600 }))).toBe(34600));
+    it('목록 요금 줄이 옛 칸과 같으면 그 줄', () => expect(fareWonOf(shapedOf({ fare: 50000 }, heldWith([{ kind: 'total', won: 50000 }])))).toBe(50000));
+    it('목록 요금이 달라도 수입 줄이 옛 칸과 같으면 수입 줄', () =>
+        expect(fareWonOf(shapedOf({ fare: 40000 }, heldWith([{ kind: 'total', won: 52000 }, { kind: 'income', won: 40000 }])))).toBe(40000));
+    it('🔴 운송료 줄은 안 읽는다 — 상세 글로 채운 요금과 다를 수 있다', () =>
+        expect(fareWonOf(shapedOf({ fare: 200000 }, heldWith([{ kind: 'freight', won: 180000 }])))).toBe(200000));
+    it('🔴 요금 0 콜은 운송료 줄이 있어도 0', () => expect(fareWonOf(shapedOf({ fare: 0 }, heldWith([{ kind: 'freight', won: 40000 }])))).toBe(0));
+    it('🔴 종류 모르는 다른 이름의 줄(«상세 요금»)은 요금이 아니다', () =>
+        expect(fareWonOf(shapedOf({ fare: 0 }, heldWith([{ kind: 'unknown', won: 61000, label: '상세 요금' }])))).toBe(0));
+    it('요금 줄이 없으면 0', () => expect(fareWonOf({ money: { lines: [] } })).toBe(0));
+});

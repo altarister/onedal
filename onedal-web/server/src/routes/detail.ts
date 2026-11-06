@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder, EmergencyAlert } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, missingAlwaysOf, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, fareWonOf, asShaped, detailRecordOf, missingAlwaysOf, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -265,7 +265,7 @@ router.post("/", async (req, res) => {
              *   조용하기 때문에 몇 주 뒤에나 발견된다.
              */
             const unreadable: string[] = [];
-            if (!pendingOrder.fare || pendingOrder.fare <= 0) unreadable.push('요금');
+            if (fareWonOf(asShaped(pendingOrder)) <= 0) unreadable.push('요금');   // 💰 기억에 넣으며 펼친 묶음의 요금 (계획서 E5)
             if (!pendingOrder.pickup || pendingOrder.pickup === '배차값없음') unreadable.push('상차지');
             if (!pendingOrder.dropoff || pendingOrder.dropoff === '배차값없음') unreadable.push('하차지');
 

@@ -142,3 +142,11 @@ describe('🎯 차종 · 품목 — 묶음에서 읽는다 (계획서 E4)', () =
         expect(html).not.toContain('옛차종');
     });
 });
+
+describe('💰 요금 표시 — 묶음의 요금 줄에서 (계획서 E5)', () => {
+    it('콜 줄의 요금은 묶음 요금', () => {
+        const html = draw({ route: { ...ROUTE, fare: 12000, money: { lines: [{ kind: 'income', won: 70000 }] } } });
+        expect(html).toContain('7.0만');
+        expect(html).not.toContain('1.2만');
+    });
+});

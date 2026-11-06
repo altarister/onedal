@@ -1,4 +1,4 @@
-import { verdictOf, manwonText, wonText, isExpressOf, type DecisionStatus, asShaped } from '@onedal/shared';
+import { verdictOf, manwonText, wonText, isExpressOf, type DecisionStatus, asShaped, fareWonOf } from '@onedal/shared';
 import { BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -272,6 +272,7 @@ export default function PinnedRouteCard({
     // 🎛️ 판정 기준 탭의 시간 4칸을 함께 — 조립은 derivationInputsOf 한 곳 (서버·타임라인과 동일)
     const { rules: jdRules, unk: jdUnk } = derivationInputsOf(useJudgmentStore.getState().judgment);
     const { load } = asShaped(route);   // 🎯 차종 · 품목은 묶음에서 읽는다 (계획서 E4)
+    const fare = fareWonOf(asShaped(route));   // 💰 요금은 묶음의 요금 줄에서 (계획서 E5)
     const timing = deriveCallTiming(asShaped(route), cargoReports, milestoneLog, Date.now(), jdRules, jdUnk);
     const soloKm = timing.soloKm;
     const soloMin = timing.soloMinutes;
@@ -353,7 +354,7 @@ export default function PinnedRouteCard({
                     })()}
                     {/* 💰 돈은 이 줄 맨 오른쪽 (기사님) */}
                     <span className="ml-auto text-[17px] font-black text-text-primary tabular-nums">
-                        {route.fare > 0 ? `${manwonText(route.fare)}원` : '금액미상'}
+                        {fare > 0 ? `${manwonText(fare)}원` : '금액미상'}
                     </span>
                 </div>
             )}
@@ -652,7 +653,7 @@ export default function PinnedRouteCard({
                                         <div className="flex items-center gap-2 bg-warning/12 border border-warning/40 rounded-md px-2 py-2">
                                             <span>💵</span>
                                             <span className="text-[12px] font-bold text-warning">
-                                                착불 — 하차 시 <b>{wonText(route.fare)}</b> 직접 수령
+                                                착불 — 하차 시 <b>{wonText(fare)}</b> 직접 수령
                                             </span>
                                         </div>
                                     )}

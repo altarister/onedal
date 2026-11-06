@@ -31,7 +31,7 @@ import { slog } from "../utils/fileLogger";
 import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";
 import { logContext, whoLabel } from "../utils/logContext";
-import { clockText, wonText, isTimeText } from "@onedal/shared";
+import { clockText, wonText, isTimeText, fareWonOf, asShaped } from "@onedal/shared";
 import { authSocket } from "./authSocket";
 import { webAccountGate } from "./webAccountGate";
 import { registerSupplyNamespace } from "./supplySocket";
@@ -640,7 +640,7 @@ export function registerSocketHandlers(io: Server) {
             const order = session.myOrders.find(o => o.id === data.orderId)
                        ?? session.pendingOrdersData.get(data.orderId);
             // 금액은 서버가 아는 운임을 쓴다 — 화면이 보낸 값을 그대로 믿지 않는다
-            const amount = order?.fare ?? data.amount ?? 0;
+            const amount = order ? fareWonOf(asShaped(order)) : (data.amount ?? 0);   // 💰 요금은 묶음의 요금 줄에서 (계획서 E5)
 
             OrderRepository.setCodCollected(data.orderId, userId, data.received, amount);
             // 🌉 다리 — 하차 완료 행에도 (완료 카드의 착불 버튼이 이 값으로 불을 켠다)

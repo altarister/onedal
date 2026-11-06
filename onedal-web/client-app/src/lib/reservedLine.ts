@@ -1,4 +1,4 @@
-import { reservedForOf, WEEKDAY_KO, type SecuredOrder, manwonText, asShaped } from '@onedal/shared';
+import { reservedForOf, WEEKDAY_KO, type SecuredOrder, manwonText, asShaped, fareWonOf } from '@onedal/shared';
 import { getAddressLabel } from './routeUtils';
 import { verdictOf, COLOR_DOT } from '@onedal/shared';
 
@@ -47,7 +47,7 @@ export function reservedLineOf(c: SecuredOrder & { reservedFor?: string }): {
     const promised = c.time?.pickup?.at;
     const at = promised && /^\d{1,2}:\d{2}$/.test(promised) ? promised : '--:--';
     const route = `${getAddressLabel(c.pickup)} → ${getAddressLabel(c.dropoff)}`;
-    const fare = manwonText(c.fare) ?? '—';
+    const fare = manwonText(fareWonOf(asShaped(c))) ?? '—';
     const color = verdictOf(c as any).color;
     const dot = color ? COLOR_DOT[color] : '—';
     return { day, at, route, fare, dot, text: `${day} · ${at} · ${route} · ${fare} · ${dot}` };

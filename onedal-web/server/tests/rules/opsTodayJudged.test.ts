@@ -3,6 +3,9 @@ import db from '../../src/db';
 import opsRouter from '../../src/routes/ops';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
 import { judgmentRecordOf } from '../../src/core/engine/judgmentRecord';
+import { baseCallShapeOf } from '@onedal/shared';
+/* 판정 기록은 묶음이 있는 콜만 받는다 (계획서 E5) */
+const shaped = (o: any) => ({ ...o, ...baseCallShapeOf(o) });
 
 /**
  * 🧾 **운영센터 회원 상세 — 오늘 판정받은 콜** (기사님 «오늘 잡지 않은 콜 · 어떤 필터 · 무슨 색 몇 점»).
@@ -40,10 +43,10 @@ describe('운영센터 회원 상세 — 오늘 판정받은 콜', () => {
         db.prepare(`INSERT INTO orders (id, userId, status, timestamp, capturedAt, pickup, dropoff, fare, vehicleType, totalDistanceKm, totalDurationMin)
             VALUES ('TEST-JUDGED-KEEP', ?, 'ORDER_CONFIRMED', ?, ?, '경기 광주시 경안동', '경기 이천시 관고동', 30000, '1t', 30, 40)`).run(M, now, now);
         OrderRepository.saveJudgment('TEST-JUDGED-KEEP', M, { color: '꿀', score: 81, axes: [{ key: 'money', name: '돈', score: 81, raw: '3.0만 ÷ 40분' }], gates: [], tags: [],
-            ...judgmentRecordOf({ pickup: '경기 광주시 경안동', dropoff: '경기 이천시 관고동', fare: 30000, targetApp: 'insung' }, FILTER) });
+            ...judgmentRecordOf(shaped({ pickup: '경기 광주시 경안동', dropoff: '경기 이천시 관고동', fare: 30000, targetApp: 'insung' }), FILTER) });
         /* 안 잡은 미리보기 — 판정 표에만 · 판정 때 남긴 내용 */
         OrderRepository.saveJudgment('TEST-JUDGED-PREVIEW', M, { color: '똥', score: 23, axes: [], gates: [], tags: [],
-            ...judgmentRecordOf({ pickup: '경기 광주시 광남1동', dropoff: '경기 성남시 중원구 금광1동', fare: 11011, targetApp: 'kakaopicker', isPreview: true }, FILTER) });
+            ...judgmentRecordOf(shaped({ pickup: '경기 광주시 광남1동', dropoff: '경기 성남시 중원구 금광1동', fare: 11011, targetApp: 'kakaopicker', isPreview: true }), FILTER) });
         /* 옛 판정 — 기록을 남기기 전(call · filter 없음) · orders 없음 */
         db.prepare(`INSERT INTO order_judgments (orderId, userId, color, score, detail, judgedAt) VALUES ('TEST-JUDGED-OLD', ?, '보통', 50, ?, ?)`)
             .run(M, JSON.stringify({ axes: [], gates: [], tags: [] }), now);

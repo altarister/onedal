@@ -195,3 +195,13 @@ describe('🎯 증거 서랍 «원본 칸» — 차종 · 품목 값은 묶음�
         expect(f.itemDescription).toBe('박스');
     });
 });
+
+describe('💰 요금 — 묶음의 요금 줄에서 (계획서 E5)', () => {
+    const withLines = { ...ROUTE, fare: 1, money: { lines: [{ kind: 'income', won: 70000 }] }, route: { pickup: {}, dropoff: {} }, load: {}, time: {}, job: {} };
+    it('착불 받을 돈은 묶음 요금', () => {
+        expect(stepPaneOf({ route: withLines, step: STEPS[5], seededSteps: STEPS }).codAmount).toBe(70000);
+    });
+    it('서랍 «fare» 글자 이름 그대로, 값은 묶음 요금', () => {
+        expect(Object.fromEntries(rawFieldsOf(withLines)).fare).toBe(70000);
+    });
+});

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { deckOfCycle, type SecuredOrder, manwonText, ORDER_STATUS_LABEL } from '@onedal/shared';
+import { deckOfCycle, type SecuredOrder, manwonText, ORDER_STATUS_LABEL, fareWonOf, asShaped } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { reservedLineOf } from '../../lib/reservedLine';
@@ -165,7 +165,7 @@ export default function Drawer({ open, onClose, activeRoute, reserved = [], onDe
                                     {getAddressLabel(c.pickup)} → {getAddressLabel(c.dropoff)}
                                 </span>
                                 <span className="text-[12px] font-bold tabular-nums text-text-muted shrink-0">
-                                    {won(c.fare)}
+                                    {won(fareWonOf(asShaped(c)))}
                                 </span>
                             </div>
                             <div className="flex items-baseline justify-between gap-2 mt-0.5">

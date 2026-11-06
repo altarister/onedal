@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SecuredOrder, CallTarget, DecisionStatus } from '@onedal/shared';
-import { safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, manwonText } from '@onedal/shared';
+import { safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, manwonText, fareWonOf, asShaped } from '@onedal/shared';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { verdictOf, type Color } from '@onedal/shared';
 import { reservedBadgeOf } from '../../lib/reservedLine';
@@ -262,7 +262,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
                     </span>
                 )}
                 <span className="tabular-nums" style={{ fontSize: 19, fontWeight: 900 }}>
-                    {route.fare > 0 ? `${manwonText(route.fare)}원` : '금액미상'}
+                    {fareWonOf(asShaped(route)) > 0 ? `${manwonText(fareWonOf(asShaped(route)))}원` : '금액미상'}
                 </span>
             </span>
         </div>

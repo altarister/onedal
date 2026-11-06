@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { manwonText } from '@onedal/shared';
+import { manwonText, fareWonOf, asShaped } from '@onedal/shared';
 import type { SecuredOrder, StepViewRow, RouteTimelineEntry } from '@onedal/shared';
 import StepSheetMock from './StepSheetMock';
 import StepSwipeTrack from './StepSwipeTrack';
@@ -47,7 +47,7 @@ export default function StepEditPopup({ route, seededSteps, timeline, startIdx, 
                     <div className="text-[15px] font-black truncate">{route.pickup} → {route.dropoff}</div>
                     <div className="text-[12px] text-text-muted">{idx + 1}/{seededSteps.length} · {x?.label}</div>
                 </div>
-                {route.fare != null && <div className="text-[16px] font-black text-success">{manwonText(route.fare)}</div>}
+                <div className="text-[16px] font-black text-success">{manwonText(fareWonOf(asShaped(route)))}</div>
                 <button type="button" aria-label="닫기" onClick={() => onClose('닫기')}
                     className="shrink-0 w-10 h-10 rounded-full border border-border text-[18px] font-black text-text-muted">✕</button>
             </div>

@@ -1,4 +1,4 @@
-import { wonText, MILESTONE_LABEL, timingError } from '@onedal/shared';
+import { wonText, MILESTONE_LABEL, timingError, fareWonOf, asShaped } from '@onedal/shared';
 import type { SecuredOrder } from '@onedal/shared';
 import type { CallRecords } from '../../hooks/records';
 import { rawFieldsOf } from './callCardViews';
@@ -27,7 +27,7 @@ export default function CallEvidenceDrawer({ route, soloKm, soloMin, milestoneLo
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted px-0.5 mt-1 mb-2">
                 <span>단독 {soloKm ? `${Number(soloKm).toFixed(1)}km / ${soloMin || 0}분` : '연산 중'}</span>
                 <span>·</span>
-                <span>{wonText(route.fare)}{route.paymentType ? `(${route.paymentType})` : ''}</span>
+                <span>{wonText(fareWonOf(asShaped(route)))}{route.paymentType ? `(${route.paymentType})` : ''}</span>
                 {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
                 {route.time?.pickup?.text && <><span>·</span><span className="text-warning font-bold">🕒 {route.time?.pickup?.text}</span></>}
             </div>

@@ -4,6 +4,7 @@ import { join } from 'path';
 import db from '../../src/db';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
 import { judgmentRecordOf } from '../../src/core/engine/judgmentRecord';
+import { baseCallShapeOf } from '@onedal/shared';
 
 /**
  * 🧾 **판정할 때 «무슨 콜이었고 어떤 필터였나»를 판정 장부에 함께 남긴다** (기사님 «1 예»).
@@ -16,7 +17,9 @@ const FILTER = {
     isActive: true, userOverrides: true,
     pickupKeywords: ['경안동', '쌍령동'], destinationKeywords: ['관고동', '증포동', '신둔면'], excludedKeywords: ['착불'],
 };
-const PREVIEW = { id: 'TEST-JREC-1', pickup: '경기 광주시 광남1동', dropoff: '경기 이천시 관고동', fare: 23000, targetApp: 'kakaopicker', isPreview: true };
+const FLAT = { id: 'TEST-JREC-1', pickup: '경기 광주시 광남1동', dropoff: '경기 이천시 관고동', fare: 23000, targetApp: 'kakaopicker', isPreview: true };
+/* 판정 기록은 묶음이 있는 콜만 받는다 — 요금은 묶음의 요금 줄에서 (계획서 E5) */
+const PREVIEW = { ...FLAT, ...baseCallShapeOf(FLAT) };
 
 describe('판정 기록 — 콜 내용 · 필터 요약', () => {
     afterAll(() => db.prepare(`DELETE FROM order_judgments WHERE orderId LIKE 'TEST-JREC-%'`).run());
@@ -48,6 +51,6 @@ describe('판정 기록 — 콜 내용 · 필터 요약', () => {
         const saves = src.match(/OrderRepository\.saveJudgment\([^;]*\)/g) ?? [];
         expect(saves.length).toBeGreaterThanOrEqual(3);
         for (const s of saves) expect(s).toMatch(/\.\.\.record/);
-        expect(src).toMatch(/const record = judgmentRecordOf\(securedOrder, snap\.filter\)/);
+        expect(src).toMatch(/const record = judgmentRecordOf\(asShaped\(securedOrder\), snap\.filter\)/);
     });
 });

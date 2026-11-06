@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useSettingsStore, loadScreenSettings } from '../../stores/settingsStore';
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
-import { CAPACITY_CONFIDENCE_LABEL, isAlreadyLoaded, isEvaluating, TRUCK_CAPACITY_SLOTS, manwonText } from '@onedal/shared';
+import { CAPACITY_CONFIDENCE_LABEL, isAlreadyLoaded, isEvaluating, TRUCK_CAPACITY_SLOTS, manwonText, fareWonOf, asShaped } from '@onedal/shared';
 import { logStateChange } from '../../lib/roadmapLogger';
 import { initialMotion, motionOnFix, motionOnTick } from './driveMotion';
 
@@ -130,7 +130,7 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
      *    끝난 콜(취소·방출)은 한 푼도 못 받는다. 전체를 더하면 진행 2건인데 종료분까지
      *    합쳐 과다 표시된다. 완료분은 계산에 섞지 않는다.
      */
-    const fareSum = confirmedCalls.reduce((sum, o) => sum + (o.fare || 0), 0);
+    const fareSum = confirmedCalls.reduce((sum, o) => sum + fareWonOf(asShaped(o)), 0);   // 💰 콜마다 요금 줄 하나 (계획서 E5)
     return (
         <span className="flex items-baseline gap-1.5 whitespace-nowrap">
             <span className="text-[17px] font-black text-text-primary">{myVehicle}</span>

@@ -238,6 +238,18 @@ export function baseCallShapeOf(order: Partial<OfficeOrder>, held?: BaseCall): B
     return shape as BaseCallShape;
 }
 
+/**
+ * 💰 **콜 요금(원)** — 묶음의 요금 줄에서 한 줄만 고른다: 목록 요금 · 수입 · «옛 요금». 줄을 더하지 않는다 (계획서 E5).
+ * 펼친 콜에서는 옛 요금 칸과 같은 값이다 — `baseCallShapeOf` 가 옛 칸과 같은 목록 요금 · 수입 줄만 남기고 없으면 «옛 요금» 줄을 만든다.
+ * 🔴 운송료 · 다른 이름의 종류 모르는 줄(«상세 요금»)은 안 읽는다. 옛 칸과 다른 값일 수 있다.
+ * 손에 오는 돈이 아니다 — 화물24시 목록 요금에는 «수»가 들어 있다. 모르면 0.
+ */
+export function fareWonOf(order: Pick<BaseCallShape, 'money'>): number {
+    const lines = order.money?.lines ?? [];
+    const line = lines.find((l) => l.kind === 'total') ?? lines.find((l) => l.kind === 'income') ?? lines.find((l) => l.kind === 'unknown' && l.label === OLD_FARE_LABEL);
+    return line?.won ?? 0;
+}
+
 /** 🚨 **급송 콜인가** — 묶음의 형태(job.orderForm) 하나로 가른다. 서버 저장 · 관제웹 표시가 같은 함수를 쓴다 (계획서 E2) */
 export function isExpressOf(order: Pick<BaseCallShape, 'job'>): boolean {
     return order.job?.orderForm === '급송';
