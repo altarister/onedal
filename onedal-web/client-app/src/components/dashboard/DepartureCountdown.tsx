@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { deriveCallStep, deriveCallTiming, deriveRouteTimeline, derivationInputsOf, pickBindingDeparture,
-         minRouteBuffer, minutesUntil, formatCountdown } from '@onedal/shared';
+         minRouteBuffer, minutesUntil, formatCountdown, asShaped } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import type { CallRecords } from '../../hooks/records';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -89,7 +89,7 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
     const { rules, unk } = derivationInputsOf(useJudgmentStore.getState().judgment);
     // ⏱️ 실측 정차도 같은 재료로 — 덱만 보고 카운트다운이 못 보면 한 화면이 두 시각을 말한다
     const dwellLedgerOf = (id: string) => (records.get(id) ?? EMPTY_RECORDS).dwell;
-    const timeline = deriveRouteTimeline(routeStops, orders, reportsOf, milestonesOf, now, routeComputedAt, rules, unk, dwellLedgerOf);
+    const timeline = deriveRouteTimeline(routeStops, orders.map(asShaped), reportsOf, milestonesOf, now, routeComputedAt, rules, unk, dwellLedgerOf);
     /**
      * 🧮 **경로 최소 버퍼** (⑯-1) — 콜별이 아니라 **내 콜 전부의 최소값**이 예산이다.
      * 콜별로 +60 이어도 경로 최소가 +6 이면 +6 이 실을 수 있는 시간이다 — 여기(항상 떠 있는 줄)에
@@ -120,7 +120,7 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
         // 이미 상차했으면 출발을 기다릴 이유가 없다 (그 콜은 우회 예산 쪽이다)
         if (deriveCallStep(r.milestones, r.reports).index >= 4) continue;
 
-        const t = deriveCallTiming(o, r.reports, r.milestones, now, rules, unk);
+        const t = deriveCallTiming(asShaped(o), r.reports, r.milestones, now, rules, unk);
         if (!t.departureAt) continue;
         if (!soonest || new Date(t.departureAt).getTime() < new Date((soonest as any).at).getTime()) {
             // 🔴 내역을 함께 담는다 — 기사님이 **왜 그 시각인지** 알아야 판단하실 수 있다

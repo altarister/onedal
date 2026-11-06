@@ -1,4 +1,4 @@
-import { deriveRouteTimeline, derivationInputsOf, isTerminal } from "@onedal/shared";
+import { deriveRouteTimeline, derivationInputsOf, isTerminal, asShaped } from "@onedal/shared";
 import { getUserSession } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { stepRecordsOf, dwellLedgerFor } from "./stepSeeder";
@@ -19,7 +19,7 @@ export function routeTlOf(userId: string): RouteTl | undefined {
         const cfg = session.judgment;
         const inputs = cfg ? derivationInputsOf(cfg) : undefined;
         const dwellLedgerOf = (id: string) => dwellLedgerFor(id);
-        return deriveRouteTimeline(sync.routeStops as any, active as any,
+        return deriveRouteTimeline(sync.routeStops as any, (active as any[]).map(asShaped),
             id => stepRecordsOf(id).reports as any,       // 🔄 파생 치환 ② — 새 장부가 재료
             id => stepRecordsOf(id).milestones as any,
             Date.now(), sync.routeComputedAt, inputs?.rules, inputs?.unk, dwellLedgerOf);

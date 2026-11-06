@@ -1,4 +1,4 @@
-import { verdictOf, manwonText, wonText, isExpressOf, type DecisionStatus } from '@onedal/shared';
+import { verdictOf, manwonText, wonText, isExpressOf, type DecisionStatus, asShaped } from '@onedal/shared';
 import { BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -271,7 +271,7 @@ export default function PinnedRouteCard({
      */
     // 🎛️ 판정 기준 탭의 시간 4칸을 함께 — 조립은 derivationInputsOf 한 곳 (서버·타임라인과 동일)
     const { rules: jdRules, unk: jdUnk } = derivationInputsOf(useJudgmentStore.getState().judgment);
-    const timing = deriveCallTiming(route, cargoReports, milestoneLog, Date.now(), jdRules, jdUnk);
+    const timing = deriveCallTiming(asShaped(route), cargoReports, milestoneLog, Date.now(), jdRules, jdUnk);
     const soloKm = timing.soloKm;
     const soloMin = timing.soloMinutes;
 
@@ -514,7 +514,7 @@ export default function PinnedRouteCard({
                                 같은 숫자가 나온다. 통화 전이니 항상 ~ 다. */}
                             {(() => {
                                 // 🎛️ 심사 버퍼도 판정 기준 탭 값으로 — 잡기 전후 같은 파생
-                                const t = deriveCallTiming(route, [], [], Date.now(), jdRules, jdUnk);
+                                const t = deriveCallTiming(asShaped(route), [], [], Date.now(), jdRules, jdUnk);
                                 if (!t.pickupPromisedArrivalAt || t.toPickup.driveMinutes == null) return null;
                                 const etaMs = Date.now() + (t.toPickup.driveMinutes + t.toPickup.leadMinutes) * 60_000;
                                 const buf = Math.round((Date.parse(t.pickupPromisedArrivalAt) - etaMs) / 60_000);

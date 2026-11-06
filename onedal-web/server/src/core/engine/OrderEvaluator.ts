@@ -7,7 +7,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { baseCallShapeOf } from "@onedal/shared";
+import { baseCallShapeOf, asShaped } from "@onedal/shared";
 import type { BaseCallShape } from "@onedal/shared";
 import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP, geocodeTargetOf } from '@onedal/shared';
 import type { GeocodeSource } from '@onedal/shared';
@@ -74,7 +74,7 @@ export function evaluationInputsOf(userId: string, session: ReturnType<typeof ge
      *    ② **합칠 상대가 없다** — 오늘 실린 짐과 합짐이 아니다(첫짐 단독).
      *    가르는 것은 이 콜 하나의 사실(보관 날이 오늘 뒤)이다. 오늘 콜은 지금처럼 부를 때마다 그때 자리를 읽는다.
      */
-    const reservedLater = isLaterThan(reservedForOf(order), businessDayKey(Date.now()));
+    const reservedLater = isLaterThan(reservedForOf(asShaped(order)), businessDayKey(Date.now()));
     const originNow = () => reservedLater ? homeOriginOf(userId) : originOf(session);
     const activeCallsNow = () => reservedLater ? [] : getActiveCalls(session);
     /**
@@ -215,7 +215,7 @@ export class OrderEvaluator {
 
         slog('판정', `\n======================================================`);
         slog('판정', `[서버-사이드 카카오 연산] 🚀 ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
-        if (reservedLater) slog('판정', `   - ${reservedLaterLineOf(reservedForOf(securedOrder), snap.origin, snap.pickupRadiusKm)}`);
+        if (reservedLater) slog('판정', `   - ${reservedLaterLineOf(reservedForOf(asShaped(securedOrder)), snap.origin, snap.pickupRadiusKm)}`);
 
         // 1. 주소 정규화 — 상차·하차는 원달앱이 올린 전체 주소 그대로다(서버는 팝업에서 주소를 꺼내지 않는다)
         securedOrder.pickup = addressOf(this.targetApp, securedOrder.pickup);
@@ -480,7 +480,7 @@ export class OrderEvaluator {
                 const dwellLedgerOf = (id: string) => dwellLedgerFor(id);
                 // 후보를 **포함한** 경로의 타임라인 — 기존 콜 약속이 어떻게 되는지가 문지기다
                 const tlAfter = stopsAfter.length
-                    ? deriveRouteTimeline(stopsAfter as any, [...activeCalls, securedOrder] as any,
+                    ? deriveRouteTimeline(stopsAfter as any, [...activeCalls, securedOrder].map(asShaped),
                         id => stepRecordsOf(id).reports as any,       // 🔄 파생 치환 ②
                         id => stepRecordsOf(id).milestones as any,
                         Date.now(), new Date().toISOString(), derivation.rules, derivation.unk, dwellLedgerOf)

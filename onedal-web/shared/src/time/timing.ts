@@ -350,7 +350,7 @@ export function businessDayKey(ms: number): string {
  * 이 콜의 보관 날 `YYYY-MM-DD` — 잡은 날 + 예약 날(`time.pickup.day`) 일. 오늘 콜(0 · 없음)이면 null.
  * 날 경계는 `businessDayKey`(영업일 전환과 같은 자정) 하나로 잰다. 서버(판정 · 보관)와 관제웹(판정석 예약 알약)이 같이 쓴다.
  */
-export function reservedForOf(order: { time?: BaseCallShape['time']; capturedAt?: string; timestamp?: string }): string | null {
+export function reservedForOf(order: { time: BaseCallShape['time']; capturedAt?: string; timestamp?: string }): string | null {
     const days = order.time?.pickup?.day;
     if (days == null || !(days >= 1)) return null;
     const base = Date.parse(order.capturedAt ?? order.timestamp ?? '');
@@ -617,9 +617,9 @@ export interface TimingOrderFields {
      * 🎯 콜 묶음 (계획서 E3) — 상차 약속(time.pickup: 예약 날 0 오늘 · 1 내일 · N, 시각 «HH:MM»)과
      *    상차 시계(«HH:MM상차»)를 읽는 짐 글(load.itemDescription) · 적요(job.detailMemo) (두 시계 · ⑯)
      */
-    time?: BaseCallShape['time'];
-    load?: BaseCallShape['load'];
-    job?: BaseCallShape['job'];
+    time: NonNullable<BaseCallShape['time']>;
+    load: NonNullable<BaseCallShape['load']>;
+    job: NonNullable<BaseCallShape['job']>;
     approachDurationMin?: number;
     totalDistanceKm?: number;
     kakaoSoloDistanceKm?: number;

@@ -2,7 +2,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
-import { OFFICE_FIELDS, baseCallShapeOf, isExpressOf, mergeBaseCall, officeOrderOf } from './baseCallToOffice';
+import { OFFICE_FIELDS, asShaped, baseCallShapeOf, isExpressOf, mergeBaseCall, officeOrderOf } from './baseCallToOffice';
 
 /**
  * 🎯 **콜에 펼친 기본 콜 묶음** (계획서 E) — 옛 칸이 있는 값은 옛 칸에서, 옛 칸이 없는 새 값만 원달앱 기본 콜에서.
@@ -74,3 +74,22 @@ describe('🚨 급송 — 묶음의 형태 하나로 가른다 (계획서 E2)', 
         expect(isExpressOf({ orderForm: '급송' })).toBe(false);
     });
 });
+
+describe('🎯 묶음이 있는 콜로 (asShaped)', () => {
+    it('이미 펼친 콜은 그 객체 그대로 — 기본 콜에서 온 새 값을 지우지 않는다', () => {
+        const c = filled.find((x) => mergedOf(x).route.listRegion);
+        const shaped = { ...c.expectCall, ...baseCallShapeOf(c.expectCall, mergedOf(c)) };
+        expect(asShaped(shaped)).toBe(shaped);
+    });
+    it('🔴 묶음 일부만 가진 콜은 가진 값을 지키고 빠진 묶음만 채운다', () => {
+        const got = asShaped({ time: { pickup: { day: 1 } }, capturedAt: 't' });
+        expect(got.time.pickup.day).toBe(1);
+        expect(got.route).toEqual({ pickup: {}, dropoff: {} });
+    });
+    it('🔴 묶음이 없는 콜은 옛 칸으로 펼친다 — 예약 날 · 적요가 비지 않는다', () => {
+        const got = asShaped({ pickup: 'a', dropoff: 'b', fare: 1, reservedDay: 1, reservedAt: '09:00', detailMemo: '17:40상차' });
+        expect(got.time.pickup).toEqual({ day: 1, at: '09:00' });
+        expect(got.job.detailMemo).toBe('17:40상차');
+    });
+});
+

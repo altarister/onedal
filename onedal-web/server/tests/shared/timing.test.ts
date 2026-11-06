@@ -2,8 +2,7 @@ import {
     BUSINESS_DAY_END_HOUR, DEFAULT_DELIVERY_SLACK_MINUTES,
     businessDayEnd, defaultDropoffDeadline, derivePickupDeadline, buildArrivalSlots,
     departureDeadline, minutesUntil, formatCountdown, deriveCallTiming, businessDayKey, resetToBaseFilter,
-    DEFAULT_DEADLINE_RULES,
-} from '@onedal/shared';
+    DEFAULT_DEADLINE_RULES } from '@onedal/shared';
 
 /**
  * 기사님이 정한 두 원칙으로 마감을 **통화 전에도** 만든다.
@@ -160,6 +159,7 @@ describe('buildArrivalSlots — 30분 단위 도착 협상', () => {
 describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
     const NOW = new Date('2026-08-12T09:00:00+09:00').getTime();
     const order = {
+        time: {}, load: {}, job: {},   // 🎯 묶음이 있는 콜 (계획서 E) — 이 시험은 예약 · 적요가 없는 콜이다
         approachDurationMin: 39,
         totalDistanceKm: 94.5,
         kakaoSoloDistanceKm: 68,

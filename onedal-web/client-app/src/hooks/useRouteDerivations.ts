@@ -1,6 +1,6 @@
 import { mockLineOf } from './mockLine';
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { isEvaluating, isTerminal, hasVisitedStop, judgingCallOf, deriveRouteTimeline, derivationInputsOf, deckOfCycle, minRouteBuffer } from '@onedal/shared';
+import { isEvaluating, isTerminal, hasVisitedStop, judgingCallOf, deriveRouteTimeline, derivationInputsOf, deckOfCycle, minRouteBuffer, asShaped } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { EMPTY_RECORDS } from './records';
 import { useStepRecords } from './useStepRecords';
@@ -230,7 +230,7 @@ export function useRouteDerivations(
         const { rules, unk } = derivationInputsOf(judgmentCfg);
         const dwellLedgerOf = (id: string) => (stepRecords.get(id) ?? EMPTY_RECORDS).dwell;
         return deriveRouteTimeline(
-            routeStops, liveRoute,
+            routeStops, liveRoute.map(asShaped),   // 🎯 묶음이 있는 콜로 (계획서 E)
             (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).reports,
             (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).milestones,
             Date.now(), routeComputedAt, rules, unk, dwellLedgerOf,

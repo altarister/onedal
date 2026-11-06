@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
-import { deriveCallTiming, derivationInputsOf } from '@onedal/shared';
+import { deriveCallTiming, derivationInputsOf, asShaped } from '@onedal/shared';
 import type { RouteTimelineEntry } from '@onedal/shared';
 import { pickAutoFocus } from '../../lib/deckFocus';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -212,7 +212,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
              *    필요할 때 한 번만 계산한다 — 시간표에 다 있으면 안 부른다.
              */
             let fallbackMemo: ReturnType<typeof deriveCallTiming> | undefined;
-            const fallbackOf = () => (fallbackMemo ??= deriveCallTiming(o, r.reports, r.milestones, Date.now(), jd.rules, jd.unk));
+            const fallbackOf = () => (fallbackMemo ??= deriveCallTiming(asShaped(o), r.reports, r.milestones, Date.now(), jd.rules, jd.unk));
             const promiseOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.promisedUntil
                 ?? (stop === 'pickup' ? fallbackOf()?.pickupPromisedArrivalAt : fallbackOf()?.dropoffPromisedArrivalAt)
                 ?? null;

@@ -16,7 +16,7 @@ import { composeMergedRoute, planArrivalStops, type PromiseOrderOpts, applyRoute
 import { firmPromiseMsOf, birthFirstStep, refreshPlannedSteps, stepsView } from "./stepSeeder";
 import { routeTlOf } from "./routeTl";
 import { saveHeldBaseCall } from "./baseCallCompare";
-import { DEFAULT_JUDGMENT, routeNeedsRecompute, isExpressOf } from "@onedal/shared";
+import { DEFAULT_JUDGMENT, routeNeedsRecompute, isExpressOf, asShaped } from "@onedal/shared";
 import type { JudgmentConfig } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { countCancel, countKeep, writesLedger } from "../core/cancelCount";
@@ -608,7 +608,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
          *    이 콜 하나의 사실(보관 날이 오늘 뒤)로 가른다. 장부에는 적고(재시작에도 되살린다), 관제웹에는 알린다.
          *    단계 행(상차지 통화)은 `birthStepsOnKeep` 이 여느 콜처럼 낳는다 — 약속은 예약 날·시각이다.
          */
-        const reservedFor = reservedForOf(confirmedOrder);
+        const reservedFor = reservedForOf(asShaped(confirmedOrder));
         if (isLaterThan(reservedFor, businessDayKey(Date.now()))) {
             confirmedOrder.reservedFor = reservedFor!;
             (cachedOrder as any).reservedFor = reservedFor;

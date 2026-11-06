@@ -242,3 +242,19 @@ export function baseCallShapeOf(order: Partial<OfficeOrder>, held?: BaseCall): B
 export function isExpressOf(order: Pick<BaseCallShape, 'job'>): boolean {
     return order.job?.orderForm === '급송';
 }
+
+/** 🎯 묶음 다섯이 반드시 있는 콜 — 읽는 함수(시간 계산 등)는 이것만 받는다 (계획서 E) */
+export type ShapedGroups = Required<Pick<BaseCallShape, 'route' | 'money' | 'load' | 'time' | 'job'>>;
+
+/**
+ * 🎯 **묶음이 있는 콜로** — 이미 펼친 콜은 그대로, 묶음이 없으면 옛 칸으로 펼친다.
+ * 읽는 함수에 넘기는 자리가 거친다. 빠뜨리면 타입 검사가 멈춘다 — 묶음 없는 콜이 조용히 들어가 값이 비는 일을 막는다.
+ */
+export function asShaped<T extends Partial<OfficeOrder>>(order: T): T & ShapedGroups {
+    if (order.route && order.money && order.load && order.time && order.job) return order as T & ShapedGroups;
+    /* 묶음이 하나라도 있으면 이미 펼친 콜이다 — 빠진 묶음만 빈 칸으로 채운다(가진 값을 옛 칸으로 덮지 않는다) */
+    if (order.route || order.money || order.load || order.time || order.job) {
+        return { ...order, route: order.route ?? { pickup: {}, dropoff: {} }, money: order.money ?? { lines: [] }, load: order.load ?? {}, time: order.time ?? {}, job: order.job ?? {} } as T & ShapedGroups;
+    }
+    return { ...order, ...baseCallShapeOf(order) } as T & ShapedGroups;
+}
