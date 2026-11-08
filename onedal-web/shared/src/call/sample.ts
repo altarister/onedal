@@ -1,5 +1,6 @@
 import type { CallMoney } from './money';
 import type { OrderForm, TripType } from './badges';
+import type { CallLoad } from '../cargo/callLoad';
 
 export const OFFICE_ORDER_SAMPLE = {
     // ── 목록 칸 (SimplifiedOfficeOrder) ──
@@ -1177,7 +1178,7 @@ const LOAD_EXAMPLE_INSUNG = {
         lines: [
             { kind: "goods", shown: "폰)" },
         ],
-    },
+    } satisfies CallLoad,
 };
 
 /**
@@ -1196,7 +1197,7 @@ const LOAD_EXAMPLE_HWAMUL24 = {
             { kind: "body", shown: "윙바디" },
             { kind: "weight", shown: "3.85톤" },
         ],
-    },
+    } satisfies CallLoad,
 };
 
 /**
@@ -1215,7 +1216,7 @@ const LOAD_EXAMPLE_KAKAOPICKER = {
             { kind: "dimension", shown: "세 변의 합 70cm" },
             { kind: "weight", shown: "2kg 이하" },
         ],
-    },
+    } satisfies CallLoad,
 };
 
 /**
@@ -1232,7 +1233,7 @@ const LOAD_EXAMPLE_ISFLEX = {
         sizeText: null,
         itemText: null,
         lines: [],
-    },
+    } satisfies CallLoad,
 };
 
 /**
@@ -1351,7 +1352,7 @@ const OFFICE_ORDER_SAMPLE_09 = {
         sizeText: "크기",
         itemText: "물품",
         lines: [],                        // 짐 줄 갈래: weight · dimension · body · passenger · goods · care · unknown(뜻 모름)
-    },
+    } satisfies CallLoad,
 };
 
 /**

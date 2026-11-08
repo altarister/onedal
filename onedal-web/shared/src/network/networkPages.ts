@@ -105,6 +105,10 @@ export interface NetworkPageSpec {
     vehicleWords?: NetworkVehicleWord[];
     /** 차종 낱말을 화면 어디서 읽나 한 줄 */
     vehicleWordsWhy?: string;
+    /** 📦 **크기 낱말 → 라면박스 수** — «소형» → 2 · «대형» → null(모름). shared `boxesOf` 가 읽는다 */
+    sizeWords?: Array<{ word: string; boxes: number | null; seen: 'REAL' | 'SIM' }>;
+    /** 🚚 차종 글자가 없으면 수단 상관없음인가 — 참이면 shared `vehicleMatchOf` 가 빈 차종을 «모름» 대신 «수단 상관없음»으로 낸다 */
+    vehicleAbsentMeansAny?: boolean;
     /** 🖥️ 이 배차망의 페이지 전부 — 차례가 판별 차례 · 표에 없는 화면은 리뉴얼이거나 못 모은 화면이다 */
     screens: NetworkScreenSpec[];
     /**

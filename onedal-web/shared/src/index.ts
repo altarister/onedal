@@ -34,6 +34,7 @@ export * from './judge/verdict';
 export * from './map/routeReuse';
 export * from './judge/fuelCost';
 export * from './cargo/vehicles';
+export * from './cargo/callLoad';
 export * from './device/deviceLink';
 export * from './ops/releases';
 export * from './device/allowance';
