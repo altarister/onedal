@@ -330,7 +330,7 @@ export interface JudgmentSnapshot {
 export interface MyOrder extends OfficeOrder, ServerCallFields {  // 내 콜 — OfficeOrder + 서버의 경로 · 판정 · 정산 값. 기사님이 KEEP 해 내 것이 된 콜. 서버 안에서 쓴다
     status: MyOrderStatus;            // ORDER_CONFIRMED | ORDER_PICKED_UP | ORDER_DELIVERED
     /**
-     * 📅 **예약 보관 날 `YYYY-MM-DD`** — 잡은 날 + `reservedDay`. 오늘보다 뒤면 이 콜은 진행 중 콜이 아니라
+     * 📅 **예약 보관 날 `YYYY-MM-DD`** — 잡은 날 + 첫 상차 정거장 `requestedDay`. 오늘보다 뒤면 이 콜은 진행 중 콜이 아니라
      *    세션의 예약 보관(`reservedOrders`)에 있다. 장부 자리는 `orders.reserved_for`. 오늘 콜이면 비어 있다.
      */
     reservedFor?: string;

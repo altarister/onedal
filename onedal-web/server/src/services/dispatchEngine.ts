@@ -534,6 +534,9 @@ export async function handleDecision(userId: string, orderId: string, status: De
         // [V2 핵심] PendingOrder → MyOrder 승격 (심사 완료 → 내 퀵 확정)
         const confirmedOrder: MyOrder = {
             ...cachedOrder,
+            // 정거장도 새 객체로 — 판정이 아직 좌표를 찍는 중이면 그 쓰기가 확정 콜에 새지 않게
+            pickupDetails: cachedOrder.pickupDetails?.map(s => ({ ...s })),
+            dropoffDetails: cachedOrder.dropoffDetails?.map(s => ({ ...s })),
             status: 'ORDER_CONFIRMED',
         };
         // phase 및 isPreview는 심사(PendingOrder) 전용이므로 확정 시 완전 제거
