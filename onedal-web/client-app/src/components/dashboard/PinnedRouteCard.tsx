@@ -6,7 +6,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords, safeCancelSecOf, stopPhoneLogOf } from "@onedal/shared";
 import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
-import { telHref, getAddressLabel } from "../../lib/routeUtils";
+import { telHref, stopLabelOf } from "../../lib/routeUtils";
 import { callNow } from "../../lib/phoneCall";
 import { drawsDecisionButtons, capturedHowOf } from "../../lib/callBadges";
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
@@ -298,7 +298,7 @@ export default function PinnedRouteCard({
                     {/* 🧭 잡은 뒤 카드는 머리에 경로 — 정거장 덩어리가 이름 · 주소를 들어 덱 요약 줄 없이도 읽힌다 (기사님 «가») */}
                     {!judging && (
                         <span className="min-w-0 truncate text-[15px] font-black text-text-primary">
-                            {getAddressLabel(firstPickupStop(route)?.listText ?? '')} → {getAddressLabel(lastDropoffStop(route)?.listText ?? '')}
+                            {stopLabelOf(route, firstPickupStop(route))} → {stopLabelOf(route, lastDropoffStop(route))}
                         </span>
                     )}
                     {/* 🔄 이번 운행에서 **끝낸** 콜 — 사이클이 도는 동안 카드가 남는다.

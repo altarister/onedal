@@ -8,7 +8,7 @@ import { useProcessingLock } from '../../hooks/useProcessingLock';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { useStageAreas } from '../../hooks/useStageAreas';
 import { useSidePanelRoom } from '../../hooks/useSidePanelRoom';
-import { getAddressLabel } from '../../lib/routeUtils';
+import { stopLabelOf } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from './StageSheet';
 import StageStatusBar from './StageStatusBar';
@@ -424,7 +424,7 @@ export default function StageView(props: Props) {
             orderId: st.orderId,
             x: (st.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.geo?.x,
             y: (st.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.geo?.y,
-            name: getAddressLabel((st.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.listText ?? ''),
+            name: stopLabelOf(o, st.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o)),
             stopLabel: st.stopType === 'pickup' ? '상차' : '하차',
             callNo, driveMinutes: st.driveMinutes,
             visitNo: (() => { const vo = visitOrderMap.get(st.orderId) as { pickupIdx?: number; dropoffIdx?: number } | number | undefined;

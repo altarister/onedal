@@ -52,6 +52,16 @@ describe('getAddressLabel', () => {
         expect(getAddressLabel('경기 화성시')).toBe('화성시');
     });
 
+    it('둘째 낱말부터 동 · 읍 · 면 · 가가 없으면 첫 낱말이 읍 · 면일 때 그 낱말 — 도로명보다 읍', () => {
+        expect(getAddressLabel('화도읍 폭포로412-18')).toBe('화도읍');
+    });
+
+    it('첫 낱말 «동» · 끝말 «리»는 보지 않는다 — 구 줄임 · 시 이름 · 상호', () => {
+        expect(getAddressLabel('성동 성수1가')).toBe('성수1가');
+        expect(getAddressLabel('강동 길동')).toBe('길동');
+        expect(getAddressLabel('경기 광주시 새말길 127 디아스토리 물류센터')).toBe('광주시');
+    });
+
     it('빈 문자열이나 1단어 주소는 그대로 반환한다', () => {
         expect(getAddressLabel('')).toBe('배차값없음');
         expect(getAddressLabel('서울')).toBe('서울');

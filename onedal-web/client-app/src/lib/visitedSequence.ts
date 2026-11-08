@@ -1,4 +1,4 @@
-import { isTerminal, isDeliveredCall, hasVisitedStop, firstPickupStop, lastDropoffStop, type StopSource } from '@onedal/shared';
+import { isTerminal, isDeliveredCall, hasVisitedStop, firstPickupStop, lastDropoffStop, type StopSource, type CallStop } from '@onedal/shared';
 
 /**
  * 👣 **다녀온 정거장의 순서 — 번호를 세는 목록** (기사님 실측).
@@ -54,8 +54,8 @@ const msOf = (s?: string | null) => {
 
 export function visitedSequenceOf<T extends DeckCall>(
     deck: T[],
-    /** 주소 → 화면에 적을 짧은 이름 (`getAddressLabel`) — 순수하게 두려고 넘겨받는다 */
-    nameOf: (address: string) => string,
+    /** 콜 · 정거장 → 화면에 적을 짧은 이름 (`stopLabelOf`) — 순수하게 두려고 넘겨받는다 */
+    nameOf: (call: T, stop: CallStop | null | undefined) => string,
 ): VisitedStop[] {
     const out: VisitedStop[] = [];
     for (const r of deck) {
@@ -64,12 +64,12 @@ export function visitedSequenceOf<T extends DeckCall>(
         if (hasVisitedStop(r, 'pickup')) {
             const p = firstPickupStop(r);
             out.push({ x: p?.geo?.x ?? null, y: p?.geo?.y ?? null, type: '상차', orderId: r.id, no: 0,
-                       name: nameOf(p?.listText ?? ''), at: msOf(r.arrivedPickupAt) });
+                       name: nameOf(r, p), at: msOf(r.arrivedPickupAt) });
         }
         if (hasVisitedStop(r, 'dropoff')) {
             const d = lastDropoffStop(r);
             out.push({ x: d?.geo?.x ?? null, y: d?.geo?.y ?? null, type: '하차', orderId: r.id, no: 0,
-                       name: nameOf(d?.listText ?? ''), at: msOf(r.arrivedDropoffAt) });
+                       name: nameOf(r, d), at: msOf(r.arrivedDropoffAt) });
         }
     }
     /**

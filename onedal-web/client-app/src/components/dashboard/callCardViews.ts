@@ -1,7 +1,7 @@
 import { hhmmText, manwonText, stopPhoneOf, unitPoints, dwellMinutes, protectionMinutes, afterworkMinutes, jsonArrayOf, minutesEarly, firstPickupStop, lastDropoffStop, stopTextOf, deliveryKmOf } from '@onedal/shared';
 import type { DwellUnknown } from '@onedal/shared';
 import type { SecuredOrder, StepViewRow, RouteTimelineEntry, CallTiming } from '@onedal/shared';
-import { getAddressLabel } from '../../lib/routeUtils';
+import { stopLabelOf } from '../../lib/routeUtils';
 
 /**
  * 🧾 **펼친 콜 카드의 셈** — 카드(`PinnedRouteCard`)와 그 부품(`StopDetailBlock` · `CallStepTrack` · `CallEvidenceDrawer`)이 그리는 값.
@@ -205,10 +205,10 @@ export function stopDetailRowsOf({ route, timeline, visitOrder, timing, etas }: 
 }): StopDetailRow[] {
     const rows = ([
         { kind: '상차' as const, stopType: 'pickup' as const, seq: visitOrder?.pickupIdx,
-            name: getAddressLabel(firstPickupStop(route)?.listText ?? ''), legKm: timing.approachKm, fallbackMin: timing.approachMinutes,
+            name: stopLabelOf(route, firstPickupStop(route)), legKm: timing.approachKm, fallbackMin: timing.approachMinutes,
             arrived: timing.arrivedPickup, promised: timing.pickupPromisedArrivalAt, eta: etas.pickupEta },
         { kind: '하차' as const, stopType: 'dropoff' as const, seq: visitOrder?.dropoffIdx,
-            name: getAddressLabel(lastDropoffStop(route)?.listText ?? ''), legKm: timing.soloKm, fallbackMin: timing.soloMinutes,
+            name: stopLabelOf(route, lastDropoffStop(route)), legKm: timing.soloKm, fallbackMin: timing.soloMinutes,
             arrived: timing.arrivedDropoff, promised: timing.dropoffPromisedArrivalAt, eta: etas.dropoffEta },
     ]);
     /** 약속 시각(ISO 문자열) → `05:08`. 없으면 `--:--` (지어내지 않는다) */

@@ -7,7 +7,7 @@ import { verdictOf, type Color } from '@onedal/shared';
 import { reservedBadgeOf } from '../../lib/reservedLine';
 import { approxBadgeOf } from '../../lib/approxAddress';
 import { unreadableLine, visibleIn, type Unreadable } from '../../lib/unreadable';
-import { getAddressLabel } from '../../lib/routeUtils';
+import { stopLabelOf } from '../../lib/routeUtils';
 import { drawsDecisionButtons, practiceBadgeOf, capturedHowOf } from '../../lib/callBadges';
 import { hhmmText } from '@onedal/shared';
 import { seatConclusion } from '../../lib/seatConclusion';
@@ -241,7 +241,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
             </span>
             <span style={{ fontWeight: 900, fontSize: 14.5, letterSpacing: '-.3px' }} className="whitespace-nowrap">{name}</span>
             <span className="truncate" style={{ color: 'var(--color-text-muted)', fontSize: 12.5, fontWeight: 700 }}>
-                {getAddressLabel(firstPickupStop(route)?.listText ?? '')} → {getAddressLabel(lastDropoffStop(route)?.listText ?? '')}
+                {stopLabelOf(route, firstPickupStop(route))} → {stopLabelOf(route, lastDropoffStop(route))}
             </span>
             <span className="ml-auto flex items-baseline shrink-0" style={{ gap: 10 }}>
                 {/**

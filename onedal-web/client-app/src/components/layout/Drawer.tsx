@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { deckOfCycle, type SecuredOrder, manwonText, ORDER_STATUS_LABEL } from '@onedal/shared';
 import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
-import { getAddressLabel } from '../../lib/routeUtils';
+import { stopLabelOf } from '../../lib/routeUtils';
 import { reservedLineOf } from '../../lib/reservedLine';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { callsInView, countsByView, FINISHED_TABS, type CallView } from '../../lib/finishedCalls';
@@ -162,8 +162,8 @@ export default function Drawer({ open, onClose, activeRoute, reserved = [], onDe
                             <div className="flex items-baseline justify-between gap-2">
                                 <span className="text-[13px] font-bold text-text-primary truncate">
                                     {FINISHED_TABS.find(t => t.key === tab)?.mark}{' '}
-                                    {/* 🔴 `getAddressLabel` 이 빈 주소에 «배차값없음» 을 돌려준다 — 여기서 또 감싸지 않는다 */}
-                                    {getAddressLabel(firstPickupStop(c)?.listText ?? '')} → {getAddressLabel(lastDropoffStop(c)?.listText ?? '')}
+                                    {/* 🔴 `stopLabelOf` 가 빈 주소에 «배차값없음» 을 돌려준다 — 여기서 또 감싸지 않는다 */}
+                                    {stopLabelOf(c, firstPickupStop(c))} → {stopLabelOf(c, lastDropoffStop(c))}
                                 </span>
                                 <span className="text-[12px] font-bold tabular-nums text-text-muted shrink-0">
                                     {won(c.fare)}

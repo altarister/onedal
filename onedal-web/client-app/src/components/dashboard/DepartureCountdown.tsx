@@ -4,7 +4,7 @@ import { deriveCallStep, deriveCallTiming, deriveRouteTimeline, derivationInputs
 import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import type { CallRecords } from '../../hooks/records';
-import { getAddressLabel } from '../../lib/routeUtils';
+import { stopLabelOf } from '../../lib/routeUtils';
 import { EMPTY_RECORDS } from '../../hooks/records';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { useJudgmentStore } from '../../stores/judgmentStore';
@@ -111,7 +111,7 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
             waitMin: minutesUntil(new Date(binding.departByMs!).toISOString(), now),
             basis: binding.stopType === 'pickup' ? `상차 약속(잡은 시각 + ${rules.pickupPromiseMinutes}분)` : `배달 데드라인(상차 완료+${rules.deadlineRatioPct}%)`,
             // 시각을 같이 적는다 — 상차지가 둘 다 "경안동"이면 이름만으로는 어느 약속인지 모른다
-            boundBy: o ? `${getAddressLabel((binding.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.listText ?? '')} ${binding.stopType === 'pickup' ? '상차' : '하차'} ${hhmmText(binding.promisedUntil) ?? ''}`.trim() : null,
+            boundBy: o ? `${stopLabelOf(o, binding.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))} ${binding.stopType === 'pickup' ? '상차' : '하차'} ${hhmmText(binding.promisedUntil) ?? ''}`.trim() : null,
         };
     }
 
@@ -148,7 +148,7 @@ export function useDepartureDue({ orders, records, routeStops, routeComputedAt }
         soonest.detail ? `(${soonest.detail}${soonest.waitMin != null && !late ? `, 대기 ${soonest.waitMin}` : ''}분)` : '',
         soonest.estimated ? `통화 전이라 추정입니다 (${soonest.basis})` : '',
         minBuf ? `버퍼 최소 ${minBuf.minutes >= 0 ? '+' : ''}${minBuf.minutes}분${minBuf.firm ? '' : '~'} — ${
-            minBufOrder ? getAddressLabel((minBuf.stopType === 'pickup' ? firstPickupStop(minBufOrder) : lastDropoffStop(minBufOrder))?.listText ?? '') : ''
+            minBufOrder ? stopLabelOf(minBufOrder, minBuf.stopType === 'pickup' ? firstPickupStop(minBufOrder) : lastDropoffStop(minBufOrder)) : ''
         } ${minBuf.stopType === 'pickup' ? '상차' : '하차'} 약속이 묶습니다${minBuf.firm ? '' : ' (통화 전 추정)'}` : '',
     ].filter(Boolean).join(' · ');
     return { due: departureDue(left, atHhmm), late, tight, title };

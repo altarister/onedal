@@ -37,7 +37,7 @@ const call = ({ noGeo, ...o }: Partial<Parameters<typeof visitedSequenceOf>[0][n
 } as Parameters<typeof visitedSequenceOf>[0][number]);
 
 const seq = (deck: Parameters<typeof visitedSequenceOf>[0]) =>
-    visitedSequenceOf(deck, (a) => a).map(v => `${v.name}`);
+    visitedSequenceOf(deck, (_c, s) => s?.listText ?? '').map(v => `${v.name}`);
 
 describe('👣 다녀온 순서', () => {
 

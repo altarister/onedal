@@ -1,3 +1,5 @@
+import { stopQueryOf, DEFAULT_TARGET_APP, type CallStop, type TargetAppType } from '@onedal/shared';
+
 /* 📏 두 지점 거리는 shared haversineKm 하나(공통 함수 3) */
 
 export function getMinuteDiff(start?: string, end?: string) {
@@ -9,20 +11,35 @@ export function getMinuteDiff(start?: string, end?: string) {
     return diff;
 }
 
+/**
+ * 🏷️ **주소 → 짧은 이름** — ① 둘째 낱말부터 동 · 읍 · 면 · 숫자+가(«종로3가») ② 없으면 첫 낱말이 읍 · 면일 때 그 낱말(«화도읍 폭포로412-18» — 도로명보다 읍)
+ *    ③ 둘째 낱말부터 구 ④ 둘째 낱말. 빈 글자는 «배차값없음» · 한 낱말은 그대로.
+ *    첫 낱말의 동 · 끝말 «리»는 안 본다 — 첫 낱말은 구 줄임(«성동» · «강동» · «남동») · 시 이름(«구리»)이 많고, «리»는 상호 끝(«디아스토리»)에 걸린다.
+ */
 export function getAddressLabel(addr: string) {
     if (!addr) return "배차값없음";
     const parts = addr.split(' ');
     if (parts.length <= 1) return addr;
 
-    // 1순위: 동/읍/면 또는 종로3가 같은 '가' 로 끝나는 법정동 탐색
     const dong = parts.find((p, idx) => idx >= 1 && (p.match(/[동읍면]$/) || p.match(/\d+가$/)));
     if (dong) return dong;
 
-    // 2순위: 1기 신도시처럼 '구' 단위까지만 나오는 경우 
+    if (/[읍면]$/.test(parts[0])) return parts[0];
+
     const gu = parts.find((p, idx) => idx >= 1 && p.endsWith('구'));
     if (gu) return gu;
 
     return parts[1] || parts[0];
+}
+
+/** 📍 **관제웹이 그리는 정거장 통째 주소** — 판정 글자(shared `stopQueryOf`) · 배차망이 없으면 기본 배차망 규칙 */
+export function stopFullOf(call: { targetApp?: TargetAppType | null }, stop: CallStop | null | undefined): string {
+    return stopQueryOf(call.targetApp ?? DEFAULT_TARGET_APP, stop).text;
+}
+
+/** 🏷️ **관제웹이 그리는 정거장 짧은 이름** — 판정 글자의 짧은 이름(화물24시 «…와동왕복» → «와동») */
+export function stopLabelOf(call: { targetApp?: TargetAppType | null }, stop: CallStop | null | undefined): string {
+    return getAddressLabel(stopFullOf(call, stop));
 }
 
 /**

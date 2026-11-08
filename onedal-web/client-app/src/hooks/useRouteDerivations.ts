@@ -14,7 +14,7 @@ import { useFilterConfig } from './useFilterConfig';
 import { useMasterGps } from './useMasterGps';
 import { callLineColor } from '../styles/callPalette';
 import { useTheme } from '@onedal/ui/theme';
-import { getAddressLabel } from '../lib/routeUtils';
+import { stopLabelOf } from '../lib/routeUtils';
 import { logStateChange } from '../lib/roadmapLogger';
 import { visitedSequenceOf } from '../lib/visitedSequence';
 import type { RoutePoint } from '../components/dashboard/PinnedRouteCanvas';
@@ -252,7 +252,7 @@ export function useRouteDerivations(
             if (hasVisitedStop(r, st.stopType)) continue;
             const isP = st.stopType === 'pickup';
             const stop = isP ? firstPickupStop(r) : lastDropoffStop(r);
-            pts.push({ type: isP ? '상차' : '하차', name: getAddressLabel(stop?.listText ?? ''),
+            pts.push({ type: isP ? '상차' : '하차', name: stopLabelOf(r, stop),
                        isEvaluating: false,
                        x: stop?.geo?.x, y: stop?.geo?.y, routeId: r.id });
         }
@@ -260,10 +260,10 @@ export function useRouteDerivations(
             // 🚏 다녀온 정거장은 폴백에서도 되살리지 않는다 (기사님 실측) — hasVisitedStop 하나
             const p = firstPickupStop(r), d = lastDropoffStop(r);
             if (!covered.has(`${r.id}:pickup`) && !hasVisitedStop(r, 'pickup'))
-                pts.push({ type: '상차', name: getAddressLabel(p?.listText ?? ''), isEvaluating: false,
+                pts.push({ type: '상차', name: stopLabelOf(r, p), isEvaluating: false,
                            x: p?.geo?.x, y: p?.geo?.y, routeId: r.id });
             if (!covered.has(`${r.id}:dropoff`) && !hasVisitedStop(r, 'dropoff'))
-                pts.push({ type: '하차', name: getAddressLabel(d?.listText ?? ''), isEvaluating: false,
+                pts.push({ type: '하차', name: stopLabelOf(r, d), isEvaluating: false,
                            x: d?.geo?.x, y: d?.geo?.y, routeId: r.id });
         }
         // 🟡 심사 중인 후보콜 — 경로선과 함께 상차·하차 마커와 지명도 지도에 그린다
@@ -273,7 +273,7 @@ export function useRouteDerivations(
             if (p?.geo) {
                 pts.push({
                     type: '상차',
-                    name: getAddressLabel(p.listText ?? ''),
+                    name: stopLabelOf(candidate, p),
                     isEvaluating: true,
                     x: p.geo.x,
                     y: p.geo.y,
@@ -283,7 +283,7 @@ export function useRouteDerivations(
             if (d?.geo) {
                 pts.push({
                     type: '하차',
-                    name: getAddressLabel(d.listText ?? ''),
+                    name: stopLabelOf(candidate, d),
                     isEvaluating: true,
                     x: d.geo.x,
                     y: d.geo.y,
@@ -324,7 +324,7 @@ export function useRouteDerivations(
      *    지도는 제 쪽에서 이미 걸러 낸다 (`PinnedRouteCanvas` 의 `Number.isFinite`).
      */
     const visitedTrail = useMemo(
-        () => visitedSequenceOf(cycleDeck, getAddressLabel), [cycleDeck]);
+        () => visitedSequenceOf(cycleDeck, stopLabelOf), [cycleDeck]);
 
     /**
      * 🔢 **정거장 번호 = 가는 순서다** (기사님 확정).
@@ -450,7 +450,7 @@ export function useRouteDerivations(
         const b = minRouteBuffer(routeTimeline);
         if (!b) { logStateChange("판정", "여유", "없음", "진행중경로"); return; }
         const o = liveRoute.find(r => r.id === b.orderId);
-        const name = o ? getAddressLabel((b.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.listText ?? '') : b.orderId.slice(-6);
+        const name = o ? stopLabelOf(o, b.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o)) : b.orderId.slice(-6);
         logStateChange("판정", "여유",
             `${b.minutes >= 0 ? '+' : ''}${b.minutes}분 · ${name} ${b.stopType === 'pickup' ? '상차' : '하차'}` +
             `${b.firm ? ' (확정)' : ' (추정)'}`, "진행중경로");
@@ -487,7 +487,7 @@ export function useRouteDerivations(
         const nameOf = (k: string) => {
             const [id, kind] = [k.slice(0, k.lastIndexOf(':')), k.slice(k.lastIndexOf(':') + 1)];
             const o = cycleDeck.find(r => r.id === id);
-            return o ? `${getAddressLabel((kind === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.listText ?? '')}${kind === 'pickup' ? '상' : '하'}` : id.slice(-6);
+            return o ? `${stopLabelOf(o, kind === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))}${kind === 'pickup' ? '상' : '하'}` : id.slice(-6);
         };
         logStateChange("화면", "번호",
             [...stopNoOf.entries()].sort((a, b) => a[1] - b[1]).map(([k, n]) => {

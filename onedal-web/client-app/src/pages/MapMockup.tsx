@@ -48,6 +48,7 @@ import {
 } from '@onedal/shared';
 import sidoDataRaw from '../mapData/sidoData.json';
 import { apiBase } from '../lib/serverTarget';
+import { stopFullOf } from '../lib/routeUtils';
 
 /**
  * 🛣️ **카카오를 부를 때 쓰는 경로 축 — «추천» 하나다** (기사님 *"길찾기는 지워"*).
@@ -484,7 +485,7 @@ function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMi
                 <span className="shrink-0 font-black text-[12.5px]">
                     {confirmedCount === 0 ? '노선 후보콜' : `노선 합짐${confirmedCount} 후보콜`}
                 </span>
-                <span className="min-w-0 truncate text-text-muted font-bold text-[11px]">{firstPickupStop(seat)?.listText ?? ''} → {lastDropoffStop(seat)?.listText ?? ''}</span>
+                <span className="min-w-0 truncate text-text-muted font-bold text-[11px]">{stopFullOf(seat, firstPickupStop(seat))} → {stopFullOf(seat, lastDropoffStop(seat))}</span>
                 <span className="ml-auto shrink-0 font-black text-[15px] tabular-nums">{manwonText(seat.fare)}</span>
             </div>
             {/* 시급 — 기사님이 가장 먼저 읽는 숫자 */}

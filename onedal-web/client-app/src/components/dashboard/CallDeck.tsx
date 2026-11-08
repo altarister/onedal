@@ -4,7 +4,7 @@ import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import { deriveCallTiming, derivationInputsOf } from '@onedal/shared';
 import type { RouteTimelineEntry } from '@onedal/shared';
 import { pickAutoFocus } from '../../lib/deckFocus';
-import { getAddressLabel } from '../../lib/routeUtils';
+import { stopLabelOf } from '../../lib/routeUtils';
 import { hhmmText, minutesLate } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 /* 🌈 지도와 **같은 색표**를 읽는다 — 두 벌이면 지도와 목록이 다른 말을 한다 (규칙 ③) */
@@ -303,7 +303,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                                         {seq ?? '?'}
                                     </span>
                                     <span className={`truncate px-1 py-0.5 ${gone ? 'text-text-muted' : 'text-text-primary'}`}>
-                                        {getAddressLabel((stop === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.listText ?? '')}
+                                        {stopLabelOf(o, stop === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))}
                                         {stop === 'dropoff' && showBoard && o.goalCity && <span className="ml-1 text-[9.5px] font-bold text-info">🎯{o.goalCity}</span>}
                                     </span>
                                     {/* ☎️ 통화로 정한 약속은 **보라** — 글자를 더하면 격자가 깨진다 (폭 0인 신호) */}

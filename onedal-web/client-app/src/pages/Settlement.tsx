@@ -3,6 +3,7 @@ import type { SecuredOrder } from "@onedal/shared";
 import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import { apiClient } from "../api/apiClient";
 import { hhmmText, wonText } from '@onedal/shared';
+import { stopFullOf } from '../lib/routeUtils';
 
 export default function Settlement() {
     const [orders, setOrders] = useState<SecuredOrder[]>([]);
@@ -58,7 +59,7 @@ export default function Settlement() {
                                 <div>
                                     <div className="text-sm text-text-muted mb-1">{timeStr}</div>
                                     <div className="font-semibold text-text-primary">
-                                        <span>{firstPickupStop(order)?.listText ?? ''} → {lastDropoffStop(order)?.listText ?? ''}</span>
+                                        <span>{stopFullOf(order, firstPickupStop(order))} → {stopFullOf(order, lastDropoffStop(order))}</span>
                                     </div>
                                 </div>
 
