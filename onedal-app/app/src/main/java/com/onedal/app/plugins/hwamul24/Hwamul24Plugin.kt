@@ -5,6 +5,8 @@ import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.ScreenOcrParser
 import com.onedal.app.core.TargetApp
+import com.onedal.app.core.engine.ScanContext
+import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.plugins.IDispatchAppPlugin
 
@@ -45,6 +47,10 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
     override val acceptButtons: List<String>? = listOfNotNull(com.onedal.app.core.buttonsOn(Hwamul24Pages.screens, "newCall")?.accept)
 
     override val ocrParser: ScreenOcrParser<*>? = null
+
+    /** 🏠 상세 상차지 · 하차지 칸 주소 · 끝 괄호 상호를 정거장에 싣는다 — 규칙은 `Hwamul24Parser.fillFromDetail` */
+    override fun fillDetail(context: ScanContext, order: SimplifiedOfficeOrder): SimplifiedOfficeOrder =
+        Hwamul24Parser.fillFromDetail(order)
 
     /** ⏱️ 어느 설정 칸인지는 배차망 정의 표(`Hwamul24Pages.safeCancelSecKey`) */
     override fun getSafeCancelMs(filter: FilterConfig): Long? = filter.secOf(Hwamul24Pages.safeCancelSecKey)?.times(1000L)

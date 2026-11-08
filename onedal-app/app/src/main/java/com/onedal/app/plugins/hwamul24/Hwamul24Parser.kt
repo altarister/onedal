@@ -21,6 +21,11 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import com.onedal.app.models.CallStop
+import com.onedal.app.core.Page
+import com.onedal.app.core.PageField
+import com.onedal.app.core.PageFieldRead
+import com.onedal.app.core.withFirstPickup
+import com.onedal.app.core.withLastDropoff
 
 /**
  * 화물24시(전국24시콜화물) 전용 파서
@@ -101,6 +106,19 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         private val DROPOFF_DAY_BADGES = setOf("당착", "내착")
 
         /** 🏷️ 날 배지를 꼬리표로 — 잡음으로 버리지 않는다 (지역 후보에서는 빠진다) */
+        /**
+         * 🏠 **앱이 연 콜에 상세 상차지 · 하차지 칸을 싣는다** (`Hwamul24Plugin.fillDetail`) — 읽을 글은 `order.rawText`(공통이 채우기 전에 상세 이은 글로 바꿔 둔다).
+         * 칸 주소는 그 정거장 상세 주소(`addressDetail`) · 칸 끝 괄호는 상호(`customerName`) — 서버 `detailRecordOf` 와 같은 정의 표 줄로 읽는다.
+         * 목록 칸 원문(`listText`)은 그대로 · 못 읽은 칸은 목록 값 그대로.
+         */
+        fun fillFromDetail(order: SimplifiedOfficeOrder): SimplifiedOfficeOrder {
+            val texts = listOf(order.rawText ?: "")
+            fun read(field: PageField, part: String) = PageFieldRead.fieldOf(Hwamul24Pages.pages, Page.NEW_CALL, field, texts, part)
+            fun CallStop.withDetail(address: String?, name: String?) = if (address == null) this else copy(addressDetail = address, customerName = name ?: customerName)
+            val withPickup = withFirstPickup(order) { it.withDetail(read(PageField.PICKUP, "pickup.address"), read(PageField.CONTACT, "pickup.customer")) }
+            return withLastDropoff(withPickup) { it.withDetail(read(PageField.DROPOFF, "dropoff.address"), read(PageField.CONTACT, "dropoff.customer")) }
+        }
+
         fun badgesOf(texts: List<String>): String? =
             texts.map { it.trim() }.filter { it in PICKUP_DAY_BADGES || it in DROPOFF_DAY_BADGES }
                 .joinToString(" ").ifEmpty { null }

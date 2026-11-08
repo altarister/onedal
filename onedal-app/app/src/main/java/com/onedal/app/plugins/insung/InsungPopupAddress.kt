@@ -1,5 +1,9 @@
 package com.onedal.app.plugins.insung
 
+import com.onedal.app.core.withFirstPickup
+import com.onedal.app.core.withLastDropoff
+import com.onedal.app.models.SimplifiedOfficeOrder
+
 /**
  * 🏠 **인성 팝업의 «위치» = 전체 주소** (기사님 «상세 데이터엔 짧은 주소가 아니고 전체 주소»)
  *
@@ -10,6 +14,19 @@ package com.onedal.app.plugins.insung
 object InsungPopupAddress {
     const val PICKUP_TAG = "[출발지상세]"
     const val DROPOFF_TAG = "[도착지상세]"
+
+    /**
+     * 🏠 팝업 «위치»를 그 정거장 상세 주소(`addressDetail`)에 — 목록 칸 원문(`listText`)은 그대로 둔다.
+     * 못 꺼낸 쪽은 상세 주소가 비어 판정 글자가 목록 짧은 이름이 된다(그러면 상세 요건에서 탈락한다).
+     */
+    fun fill(order: SimplifiedOfficeOrder, collected: String): SimplifiedOfficeOrder {
+        val withPickup = withFirstPickup(order) { stop ->
+            of(collected, PICKUP_TAG)?.let { stop.copy(addressDetail = it) } ?: stop
+        }
+        return withLastDropoff(withPickup) { stop ->
+            of(collected, DROPOFF_TAG)?.let { stop.copy(addressDetail = it) } ?: stop
+        }
+    }
 
     fun of(collected: String, tag: String): String? {
         val chunks = collected.split(tag)

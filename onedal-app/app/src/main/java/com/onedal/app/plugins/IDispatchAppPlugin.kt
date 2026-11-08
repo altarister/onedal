@@ -111,7 +111,8 @@ interface IDispatchAppPlugin {
 
     /**
      * 🏠 **채운 값을 콜에 싣는다** — 채우기(`executePreConfirmSpecial`)가 끝난 뒤 한 번. 기본은 그대로.
-     * 인성은 팝업 «위치»에서 전체 주소를 꺼내 상차·하차 칸에 넣는다(서버가 꺼내지 않는다 — 기사님 «상세 데이터엔 전체 주소»).
+     * 상세에서 읽은 전체 주소는 그 정거장 상세 주소(`addressDetail`)에 싣고 목록 칸 원문(`listText`)은 덮지 않는다(기사님 «상세 데이터엔 전체 주소»).
+     * 인성은 팝업 «위치» · 플렉스는 상세 «출발 · 도착» · 화물24시는 상세 상차지 · 하차지 칸(끝 괄호는 상호). 픽커는 사진 판독(`DetailVerifier`)이 싣는다.
      */
     fun fillDetail(context: ScanContext, order: SimplifiedOfficeOrder): SimplifiedOfficeOrder = order
 

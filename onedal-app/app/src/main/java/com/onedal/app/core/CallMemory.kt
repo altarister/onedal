@@ -39,7 +39,7 @@ class CallMemory private constructor(
 
         /**
          * 🧮 **콜 지문 — 상차 + 하차 + 요금. 지문 식은 여기 한 곳이다** (`FingerprintOnePlaceTest`).
-         * 🔴 **목록에서 읽은 콜만 넘긴다.** 상세 글자로 덮인 콜(픽커는 사진을 읽으면 주소가 길어진다)을 넘기면
+         * 🔴 **목록에서 읽은 콜만 넘긴다.** 상세 주소가 채워진 콜(정거장 글자가 상세 주소를 먼저 고른다)을 넘기면
          *    목록에서 기억한 지문과 달라져, 기억을 내리거나 찾는 일이 헛돈다.
          */
         fun fingerprintOf(order: com.onedal.app.models.SimplifiedOfficeOrder): Int =

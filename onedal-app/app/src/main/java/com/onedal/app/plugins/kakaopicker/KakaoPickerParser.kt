@@ -1044,6 +1044,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
     /** 📐 이번 읽기의 카드별 «글자@top» — 4토막 조립 로그가 읽는다 (다음 읽기에서 새로 채운다) */
     private var cardTops: Map<List<String>, String> = emptyMap()
 
+    /** 🧹 정거장 글자 — 토막 사이 빈칸 하나 · 앞뒤 빈칸 없음(이은 토막에 빈칸이 겹치거나 끝에 남지 않게) */
+    private fun oneSpaced(text: String): String = text.trim().replace(StopText.SPACES, " ")
+
     override fun parse(texts: List<String>): SimplifiedOfficeOrder {
         val sample = texts.joinToString(" ")   // 📰 뺀 글자의 예시 줄 — 이 목록 줄 원문
         // 🗂️ 낱말은 배차망 사전에서 온다 — 서버가 내려준 것 + 앱 기본값 (못 받아도 최소한은 돈다)
@@ -1112,7 +1115,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 }
                 // 🔀 경유 콜은 «기흥 신갈» 처럼 시·동이 한 덩어리로 온다 — 넷을 채우려면 쪼갠다
                 tags.contains("경유") && t.contains(' ') -> {
-                    val parts = t.split(' ')
+                    val parts = t.split(StopText.SPACES).filter { it.isNotEmpty() }
                     locations.addAll(parts)
                     if (!seenFareOrDistance) tagLocations.addAll(parts) else bodyLocations.addAll(parts)
                 }
@@ -1210,8 +1213,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             itemSize = itemSize,
             tagsText = tags.joinToString(" ").ifEmpty { null },
             rawText = texts.joinToString(" "),
-            pickupDetails = listOf(CallStop(listText = pickup, promiseText = listReservation(tags) ?: scheduleTime, distanceKm = pickupKm)),
-            dropoffDetails = listOf(CallStop(listText = dropoff)),   // 리스트에 배송거리가 없다 (인성과의 결정적 차이)
+            pickupDetails = listOf(CallStop(listText = oneSpaced(pickup), promiseText = listReservation(tags) ?: scheduleTime, distanceKm = pickupKm)),
+            dropoffDetails = listOf(CallStop(listText = oneSpaced(dropoff))),   // 리스트에 배송거리가 없다 (인성과의 결정적 차이)
         ).withPromises(com.onedal.app.core.ReservationText.readStops(listReservation(tags), null, java.time.LocalDateTime.now()))
     }
 

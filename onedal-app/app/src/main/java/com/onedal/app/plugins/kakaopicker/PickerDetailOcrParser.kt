@@ -19,17 +19,11 @@ import com.onedal.app.models.CallStop
  *
  * - 자르기(crop): 상단 40% 지도 영역을 잘라내고 하단 60% 상세 전표 영역만 추출
  * - 줄 나누기(parse): PickerScreenOcr.parseDetail 로 픽업지/배송지/물품정보 추출
- * - 조립(verify): 사진 주소(행정동 + 건물명)를 콜에 싣고, 수동 콜은 요금을 복원한다(#119 수호). «누른 그 콜인가»는 공통 `TappedCall`
+ * - 조립(verify): 사진 주소(행정동 → 상세 주소 · 건물명 → 상호 칸)를 콜에 싣고, 수동 콜은 요금을 복원한다(#119 수호). «누른 그 콜인가»는 공통 `TappedCall`
  */
 class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFromImage> {
 
     companion object {
-        /**
-         * 🏠 **서버에 올릴 전체 주소 = 행정동 주소 + 건물명** — 서버가 건물명을 따로 꺼내지 않는다(원달앱이 상세 데이터에 전체 주소를 싣는다).
-         * 건물명이 있으면 지오코딩이 동 중심이 아니라 그 건물로 간다. 없으면 행정동 주소만.
-         */
-        fun fullAddress(stop: PickerStopFromImage): String = listOfNotNull(stop.admin, stop.place).joinToString(" ")
-
         /**
          * 💰 화면 텍스트에서 요금(예: "9,693P", "9693P", "15,000원") 추출
          */
@@ -134,8 +128,8 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
             )?.let { withPhotoStops(it, parsed) } ?: SimplifiedOfficeOrder(
                 id = "MANUAL-${System.currentTimeMillis()}",
                 type = "MANUAL_CLICK",
-                pickupDetails = listOf(CallStop(listText = fullAddress(parsed.pickup))),
-                dropoffDetails = listOf(CallStop(listText = fullAddress(parsed.dropoff))),
+                pickupDetails = listOf(CallStop().fromPhoto(parsed.pickup)),
+                dropoffDetails = listOf(CallStop().fromPhoto(parsed.dropoff)),
                 fare = resolvedFare,
                 timestamp = now,
                 rawText = rawScreenStr,
@@ -172,9 +166,15 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
         return fin
     }
 
-    /** 🏠 사진의 상차 · 하차 주소로 첫 상차 · 마지막 하차 정거장 글자를 덮는다 */
+    /** 🏠 사진의 상차 · 하차 정거장을 첫 상차 · 마지막 하차 정거장에 싣는다 — 목록 원문(`listText`)은 그대로 */
     private fun withPhotoStops(order: SimplifiedOfficeOrder, parsed: PickerDetailFromImage): SimplifiedOfficeOrder =
-        withLastDropoff(withFirstPickup(order) { it.copy(listText = fullAddress(parsed.pickup)) }) { it.copy(listText = fullAddress(parsed.dropoff)) }
+        withLastDropoff(withFirstPickup(order) { it.fromPhoto(parsed.pickup) }) { it.fromPhoto(parsed.dropoff) }
+
+    /**
+     * 🏠 **사진 정거장 한 곳 → 정거장 칸** — 행정동 주소는 상세 주소(`addressDetail`), 회색 상호는 상호 칸(`customerName` · 없으면 null).
+     * 판정 글자(`StopText.query`)가 번지 없는 주소 뒤에 상호를 잇는다 — 지오코딩이 동 중심이 아니라 그 건물로 간다.
+     */
+    private fun CallStop.fromPhoto(stop: PickerStopFromImage): CallStop = copy(addressDetail = stop.admin, customerName = stop.place)
 
     /**
      * 📅 **목록 «예약 …» 낱말과 상세 사진의 시각을 합친다** (약속 정해진 것 7 · `PickerReservationTest` · `PickerReservedBandTest`).

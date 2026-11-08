@@ -52,13 +52,14 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
 
         /**
          * 🔇 **서버 낱말 사전을 못 받았을 때의 잡음 낱말** — 오프라인 안전망 (onedal-app/CLAUDE.md).
-         * 목록 머리 · 탭 · 띠 · 칸 머리 · 칩 «전체» + 상세 제목 · 단추.
+         * 목록 머리 · 탭 · 띠 · 칸 머리 · 칩 «전체» + 상세 제목 · 단추 + 지도 단추 «지도 마커»(도착지 칸이 없는 줄에서 하차로 읽히지 않게).
          * 🔴 칩 «오토바이» · «승용/소형» · «도보» · «개인이동수단»은 넣지 않는다 — 줄 차종 낱말과 같은 글자다(칩은 자리로 빠진다 · `IsflexRowGrouping`).
          */
         internal val NOISE_WORDS = setOf(
             "퇴근하기", "목록", "지도", "신규", "진행중", "AI 배차 대기중",
             "출발지까지\n(km)", "출발지", "도착지", "수입", "전체",
             "출발지까지", "출발", "도착", "적요상세", "총 수입", "닫기",
+            "지도 마커",
         )
 
         /** 👻 목록에 섞이면 상세 잔상 — «…원 \n수행하기» 단추는 줄바꿈 든 한 글자라 «든다»로 본다 */
@@ -211,7 +212,8 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
 
         /**
          * 🏠 **앱이 연 콜을 상세 값으로 채운다** (`IsflexPlugin.fillDetail`) — 읽을 글은 `order.rawText`(공통이 채우기 전에 상세 이은 글로 바꿔 둔다).
-         * 주소 · 예약 · 꼬리표는 상세 값으로 덮고 못 읽으면 목록 값 그대로 · 차종 · 거리는 비었을 때만(앱이 연 콜은 목록 출발지까지를 둔다).
+         * 상세 «출발 · 도착» 원문은 그 정거장 상세 주소(`addressDetail`) — 목록 칸 원문(`listText`)은 그대로 둔다.
+         * 지역 · 약속 · 꼬리표는 상세 값으로 덮고 못 읽으면 목록 값 그대로 · 차종 · 거리는 비었을 때만(앱이 연 콜은 목록 출발지까지를 둔다).
          */
         fun fillFromDetail(order: SimplifiedOfficeOrder, now: LocalDateTime): SimplifiedOfficeOrder {
             val d = parseDetail(listOf(order.rawText ?: ""), now)
@@ -223,11 +225,11 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
                 vehicleType = order.vehicleType ?: d.vehicleType,
             )
             val withPickup = withFirstPickup(filled) { stop ->
-                (if (readPickup) stop.copy(listText = dp?.listText, region = dp?.region ?: stop.region, promiseText = dp?.promiseText, requestedDay = dp?.requestedDay, requestedTime = dp?.requestedTime) else stop)
+                (if (readPickup) stop.copy(addressDetail = dp?.listText, region = dp?.region ?: stop.region, promiseText = dp?.promiseText, requestedDay = dp?.requestedDay, requestedTime = dp?.requestedTime) else stop)
                     .copy(distanceKm = stop.distanceKm ?: dp?.distanceKm)
             }
             return withLastDropoff(withPickup) { stop ->
-                (if (dd?.listText != null) stop.copy(listText = dd.listText, region = dd.region ?: stop.region) else stop)
+                (if (dd?.listText != null) stop.copy(addressDetail = dd.listText, region = dd.region ?: stop.region, promiseText = dd.promiseText, requestedDay = dd.requestedDay, requestedTime = dd.requestedTime) else stop)
                     .copy(distanceKm = stop.distanceKm ?: dd?.distanceKm)
             }
         }

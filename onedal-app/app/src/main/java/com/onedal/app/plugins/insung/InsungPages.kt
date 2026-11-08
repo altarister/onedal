@@ -80,9 +80,9 @@ object InsungPages {
             /* 하차 정거장 거리(상차지 → 하차지) · 직선(화면 글자 «(직선)») · 실물: 인성 설명 영상_0532 · 영상_0938 확정 전 상세(상태 «배차» · «확정(10)» 단추)에 있다 · PNG 확정 전 캡처 3건에는 없다 — 서버 원문 인성 0 건이라 «모름» */
             FieldSpec(PageField.DELIVERY_DISTANCE, "적요 칸 다음 둘째 거리 줄", "상차지 → 하차지(직선)14.9KM", Seen.REAL, Handling.READ, "지금 읽는 곳 없음",
                 read = Regex("""상차지\s*→\s*하차지\(직선\)\s*([\d.]+)\s*KM""")),
-            FieldSpec(PageField.PICKUP, "출발지 상세 팝업 «위치»", "경기 용인시 처인구 양지면 …", Seen.SIM, Handling.READ, "InsungPopupAddress · 서버 원문 칸 읽기(위치 — 이름표만 있는 줄이면 다음 줄 값)",
+            FieldSpec(PageField.PICKUP, "출발지 상세 팝업 «위치»", "경기 용인시 처인구 양지면 …", Seen.SIM, Handling.READ, "InsungPopupAddress → 원달앱 정거장 상세 주소(addressDetail) · 서버 원문 칸 읽기(위치 — 이름표만 있는 줄이면 다음 줄 값)",
                 read = Regex("""\[출발지상세\](?:(?!\[도착지상세\])[\s\S])*?\n위치[ \t]*:?[ \t]*(?:\n[ \t]*)?([^\n]+)""")),
-            FieldSpec(PageField.DROPOFF, "도착지 상세 팝업 «위치»", "서울 강남구 역삼동 …", Seen.SIM, Handling.READ, "InsungPopupAddress · 서버 원문 칸 읽기(위치 — 이름표만 있는 줄이면 다음 줄 값)",
+            FieldSpec(PageField.DROPOFF, "도착지 상세 팝업 «위치»", "서울 강남구 역삼동 …", Seen.SIM, Handling.READ, "InsungPopupAddress → 원달앱 정거장 상세 주소(addressDetail) · 서버 원문 칸 읽기(위치 — 이름표만 있는 줄이면 다음 줄 값)",
                 read = Regex("""\[도착지상세\](?:(?!\[출발지상세\])[\s\S])*?\n위치[ \t]*:?[ \t]*(?:\n[ \t]*)?([^\n]+)""")),
             FieldSpec(PageField.CLOCK, "출발지 줄 가운데", "김유정 / 20시/양지면(용인", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.CONTACT, "위치 팝업", "고객 · 부서 · 담당 · 전화1 · 전화2", Seen.SIM, Handling.UNUSED, "서버가 원문으로 받는다"),

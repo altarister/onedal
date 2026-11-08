@@ -51,4 +51,16 @@ class PickerViaCallTest {
         assertEquals("수지 상현3", StopText.of(lastDropoffStop(o)))
         assertTrue("들를 곳 수가 꼬리표에 없다: ${o.tagsText}", o.tagsText?.contains("경유") == true)
     }
+
+    /** 🔴 «기흥  신갈»처럼 빈칸이 겹쳐 와도 정거장 글자는 빈칸 하나 · 끝 빈칸 없음 */
+    @Test
+    fun `토막을 이을 때 빈칸이 겹치거나 끝에 남지 않는다`() {
+        val o = parser.parse(
+            listOf(
+                "수지, 영통, 상록", "퀵", "경유", "승", "62,986", "기흥  신갈", "상현3, 원천, 해양", "19.3km",
+            ),
+        )
+        assertEquals("기흥 신갈", firstPickupStop(o)?.listText)
+        assertEquals("수지 상현3", lastDropoffStop(o)?.listText)
+    }
 }

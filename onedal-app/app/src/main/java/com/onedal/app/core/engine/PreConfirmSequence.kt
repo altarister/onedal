@@ -113,7 +113,7 @@ fun ScanContext.handlePreConfirmScreen(
         return
     }
 
-    // 🏠 채운 값을 콜에 싣는다 — 인성은 팝업 «위치»를 전체 주소로 (서버가 꺼내지 않는다)
+    // 🏠 채운 값을 콜에 싣는다 — 상세 전체 주소는 정거장 상세 주소로 (목록 칸 원문은 그대로)
     val order = plugin.fillDetail(this, finalOrder)
     session.lastDetailOrder = order
     // 📝 글자로 읽은 상세도 /detail 원문으로 — 모은 글(인성 팝업)이 있으면 그대로 · 칸 나누기는 서버가 한다(57 3단계)

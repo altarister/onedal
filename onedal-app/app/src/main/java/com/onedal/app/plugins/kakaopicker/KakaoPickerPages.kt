@@ -44,16 +44,16 @@ object KakaoPickerPages {
             FieldSpec(PageField.TAGS, "시트 맨 위 꼬리표 줄 «퀵» 뒤 — 차례: 급송 → 단거리/반나절 → 승용차 → 예약 → 비즈ⓘ", "퀵 반나절 예약", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.RESERVATION, "사진 띠", "내일 14:00 픽업예약", Seen.REAL, Handling.READ, "PickerDetailOcrParser.detailReservation"),
             FieldSpec(PageField.REMAINING, "꼬리표 아래 시계 상자", "배송 31분 남음 준비 17분 포함", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.PICKUP, "사진 첫 정거장 — 행정동 + 건물", "경기 광주시 경안동 / 람미당", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail"),
-            FieldSpec(PageField.CONTACT, "픽업 주소 아래 회색 상호", "분당스퀘어", Seen.REAL, Handling.UNUSED, "",
+            FieldSpec(PageField.PICKUP, "사진 첫 정거장 — 행정동 + 건물", "경기 광주시 경안동 / 람미당", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail → 원달앱 정거장 상세 주소(addressDetail · 행정동)"),
+            FieldSpec(PageField.CONTACT, "픽업 주소 아래 회색 상호", "분당스퀘어", Seen.REAL, Handling.READ, "원달앱 상호 칸(customerName) — PickerDetailOcrParser 사진 정거장 상호",
                 part = "pickup.customer"),
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선 · 캡처 근거: 실물 상세 6건 + A24 판독 사진 9건 15/15 */
             FieldSpec(PageField.PICKUP_DISTANCE, "사진 정거장 오른쪽", "픽업 4.7km", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 거리 5 · 걸음 5 — 사진 정거장 straightKm → 정거장 거리) · 원달앱 PickerScreenOcr 는 같은 글자를 straightKm 로 읽어 손 상세의 목록 줄 찾기에만 쓴다",
                 read = Regex("""픽업\s+([\d.]+)km""")),
             FieldSpec(PageField.CLOCK, "픽업 상호 오른쪽 회색", "15:00까지 픽업", Seen.REAL, Handling.READ, "서버 원문의 [사진] 줄(원달앱 사진 판독 줄 · 57 3단계) — 약속 · 마감에는 아직 안 쓴다(57 5단계 미룸)",
                 read = Regex("""([0-9]{1,2}:[0-9]{2})\s*\S{0,2}\s*픽업(?!예약)"""), part = "pickup"),
-            FieldSpec(PageField.DROPOFF, "사진 둘째 정거장", "서울 용산구 한남동 / 아라마크", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail"),
-            FieldSpec(PageField.CONTACT, "배송 주소 아래 회색 상호", "NC이스트폴", Seen.REAL, Handling.UNUSED, "",
+            FieldSpec(PageField.DROPOFF, "사진 둘째 정거장", "서울 용산구 한남동 / 아라마크", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail → 원달앱 정거장 상세 주소(addressDetail · 행정동)"),
+            FieldSpec(PageField.CONTACT, "배송 주소 아래 회색 상호", "NC이스트폴", Seen.REAL, Handling.READ, "원달앱 상호 칸(customerName) — PickerDetailOcrParser 사진 정거장 상호",
                 part = "dropoff.customer"),
             /* 하차 정거장 거리(상차지 → 하차지) · 직선 · 캡처 근거: 실물 상세 6건 + A24 판독 사진 9건 15/15 */
             FieldSpec(PageField.DELIVERY_DISTANCE, "사진 정거장 오른쪽", "배송 26.4km", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 거리 5 · 걸음 5 — 사진 정거장 straightKm → 정거장 거리) · 원달앱 PickerScreenOcr 는 straightKm 로 읽고 안 쓴다",
@@ -147,7 +147,7 @@ object KakaoPickerPages {
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
     val vehicleAbsentMeansAny: Boolean = true
 
-    /** 🏠 판정 글자 다듬기(shared addressCut — 지우지 않는다 — 원달앱이 이미 «구 동»으로 정리해 보낸다(앞뒤 공백만)) · 맞는 첫 부분을 지운다 · null 이면 자르기만 (`StopText.query`) */
+    /** 🏠 판정 글자 다듬기(shared addressCut — 지우지 않는다 — 목록은 «구 동» 원문, 상세는 사진 행정동 주소(상호는 상호 칸 customerName)) · 맞는 첫 부분을 지운다 · null 이면 자르기만 (`StopText.query`) */
     val addressCut: Regex? = null
 
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 목록 머리 · 수락 전 상세 버튼 둘 · 홈과 수락 뒤 단계 글자 하나씩 · 퀵 흰 페이지 칸 이름 하나씩(퀵 머리 글자는 원달앱이 못 읽는다)) · 묶음 안 글자가 전부 보이면 이 배차망 */

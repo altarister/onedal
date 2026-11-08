@@ -50,7 +50,9 @@ class PickerDatedStopTest {
         assertEquals(1, firstPickupStop(r.order)?.requestedDay)
         assertEquals("09:00", firstPickupStop(r.order)?.requestedTime)
         assertEquals(13013, r.order.fare)
-        assertEquals("경기 용인시 처인구 모현읍 아인라이크", StopText.of(firstPickupStop(r.order)))
+        assertEquals("경기 용인시 처인구 모현읍", firstPickupStop(r.order)?.addressDetail)
+        assertEquals("아인라이크", firstPickupStop(r.order)?.customerName)
+        assertEquals("판정 글자는 상호까지", "경기 용인시 처인구 모현읍 아인라이크", StopText.query(com.onedal.app.core.TargetApp.KAKAOPICKER, firstPickupStop(r.order)))
     }
 }
 

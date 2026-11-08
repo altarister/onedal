@@ -5,6 +5,7 @@ import com.onedal.app.core.engine.TappedCall
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.insung.InsungPopupAddress
 import com.onedal.app.plugins.kakaopicker.PickerDetailOcrParser
+import com.onedal.app.plugins.kakaopicker.PickerDetailFromImage
 import com.onedal.app.plugins.kakaopicker.PickerStopFromImage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -60,11 +61,44 @@ class DetailFullAddressTest {
         assertNull(InsungPopupAddress.of("[출발지상세]\n고객 가나\n", InsungPopupAddress.PICKUP_TAG))
     }
 
+    /** 🔴 상세 글자로 목록 글자를 덮지 않는다 — 팝업 «위치»는 정거장 상세 주소, 목록 칸 원문은 그대로 */
     @Test
-    fun `픽커 사진 주소는 행정동 주소 뒤에 건물명을 붙인다`() {
-        val withPlace = PickerStopFromImage(admin = "가나 다라구 마바1동", place = "라마빌딩", straightKm = 1.0, at = null)
-        assertEquals("가나 다라구 마바1동 라마빌딩", PickerDetailOcrParser.fullAddress(withPlace))
-        assertEquals("가나 다라구 마바1동", PickerDetailOcrParser.fullAddress(withPlace.copy(place = null)))
+    fun `인성 팝업 위치는 정거장 상세 주소로 · 목록 칸 원문이 남는다`() {
+        val collected = "[출발지상세]\n위치: 경기 광주시 초월읍 경충대로 907\n[도착지상세]\n위치\n경기 광주시 곤지암읍 곤지암로 1\n"
+        val filled = InsungPopupAddress.fill(order("급송/초월읍", "곤지암읍"), collected)
+        assertEquals("급송/초월읍", firstPickupStop(filled)?.listText)
+        assertEquals("경기 광주시 초월읍 경충대로 907", firstPickupStop(filled)?.addressDetail)
+        assertEquals("곤지암읍", lastDropoffStop(filled)?.listText)
+        assertEquals("경기 광주시 곤지암읍 곤지암로 1", lastDropoffStop(filled)?.addressDetail)
+        val unread = InsungPopupAddress.fill(order("초월읍", "곤지암읍"), "[출발지상세]\n고객 가나\n")
+        assertNull("못 꺼낸 쪽은 상세 주소가 빈다", firstPickupStop(unread)?.addressDetail)
+        assertEquals("초월읍", firstPickupStop(unread)?.listText)
+    }
+
+    /** 🔴 픽커 사진 주소 — 행정동은 정거장 상세 주소 · 회색 상호는 상호 칸 · 판정 글자는 이어 붙이던 글자와 같다 */
+    @Test
+    fun `픽커 사진 행정동은 상세 주소 · 회색 상호는 상호 칸 · 목록 원문이 남는다`() {
+        val photo = PickerDetailFromImage(
+            pickup = PickerStopFromImage(admin = "경기 성남시 중원구 은행2동", place = "퓨전중화요리-궁", straightKm = 1.0, at = null),
+            dropoff = PickerStopFromImage(admin = "서울 강남구 역삼동", place = null, straightKm = 5.0, at = null),
+            itemSize = null, reserved = false,
+        )
+        val card = order("중원 은행2", "강남 역삼")
+        val tapped = (PickerDetailOcrParser().verify(photo, card, null, emptyList(), "") as PickerDetailOcrParser.VerifyResult.Success).order
+        val p = firstPickupStop(tapped)
+        val d = lastDropoffStop(tapped)
+        assertEquals("중원 은행2", p?.listText)
+        assertEquals("경기 성남시 중원구 은행2동", p?.addressDetail)
+        assertEquals("퓨전중화요리-궁", p?.customerName)
+        assertEquals("강남 역삼", d?.listText)
+        assertEquals("서울 강남구 역삼동", d?.addressDetail)
+        assertNull(d?.customerName)
+        assertEquals("판정 글자 — 이어 붙이던 글자와 같다", StopText.query(TargetApp.KAKAOPICKER, CallStop(listText = "경기 성남시 중원구 은행2동 퓨전중화요리-궁")), StopText.query(TargetApp.KAKAOPICKER, p))
+        assertNull("누른 그 콜 — 상세 쪽은 상세 주소", TappedCall.mismatch(TargetApp.KAKAOPICKER, card, tapped))
+        val hand = (PickerDetailOcrParser().verify(photo, null, null, emptyList(), "") as PickerDetailOcrParser.VerifyResult.Success).order
+        assertNull("목록 줄을 못 찾은 손 상세는 목록 원문이 없다", firstPickupStop(hand)?.listText)
+        assertEquals("경기 성남시 중원구 은행2동", firstPickupStop(hand)?.addressDetail)
+        assertEquals("퓨전중화요리-궁", firstPickupStop(hand)?.customerName)
     }
 
     @Test

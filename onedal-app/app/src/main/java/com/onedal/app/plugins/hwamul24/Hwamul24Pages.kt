@@ -53,20 +53,20 @@ object Hwamul24Pages {
             FieldSpec(PageField.CLOCK, "머리", "등록시간:05:18분", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "상차지 칸", "경기 군포 부곡동 [당상][수] 5Km", Seen.REAL, Handling.UNUSED, "목록 값을 쓴다"),
             /* 상차지 칸 주소 — 끝 «(상호)» · 배지(«[당상]» · «당상» «수» 노드) · «NKm» · «하차지» 앞까지 · 동 단위와 번지 · 건물 단위가 섞임(실물 캡처 18 · 51 · 53) — 서버 원문 0 건이라 원문 기준으로는 모름 */
-            FieldSpec(PageField.PICKUP, "상차지 칸 주소", "경기 군포 당정동 공단로124번길 4 · 경기 군포 부곡동", Seen.REAL, Handling.READ, "서버 상세 자료 정거장 상세 주소(detailRecordOf pickupDetails addressDetail) · 원달앱은 이 칸을 안 읽는다",
+            FieldSpec(PageField.PICKUP, "상차지 칸 주소", "경기 군포 당정동 공단로124번길 4 · 경기 군포 부곡동", Seen.REAL, Handling.READ, "서버 상세 자료 정거장 상세 주소(detailRecordOf pickupDetails addressDetail) · 원달앱 정거장 상세 주소(Hwamul24Parser.fillFromDetail)",
                 read = Regex("""상차지\s+([^\s(\[](?:(?!\s*[(\[]|\s+(?:(?:당상|내상|지상|당착|내착|지착|당/내|수|지)(?:\s|${'$'})|\d+\s*Km|하차지\s|화물정보))[\s\S])*)"""), part = "pickup.address"),
             /* 상차지 칸 주소 바로 뒤 괄호 안 글자(실물 캡처 53 «(크레텍)») — 괄호가 없으면 상호 없음 · 서버 원문 0 건이라 원문 기준으로는 모름 */
-            FieldSpec(PageField.CONTACT, "상차지 칸 주소 끝 괄호", "(크레텍)", Seen.REAL, Handling.READ, "서버 상세 자료 정거장 상호(detailRecordOf pickupDetails customerName) · 원달앱은 이 칸을 안 읽는다",
+            FieldSpec(PageField.CONTACT, "상차지 칸 주소 끝 괄호", "(크레텍)", Seen.REAL, Handling.READ, "서버 상세 자료 정거장 상호(detailRecordOf pickupDetails customerName) · 원달앱 상호 칸(Hwamul24Parser.fillFromDetail)",
                 read = Regex("""상차지\s+[^\s(\[](?:(?!\s*[(\[]|\s+(?:(?:당상|내상|지상|당착|내착|지착|당/내|수|지)(?:\s|${'$'})|\d+\s*Km|하차지\s|화물정보))[\s\S])*\s*\(([^)]+)\)"""), part = "pickup.customer"),
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선 · 「하차지」 앞까지에서 찾는다 · 실물 캡처 3/3 에 있다(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) — 서버 원문 0 건이라 원문 기준으로는 모름 */
             FieldSpec(PageField.PICKUP_DISTANCE, "상차지 칸 끝", "5Km · 18Km", Seen.REAL, Handling.READ, "원달앱 Hwamul24CardGrouping.pickupDistanceOf(손 상세 — 정의 표 줄이 아니라 그 함수 글자로 읽음)",
                 read = Regex("""상차지\s(?:(?!하차지)[\s\S])*?(\d+)\s*Km""")),
             FieldSpec(PageField.DROPOFF, "하차지 칸", "서울 중구 을지로6가 [당착][수]", Seen.REAL, Handling.UNUSED, "목록 값을 쓴다"),
             /* 하차지 칸 주소 — 끝 «(상호)» · 배지 · «NKm» · «화물정보» 앞까지 · 끝 «왕복»은 주소에 남고 지오코딩 글에서 addressCut 이 뗀다(실물 캡처 51 «와동왕복 32Km») — 서버 원문 0 건이라 원문 기준으로는 모름 */
-            FieldSpec(PageField.DROPOFF, "하차지 칸 주소", "경기 화성 신동 703 · 경기 안산 단원구 와동왕복", Seen.REAL, Handling.READ, "서버 상세 자료 정거장 상세 주소(detailRecordOf dropoffDetails addressDetail) · 원달앱은 이 칸을 안 읽는다",
+            FieldSpec(PageField.DROPOFF, "하차지 칸 주소", "경기 화성 신동 703 · 경기 안산 단원구 와동왕복", Seen.REAL, Handling.READ, "서버 상세 자료 정거장 상세 주소(detailRecordOf dropoffDetails addressDetail) · 원달앱 정거장 상세 주소(Hwamul24Parser.fillFromDetail)",
                 read = Regex("""하차지\s+([^\s(\[](?:(?!\s*[(\[]|\s+(?:(?:당상|내상|지상|당착|내착|지착|당/내|수|지)(?:\s|${'$'})|\d+\s*Km|하차지\s|화물정보))[\s\S])*)"""), part = "dropoff.address"),
             /* 하차지 칸 주소 바로 뒤 괄호 안 글자 — 상차지와 같은 꼴로 읽는다(하차지 괄호 상호는 실물 캡처에 아직 없다) · 서버 원문 0 건이라 원문 기준으로는 모름 */
-            FieldSpec(PageField.CONTACT, "하차지 칸 주소 끝 괄호", "(상호)", Seen.REAL, Handling.READ, "서버 상세 자료 정거장 상호(detailRecordOf dropoffDetails customerName) · 원달앱은 이 칸을 안 읽는다",
+            FieldSpec(PageField.CONTACT, "하차지 칸 주소 끝 괄호", "(상호)", Seen.REAL, Handling.READ, "서버 상세 자료 정거장 상호(detailRecordOf dropoffDetails customerName) · 원달앱 상호 칸(Hwamul24Parser.fillFromDetail)",
                 read = Regex("""하차지\s+[^\s(\[](?:(?!\s*[(\[]|\s+(?:(?:당상|내상|지상|당착|내착|지착|당/내|수|지)(?:\s|${'$'})|\d+\s*Km|하차지\s|화물정보))[\s\S])*\s*\(([^)]+)\)"""), part = "dropoff.customer"),
             /* 하차 정거장 거리(상차지 → 하차지) · 최단거리(상세 안내 «상ㆍ하차지간 거리는 최단거리이므로 실제 도로거리와 다를 수 있습니다») — 직선으로 읽음 · 「화물정보」 앞까지에서 찾는다 · 실물 캡처 3/3 에 있다(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) — 서버 원문 0 건이라 원문 기준으로는 모름 */
             FieldSpec(PageField.DELIVERY_DISTANCE, "하차지 칸 오른쪽", "36Km · 와동왕복 32Km", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 거리 5 · 걸음 5)",

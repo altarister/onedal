@@ -365,7 +365,7 @@
     {"network": "isflex", "side": "dropoff", "stop": {"listText": "돈의동"}, "expect": "돈의동", "rule": "stopQueryOf", "why": "플렉스 수집 2026-11-02T05:15:12.146Z (intel 17871)"},
     {"network": "isflex", "side": "pickup", "stop": {"listText": "@한남동"}, "expect": "한남동", "rule": "stopQueryOf", "why": "플렉스 수집 2026-11-02T05:15:12.146Z (intel 17872)"},
     {"network": "isflex", "side": "dropoff", "stop": {"listText": "신도림동"}, "expect": "신도림동", "rule": "stopQueryOf", "why": "플렉스 수집 2026-11-02T05:15:12.146Z (intel 17873)"},
-    {"network": "isflex", "side": "dropoff", "stop": {"listText": ""}, "expect": "", "rule": "stopQueryOf", "why": "플렉스 수집 2026-11-02T05:15:12.146Z (intel 17874) — 하차 글이 없는 목록 줄 · 원달앱은 지금 «지도 마커»를 하차로 읽는다(읽기 문제 · 걸음 5 에서 바뀐다)"},
+    {"network": "isflex", "side": "dropoff", "stop": {"listText": ""}, "expect": "", "rule": "stopQueryOf", "why": "플렉스 수집 2026-11-02T05:15:12.146Z (intel 17874) — 하차 글이 없는 목록 줄 · 화면 단추 «지도 마커»는 원달앱이 잡음 낱말로 뺀다(`IsflexParserTest`)"},
     {"network": "isflex", "side": "pickup", "stop": {"listText": "@산본동"}, "expect": "산본동", "rule": "stopQueryOf", "why": "플렉스 수집 2026-11-02T05:15:12.146Z (intel 17876)"},
     {"network": "isflex", "side": "dropoff", "stop": {"listText": "시흥/거모동"}, "expect": "거모동", "rule": "stopQueryOf", "why": "플렉스 수집 2026-11-02T05:15:12.146Z (intel 17876)"},
     {"network": "isflex", "side": "dropoff", "stop": {"listText": "도곡동"}, "expect": "도곡동", "rule": "stopQueryOf", "why": "플렉스 수집 2026-11-02T05:15:12.146Z (intel 17877)"},

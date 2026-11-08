@@ -56,14 +56,14 @@ object IsflexPages {
                 read = Regex("""출발지까지\s+[\d.]+km\s+\S+\s+(\S+(?:\s+\S+)*?)\s+출발\s+(?:@|약\s)""")),
             FieldSpec(PageField.RESERVATION, "출발 주소 둘째 «@» 뒤 앞글자", "낼8:30)", Seen.REAL, Handling.READ, "IsflexParser"),
             /* 주소가 두 줄이면 «약 N km»가 주소 앞에 온다(실물 10) */
-            FieldSpec(PageField.PICKUP, "«출발» 다음 — «@시도 시군구 @(예약)동»", "@서울 서초구 @낼8:30)방배동", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
+            FieldSpec(PageField.PICKUP, "«출발» 다음 — «@시도 시군구 @(예약)동»", "@서울 서초구 @낼8:30)방배동", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser → 정거장 상세 주소(addressDetail — fillFromDetail)",
                 read = Regex("""(?:^|\s)출발\s+(?:약\s+[\d.]+km\s+)?(\S[\s\S]*?)(?:\s+약\s+[\d.]+km)?\s+도착\s""")),
             /* 하차 정거장 거리(상차지 → 하차지) · 직선인지 모름 */
             FieldSpec(PageField.DELIVERY_DISTANCE, "출발 주소 아래", "약 2.3km", Seen.REAL, Handling.READ, "원달앱 IsflexParser — 목록 값이 없을 때만",
                 read = Regex("""(?:^|\s)출발\s[\s\S]*?약\s+([\d.]+)km""")),
             /* 판정 시한에 넣지 않는다 — 기록만 */
             FieldSpec(PageField.CLOCK, "도착 주소 동 앞 마감 앞글자", "10:20전/", Seen.REAL, Handling.READ, "IsflexParser"),
-            FieldSpec(PageField.DROPOFF, "«도착» 다음 — «시도 시군구 (마감)동»", "서울 강남구 대치동", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
+            FieldSpec(PageField.DROPOFF, "«도착» 다음 — «시도 시군구 (마감)동»", "서울 강남구 대치동", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser → 정거장 상세 주소(addressDetail — fillFromDetail)",
                 read = Regex("""(?:^|\s)도착\s+([\s\S]+?)\s+적요상세(?:\s|${'$'})""")),
             FieldSpec(PageField.MEMO, "«적요상세» 다음(빈 적요는 «없음»)", "1박스 3층 계단물건 있음", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «적요상세» 다음 결제 · «총 수입» 앞 · «없음»은 못 읽음(빈 적요)",
                 read = Regex("""적요상세\s+(?!없음\s+(?:선불|착불|총 수입)(?:\s|${'$'}))([\s\S]*?)(?=\s+(?:선불|착불|총 수입)(?:\s|${'$'}))""")),

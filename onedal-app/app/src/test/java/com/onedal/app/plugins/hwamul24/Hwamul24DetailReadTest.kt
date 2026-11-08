@@ -70,6 +70,36 @@ class Hwamul24DetailReadTest {
         assertEquals("row", parser.matchDetailOrder(real18, listOf(listRow, other))?.id)
     }
 
+    /** 앱이 연 콜 — 목록 줄 값 위에 상세 글(공통이 상세 이은 글로 바꿔 둔 `rawText`)을 채운다 */
+    private fun appOpened(pickup: String, dropoff: String, detail: List<String>) = SimplifiedOfficeOrder(
+        id = "row", fare = 60_000, timestamp = "t", rawText = Hwamul24Plugin(null).detailTextsOf(detail).joinToString(" "),
+        pickupDetails = listOf(CallStop(listText = pickup)), dropoffDetails = listOf(CallStop(listText = dropoff)),
+    )
+
+    /** 🔴 목록 하차가 잘린 콜(«경기 안산 단원구 오») — 상세 하차지 칸 주소를 정거장 상세 주소로 읽어 요건을 넘는다 · 목록 원문은 그대로 */
+    @Test fun `🔴 목록 하차가 잘려도 상세 하차지 칸 주소로 요건을 넘는다`() {
+        val detail = real18.map { if (it == "서울 중구 을지로6가") "경기 안산 단원구 와동왕복" else it }
+        val row = appOpened("경기 군포 부곡동", "경기 안산 단원구 오", detail)
+        val filled = Hwamul24Parser.fillFromDetail(row)
+        assertEquals(filled.toString(), emptyList<String>(), OrderRequirement.missingDetail(com.onedal.app.core.TargetApp.HWAMUL24, filled))
+        assertEquals("경기 안산 단원구 오", lastDropoffStop(filled)?.listText)
+        assertEquals("경기 안산 단원구 와동왕복", lastDropoffStop(filled)?.addressDetail)
+        assertEquals("경기 군포 부곡동", firstPickupStop(filled)?.addressDetail)
+        assertNull("누른 그 콜", com.onedal.app.core.engine.TappedCall.mismatch(com.onedal.app.core.TargetApp.HWAMUL24, row, filled))
+    }
+
+    /** 상세 상차지 칸 주소 끝 괄호(실물 캡처 53 «(크레텍)»)는 상호 칸 — 주소에는 안 남는다 · 못 읽은 칸은 목록 값 그대로 */
+    @Test fun `상세 상차지 칸 끝 괄호는 상호 칸 · 칸이 없으면 목록 값 그대로`() {
+        val detail = real18.map { if (it == "경기 군포 부곡동") "경기 군포 당정동 공단로124번길 4 (크레텍)" else it }
+        val filled = Hwamul24Parser.fillFromDetail(appOpened("경기 군포 당정동", "서울 중구 을지로6가", detail))
+        assertEquals("경기 군포 당정동 공단로124번길 4", firstPickupStop(filled)?.addressDetail)
+        assertEquals("크레텍", firstPickupStop(filled)?.customerName)
+        assertEquals("경기 군포 당정동", firstPickupStop(filled)?.listText)
+        assertNull(lastDropoffStop(filled)?.customerName)
+        val unread = appOpened("경기 군포 부곡동", "서울 중구 을지로6가", listOf("화물정보", "60,000원"))
+        assertEquals(unread, Hwamul24Parser.fillFromDetail(unread))
+    }
+
     @Test fun `상세 글은 «상차지»부터 — 머리가 없는 글은 그대로`() {
         assertEquals("상차지", Hwamul24Plugin(null).detailTextsOf(real18).first())
         val noHead = listOf("경기 군포 부곡동", "60,000원")

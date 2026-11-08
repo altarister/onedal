@@ -137,6 +137,26 @@ class IsflexParserTest {
         }
     }
 
+    /** 🔴 상세 글자로 목록 글자를 덮지 않는다 — 상세 «출발 · 도착» 원문은 정거장 상세 주소, 목록 칸 원문은 그대로 */
+    @Test fun `상세 채우기 — 목록 칸 원문과 상세 원문이 정거장에 둘 다 남는다`() {
+        val list = rowsOf(IsflexRealScreens.LIST_07).map { it.first }
+        val detail = IsflexParser.detailTextsOf(D10)
+        val filled = IsflexParser.fillFromDetail(list[0].copy(rawText = detail.joinToString(" ")), now)
+        assertEquals(firstPickupStop(list[0])?.listText, firstPickupStop(filled)?.listText)
+        assertEquals("@경기 수원시영통구 @낼08:20/수원이의동", firstPickupStop(filled)?.addressDetail)
+        assertEquals(lastDropoffStop(list[0])?.listText, lastDropoffStop(filled)?.listText)
+        assertEquals("서울 중구 10:20전/쌍림동", lastDropoffStop(filled)?.addressDetail)
+        assertEquals("하차 약속도 상세 칸 토막", "10:20전", lastDropoffStop(filled)?.promiseText)
+    }
+
+    /** 🔴 도착지 칸이 없는 줄(실물 기록 1 건) — 화면 단추 글자 «지도 마커»를 하차로 읽지 않는다 · 하차를 모르는 줄로 미룬다 */
+    @Test fun `목록 줄 — 도착지 칸이 없으면 «지도 마커»가 하차가 아니다`() {
+        val o = IsflexParser.parseList(listOf("@화도읍", "약 4.9km", "10,626", "착불", "지도 마커"), IsflexParser.NOISE_WORDS, now)
+        assertNull(lastDropoffStop(o)?.listText)
+        assertEquals("", StopText.query(TargetApp.ISFLEX, lastDropoffStop(o)))
+        assertEquals("화도읍", StopText.query(TargetApp.ISFLEX, firstPickupStop(o)))
+    }
+
     @Test fun `목록 줄 대조 — 요금이 같은 줄이 둘이면 출발 동으로 가른다`() {
         val recent = rowsOf(IsflexRealScreens.LIST_07).map { it.first }
         val expected = listOf(D08 to 1, D09 to 3, D10 to 0, D11 to 2, D12 to 6)
