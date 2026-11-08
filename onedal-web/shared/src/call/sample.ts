@@ -1,6 +1,7 @@
 import type { CallMoney } from './money';
 import type { OrderForm, TripType } from './badges';
 import type { CallLoad } from '../cargo/callLoad';
+import type { CallIdentity, CallProvenance } from './callIdentity';
 
 export const OFFICE_ORDER_SAMPLE = {
     // ── 목록 칸 (SimplifiedOfficeOrder) ──
@@ -445,7 +446,7 @@ const IDENTITY_EXAMPLE_INSUNG = {
     dispatcherPhone: "1588-5480",
     requesterName: "***",
     stageText: "배차",
-};
+} satisfies Partial<CallIdentity>;
 
 /**
  * 화물24시 — ex_images/화물24시/이미지글자_화물24시.md 51_화물상세정보.png(확정 전 상세 · 위 `MONEY_EXAMPLE_HWAMUL24_RECEIPT` 와 같은 콜):
@@ -465,7 +466,7 @@ const IDENTITY_EXAMPLE_HWAMUL24 = {
     dispatcherPhone: null,
     requesterName: null,
     stageText: null,
-};
+} satisfies Partial<CallIdentity>;
 
 /**
  * 카카오 픽커 — ex_images/카카오픽커/이미지글자_카카오픽커.md 실물_2026/07_상세_최종수익분해.jpeg(확정 전 상세 · 위 `MONEY_EXAMPLE_KAKAOPICKER` 와 같은 콜):
@@ -487,7 +488,7 @@ const IDENTITY_EXAMPLE_KAKAOPICKER = {
     dispatcherPhone: null,
     requesterName: null,
     stageText: null,
-};
+} satisfies Partial<CallIdentity>;
 
 /**
  * 인성플렉스 (실물) — ex_images/인성플렉스/이미지글자_인성플렉스.md 10_상세_3.png · 10_상세_3.xml(확정 전 상세 · 위 `MONEY_EXAMPLE_ISFLEX` 와 같은 콜):
@@ -506,7 +507,7 @@ const IDENTITY_EXAMPLE_ISFLEX = {
     dispatcherPhone: null,
     requesterName: null,
     stageText: null,
-};
+} satisfies Partial<CallIdentity>;
 
 /**
  * 🔍 **새 콜 견본 — 출처 묶음(CallProvenance)을 모은 모양** (`설계/shared/번호출처_정의_계획_03.md` · 아직 코드에 없음)
@@ -604,7 +605,7 @@ const PROVENANCE_EXAMPLE_INSUNG = {
     openedBy: "APP",
     capturedMode: "AUTO",
     isSimulated: false,
-};
+} satisfies Partial<CallProvenance>;
 
 /**
  * 화물24시 — 위 `IDENTITY_EXAMPLE_HWAMUL24` 와 같은 사진 ex_images/화물24시/이미지글자_화물24시.md 51_화물상세정보.png(확정 전 상세)
@@ -618,7 +619,7 @@ const PROVENANCE_EXAMPLE_HWAMUL24 = {
     openedBy: "APP",
     capturedMode: "AUTO",
     isSimulated: false,
-};
+} satisfies Partial<CallProvenance>;
 
 /**
  * 카카오 픽커 — ex_images/카카오픽커/이미지글자_카카오픽커.md 실물_2026/06_상세_마감시각_준비시간.jpeg(확정 전 상세 · 아래 `STOP_EXAMPLE_KAKAOPICKER` 와 같은 사진)
@@ -633,7 +634,7 @@ const PROVENANCE_EXAMPLE_KAKAOPICKER = {
     openedBy: "DRIVER",
     capturedMode: "ALARM",
     isSimulated: false,
-};
+} satisfies Partial<CallProvenance>;
 
 /**
  * 인성플렉스 (실물) — ex_images/인성플렉스/이미지글자_인성플렉스.md 10_상세_3.png · 10_상세_3.xml(확정 전 상세)
@@ -647,7 +648,7 @@ const PROVENANCE_EXAMPLE_ISFLEX = {
     openedBy: "APP",
     capturedMode: "ALARM",
     isSimulated: false,
-};
+} satisfies Partial<CallProvenance>;
 
 /**
  * 🔍 **새 콜 견본 — 목록 글자 · 거리 · 표시 글자를 한 묶음으로 둔 모양** (`주소_정의_계획_02` · `거리_정의_계획_02` · `표시글자_정의_계획_02` · 아직 코드에 없음)
