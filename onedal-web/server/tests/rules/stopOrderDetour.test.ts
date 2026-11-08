@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { planArrivalStops } from '../../src/services/routeComposer';
 
 /**
@@ -32,9 +32,9 @@ import { planArrivalStops } from '../../src/services/routeComposer';
  * ```
  * 그래서 «비율 안 **그리고** 절대 차이도 작을 때»만 편든다.
  */
-const call = (id: string, over: object = {}) => callFromAppReport({
+const call = (id: string, over: object = {}) => testCall({
     id, status: 'ORDER_CONFIRMED',
-    pickupX: 127.31, pickupY: 37.36, dropoffX: 127.38, dropoffY: 37.29,
+    pickups: [{ geo: { x: 127.31, y: 37.36 } }], dropoffs: [{ geo: { x: 127.38, y: 37.29 } }],
     ...over,
 } as any) as any;
 
@@ -46,13 +46,13 @@ describe('🧭 먼 거리에서는 직전 순서가 못 이긴다 (2026-09-03)',
     const grabbed = (saved?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>) => ([
         call('B', {                                   // ② 성남 여수동 → 금천 가산동
             arrivedPickupAt: '2026-09-03T12:35:00+09:00',   // 이미 실었다
-            pickupX: 127.122541, pickupY: 37.422620,
-            dropoffX: 126.883619, dropoffY: 37.468967,
+            pickups: [{ geo: { x: 127.122541, y: 37.422620 } }],
+            dropoffs: [{ geo: { x: 126.883619, y: 37.468967 } }],
             ...(saved ? { sectionDriveMin: [10, 20], sectionStops: saved } : {}),
         }),
         call('C', {                                   // ③ 안양 석수동 → 구로 구로동
-            pickupX: 126.904770, pickupY: 37.429537,
-            dropoffX: 126.874476, dropoffY: 37.505685,
+            pickups: [{ geo: { x: 126.904770, y: 37.429537 } }],
+            dropoffs: [{ geo: { x: 126.874476, y: 37.505685 } }],
         }),
     ]);
 
@@ -79,7 +79,7 @@ describe('🧭 먼 거리에서는 직전 순서가 못 이긴다 (2026-09-03)',
             ...grabbed(SAVED_B_DROP_FIRST),
             call('D', {                               // ④ 방금 붙은 콜 — 보낸 순번에 없다
                 arrivedPickupAt: '2026-09-03T12:40:00+09:00',
-                dropoffX: 126.815, dropoffY: 37.575,  // 강서 방화동
+                dropoffs: [{ geo: { x: 126.815, y: 37.575 } }],  // 강서 방화동
             }),
         ];
         const got = name(planArrivalStops(withD, AT_SEONGNAM));

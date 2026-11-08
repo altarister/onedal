@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { deriveCallTiming, DEFAULT_DEADLINE_RULES } from '@onedal/shared';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -15,17 +15,17 @@ import { join } from 'path';
  * 위반이다.**"* 그래서 계산이 «추정»을 알고 있으면 화면까지 그 사실이 가야 한다.
  */
 const NOW = Date.parse('2026-09-01T09:00:00+09:00');
-/** 서버가 원달앱 보고를 옮겨 담은 콜 — 맨 위 칸은 정거장으로 */
-const order = (over: object = {}) => callFromAppReport({
+/** 검사 콜 — 정거장 목록 꼴 */
+const order = (over: object = {}) => testCall({
     id: 'A', capturedAt: new Date(NOW).toISOString(),
-    pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 신둔면',
+    pickups: [{ listText: '경기 광주시 초월읍' }], dropoffs: [{ listText: '경기 이천시 신둔면' }],
     ...over,
-} as any) as any;
+}) as any;
 
 describe('soloEstimated — 계산이 «어림임»을 숨기지 않는다', () => {
     it('🔴 카카오 실측이 있으면 추정이 아니다 (A단계가 채우는 값)', () => {
         const t = deriveCallTiming(
-            order({ kakaoSoloDurationMin: 42, kakaoSoloDistanceKm: 33.5, deliveryDistance: 30 }),
+            order({ kakaoSoloDurationMin: 42, kakaoSoloDistanceKm: 33.5, dropoffs: [{ listText: '경기 이천시 신둔면', distanceKm: 30 }] }),
             [], [], NOW, DEFAULT_DEADLINE_RULES);
         expect(t.soloMinutes).toBe(42);
         expect(t.soloKm).toBe(33.5);
@@ -33,7 +33,7 @@ describe('soloEstimated — 계산이 «어림임»을 숨기지 않는다', () 
     });
 
     it('🔴 배송거리만 있으면 환산값이고 «추정»이다', () => {
-        const t = deriveCallTiming(order({ deliveryDistance: 30 }), [], [], NOW, DEFAULT_DEADLINE_RULES);
+        const t = deriveCallTiming(order({ dropoffs: [{ listText: '경기 이천시 신둔면', distanceKm: 30 }] }), [], [], NOW, DEFAULT_DEADLINE_RULES);
         expect(t.soloMinutes).toBeGreaterThan(0);
         expect(t.soloEstimated).toBe(true);
     });
@@ -46,7 +46,7 @@ describe('soloEstimated — 계산이 «어림임»을 숨기지 않는다', () 
 
     it('🔴 실측이 추정을 이긴다 — 배송거리가 더 크게 나와도 실측이 남는다', () => {
         const t = deriveCallTiming(
-            order({ kakaoSoloDurationMin: 42, kakaoSoloDistanceKm: 33.5, deliveryDistance: 200 }),
+            order({ kakaoSoloDurationMin: 42, kakaoSoloDistanceKm: 33.5, dropoffs: [{ listText: '경기 이천시 신둔면', distanceKm: 200 }] }),
             [], [], NOW, DEFAULT_DEADLINE_RULES);
         expect(t.soloMinutes).toBe(42);
         expect(t.soloEstimated).toBe(false);

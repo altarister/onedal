@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { processDriverMovement, originOf, getActivePolyline, getLastDropoffCoord } from '../../src/services/geoMotion';
 import { getDetourRegions, pickupListFor, regionsTouchingCircleGrouped } from '../../src/services/geoRegions';
 import { initGeoService } from '../../src/services/geoService';
@@ -35,7 +35,7 @@ afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
 function make(u, status = 'ORDER_CONFIRMED', phase = 'GATHERING') {
     clearUserSession(u);
     const s = getUserSession(u);
-    s.myOrders = [callFromAppReport({ id: `${u}-c1`, status, pickupX: P.x, pickupY: P.y, dropoffX: D.x, dropoffY: D.y, routePolyline: [P, D] } as any)];
+    s.myOrders = [testCall({ id: `${u}-c1`, status, pickups: [{ geo: { x: P.x, y: P.y } }], dropoffs: [{ geo: { x: D.x, y: D.y } }], routePolyline: [P, D] } as any)];
     s.activeFilter.dispatchPhase = phase;
     return s;
 }
@@ -208,7 +208,7 @@ describe('📍 기점 · 경로', () => {
     it('🔴 쓰는 경로는 마지막 진행 콜의 경로 · 마지막 하차지는 그 경로의 끝점', () => {
         const s = make('m-poly');
         const second = [north(P, 1), north(P, 2), north(P, 3)];
-        s.myOrders.push(callFromAppReport({ id: 'm-poly-c2', status: 'ORDER_CONFIRMED', pickupX: P.x, pickupY: P.y, dropoffX: 0, dropoffY: 0, routePolyline: second } as any));
+        s.myOrders.push(testCall({ id: 'm-poly-c2', status: 'ORDER_CONFIRMED', pickups: [{ geo: { x: P.x, y: P.y } }], dropoffs: [{ geo: { x: 0, y: 0 } }], routePolyline: second } as any));
         expect(getActivePolyline(s)).toEqual(second);
         expect(getLastDropoffCoord(s)).toEqual(second[2]);
     });

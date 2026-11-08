@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { callFromAppReport, firstPickupStop } from '@onedal/shared';
+import { firstPickupStop } from '@onedal/shared';
+import { testCall } from '../../fixtures/testCall';
 import { describe, test, expect, jest, beforeEach } from '@jest/globals';
 import { OrderEvaluator } from '../../../src/core/engine/OrderEvaluator';
 import { SettingsRepository } from '../../../src/repositories/SettingsRepository';
@@ -61,14 +62,14 @@ describe('OrderEvaluator', () => {
     });
 
     test('조건이 모두 충족되는 꿀콜은 패널티 없이 통과해야 한다', async () => {
-        const order = callFromAppReport({
+        const order = testCall({
             id: 'order-1',
-            pickup: '서울 강남구 역삼동',
-            dropoff: '경기 성남시 분당구',
+            pickups: [{ listText: '서울 강남구 역삼동' }],
+            dropoffs: [{ listText: '경기 성남시 분당구' }],
             vehicleType: '1t',
             fare: 15000, // 10km 기준 적정가(8000원)보다 높으므로 꿀콜
             rawText: '안전하게 모십니다'
-        } as any);
+        });
 
         process.env.KAKAO_REST_API_KEY = "test-key"; // API Key 우회
         // 실제 흐름처럼 상세 보고 문(detail.ts)이 심사 중으로 세션에 올린 콜을 판정한다 — 아니면 판정 끝 확인(alive)이 버린다
@@ -86,14 +87,14 @@ describe('OrderEvaluator', () => {
     });
 
     test('하한가 미달 및 제외 키워드 포함 시 정확하게 똥콜로 걸러내야 한다', async () => {
-        const order = callFromAppReport({
+        const order = testCall({
             id: 'order-2',
-            pickup: '출발지',
-            dropoff: '도착지',
+            pickups: [{ listText: '출발지' }],
+            dropoffs: [{ listText: '도착지' }],
             vehicleType: '1t',
             fare: 3000, // 5000원 절대 하한가 미달 및 10km 하한선(7200원) 미달
             rawText: '요금 : 3,000(착불)' // 블랙리스트 키워드 — 인성 결제 괄호(제외어 찾는 칸)
-        } as any);
+        });
 
         process.env.KAKAO_REST_API_KEY = "test-key";
 
@@ -114,7 +115,7 @@ describe('OrderEvaluator', () => {
 
     test('🔴 판정은 정거장 글자를 덮어쓰지 않는다 — 인성 괄호 주소는 원문 그대로 · 카카오에는 판정 글자로 묻는다', async () => {
         const raw = '경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)';
-        const order = callFromAppReport({ id: 'order-paren', pickup: raw, dropoff: '경기 오산시 원동', vehicleType: '1t', fare: 30000, rawText: '' } as any);
+        const order = testCall({ id: 'order-paren', pickups: [{ listText: raw }], dropoffs: [{ listText: '경기 오산시 원동' }], vehicleType: '1t', fare: 30000, rawText: '' });
         process.env.KAKAO_REST_API_KEY = "test-key";
         order.status = 'ORDER_SECURED_EVALUATING';
         userSessionStore.getUserSession().pendingOrdersData.set(order.id, order);

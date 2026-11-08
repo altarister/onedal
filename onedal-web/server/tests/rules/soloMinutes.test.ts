@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { soloMinutesOf, derivationInputsOf, DEFAULT_JUDGMENT, deriveRouteTimeline, type MyOrder, type PendingOrder, type SecuredOrder } from '@onedal/shared';
@@ -31,12 +31,12 @@ import { soloMinutesOf, derivationInputsOf, DEFAULT_JUDGMENT, deriveRouteTimelin
 describe('soloMinutesOf — 실측이 없으면 배송거리로 추정한다', () => {
     // 🔴 실제 호출부와 같은 경로로 만든다 — 판정 기준 → 파생 입력 (규칙 ③)
     const cfg = derivationInputsOf(DEFAULT_JUDGMENT).rules;
-    /** 서버가 원달앱 보고를 옮겨 담은 콜 — 배송거리는 마지막 하차 정거장 거리 */
-    const order = (over: object) => callFromAppReport({ id: 'x', ...over } as any) as any;
+    /** 검사 콜 — 배송거리는 마지막 하차 정거장 거리 */
+    const order = (over: object) => testCall({ id: 'x', ...over }) as any;
 
     it('실측이 있으면 그대로 쓴다 — 추정이 실측을 덮지 않는다', () => {
         const r = soloMinutesOf(order({
-            kakaoSoloDurationMin: 21, kakaoSoloDistanceKm: 18.7, deliveryDistance: 30,
+            kakaoSoloDurationMin: 21, kakaoSoloDistanceKm: 18.7, dropoffs: [{ distanceKm: 30 }],
         }), cfg);
         expect(r).toEqual({ minutes: 21, km: 18.7, estimated: false });
     });
@@ -49,7 +49,7 @@ describe('soloMinutesOf — 실측이 없으면 배송거리로 추정한다', (
      */
     it('🔴 카카오 실측이 반쪽뿐이면 다른 출처로 짝을 맞추지 않는다', () => {
         // 시간만 있고 거리가 없다 → 화면 거리로 «시간까지» 갈아끼우지 않는다
-        const half = soloMinutesOf(order({ kakaoSoloDurationMin: 21, deliveryDistance: 30 }), cfg);
+        const half = soloMinutesOf(order({ kakaoSoloDurationMin: 21, dropoffs: [{ distanceKm: 30 }] }), cfg);
         expect(half.estimated).toBe(false);
         expect(half.minutes).toBe(21);
         expect(half.km).toBeNull();                 // 카카오 거리가 없으면 없는 대로 둔다
@@ -61,7 +61,7 @@ describe('soloMinutesOf — 실측이 없으면 배송거리로 추정한다', (
     });
 
     it('🔴 추정으로 갈 때는 거리·시간이 같은 출처(화면 배송거리)에서 나온다', () => {
-        const r = soloMinutesOf(order({ deliveryDistance: 20 }), cfg);
+        const r = soloMinutesOf(order({ dropoffs: [{ distanceKm: 20 }] }), cfg);
         expect(r.km).toBe(20);
         expect(r.estimated).toBe(true);
         // 20km ÷ 46km/h ≈ 26분 — 낸 거리와 낸 시간의 속도가 설정값과 맞는다
@@ -70,16 +70,16 @@ describe('soloMinutesOf — 실측이 없으면 배송거리로 추정한다', (
 
     it('🔴 실측이 없으면 배송거리 ÷ 구간 속도로 채운다 (합짐 콜의 구멍)', () => {
         // 4.4km — 짧은 구간이라 시내 속도(25km/h) → 약 11분
-        const r = soloMinutesOf(order({ deliveryDistance: 4.4 }), cfg);
+        const r = soloMinutesOf(order({ dropoffs: [{ distanceKm: 4.4 }] }), cfg);
         expect(r.estimated).toBe(true);
         expect(r.minutes).toBeGreaterThanOrEqual(9);
         expect(r.minutes).toBeLessThanOrEqual(13);
     });
 
     it('🔴 거리에 따라 속도가 달라진다 — 평균 하나로 환산하지 않는다', () => {
-        const short = soloMinutesOf(order({ deliveryDistance: 5 }), cfg).minutes!;
-        const mid = soloMinutesOf(order({ deliveryDistance: 20 }), cfg).minutes!;
-        const long = soloMinutesOf(order({ deliveryDistance: 40 }), cfg).minutes!;
+        const short = soloMinutesOf(order({ dropoffs: [{ distanceKm: 5 }] }), cfg).minutes!;
+        const mid = soloMinutesOf(order({ dropoffs: [{ distanceKm: 20 }] }), cfg).minutes!;
+        const long = soloMinutesOf(order({ dropoffs: [{ distanceKm: 40 }] }), cfg).minutes!;
         // 4배 거리인데 4배 시간이 아니다 (긴 구간이 빠르다)
         expect(mid).toBeLessThan(short * 4);
         expect(long).toBeLessThan(mid * 2.5);
@@ -87,14 +87,14 @@ describe('soloMinutesOf — 실측이 없으면 배송거리로 추정한다', (
 
     it('배송거리조차 없으면 지어내지 않는다 (규칙 ④)', () => {
         expect(soloMinutesOf(order({}), cfg)).toEqual({ minutes: null, km: null, estimated: false });
-        expect(soloMinutesOf(order({ deliveryDistance: 0 }), cfg)).toEqual({ minutes: null, km: null, estimated: false });
+        expect(soloMinutesOf(order({ dropoffs: [{ distanceKm: 0 }] }), cfg)).toEqual({ minutes: null, km: null, estimated: false });
     });
 
     it('속도는 DB 판정 기준에서 온다 — 코드 상수로 박아 두지 않는다 (규칙 ⑤-4 ①)', () => {
         const slow = derivationInputsOf({ ...DEFAULT_JUDGMENT,
             speed: { shortKmh: 10, midKmh: 10, longKmh: 10 } }).rules;
-        expect(soloMinutesOf(order({ deliveryDistance: 10 }), slow).minutes)
-            .toBeGreaterThan(soloMinutesOf(order({ deliveryDistance: 10 }), cfg).minutes!);
+        expect(soloMinutesOf(order({ dropoffs: [{ distanceKm: 10 }] }), slow).minutes)
+            .toBeGreaterThan(soloMinutesOf(order({ dropoffs: [{ distanceKm: 10 }] }), cfg).minutes!);
     });
 });
 

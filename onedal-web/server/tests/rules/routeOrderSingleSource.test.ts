@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { buildOrderSync } from '../../src/core/helpers';
@@ -16,11 +16,11 @@ import { planArrivalStops } from '../../src/services/routeComposer';
  *   ② 관제웹은 TSP 를 돌리지 않고 그것을 그린다 — 이 테스트가 잠근다
  */
 describe('routeStops — 서버가 순서를 명시해 내려준다', () => {
-    const order = (id: string, over: object = {}) => callFromAppReport({
-        id, status: 'ORDER_CONFIRMED', pickup: `${id}-상차`, dropoff: `${id}-하차`,
-        pickupX: 127.2, pickupY: 37.4, dropoffX: 126.8, dropoffY: 37.7,
+    const order = (id: string, over: object = {}) => testCall({
+        id, status: 'ORDER_CONFIRMED',
+        pickups: [{ listText: `${id}-상차`, geo: { x: 127.2, y: 37.4 } }], dropoffs: [{ listText: `${id}-하차`, geo: { x: 126.8, y: 37.7 } }],
         fare: 50000, ...over,
-    } as any) as any;
+    }) as any;
 
     it('🔴 sync 페이로드에 routeStops 가 있고, 순서가 planArrivalStops 와 같다', () => {
         const calls = [order('A'), order('B')];
@@ -84,10 +84,10 @@ describe('routeStops — 서버가 순서를 명시해 내려준다', () => {
  * 무관하게 스스로 옳도록** 강제한다 (규칙 ② — 안전장치는 겹쳐 둔다).
  */
 describe('계측 로그 — 값이 안 바뀌면 다시 안 찍는다', () => {
-    const call = (id: string, over: object = {}) => callFromAppReport({
-        id, status: 'ORDER_CONFIRMED', pickup: `${id}-상차`, dropoff: `${id}-하차`,
-        pickupX: 127.2, pickupY: 37.4, dropoffX: 126.8, dropoffY: 37.7, fare: 50000, ...over,
-    } as any) as any;
+    const call = (id: string, over: object = {}) => testCall({
+        id, status: 'ORDER_CONFIRMED',
+        pickups: [{ listText: `${id}-상차`, geo: { x: 127.2, y: 37.4 } }], dropoffs: [{ listText: `${id}-하차`, geo: { x: 126.8, y: 37.7 } }], fare: 50000, ...over,
+    }) as any;
     const sessionOf = (userId: string, calls: any[]) =>
         ({ userId, myOrders: calls, pendingOrdersData: new Map(), origin: null }) as any;
 
@@ -169,10 +169,10 @@ describe('관제웹 — 자기 TSP 를 돌리지 않는다', () => {
  * **뒤에서부터 값이 있는 콜**을 찾는다. 서버도 같은 방식이다.
  */
 describe('경로 홀더 — 값이 있는 콜을 찾는다', () => {
-    const withRoute = (id: string, over: object = {}) => callFromAppReport({
-        id, status: 'ORDER_CONFIRMED', pickup: `${id}-상차`, dropoff: `${id}-하차`,
-        pickupX: 127.2, pickupY: 37.4, dropoffX: 126.8, dropoffY: 37.7, fare: 50000, ...over,
-    } as any) as any;
+    const withRoute = (id: string, over: object = {}) => testCall({
+        id, status: 'ORDER_CONFIRMED',
+        pickups: [{ listText: `${id}-상차`, geo: { x: 127.2, y: 37.4 } }], dropoffs: [{ listText: `${id}-하차`, geo: { x: 126.8, y: 37.7 } }], fare: 50000, ...over,
+    }) as any;
 
     it('🔴 마지막 콜이 비어 있어도 앞 콜의 경로를 읽는다', () => {
         const calls = [

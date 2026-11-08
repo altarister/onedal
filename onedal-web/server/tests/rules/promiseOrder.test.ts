@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { planMergedStops } from '../../src/services/routeComposer';
 
 /**
@@ -14,11 +14,11 @@ const here = { x: 127.00, y: 37.00 };
 const at = (dx: number) => ({ x: 127.00 + dx * KM, y: 37.00 });
 
 /** 콜 A — 상차가 더 멀다(15칸) · 하차 30칸 */
-const A = callFromAppReport({ id: 'A', status: 'ORDER_CONFIRMED',
-    pickupX: at(15).x, pickupY: at(15).y, dropoffX: at(30).x, dropoffY: at(30).y } as any) as any;
+const A = testCall({ id: 'A', status: 'ORDER_CONFIRMED',
+    pickups: [{ geo: { x: at(15).x, y: at(15).y } }], dropoffs: [{ geo: { x: at(30).x, y: at(30).y } }] } as any) as any;
 /** 콜 B — 상차가 가깝다(10칸) · 하차 50칸 */
-const B = callFromAppReport({ id: 'B', status: 'ORDER_CONFIRMED',
-    pickupX: at(10).x, pickupY: at(10).y, dropoffX: at(50).x, dropoffY: at(50).y } as any) as any;
+const B = testCall({ id: 'B', status: 'ORDER_CONFIRMED',
+    pickups: [{ geo: { x: at(10).x, y: at(10).y } }], dropoffs: [{ geo: { x: at(50).x, y: at(50).y } }] } as any) as any;
 
 const order = (calls: any[], opts?: any) =>
     (planMergedStops(calls, null, here, opts)?.orderedStops ?? []).map(s => `${s.orderId}:${s.stopType}`);

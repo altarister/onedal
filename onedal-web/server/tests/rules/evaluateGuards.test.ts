@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { describe, test, expect, jest, beforeEach } from '@jest/globals';
 import { OrderEvaluator } from '../../src/core/engine/OrderEvaluator';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
@@ -42,7 +42,7 @@ describe('🪦 판정 끝 — 아직 이 객체 · 심사 중일 때만 저장·
         process.env.KAKAO_REST_API_KEY = 'test-key';
     });
 
-    const order = (id) => callFromAppReport({ id, pickup: '서울 강남구 역삼동', dropoff: '경기 성남시 분당구', vehicleType: '1t', fare: 15000, rawText: '', status: 'ORDER_SECURED_EVALUATING' } as any);
+    const order = (id) => testCall({ id, pickups: [{ listText: '서울 강남구 역삼동' }], dropoffs: [{ listText: '경기 성남시 분당구' }], vehicleType: '1t', fare: 15000, rawText: '', status: 'ORDER_SECURED_EVALUATING' });
     const evaluatedEmits = () => io.emit.mock.calls.filter(c => c[0] === 'order-evaluated').length;
 
     test('🔴 판정 도중 안전취소된 콜 — 끝나도 SAFE_CANCEL 그대로 · 알림 0 · 저장 0', async () => {
@@ -117,7 +117,7 @@ describe('📸 판정 재료 한 번 뜨기', () => {
         jest.spyOn(OrderRepository, 'saveJudgment').mockImplementation(() => {});
         process.env.KAKAO_REST_API_KEY = 'test-key';
     });
-    const order = (id) => callFromAppReport({ id, pickup: '서울 강남구 역삼동', dropoff: '경기 성남시 분당구', vehicleType: '1t', fare: 15000, rawText: '', status: 'ORDER_SECURED_EVALUATING' } as any);
+    const order = (id) => testCall({ id, pickups: [{ listText: '서울 강남구 역삼동' }], dropoffs: [{ listText: '경기 성남시 분당구' }], vehicleType: '1t', fare: 15000, rawText: '', status: 'ORDER_SECURED_EVALUATING' });
     const run = async (id, meanwhile) => {
         const o = order(id);
         session.pendingOrdersData.set(o.id, o);
@@ -137,7 +137,7 @@ describe('📸 판정 재료 한 번 뜨기', () => {
 
     test('🔴 사이에 잡은 콜이 생겨도 단독 갈래 그대로 · 판정 시간 줄에 «판정 중 잡은 콜 수가 바뀜»', async () => {
         const log = jest.spyOn(console, 'log').mockImplementation(() => {});
-        await run('snap-b', () => { session.myOrders.push(callFromAppReport({ id: 'kept-meanwhile', status: 'ORDER_CONFIRMED', pickupX: 127.2, pickupY: 37.2, dropoffX: 127.3, dropoffY: 37.3 } as any)); });
+        await run('snap-b', () => { session.myOrders.push(testCall({ id: 'kept-meanwhile', status: 'ORDER_CONFIRMED', pickups: [{ geo: { x: 127.2, y: 37.2 } }], dropoffs: [{ geo: { x: 127.3, y: 37.3 } }] })); });
         expect(kakaoService.calculateSoloRoute).toHaveBeenCalledTimes(1);
         const line = log.mock.calls.map(c => c.join(' ')).find(l => l.includes('⏱️ [판정 시간]'));
         expect(line).toContain('판정 중 잡은 콜 수가 바뀜');

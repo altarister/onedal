@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { composeMergedRoute, applyRoute } from '../../src/services/routeComposer';
 import * as kakao from '../../src/services/kakaoService';
 
@@ -23,10 +23,10 @@ jest.mock('../../src/services/kakaoService', () => ({
     calculateDetourRoute: jest.fn(),
 }));
 
-const call = (id: string, px: number, dx: number) => callFromAppReport({
+const call = (id: string, px: number, dx: number) => testCall({
     id, status: 'ORDER_CONFIRMED',
-    pickupX: px, pickupY: 37.4, dropoffX: dx, dropoffY: 37.7,
-} as any) as any;
+    pickups: [{ geo: { x: px, y: 37.4 } }], dropoffs: [{ geo: { x: dx, y: 37.7 } }],
+}) as any;
 
 describe('경유 계획 = 도착 계획 — 같은 방문 규칙', () => {
     const { planMergedStops, planArrivalStops } = require('../../src/services/routeComposer');
@@ -41,12 +41,12 @@ describe('경유 계획 = 도착 계획 — 같은 방문 규칙', () => {
     it('🔴 하차 완료된 콜의 하차지가 카카오 경유에서 빠진다 — 도착 계획과 같은 수', () => {
         const calls = [
             { id: 'DONE', status: 'ORDER_DELIVERED',            // 하차까지 끝난 콜 (사이클 중)
-              pickupX: 127.0, pickupY: 37.4, dropoffX: 126.9, dropoffY: 37.5 },
+              pickups: [{ geo: { x: 127.0, y: 37.4 } }], dropoffs: [{ geo: { x: 126.9, y: 37.5 } }] },
             { id: 'RIDE', status: 'ORDER_PICKED_UP',            // 실은 콜 — 하차만 남음
-              pickupX: 127.1, pickupY: 37.4, dropoffX: 126.8, dropoffY: 37.6 },
-        ].map(o => callFromAppReport(o as any)) as any;
-        const extra = callFromAppReport({ id: 'NEW', status: 'ORDER_CONFIRMED',
-            pickupX: 127.05, pickupY: 37.45, dropoffX: 126.85, dropoffY: 37.55 } as any) as any;
+              pickups: [{ geo: { x: 127.1, y: 37.4 } }], dropoffs: [{ geo: { x: 126.8, y: 37.6 } }] },
+        ].map(o => testCall(o)) as any;
+        const extra = testCall({ id: 'NEW', status: 'ORDER_CONFIRMED',
+            pickups: [{ geo: { x: 127.05, y: 37.45 } }], dropoffs: [{ geo: { x: 126.85, y: 37.55 } }] }) as any;
         const loc = { x: 127.02, y: 37.42 };
 
         const plan = planMergedStops(calls, extra, loc)!;

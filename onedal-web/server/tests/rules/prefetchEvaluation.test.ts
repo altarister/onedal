@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import db from '../../src/db';
 import * as userSessionStore from '../../src/state/userSessionStore';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
@@ -65,10 +65,10 @@ describe('🏃 같은 질문은 한 번만', () => {
         global.fetch = fakeKakao(30);
         const session = getUserSession(U);
         session.myOrders = [];
-        const base = { pickup: `경기 이천시 부발읍 경충대로 ${MARK}다`, dropoff: `경기 여주시 가남읍 ${MARK}라`, vehicleType: '다마스', fare: 30000, rawText: '', targetApp: 'insung' };
-        await new OrderEvaluator('insung').prefetch(U, callFromAppReport({ ...base } as any));
+        const base = { pickups: [{ listText: `경기 이천시 부발읍 경충대로 ${MARK}다` }], dropoffs: [{ listText: `경기 여주시 가남읍 ${MARK}라` }], vehicleType: '다마스', fare: 30000, rawText: '', targetApp: 'insung' };
+        await new OrderEvaluator('insung').prefetch(U, testCall({ ...base }));
         const before = { local: localCalls, navi: naviCalls };
-        const o = callFromAppReport({ ...base, id: `${U}-e`, status: 'ORDER_SECURED_EVALUATING', capturedAt: new Date().toISOString() } as any);
+        const o = testCall({ ...base, id: `${U}-e`, status: 'ORDER_SECURED_EVALUATING', capturedAt: new Date().toISOString() });
         session.pendingOrdersData.set(o.id, o);
         await new OrderEvaluator('insung').evaluate(U, o, { to: () => ({ emit: () => {} }) });
         expect(before.navi).toBe(1);
@@ -86,7 +86,7 @@ describe('🏃 미리 출발은 세션을 읽기만', () => {
         const was = sizes();
         const guarded = new Proxy(session, { set: () => { throw new Error('미리 출발이 세션에 썼다'); } });
         jest.spyOn(userSessionStore, 'getUserSession').mockReturnValue(guarded);
-        await new OrderEvaluator('insung').prefetch(U, callFromAppReport({ pickup: `경기 이천시 ${MARK}마`, dropoff: `경기 여주시 ${MARK}바`, targetApp: 'insung' } as any));
+        await new OrderEvaluator('insung').prefetch(U, testCall({ pickups: [{ listText: `경기 이천시 ${MARK}마` }], dropoffs: [{ listText: `경기 여주시 ${MARK}바` }], targetApp: 'insung' }));
         expect(sizes()).toEqual(was);
         expect(naviCalls).toBe(1);
     });

@@ -35,17 +35,18 @@ import CargoMismatchBanner from '../dashboard/CargoMismatchBanner';
 import MorningCard from '../dashboard/MorningCard';
 import StatusBoard from '../../statusboard/StatusBoard';
 import OrderFilterModal from '../dashboard/OrderFilterModal';
-import { callFromAppReport } from '@onedal/shared';
 
 const noop = () => {};
 
 /** 값이 빠지거나 뒤틀린 콜 — 시각 · 요금 · 거리가 숫자가 아니고 주소가 비었다 */
+/** 서버가 보내는 콜 — 정거장 목록 꼴 */
+const stops = (pickup: string | null, dropoff: string | null) => ({ pickupDetails: [{ listText: pickup, geo: null, distanceKm: null }], dropoffDetails: [{ listText: dropoff, geo: null, distanceKm: null }] });
 const ODD_ORDERS = [
-    { id: 'odd-1', status: 'ORDER_CONFIRMED', type: 'AUTO', pickup: '', dropoff: '', fare: NaN, timestamp: '시각아님', capturedAt: '시각아님', totalDistanceKm: NaN, totalDurationMin: Infinity },
-    { id: 'odd-2', status: '모르는상태', pickup: undefined, dropoff: null, fare: undefined, timestamp: undefined },
+    { id: 'odd-1', status: 'ORDER_CONFIRMED', type: 'AUTO', ...stops('', ''), fare: NaN, timestamp: '시각아님', capturedAt: '시각아님', totalDistanceKm: NaN, totalDurationMin: Infinity },
+    { id: 'odd-2', status: '모르는상태', ...stops(null, null), fare: undefined, timestamp: undefined },
     /* 서랍의 기본 탭(완료됨)이 실제로 줄을 그리게 — 지난날 끝난 콜(오늘 한 일은 시트 쪽이라 서랍에 안 든다) · 요금 · 하차지가 뒤틀렸다 (완료 시각이 깨지면 «오늘 끝남»으로 봐 시트 쪽에 든다 · deckOfCycle) */
-    { id: 'odd-3', status: 'ORDER_DELIVERED', type: 'AUTO', pickup: '경기 광주시 경안동', dropoff: '', fare: NaN, timestamp: '2020-01-01T00:00:00Z', capturedAt: '2020-01-01T00:00:00Z', completedAt: '2020-01-01T01:00:00Z' },
-].map(o => callFromAppReport(o as any)) as any[];   // 서버가 보내는 콜 — 맨 위 칸을 정거장으로
+    { id: 'odd-3', status: 'ORDER_DELIVERED', type: 'AUTO', ...stops('경기 광주시 경안동', ''), fare: NaN, timestamp: '2020-01-01T00:00:00Z', capturedAt: '2020-01-01T00:00:00Z', completedAt: '2020-01-01T01:00:00Z' },
+] as any[];
 
 /** 값이 빠지거나 뒤틀린 기기 — 모르는 화면 값 · 모르는 상태 · 숫자 아님 */
 const ODD_DEVICES = [

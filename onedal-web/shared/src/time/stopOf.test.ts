@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { firstPickupStop, lastDropoffStop, isReservedCall, firstStopKm, deliveryKmOf } from './timing';
 
 /**
- * 🚏 **첫 상차 · 마지막 하차 정거장** — 정거장만 있는 콜에서 상차 목록의 처음 · 하차 목록의 끝을 낸다(원달앱 보고의 맨 위 칸은 `callFromAppReport` 가 옮겨 담는다 — `orderShapes.test.ts`).
+ * 🚏 **첫 상차 · 마지막 하차 정거장** — 정거장만 있는 콜에서 상차 목록의 처음 · 하차 목록의 끝을 낸다.
  *    **예약 콜** — 첫 상차 정거장의 «예약» 글자 · 날로 가른다.
  *    **상차 거리 · 배송 거리** — 정거장 거리에서 꺼내고, 배송 거리는 한 곳이라도 모르면 null.
  * 못 잡는 것: 관제웹 화면 글자(관제웹 `stopScreenText.test.ts`) · 서버 판정 값(서버 jest).

@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { callFromAppReport, firstPickupStop, lastDropoffStop } from '@onedal/shared';
+import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { OrderEvaluator } from '../../src/core/engine/OrderEvaluator';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
@@ -768,8 +769,8 @@ function make(u: string, f = {}) {
     s.myOrders = [];
     return s;
 }
-const order = (id: string, o = {}) => callFromAppReport({ id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 중리동', vehicleType: '1t', fare: 45000, rawText: '',
-    status: 'ORDER_SECURED_EVALUATING', capturedAt: new Date(T).toISOString(), ...o } as any);
+const order = (id: string, o = {}) => testCall({ id, pickups: [{ listText: '경기 광주시 곤지암읍' }], dropoffs: [{ listText: '경기 이천시 중리동' }], vehicleType: '1t', fare: 45000, rawText: '',
+    status: 'ORDER_SECURED_EVALUATING', capturedAt: new Date(T).toISOString(), ...o });
 const seen = (o) => ({ j: o.judgment, t: o.kakaoTimeExt, r: o.rejectionReasons, p: o.approvalReasons, st: o.status,
     d: [o.totalDistanceKm, o.totalDurationMin, o.approachDurationMin, o.kakaoSoloDistanceKm] });
 async function run(u: string, o, s) {
@@ -821,9 +822,9 @@ describe('🎨 판정 갈래 — 같은 콜에 같은 판정', () => {
         });
         const full = async (u: string, capacityConfidence: string) => {
             const s = make(u, { dispatchPhase: 'GATHERING', isSharedMode: true, slotsUsed: 120, capacityConfidence });
-            s.myOrders = [callFromAppReport({ id: `${u}-kept`, status: 'ORDER_CONFIRMED', pickup: 'A', dropoff: 'B', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y,
-                fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() } as any)];
-            const o = order(`${u}-o`, { pickup: '경기 이천시 신둔면', dropoff: '경기 이천시 부발읍', fare: 30000 });
+            s.myOrders = [testCall({ id: `${u}-kept`, status: 'ORDER_CONFIRMED', pickups: [{ listText: 'A', geo: { x: GONJIAM.x, y: GONJIAM.y } }], dropoffs: [{ listText: 'B', geo: { x: TERMINAL.x, y: TERMINAL.y } }],
+                fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() })];
+            const o = order(`${u}-o`, { pickups: [{ listText: '경기 이천시 신둔면' }], dropoffs: [{ listText: '경기 이천시 부발읍' }], fare: 30000 });
             await run(u, o, s);
             return o.judgment;
         };
@@ -846,9 +847,9 @@ describe('🎨 판정 갈래 — 같은 콜에 같은 판정', () => {
             timeDiffMin: 15, distDiffKm: '6.0', tollDiffKrw: 500, roadEvent: null,
         });
         const s = make('ev-merge', { dispatchPhase: 'GATHERING', isSharedMode: true });
-        s.myOrders = [callFromAppReport({ id: 'kept-1', status: 'ORDER_CONFIRMED', pickup: 'A', dropoff: 'B', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y,
-            fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() } as any)];
-        const o = order('o-merge', { pickup: '경기 이천시 신둔면', dropoff: '경기 이천시 부발읍', fare: 30000 });
+        s.myOrders = [testCall({ id: 'kept-1', status: 'ORDER_CONFIRMED', pickups: [{ listText: 'A', geo: { x: GONJIAM.x, y: GONJIAM.y } }], dropoffs: [{ listText: 'B', geo: { x: TERMINAL.x, y: TERMINAL.y } }],
+            fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() })];
+        const o = order('o-merge', { pickups: [{ listText: '경기 이천시 신둔면' }], dropoffs: [{ listText: '경기 이천시 부발읍' }], fare: 30000 });
         expect(await run('ev-merge', o, s)).toEqual(GOLDEN.merged);
         expect(detour).toHaveBeenCalledTimes(1);
         expect(solo).not.toHaveBeenCalled();
@@ -861,7 +862,7 @@ describe('🎨 판정 갈래 — 같은 콜에 같은 판정', () => {
         jest.spyOn(kakao, 'geocodeCallAddress').mockImplementation(async (a) => a.includes('성남') ? { ...SEONGNAM, approxArea: null } : { ...TERMINAL, approxArea: null });
         jest.spyOn(kakao, 'calculateSoloRoute').mockResolvedValue({ distance: 40000, duration: 3000, polyline: [SEONGNAM, TERMINAL], approachDistance: 17000, approachDuration: 1500, tollKrw: 0, roadEvent: null });
         const s = make('ev-behind');
-        const o = order('o-behind', { pickup: '경기 성남시 수정구', fare: 60000 });
+        const o = order('o-behind', { pickups: [{ listText: '경기 성남시 수정구' }], fare: 60000 });
         expect(await run('ev-behind', o, s)).toEqual(GOLDEN.behind);
         savedOnce(o);
     });
@@ -875,9 +876,9 @@ describe('🎨 판정 갈래 — 같은 콜에 같은 판정', () => {
             timeDiffMin: 120, distDiffKm: '35.0', tollDiffKrw: 0, roadEvent: null,
         });
         const s = make('ev-mlow', { dispatchPhase: 'GATHERING', isSharedMode: true });
-        s.myOrders = [callFromAppReport({ id: 'kept-2', status: 'ORDER_CONFIRMED', pickup: 'A', dropoff: 'B', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y,
-            fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() } as any)];
-        const o = order('o-mlow', { pickup: '경기 이천시 신둔면', dropoff: '경기 이천시 부발읍', fare: 16000 });
+        s.myOrders = [testCall({ id: 'kept-2', status: 'ORDER_CONFIRMED', pickups: [{ listText: 'A', geo: { x: GONJIAM.x, y: GONJIAM.y } }], dropoffs: [{ listText: 'B', geo: { x: TERMINAL.x, y: TERMINAL.y } }],
+            fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() })];
+        const o = order('o-mlow', { pickups: [{ listText: '경기 이천시 신둔면' }], dropoffs: [{ listText: '경기 이천시 부발읍' }], fare: 16000 });
         expect(await run('ev-mlow', o, s)).toEqual(GOLDEN.mergedLow);
         savedOnce(o);
     });

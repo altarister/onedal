@@ -22,15 +22,16 @@ vi.mock('../../lib/socket', () => {
 
 import { ThemeProvider } from '@onedal/ui/theme';
 import PinnedRouteCard from './PinnedRouteCard';
-import { callFromAppReport } from '@onedal/shared';
 
 const EMPTY = { reports: [], milestones: [], dwell: { pickup: { planned: null, actual: null }, dropoff: { planned: null, actual: null } } } as any;
-/** 서버가 보내는 콜 — 원달앱 보고의 맨 위 칸을 정거장으로 옮겨 담은 것 */
-const ROUTE = callFromAppReport({
-    id: 'c1', status: 'ORDER_CONFIRMED', type: 'AUTO', pickup: '경기 광주시 초월읍 지월리', dropoff: '경기 이천시 신둔면 수광리',
+/** 서버가 보내는 콜 — 정거장 목록 꼴 */
+const ROUTE = {
+    id: 'c1', status: 'ORDER_CONFIRMED', type: 'AUTO',
+    pickupDetails: [{ listText: '경기 광주시 초월읍 지월리', geo: null, distanceKm: null }],
+    dropoffDetails: [{ listText: '경기 이천시 신둔면 수광리', geo: null, distanceKm: null }],
     fare: 50000, paymentType: '신용', capturedAt: '2026-10-07T00:00:00.000Z', timestamp: '2026-10-07T00:00:00.000Z',
     detailMemo: '카톤 두 개', itemDescription: '박스', kakaoSoloDistanceKm: 14.7, kakaoSoloDurationMin: 22,
-} as any) as any;
+} as any;
 const tl = (stopType: 'pickup' | 'dropoff', o: Record<string, unknown> = {}) => ({
     orderId: 'c1', stopType, etaMs: null, dwellMinutes: 10, driveMinutes: 20, leadMinutes: 0, promisedUntil: null,
     promiseConfirmed: false, dwellShiftMinutes: 0, segmentDriveMinutes: null, lateMinutes: 0, arrived: false, ...o,

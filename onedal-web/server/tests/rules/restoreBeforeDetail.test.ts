@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { callFromAppReport, firstPickupStop, lastDropoffStop } from '@onedal/shared';
+import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import db from '../../src/db';
 import detailRouter from '../../src/routes/detail';
 import ordersRouter from '../../src/routes/orders';
@@ -7,6 +7,7 @@ import * as dispatchEngine from '../../src/services/dispatchEngine';
 import { bootstrapUserSession, restoreAndRecalculateSession } from '../../src/state/sessionRestore';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { approvedUser } from '../fixtures/approvedUser';
+import { testCall } from '../fixtures/testCall';
 
 /**
  * ⏳ **서버 재시작 직후 관제웹이 붙기 전에 /detail 이 오면 먼저 되살린다** (서버 병목 10 · 기사님 «가» · onedal-1f «가»).
@@ -132,8 +133,8 @@ describe('🧾 재시작 직후 판정 중 콜은 확정 콜이 아니다', () =
                     VALUES (?, 'NEW_ORDER', 'ORDER_RELEASED_BY_ME', ?, ?, ?, '상', '하', 20000, 'insung')`)
             .run(id, U, todayAt(h), todayAt(h));
     };
-    const evaluating = (id: string) => callFromAppReport({ id, type: 'MANUAL', status: 'ORDER_SECURED_EVALUATING', pickup: '경기 광주시', dropoff: '경기 이천시',
-        fare: 30000, timestamp: new Date().toISOString(), capturedAt: new Date().toISOString(), capturedDeviceId: DEV } as any);
+    const evaluating = (id: string) => testCall({ id, type: 'MANUAL', status: 'ORDER_SECURED_EVALUATING', pickups: [{ listText: '경기 광주시' }], dropoffs: [{ listText: '경기 이천시' }],
+        fare: 30000, timestamp: new Date().toISOString(), capturedAt: new Date().toISOString(), capturedDeviceId: DEV });
 
     it('🔴 장부에 진행 중 콜이 없으면 되살린 뒤 확정 콜 목록에 판정 중 콜이 없고 국면은 STANDBY', async () => {
         insertReleased(`${U}-rel`, 9);

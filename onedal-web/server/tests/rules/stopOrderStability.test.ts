@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { planArrivalStops } from '../../src/services/routeComposer';
 
 /**
@@ -18,9 +18,9 @@ import { planArrivalStops } from '../../src/services/routeComposer';
  *   차이에 뒤집히는 것»이다. 그래서 얼리지 않고 **버티게** 한다 —
  *   직전에 정한 순서(`sectionStops`)를 **동점 근처에서만** 편든다.
  */
-const call = (id: string, over: object = {}) => callFromAppReport({
+const call = (id: string, over: object = {}) => testCall({
     id, status: 'ORDER_CONFIRMED',
-    pickupX: 127.31, pickupY: 37.36, dropoffX: 127.38, dropoffY: 37.29,
+    pickups: [{ geo: { x: 127.31, y: 37.36 } }], dropoffs: [{ geo: { x: 127.38, y: 37.29 } }],
     ...over,
 } as any) as any;
 
@@ -35,11 +35,11 @@ describe('갈 순서 — 흔들리지 않되 얼지도 않는다', () => {
     const tiedPair = (saved?: Array<{ orderId: string; stopType: 'dropoff' }>) => ([
         call('A', {
             arrivedPickupAt: '2026-09-01T02:00:00+09:00',
-            dropoffX: 127.400, dropoffY: 37.300,
+            dropoffs: [{ geo: { x: 127.400, y: 37.300 } }],
         }),
         call('B', {
             arrivedPickupAt: '2026-09-01T02:00:00+09:00',
-            dropoffX: 127.450, dropoffY: 37.300,          // A 하차지에서 4.4km — 기점은 그 중간
+            dropoffs: [{ geo: { x: 127.450, y: 37.300 } }],          // A 하차지에서 4.4km — 기점은 그 중간
             ...(saved ? { sectionDriveMin: [10, 20], sectionStops: saved } : {}),
         }),
     ]);
@@ -76,10 +76,10 @@ describe('갈 순서 — 흔들리지 않되 얼지도 않는다', () => {
     it('🔴 새 콜의 정거장이 보낸 순번에 없으면 다시 정한다 — 영영 얼지는 않는다', () => {
         const near = call('N', {                                       // 방금 KEEP — 아직 경로에 없다
             arrivedPickupAt: '2026-09-01T02:00:00+09:00',
-            dropoffX: 127.402, dropoffY: 37.300,                       // 기점에서 ~2km
+            dropoffs: [{ geo: { x: 127.402, y: 37.300 } }],                       // 기점에서 ~2km
         });
         const far = call('F', {
-            pickupX: 127.700, pickupY: 37.500, dropoffX: 127.800, dropoffY: 37.600,   // 아주 멀다
+            pickups: [{ geo: { x: 127.700, y: 37.500 } }], dropoffs: [{ geo: { x: 127.800, y: 37.600 } }],   // 아주 멀다
             sectionDriveMin: [10, 20],
             sectionStops: [
                 { orderId: 'F', stopType: 'pickup' },                  // 보낸 순번은 F 뿐이다
@@ -93,10 +93,10 @@ describe('갈 순서 — 흔들리지 않되 얼지도 않는다', () => {
     it('보낸 순번이 다 덮으면 코앞 하차지가 있어도 순번대로다 (2026-09-14 결정)', () => {
         const near = call('N', {
             arrivedPickupAt: '2026-09-01T02:00:00+09:00',
-            dropoffX: 127.402, dropoffY: 37.300,
+            dropoffs: [{ geo: { x: 127.402, y: 37.300 } }],
         });
         const far = call('F', {
-            pickupX: 127.700, pickupY: 37.500, dropoffX: 127.800, dropoffY: 37.600,
+            pickups: [{ geo: { x: 127.700, y: 37.500 } }], dropoffs: [{ geo: { x: 127.800, y: 37.600 } }],
             sectionDriveMin: [10, 20, 30],
             sectionStops: [
                 { orderId: 'F', stopType: 'pickup' },
@@ -125,15 +125,15 @@ describe('갈 순서 — 흔들리지 않되 얼지도 않는다', () => {
     it('🔴 카카오에 보낸 순번이 남은 정거장을 다 덮으면 그대로 따른다 — 굽은 길에서 1번을 안 뺏긴다', () => {
         const 신둔 = call('e4118c', {                         // 첫짐 — 상차는 끝났다
             arrivedPickupAt: '2026-09-14T13:04:37+09:00',
-            dropoffX: 127.383826605868, dropoffY: 37.2929022381899,
+            dropoffs: [{ geo: { x: 127.383826605868, y: 37.2929022381899 } }],
         });
         const 관고 = call('8dac1f', {                         // 합짐1 — 상차는 끝났다
             arrivedPickupAt: '2026-09-14T13:04:58+09:00',
-            dropoffX: 127.429230, dropoffY: 37.285068,
+            dropoffs: [{ geo: { x: 127.429230, y: 37.285068 } }],
         });
         const 사음 = call('a0e61f', {                         // 합짐2 — 경로를 든 콜
-            pickupX: 127.416293, pickupY: 37.294522,
-            dropoffX: 127.446936, dropoffY: 37.277421,
+            pickups: [{ geo: { x: 127.416293, y: 37.294522 } }],
+            dropoffs: [{ geo: { x: 127.446936, y: 37.277421 } }],
             sectionDriveMin: [18, 26, 28, 33],
             sectionStops: [
                 { orderId: 'e4118c', stopType: 'dropoff' },

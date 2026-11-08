@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { hhmmText, manwonText, dwellMinutes, unitPoints, protectionMinutes, afterworkMinutes } from '@onedal/shared';
 import { stepDoneOf, stepCurIdxOf, stepViewOf, stepPaneOf, stopDetailRowsOf, rawFieldsOf, stepSummaryOf, popupCloseReasonOf, stopBlocksOf } from './callCardViews';
-import { callFromAppReport } from '@onedal/shared';
 
 /**
  * 🧾 **펼친 콜 카드의 셈** — 값만 넣고 값을 본다. 카드가 그 값을 글자로 그리는지는 `pinnedRouteCard.test.tsx` 가 본다.
@@ -10,13 +9,12 @@ import { callFromAppReport } from '@onedal/shared';
 const row = (step: string, o: Record<string, unknown> = {}, born = true) => ({ step, label: step, born, row: { status: 'PLANNED', ...o } }) as any;
 const STEPS = [row('CALL_PICKUP', { planned_unit: '박스', planned_quantity: 3, planned_dwell_min: 12 }), row('ARRIVE_PICKUP'), row('LOADED'),
     row('CALL_DROPOFF'), row('ARRIVE_DROPOFF'), row('DELIVERED')];
-const ROUTE_REPORT = {
-    id: 'c1', pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 신둔면', fare: 50000, paymentType: '착불',
-    pickupDetails: [{ contactName: '모다', addressDetail: '경충대로 907', phone: '010-1111-2222' }],
-    dropoffDetails: [{ customerName: '신둔농협', addressDetail: '수광리 1' }],
+/** 서버가 보내는 콜 — 정거장 목록 꼴 */
+const ROUTE = {
+    id: 'c1', fare: 50000, paymentType: '착불',
+    pickupDetails: [{ contactName: '모다', addressDetail: '경충대로 907', phone: '010-1111-2222', listText: '경기 광주시 초월읍', geo: null, distanceKm: null }],
+    dropoffDetails: [{ customerName: '신둔농협', addressDetail: '수광리 1', listText: '경기 이천시 신둔면', geo: null, distanceKm: null }],
 } as any;
-/** 서버가 보내는 콜 — 원달앱 보고의 맨 위 칸을 정거장으로 옮겨 담은 것 */
-const ROUTE = callFromAppReport(ROUTE_REPORT) as any;
 /* 남의 콜(c2)이 앞에 선다 — 경로 차례가 그렇다 */
 const TL = [
     { orderId: 'c2', stopType: 'pickup', departPrevMs: 888, segmentDriveMinutes: 88 },
@@ -80,7 +78,7 @@ describe('🧭 상 · 하차 줄의 값', () => {
 
 describe('🗄️ 판정 근거 서랍 — 원본 칸', () => {
     it('원본 칸은 정해진 차례로 · 첫 칸은 id · 배송거리(추정의 입력)까지', () => {
-        const f = rawFieldsOf(callFromAppReport({ ...ROUTE_REPORT, type: 'AUTO', status: 'ORDER_CONFIRMED', deliveryDistance: 30 }) as any);
+        const f = rawFieldsOf({ ...ROUTE, type: 'AUTO', status: 'ORDER_CONFIRMED', dropoffDetails: [{ ...ROUTE.dropoffDetails[0], distanceKm: 30 }] });
         expect(f[0]).toEqual(['id', 'c1']);
         expect(f.map(([k]) => k).slice(0, 3)).toEqual(['id', 'type', 'status']);
         expect(f.at(-1)).toEqual(['deliveryDistance', 30]);

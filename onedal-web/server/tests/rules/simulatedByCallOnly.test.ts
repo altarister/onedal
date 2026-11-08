@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import db from '../../src/db';
 import { handleDecision } from '../../src/services/dispatchEngine';
 import * as steps from '../../src/services/stepSeeder';
@@ -15,8 +15,8 @@ const io = { to: () => ({ emit: () => {} }) } as any;
 
 function seed(id: string, isSimulated: boolean) {
     const s = getUserSession(U);
-    s.pendingOrdersData.set(id, callFromAppReport({ id, status: 'ORDER_AWAITING_DECISION', capturedDeviceId: DEV, isSimulated,
-        pickup: '경기 광주시 경안동', dropoff: '경기 파주시 금촌동', fare: 30000, vehicleType: '1t', timestamp: new Date().toISOString() } as any) as any);
+    s.pendingOrdersData.set(id, testCall({ id, status: 'ORDER_AWAITING_DECISION', capturedDeviceId: DEV, isSimulated,
+        pickups: [{ listText: '경기 광주시 경안동' }], dropoffs: [{ listText: '경기 파주시 금촌동' }], fare: 30000, vehicleType: '1t', timestamp: new Date().toISOString() }) as any);
     s.pendingDecisions.set(id, { action: null, evaluatedAt: Date.now() });
     return s;
 }

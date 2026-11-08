@@ -16,7 +16,7 @@ jest.mock('../../src/services/kakaoService', () => ({
     calculateDetourRoute: jest.fn(),
     calculateSoloRoute: jest.fn(),
 }));
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { composeMergedRoute, clearBaseRouteCache } from '../../src/services/routeComposer';
 import { calculateDetourRoute } from '../../src/services/kakaoService';
 
@@ -31,9 +31,9 @@ const RESULT = {
 
 /** 콜 두 건 — 좌표만 있으면 계획이 선다 */
 const calls = () => ([
-    { id: 'A', status: 'ORDER_CONFIRMED', pickupX: 127.31, pickupY: 37.36, dropoffX: 127.38, dropoffY: 37.29 },
-    { id: 'B', status: 'ORDER_CONFIRMED', pickupX: 127.33, pickupY: 37.34, dropoffX: 127.40, dropoffY: 37.27 },
-].map(o => callFromAppReport(o as any)) as any);
+    { id: 'A', status: 'ORDER_CONFIRMED', pickups: [{ geo: { x: 127.31, y: 37.36 } }], dropoffs: [{ geo: { x: 127.38, y: 37.29 } }] },
+    { id: 'B', status: 'ORDER_CONFIRMED', pickups: [{ geo: { x: 127.33, y: 37.34 } }], dropoffs: [{ geo: { x: 127.40, y: 37.27 } }] },
+].map(o => testCall(o)) as any);
 
 const HERE = { x: 127.30, y: 37.37 };
 /** 같은 자리에서 아주 조금(≈90m) 움직인 지점 */
@@ -98,7 +98,7 @@ describe('base 캐시 — 같은 질문·같은 자리에서만 되쓴다', () =
 
     it('🔴 후보(extra)가 붙어도 base 는 같다 — 후보를 뺀 경로가 base 이기 때문', async () => {
         await compose(HERE);
-        const cand = callFromAppReport({ id: 'C', status: 'ORDER_EVALUATING', pickupX: 127.35, pickupY: 37.33, dropoffX: 127.42, dropoffY: 37.25 } as any);
+        const cand = testCall({ id: 'C', status: 'ORDER_EVALUATING', pickups: [{ geo: { x: 127.35, y: 37.33 } }], dropoffs: [{ geo: { x: 127.42, y: 37.25 } }] });
         await compose(NUDGED, cand);
         expect(usedCache(1)).toEqual(BASE);
     });

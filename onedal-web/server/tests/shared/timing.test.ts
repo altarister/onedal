@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import {
     BUSINESS_DAY_END_HOUR, DEFAULT_DELIVERY_SLACK_MINUTES,
     businessDayEnd, defaultDropoffDeadline, derivePickupDeadline, buildArrivalSlots,
@@ -182,12 +182,12 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
      */
     it('🔴 실측이 없으면 배송거리로 채우고, 실측이 있으면 그것이 이긴다', () => {
         const est = deriveCallTiming(
-            callFromAppReport({ ...order, kakaoSoloDistanceKm: undefined, kakaoSoloDurationMin: undefined,
-              deliveryDistance: 20 } as any), [], [], NOW);
+            testCall({ ...order, kakaoSoloDistanceKm: undefined, kakaoSoloDurationMin: undefined,
+              dropoffs: [{ distanceKm: 20 }] }), [], [], NOW);
         expect(est.soloKm).toBe(20);
         expect(est.soloMinutes).toBeGreaterThan(0);      // 20km ÷ 46km/h ≈ 26분
 
-        const measured = deriveCallTiming(callFromAppReport({ ...order, deliveryDistance: 20 } as any), [], [], NOW);
+        const measured = deriveCallTiming(testCall({ ...order, dropoffs: [{ distanceKm: 20 }] }), [], [], NOW);
         expect(measured.soloMinutes).toBe(86);           // 실측(86분)이 추정을 덮지 않는다
     });
 

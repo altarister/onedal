@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import db from '../../src/db';
 
 /**
@@ -41,13 +41,14 @@ it('🔴 예약 KEEP → 단독 배송 칸이 찬다 (메모리 · 장부 둘 �
         const session = getUserSession(U);
         session.myOrders = [];
         session.reservedOrders = [];
-        const o = callFromAppReport({
+        const o = testCall({
             id: `${U}-tomorrow`, type: 'NEW_ORDER', status: 'ORDER_AWAITING_DECISION',
-            pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 관고동', fare: 30000,
+            fare: 30000,
             timestamp: todayAt(15), capturedAt: todayAt(15), targetApp: 'kakaopicker', vehicleType: '다마스',
-            pickupX: 127.29, pickupY: 37.37, dropoffX: 127.43, dropoffY: 37.28,
-            reserved: true, reservedDay: 1, reservedAt: '09:00',
-        } as any) as any;
+            pickups: [{ listText: '경기 광주시 초월읍', geo: { x: 127.29, y: 37.37 }, requestedDay: 1, requestedTime: '09:00' }],
+            dropoffs: [{ listText: '경기 이천시 관고동', geo: { x: 127.43, y: 37.28 } }],
+            reserved: true,
+        }) as any;
         session.pendingOrdersData.set(o.id, o);
 
         await handleDecision(U, o.id, 'ORDER_CONFIRMED', io);

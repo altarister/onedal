@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { callFromAppReport } from '@onedal/shared';
 import { reservedLineOf, reservedDayLabel, reservedBadgeOf, reservedShortOf } from './reservedLine';
 
 /** 첫 상차 약속 날 · 시각만 있는 콜 — 서버가 보내는 정거장 모양 */
@@ -10,7 +9,7 @@ const promised = (requestedDay: number | null | undefined, requestedTime?: strin
  * 순서는 날 · 상차 시각 · 상차→하차 · 요금 · 색. 모르는 칸은 지어내지 않고 «—»·«--:--» 로 둔다.
  */
 describe('📅 예약 한 줄', () => {
-    const base = callFromAppReport({ id: 'r1', pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 관고동', fare: 30000 } as any) as any;
+    const base = { id: 'r1', fare: 30000, pickupDetails: [{ listText: '경기 광주시 초월읍', geo: null, distanceKm: null }], dropoffDetails: [{ listText: '경기 이천시 관고동', geo: null, distanceKm: null }] } as any;
     const at = (time: string) => ({ pickupDetails: [{ ...base.pickupDetails[0], requestedTime: time }] });
 
     it('날 · 상차 시각 · 상차→하차 · 요금 · 색 그 순서', () => {

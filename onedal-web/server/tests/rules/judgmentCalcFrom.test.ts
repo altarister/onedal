@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { soloJudgmentFrom, mergedJudgmentFrom, fallbackJudgmentFrom } from '../../src/core/engine/OrderEvaluator';
 import { DEFAULT_JUDGMENT, derivationInputsOf } from '@onedal/shared';
 
@@ -15,8 +15,8 @@ const HD_SINDUN = { x: 127.40410, y: 37.30574 };         // 이천 신둔면
 const BUBAL = { x: 127.4867, y: 37.2602 };               // 이천 부발읍
 const cfg = DEFAULT_JUDGMENT;
 
-const soloOrder = (o = {}) => callFromAppReport({ id: 'c', fare: 45000, totalDurationMin: 30, approachDurationMin: 7, kakaoSoloDistanceKm: 15.5, kakaoSoloDurationMin: 23,
-    pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y, pickupApprox: null, dropoffApprox: null, ...o } as any);
+const soloOrder = (o = {}) => testCall({ id: 'c', fare: 45000, totalDurationMin: 30, approachDurationMin: 7, kakaoSoloDistanceKm: 15.5, kakaoSoloDurationMin: 23,
+    pickups: [{ geo: GONJIAM }], dropoffs: [{ geo: TERMINAL }], pickupApprox: null, dropoffApprox: null, ...o });
 const solo = (o = {}) => soloJudgmentFrom({
     order: soloOrder(), roadEvent: null, tollKrw: 1200, dwell: { dwell: 13, hasUnknown: false }, firstStop: { handMinutes: 8, protectionMin: null },
     rateForScore: null, rateForDisplay: null, fuelCostPerKm: 150, reservedLater: false,
@@ -62,7 +62,7 @@ describe('🎯 첫짐 판정 셈 — 값만', () => {
         const geo = (o) => solo(o).dry.axes.find(a => a.key === 'geography');
         expect(geo({}).score).toBeGreaterThan(90);
         expect(geo({ goal: '광주시' }).score).toBeLessThan(geo({}).score);
-        const behind = { order: soloOrder({ pickupX: 127.13, pickupY: 37.42 }) };
+        const behind = { order: soloOrder({ pickups: [{ geo: { x: 127.13, y: 37.42 } }] }) };
         expect(solo(behind).dry.color).toBe('사고');
         expect(solo({ ...behind, pickupRadiusKm: 99 }).dry.color).not.toBe('사고');
     });
@@ -76,7 +76,7 @@ describe('🎨 판정 불가 셈 — 값만', () => {
         expect(d.axes.find(a => a.key === 'money').score).toBeNull();   // 걸린 시간을 모른다
         expect(d.tags[0]).toBe('판정 불가 — API KEY 부재');
         expect(d.axes.find(a => a.key === 'geography').raw).toMatch(/전진율/);
-        const noXY = fallbackJudgmentFrom({ order: soloOrder({ dropoffX: undefined, dropoffY: undefined }), why: 'x', excludedHits: [], fuelCostPerKm: null,
+        const noXY = fallbackJudgmentFrom({ order: soloOrder({ dropoffs: [{ geo: null }] }), why: 'x', excludedHits: [], fuelCostPerKm: null,
             origin: { ...MODA, source: 'gps', isFallback: false }, goal: '이천시', pickupRadiusKm: 10, judgmentCfg: cfg });
         expect(noXY.axes.find(a => a.key === 'geography').raw).toContain('좌표 미확인');
     });
@@ -84,8 +84,8 @@ describe('🎨 판정 불가 셈 — 값만', () => {
 
 describe('🧩 합짐 판정 셈 — 값만', () => {
     const NOW = Date.parse('2026-10-07T03:00:00.000Z');
-    const kept = callFromAppReport({ id: 'k1', status: 'ORDER_CONFIRMED', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y, goalCity: '이천시' } as any);
-    const cand = callFromAppReport({ id: 'c1', fare: 30000, pickupX: HD_SINDUN.x, pickupY: HD_SINDUN.y, dropoffX: BUBAL.x, dropoffY: BUBAL.y, deliveryDistanceKm: 8, pickupApprox: null, dropoffApprox: null } as any);
+    const kept = testCall({ id: 'k1', status: 'ORDER_CONFIRMED', pickups: [{ geo: GONJIAM }], dropoffs: [{ geo: TERMINAL }], goalCity: '이천시' });
+    const cand = testCall({ id: 'c1', fare: 30000, pickups: [{ geo: HD_SINDUN }], dropoffs: [{ geo: BUBAL }], deliveryDistanceKm: 8, pickupApprox: null, dropoffApprox: null });
     const entry = (orderId, stopType, etaMin, promisedMin, arrived = false) => ({
         orderId, stopType, etaMs: etaMin == null ? null : NOW + etaMin * 60_000, dwellMinutes: 5, driveMinutes: etaMin, leadMinutes: 0,
         promisedUntil: promisedMin == null ? null : new Date(NOW + promisedMin * 60_000).toISOString(), promiseConfirmed: false,

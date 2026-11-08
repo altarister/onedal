@@ -12,7 +12,7 @@ jest.mock('../../src/services/kakaoService', () => ({
     calculateSoloRoute: jest.fn(),
     calculateDetourRoute: jest.fn(),
 }));
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { measureSoloDelivery } from '../../src/services/routeComposer';
 import { calculateSoloRoute } from '../../src/services/kakaoService';
 
@@ -21,13 +21,13 @@ const mockedSolo = calculateSoloRoute as jest.Mock;
 /** 상차지 → 하차지 33.5km · 42분 */
 const KAKAO_OK = { distance: 33_500, duration: 2_520, approachDistance: 0, approachDuration: 0 };
 
-/** 서버가 원달앱 보고를 옮겨 담은 콜 — 좌표는 정거장 geo */
-const call = (over: object = {}) => callFromAppReport({
+/** 검사 콜 — 좌표는 정거장 geo */
+const call = (over: object = {}) => testCall({
     id: 'order-5aa140',
-    pickupX: 127.31, pickupY: 37.36,
-    dropoffX: 127.38, dropoffY: 37.29,
+    pickups: [{ geo: { x: 127.31, y: 37.36 } }],
+    dropoffs: [{ geo: { x: 127.38, y: 37.29 } }],
     ...over,
-} as any) as any;
+}) as any;
 
 describe('measureSoloDelivery', () => {
     beforeEach(() => mockedSolo.mockReset());
@@ -51,7 +51,7 @@ describe('measureSoloDelivery', () => {
     });
 
     it('좌표를 모르면 재지 않는다 — 없는 값을 지어내지 않는다 (규칙 ④)', async () => {
-        expect(await measureSoloDelivery(call({ dropoffX: null }))).toBeNull();
+        expect(await measureSoloDelivery(call({ dropoffs: [{ geo: null }] }))).toBeNull();
         expect(mockedSolo).not.toHaveBeenCalled();
     });
 

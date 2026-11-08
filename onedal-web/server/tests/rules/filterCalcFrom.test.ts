@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { initGeoService, cityAliases } from '../../src/services/geoService';
 import { regionsTouchingCircleGrouped } from '../../src/services/geoRegions';
 import { homeCityFrom, goalCityFrom, homeCallsFrom, goalZonesFrom } from '../../src/state/filterGoals';
@@ -44,7 +44,7 @@ describe('🎯 filterGoals — 값만', () => {
         const orders = [
             { id: 'done', status: 'ORDER_DELIVERED', capturedAt: after, goalCity: '광주시' },
             { id: 'early', status: 'ORDER_CONFIRMED', capturedAt: before, goalCity: '광주시' },
-            callFromAppReport({ id: 'byDrop', status: 'ORDER_CONFIRMED', capturedAt: after, dropoffX: MODA.x, dropoffY: MODA.y } as any),
+            testCall({ id: 'byDrop', status: 'ORDER_CONFIRMED', capturedAt: after, dropoffs: [{ geo: { x: MODA.x, y: MODA.y } }] } as any),
             { id: 'other', status: 'ORDER_CONFIRMED', capturedAt: after, goalCity: '이천시' },
             { id: 'cancel', status: 'SAFE_CANCEL', capturedAt: after, goalCity: '광주시' },
         ];
@@ -121,7 +121,7 @@ describe('🕸️ filterNet — 값만', () => {
     });
 
     it('🔴 동선이면 콜과 라인이 있어도 라인을 안 쓴다 — 콜 없는 첫짐과 같은 목록 · 노선이면 진행도가 붙는다', () => {
-        const call = callFromAppReport({ id: 'c1', status: 'ORDER_CONFIRMED', pickupX: GONJIAM_STAR.x, pickupY: GONJIAM_STAR.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y, goalCity: '이천시' } as any);
+        const call = testCall({ id: 'c1', status: 'ORDER_CONFIRMED', pickups: [{ geo: { x: GONJIAM_STAR.x, y: GONJIAM_STAR.y } }], dropoffs: [{ geo: { x: TERMINAL.x, y: TERMINAL.y } }], goalCity: '이천시' } as any);
         const goals = { zones: [{ city: '이천시', isHome: false, hasCalls: true, nearGoal: false }], homeOn: false, homeCity: null, homeCaught: false, departed: false };
         const line = LINE.map(p => [p.x, p.y]);
         const off = netOfGoalsFrom({ filter: { ...FILTER, routeMode: false }, origin: MODA, goals, activeCalls: [call], line });

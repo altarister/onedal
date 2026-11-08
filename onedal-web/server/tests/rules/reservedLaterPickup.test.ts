@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { evaluationInputsOf, firstLoadNeedsCall, reservedLaterLineOf } from '../../src/core/engine/OrderEvaluator';
 import { pickupBackwardOf } from '../../src/core/engine/judgeFacts';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
@@ -11,8 +11,8 @@ import { getUserSession, clearUserSession } from '../../src/state/userSessionSto
  */
 const U = 'test-reserved-later-pickup';
 const now = new Date().toISOString();
-const tomorrowCall = callFromAppReport({ reservedDay: 1, capturedAt: now } as any);
-const todayCall = callFromAppReport({ reservedDay: null, capturedAt: now } as any);
+const tomorrowCall = testCall({ pickups: [{ requestedDay: 1 }], capturedAt: now });
+const todayCall = testCall({ pickups: [{ requestedDay: null }], capturedAt: now });
 /** 김포 목적지 · 현위치 대전 — 상차지는 현위치보다 목적지에서 약 10km 더 멀다 */
 const me = { x: 127.38, y: 36.35 };
 const pickup = { x: 127.42, y: 36.27 };

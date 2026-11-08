@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { planMergedStops } from '../../src/services/routeComposer';
@@ -30,10 +30,10 @@ import { planMergedStops } from '../../src/services/routeComposer';
  */
 describe('base 경로 — 기존 활성 콜 «전부» 를 현위치 기준으로 잰다', () => {
     const at = (x: number, y: number) => ({ x, y });
-    const call = (id: string, px: number, py: number, dx: number, dy: number, over: object = {}) => callFromAppReport({
+    const call = (id: string, px: number, py: number, dx: number, dy: number, over: object = {}) => testCall({
         id, status: 'ORDER_CONFIRMED',
-        pickupX: px, pickupY: py, dropoffX: dx, dropoffY: dy, ...over,
-    } as any) as any;
+        pickups: [{ geo: { x: px, y: py } }], dropoffs: [{ geo: { x: dx, y: dy } }], ...over,
+    }) as any;
 
     const here = at(127.40, 37.30);
     const A = call('A', 127.29, 37.37, 127.40, 37.24);   // 첫짐

@@ -1,4 +1,4 @@
-import { callFromAppReport } from '@onedal/shared';
+import { testCall } from '../fixtures/testCall';
 import { planArrivalStops } from '../../src/services/routeComposer';
 
 /**
@@ -29,9 +29,9 @@ describe('정거장 순서 — 지나가는 길목부터', () => {
     const 가남 = { x: 127.5768, y: 37.2302 };
     const 세종대왕면 = { x: 127.5853, y: 37.2911 };
 
-    const call = (id: string, p: any, d: any, over: object = {}) => callFromAppReport({
+    const call = (id: string, p: any, d: any, over: object = {}) => testCall({
         id, status: 'ORDER_CONFIRMED',
-        pickupX: p.x, pickupY: p.y, dropoffX: d.x, dropoffY: d.y,
+        pickups: [{ geo: { x: p.x, y: p.y } }], dropoffs: [{ geo: { x: d.x, y: d.y } }],
         ...over,
     } as any) as any;
 
