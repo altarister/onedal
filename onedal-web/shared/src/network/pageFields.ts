@@ -93,5 +93,6 @@ export const PAGE_FIELDS = [
     'stage',             // 운행 단계 (픽업 이동·배송 중)
     'toll',              // 탁송료 · 경유비
     'billing',           // 계산서 · 영수증
+    'otherOffice',       // 공유콜 표시 (인성 «@»)
 ] as const;
 export type PageField = typeof PAGE_FIELDS[number];

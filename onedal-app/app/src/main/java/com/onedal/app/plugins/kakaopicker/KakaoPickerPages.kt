@@ -55,11 +55,14 @@ object KakaoPickerPages {
             FieldSpec(PageField.DELIVERY_DISTANCE, "사진 정거장 오른쪽", "배송 26.4km", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — straightKm 읽고 안 씀"),
             FieldSpec(PageField.CLOCK, "배송 상호 오른쪽 회색", "18:28까지 배송", Seen.REAL, Handling.READ, "서버 원문의 [사진] 줄(원달앱 사진 판독 줄 · 57 3단계) — 약속 · 마감에는 아직 안 쓴다(57 5단계 미룸)",
                 read = Regex("""([0-9]{1,2}:[0-9]{2})\s*\S{0,2}\s*배송"""), part = "dropoff"),
-            FieldSpec(PageField.MEMO, "회색 상자 첫 줄 «픽업 장소»", "매장 직원에게 문의", Seen.REAL, Handling.UNUSED, "",
-                part = "pickupPlace"),
-            FieldSpec(PageField.ORDER_NO, "픽업 장소 줄 오더번호", "F2609011638JDU17", Seen.REAL, Handling.UNUSED),
+            /* «픽업 장소» 다음부터 «물품 정보» 앞까지 글자 그대로 — 오더번호 글 포함 · 가게 주문 번호이고 우리 콜 번호가 아니다(기사님) */
+            FieldSpec(PageField.MEMO, "회색 상자 «픽업 장소» 줄들", "매장 직원에게 문의 오더번호 F2609011638JDU17", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 번호 7 · 걸음 3 — 적요) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""픽업 장소\s+([\s\S]*?)(?=\s+물품\s*정보|\s+유의사항|\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})"""), part = "pickupPlace"),
             FieldSpec(PageField.ITEM_SIZE, "사진 물품 정보", "중형 세 변의 합 140cm · 20kg 이하", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail · 서버 제외어 찾는 칸(excludeScan) — 접근성 글에서 «최종 수익» · «유의사항» · 버튼 앞까지 · 관제웹 물품 칸(서버 pageFieldOf)",
                 read = Regex("""물품\s*정보\s+([\s\S]*?)(?=\s+유의사항|\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
+            /* 가게(배달앱) 주문 번호 글자 통째 — 우리 콜 번호 아님 */
+            FieldSpec(PageField.ORDER_NO, "물품 정보 글 끝", "요기요 주문번호 : 903", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 번호 7 · 걸음 3 — 가게 주문 번호) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""(\S+\s*주문번호\s*:\s*\S+)"""), part = "client"),
             FieldSpec(PageField.MEMO, "사진 유의사항", "바로 배송가주실 분만 잡아주세요", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «유의사항» 다음 «최종 수익» · 버튼 앞 · 원달앱은 이 칸을 안 읽는다(사진 판독도 안 씀)",
                 read = Regex("""유의사항\s+([\s\S]*?)(?=\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
             /* 같은 콜의 최종 수익이 보는 중에 오른다(배송비 그대로 · 실물 4번) — 판독 뒤 오른 값은 모른다 */

@@ -40,4 +40,5 @@ enum class PageField(val word: String) {
     STAGE("stage"),                        // 운행 단계
     TOLL("toll"),                          // 탁송료 · 경유비
     BILLING("billing"),                    // 계산서 · 영수증
+    OTHER_OFFICE("otherOffice"),           // 공유콜 표시 (인성 «@»)
 }

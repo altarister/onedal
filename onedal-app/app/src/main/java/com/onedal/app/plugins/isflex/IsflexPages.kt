@@ -28,6 +28,8 @@ object IsflexPages {
             FieldSpec(PageField.PICKUP_DISTANCE, "목록 줄 맨 왼쪽(칸 머리 «출발지까지 (km)» — 줄바꿈 든 한 글자)", "24.3", Seen.REAL, Handling.READ, "IsflexParser"),
             FieldSpec(PageField.VEHICLE_TYPE, "거리 아래", "오토", Seen.REAL, Handling.READ, "IsflexParser"),
             FieldSpec(PageField.PICKUP, "출발지 칸 — «@» + (예약 앞글자) + 동", "@낼08:20/수원이의동 · @역삼동", Seen.REAL, Handling.READ, "IsflexParser"),
+            /* 모든 출발지에 붙어 뜻 모름 — 공유콜로 안 읽는다 */
+            FieldSpec(PageField.OTHER_OFFICE, "출발지 칸 앞 «@»", "@역삼동 · @낼08:20/수원이의동", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.RESERVATION, "출발지 «@» 뒤 앞글자", "낼08:20/ · 낼8:30) · 낼09시/ · 낼06:50)", Seen.REAL, Handling.READ, "IsflexParser"),
             /* 하차 정거장 거리(상차지 → 하차지) · 직선인지 모름 */
             FieldSpec(PageField.DELIVERY_DISTANCE, "출발지 아래", "약 30.1km", Seen.REAL, Handling.READ, "IsflexParser"),

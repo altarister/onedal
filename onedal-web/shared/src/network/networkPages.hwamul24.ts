@@ -14,7 +14,7 @@ import type { NetworkPageSpec } from './networkPages';
  * 🔴 원천이다 — 원달앱 생성 파일은 `cd onedal-web && pnpm gen:pages` 로 뽑는다. 몸통은 JSON 표시 주석 둘 사이의 엄격한 JSON 이다(뽑는 스크립트와 원달앱 검사가 그 사이를 읽는다).
  */
 export const HWAMUL24_PAGES: NetworkPageSpec = /*JSON*/{
-  "about": ["📄 **화물24시 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/화물24시).", "⚠️ 실물 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처가 근거다. 시뮬 상세 화면은 실물과 모양이 달라(머리 «배차내역») 상세까지 못 간다."],
+  "about": ["📄 **화물24시 페이지 정의 — 화면 어디에 어떤 글자로 오나** (실물 캡처 ex_images/화물24시).", "⚠️ 실물 앱은 아직 설치 전(사업자 없음) — REAL 은 캡처가 근거다. 시뮬레이터 잡기 전 상세는 실물 18 «화물상세정보»와 같은 꼴이다 — 잡은 콜을 열면 배차내역 상세(3탭)."],
   "modes": ["AUTO", "MANUAL", "SIMULATION", "ALARM"],
   "packageKeywords": ["logione", "carrier"],
   "safeCancelSec": "safeCancelSecHwamul24",
@@ -115,7 +115,8 @@ export const HWAMUL24_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "clock", "where": "하차 배지 앞 시각", "sample": "06:32 (등록 시각인지 모름)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse — postTime"}
     ],
     "newCall": [
-      {"field": "orderNo", "where": "머리", "sample": "화물번호:3-9483-2159", "seen": "REAL", "handling": "UNUSED", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜)"}},
+      {"field": "orderNo", "where": "머리", "sample": "화물번호:3-9483-2159", "seen": "REAL", "handling": "READ", "usedAt": "지금 읽는 곳 없음(서버 번호 7 · 걸음 3) · 원달앱은 이 칸을 안 읽는다", "read": "화물번호\\s*:\\s*(\\d-\\d{4}-\\d{4})", "presence": "UNKNOWN", "note": "실물 캡처 3/3 에 있다(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) — 서버 원문은 원달앱이 머리를 떼고 보내 원문 기준으로는 모름"},
+      {"field": "contact", "where": "머리 이름(화물번호 위 큰 글자 · 등록 구분 동그라미 · N분 안보기 단추 앞)", "sample": "(주)엠케이물류 · 화물과퀵", "seen": "REAL", "handling": "READ", "usedAt": "서버 상세 자료 배차사(detailRecordOf dispatcherName) — 원달앱이 머리를 떼고 보내는 동안은 원문에 없다 · 원달앱은 이 칸을 안 읽는다", "read": "(\\S+)\\s+(?:[A-Z]\\s+)?(?:\\d+분 안보기\\s+)?화물번호\\s*:", "part": "dispatcher", "note": "주선한 배차 사무실(설명 영상 00:59) — 실물 캡처 18 · 51 · 53 · 띄어 쓴 이름은 마지막 토막만 읽힌다"},
       {"field": "clock", "where": "머리", "sample": "등록시간:05:18분", "seen": "REAL", "handling": "UNUSED", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · 등록시간 «05:18분» 꼴"}},
       {"field": "pickup", "where": "상차지 칸", "sample": "경기 군포 부곡동 [당상][수] 5Km", "seen": "REAL", "handling": "UNUSED", "usedAt": "목록 값을 쓴다", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · 동 단위와 번지 · 건물 단위가 섞임 · 배지 «당상» 3/3"}},
       {"field": "dropoff", "where": "하차지 칸", "sample": "서울 중구 을지로6가 [당착][수]", "seen": "REAL", "handling": "UNUSED", "usedAt": "목록 값을 쓴다", "presence": "ALWAYS", "presenceEvidence": {"seen": 3, "of": 3, "from": "실물 캡처 ex_images/화물24시 화물상세정보 3건(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) · 배지 «당착» 3/3"}},
