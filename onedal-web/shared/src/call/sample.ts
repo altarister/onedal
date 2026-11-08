@@ -463,9 +463,7 @@ const IDENTITY_EXAMPLE_HWAMUL24 = {
     clientOrderNo: null,
     fromOtherOffice: null,
     dispatcherName: "(주)전국물류",
-    dispatcherPhone: null,
-    requesterName: null,
-    stageText: null,
+    // 배차사 전화 · 의뢰인 · 진행 글자 — 화면에 없어 칸 없음
 } satisfies Partial<CallIdentity>;
 
 /**
@@ -476,7 +474,7 @@ const IDENTITY_EXAMPLE_HWAMUL24 = {
  * - 묶음: 가게 주문 번호는 화면 글자 통째 «요기요 주문번호 : 903» · 오더 번호는 null —
  *   픽업 장소 줄의 «오더번호 F2609011638JDU17» 는 픽업 가게가 음식에 붙인 주문 번호라 우리 콜의 오더 번호가 아니다(기사님 결정) ·
  *   같은 콜 찾기에도 안 쓰고, 그 줄 글자는 적요(`detailMemo`)로 간다 ·
- *   배차사 · 의뢰인 · 진행 글자 · 공유콜 표시는 픽커 화면에 없어 null
+ *   공유콜 표시는 픽커 화면에 없어 null · 배차사 · 의뢰인 · 진행 글자는 칸 없음
  */
 const IDENTITY_EXAMPLE_KAKAOPICKER = {
     id: "AUTO-… · MANUAL-…(목록 줄 번호가 빈 값이라 원달앱이 상세에서 붙임)",
@@ -484,10 +482,7 @@ const IDENTITY_EXAMPLE_KAKAOPICKER = {
     orderNo: null,
     clientOrderNo: "요기요 주문번호 : 903",
     fromOtherOffice: null,
-    dispatcherName: null,
-    dispatcherPhone: null,
-    requesterName: null,
-    stageText: null,
+    // 배차사 · 배차사 전화 · 의뢰인 · 진행 글자 — 화면에 없어 칸 없음
 } satisfies Partial<CallIdentity>;
 
 /**
@@ -495,7 +490,7 @@ const IDENTITY_EXAMPLE_KAKAOPICKER = {
  * 머리 줄 «@낼08:20/수원이의동 → 10:20전/쌍림동» · 출발 칸 «@경기 수원시영통구 @낼08:20/수원이의동»
  * - 지금: 배차사 · 의뢰인 · 진행 글자를 읽는 칸이 없다 · «@» 는 `IsflexAddress.clean` 이 뗀다
  * - 묶음: «@» 는 모든 출발지 앞에 붙어 뜻을 몰라 공유콜 null(인성과 같은 글자라도 안 읽는다) ·
- *   오더 번호 · 가게 주문 번호 · 배차사 · 의뢰인 · 진행 글자는 이 화면에 없어 null
+ *   오더 번호 · 가게 주문 번호는 이 화면에 없어 null · 배차사 · 의뢰인 · 진행 글자는 칸 없음
  */
 const IDENTITY_EXAMPLE_ISFLEX = {
     id: "FLX-…(원달앱이 목록을 읽을 때 붙인 무작위 번호)",
@@ -503,10 +498,7 @@ const IDENTITY_EXAMPLE_ISFLEX = {
     orderNo: null,
     clientOrderNo: null,
     fromOtherOffice: null,
-    dispatcherName: null,
-    dispatcherPhone: null,
-    requesterName: null,
-    stageText: null,
+    // 배차사 · 배차사 전화 · 의뢰인 · 진행 글자 — 화면에 없어 칸 없음
 } satisfies Partial<CallIdentity>;
 
 /**
