@@ -24,10 +24,12 @@ import com.onedal.app.core.StandardScreen
 object IsflexPages {
     val pages: PageSpecs = mapOf(
         Page.NEW_LIST to listOf(
+            /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선인지 모름 */
             FieldSpec(PageField.PICKUP_DISTANCE, "목록 줄 맨 왼쪽(칸 머리 «출발지까지 (km)» — 줄바꿈 든 한 글자)", "24.3", Seen.REAL, Handling.READ, "IsflexParser"),
             FieldSpec(PageField.VEHICLE_TYPE, "거리 아래", "오토", Seen.REAL, Handling.READ, "IsflexParser"),
             FieldSpec(PageField.PICKUP, "출발지 칸 — «@» + (예약 앞글자) + 동", "@낼08:20/수원이의동 · @역삼동", Seen.REAL, Handling.READ, "IsflexParser"),
             FieldSpec(PageField.RESERVATION, "출발지 «@» 뒤 앞글자", "낼08:20/ · 낼8:30) · 낼09시/ · 낼06:50)", Seen.REAL, Handling.READ, "IsflexParser"),
+            /* 하차 정거장 거리(상차지 → 하차지) · 직선인지 모름 */
             FieldSpec(PageField.DELIVERY_DISTANCE, "출발지 아래", "약 30.1km", Seen.REAL, Handling.READ, "IsflexParser"),
             FieldSpec(PageField.DROPOFF, "도착지 칸 — (마감 앞글자) + 동", "10:20전/쌍림동 · 구리수택동", Seen.REAL, Handling.READ, "IsflexParser"),
             /* 판정 시한에 넣지 않는다 — 기록만 */
@@ -40,7 +42,8 @@ object IsflexPages {
             FieldSpec(PageField.TAGS, "차종 아래 배지(안내 그림)", "급 · 왕 · 빈 · 경", Seen.UNKNOWN, Handling.UNUSED),
         ),
         Page.NEW_CALL to listOf(
-            FieldSpec(PageField.PICKUP_DISTANCE, "지도 아래 «출발지까지» 다음", "출발지까지 26.7km", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
+            /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선인지 모름 */
+            FieldSpec(PageField.PICKUP_DISTANCE, "지도 아래 «출발지까지» 다음", "출발지까지 26.7km", Seen.REAL, Handling.READ, "원달앱 IsflexParser — 목록 값이 없을 때만",
                 read = Regex("""출발지까지\s+([\d.]+)km""")),
             FieldSpec(PageField.VEHICLE_TYPE, "거리 다음", "오토", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
                 read = Regex("""출발지까지\s+[\d.]+km\s+(\S+)""")),
@@ -50,7 +53,8 @@ object IsflexPages {
             /* 주소가 두 줄이면 «약 N km»가 주소 앞에 온다(실물 10) */
             FieldSpec(PageField.PICKUP, "«출발» 다음 — «@시도 시군구 @(예약)동»", "@서울 서초구 @낼8:30)방배동", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
                 read = Regex("""(?:^|\s)출발\s+(?:약\s+[\d.]+km\s+)?(\S[\s\S]*?)(?:\s+약\s+[\d.]+km)?\s+도착\s""")),
-            FieldSpec(PageField.DELIVERY_DISTANCE, "출발 주소 아래", "약 2.3km", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
+            /* 하차 정거장 거리(상차지 → 하차지) · 직선인지 모름 */
+            FieldSpec(PageField.DELIVERY_DISTANCE, "출발 주소 아래", "약 2.3km", Seen.REAL, Handling.READ, "원달앱 IsflexParser — 목록 값이 없을 때만",
                 read = Regex("""(?:^|\s)출발\s[\s\S]*?약\s+([\d.]+)km""")),
             /* 판정 시한에 넣지 않는다 — 기록만 */
             FieldSpec(PageField.CLOCK, "도착 주소 동 앞 마감 앞글자", "10:20전/", Seen.REAL, Handling.READ, "IsflexParser"),
@@ -78,6 +82,7 @@ object IsflexPages {
         ),
         Page.MY_CALL to listOf(
             FieldSpec(PageField.STAGE, "지도 아래 파란 단계 줄(안내 그림)", "16:00까지 출발지로 이동", Seen.UNKNOWN, Handling.UNUSED),
+            /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선인지 모름 */
             FieldSpec(PageField.PICKUP_DISTANCE, "머리 줄(안내 그림)", "출발지까지 1.2km", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.VEHICLE_TYPE, "머리 줄(안내 그림)", "오토바이", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.TAGS, "머리 줄 · 적요 아래 테두리 글(안내 그림)", "급송 · 왕복 · 빈나감", Seen.UNKNOWN, Handling.UNUSED),
@@ -85,6 +90,7 @@ object IsflexPages {
             FieldSpec(PageField.PICKUP, "«출발» 동 + 아래 전체 주소(안내 그림)", "대구 중구 포정동 · 서구 북비산로 240", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.CONTACT, "출발 담당자 · 전화 단추(안내 그림)", "민사소액과 담당 홍길동", Seen.UNKNOWN, Handling.UNUSED, "",
                 part = "pickup"),
+            /* 하차 정거장 거리(상차지 → 하차지) · 직선인지 모름 */
             FieldSpec(PageField.DELIVERY_DISTANCE, "출발 아래(안내 그림)", "약 1.8km", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.DROPOFF, "«도착» 동 + 아래 전체 주소(안내 그림)", "부산 남구 송정동 · 강서구 녹산산단 382로 14번길 55", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.CONTACT, "도착 회사 이름 · 전화 단추(안내 그림)", "부산신발산업진흥센터", Seen.UNKNOWN, Handling.UNUSED, "",

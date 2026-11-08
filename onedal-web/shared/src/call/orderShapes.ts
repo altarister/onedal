@@ -41,6 +41,12 @@ export interface CallStop {
     requestedDay?: number | null;
     /** 🕒 시각 «HH:MM» — 화면 표시 + 정한 규칙(첫 시각 · 구간 = 끝 시각) · null = 약속 없음 */
     requestedTime?: string | null;
+    /**
+     * 📏 정거장 거리 — 화면이 이 정거장에 붙인 «여기까지 km». 첫 상차 = 내 자리 → 상차지 · 다음 정거장 = 앞 정거장 → 여기.
+     *    목록 값이 먼저, 목록에 없으면 상세 값 · 화면에 없으면 null(좌표로 계산하지 않는다).
+     *    직선인지는 배차망 정의 표 줄의 설명 글을 본다 · 카카오 도로 거리(`kakaoSoloDistanceKm`)와 다른 값이다.
+     */
+    distanceKm?: number | null;
     memo?: string | null;           // 그 정거장 안내 글
     geo?: { x: number; y: number } | null;   // 서버가 붙이는 좌표 — 원달앱은 비운다
 }

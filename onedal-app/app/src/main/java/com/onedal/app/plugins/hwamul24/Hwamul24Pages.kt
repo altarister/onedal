@@ -27,6 +27,7 @@ object Hwamul24Pages {
             FieldSpec(PageField.DROPOFF, "오른쪽 윗줄", "경기 안산 상록구 장상동", Seen.REAL, Handling.READ, "Hwamul24Parser.parse"),
             FieldSpec(PageField.FARE, "오른쪽 아랫줄", "50,000원", Seen.REAL, Handling.READ, "Hwamul24CardGrouping.fareOf"),
             FieldSpec(PageField.VEHICLE_TYPE, "셋째 줄 앞", "2.5톤/윙 · 3.5톤/전체 (승용·다마스는 못 읽음)", Seen.REAL, Handling.READ, "Hwamul24Parser.parse"),
+            /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선(설명 영상 «현위치에서 상차지까지 직선거리») */
             FieldSpec(PageField.PICKUP_DISTANCE, "상차 배지 옆", "15Km", Seen.REAL, Handling.READ, "Hwamul24CardGrouping.pickupDistanceOf"),
             FieldSpec(PageField.RESERVATION, "상차 배지", "당상 · 내상(실물 캡처에는 없음)", Seen.REAL, Handling.READ, "Hwamul24Parser.reservationOf"),
             FieldSpec(PageField.TAGS, "하차 배지 · 꼬리표", "당착 · 내착 (읽음) · 수 · 지 · 독차 · 인수증 (잡음으로 뺌)", Seen.REAL, Handling.READ, "Hwamul24Parser.badgesOf"),
@@ -38,6 +39,7 @@ object Hwamul24Pages {
             FieldSpec(PageField.CLOCK, "머리", "등록시간:05:18분", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "상차지 칸", "경기 군포 부곡동 [당상][수] 5Km", Seen.REAL, Handling.UNUSED, "목록 값을 쓴다"),
             FieldSpec(PageField.DROPOFF, "하차지 칸", "서울 중구 을지로6가 [당착][수]", Seen.REAL, Handling.UNUSED, "목록 값을 쓴다"),
+            /* 하차 정거장 거리(상차지 → 하차지) · 최단거리(상세 안내 «상ㆍ하차지간 거리는 최단거리이므로 실제 도로거리와 다를 수 있습니다») — 직선으로 읽음 */
             FieldSpec(PageField.DELIVERY_DISTANCE, "하차지 칸 오른쪽", "36Km", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.MEMO, "화물정보 칸", "지금상 당착 59박스 수/수-A [독차]", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «화물정보» 다음 «톤수» 앞(배지 «독차» 포함) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""화물정보\s+(?!톤수)([\s\S]*?)(?=\s+톤수|${'$'})""")),
@@ -65,6 +67,7 @@ object Hwamul24Pages {
             FieldSpec(PageField.STAGE, "배차신청 뒤 화면", "(실물 캡처 없음)", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "배차내역 상세 상차지", "경기 군포 당정동 공단로124번길 4 (크레텍)", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.DROPOFF, "배차내역 상세 하차지", "경기 화성 신동 703", Seen.REAL, Handling.UNUSED),
+            /* 하차 정거장 거리(상차지 → 하차지) · 최단거리 — 직선으로 읽음 */
             FieldSpec(PageField.DELIVERY_DISTANCE, "배차내역 상세 하차지 끝", "34Km", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.RESERVATION, "배차내역 상세 상차지 · 하차지 배지 · 예약 배지", "당상 · 당착 · [예약]", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.TAGS, "배차내역 상세 배지(지 — 뜻 모름)", "지 · 독차", Seen.REAL, Handling.UNUSED),

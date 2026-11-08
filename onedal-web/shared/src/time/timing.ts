@@ -1427,11 +1427,11 @@ export function minRouteBuffer(timeline: RouteTimelineEntry[]): RouteBufferMin |
     return best;
 }
 
-/** 🚏 정거장을 읽는 두 함수의 재료 — 맨 위 글자 · 좌표 칸과 정거장 목록 */
-type StopSource = Partial<Pick<OfficeOrder, 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | 'dropoffY' | 'pickupDetails' | 'dropoffDetails'>>;
+/** 🚏 정거장을 읽는 함수들의 재료 — 맨 위 글자 · 좌표 · 거리 칸과 정거장 목록 */
+type StopSource = Partial<Pick<OfficeOrder, 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | 'dropoffY' | 'pickupDistance' | 'deliveryDistance' | 'pickupDetails' | 'dropoffDetails'>>;
 
 /**
- * 🚏 **첫 상차 정거장** — 맨 위 칸(`pickup` · `pickupX/Y`)을 첫 상차 정거장 모양으로 모은 읽기 전용 사본.
+ * 🚏 **첫 상차 정거장** — 맨 위 칸(`pickup` · `pickupX/Y` · `pickupDistance`)을 첫 상차 정거장 모양으로 모은 읽기 전용 사본.
  *    돌려준 객체에 쓰지 않는다 — 맨 위 칸이 정거장으로 옮겨 가기 전까지 사본이다.
  */
 export function firstPickupStop(o: StopSource): CallStop | null {
@@ -1439,16 +1439,38 @@ export function firstPickupStop(o: StopSource): CallStop | null {
         ...o.pickupDetails?.[0],
         listText: o.pickup ?? null,
         geo: o.pickupX != null && o.pickupY != null ? { x: o.pickupX, y: o.pickupY } : null,
+        distanceKm: o.pickupDistance ?? null,
     };
 }
 
-/** 🚏 **마지막 하차 정거장** — `firstPickupStop` 과 같은 사본(하차 목록의 끝 · `dropoff` · `dropoffX/Y`). 돌려준 객체에 쓰지 않는다 */
+/**
+ * 🚏 **마지막 하차 정거장** — `firstPickupStop` 과 같은 사본(하차 목록의 끝 · `dropoff` · `dropoffX/Y`). 돌려준 객체에 쓰지 않는다.
+ *    거리는 맨 위 `deliveryDistance`(상차지 → 하차지)를 담는다 — 오늘 콜은 하차가 하나라 «앞 정거장 → 여기»와 같다.
+ */
 export function lastDropoffStop(o: StopSource): CallStop | null {
     return {
         ...o.dropoffDetails?.at(-1),
         listText: o.dropoff ?? null,
         geo: o.dropoffX != null && o.dropoffY != null ? { x: o.dropoffX, y: o.dropoffY } : null,
+        distanceKm: o.deliveryDistance ?? null,
     };
+}
+
+/** 📏 **상차 거리** — 첫 상차 정거장의 정거장 거리(내 자리 → 상차지). 모르면 null */
+export const firstStopKm = (o: StopSource): number | null => firstPickupStop(o)?.distanceKm ?? null;
+
+/**
+ * 📏 **배송 거리** — 첫 상차 뒤 정거장(남은 상차 → 하차 차례)의 정거장 거리를 다 더한 것.
+ *    한 곳이라도 모르면 null — 아는 것만 더하면 짧은 거리를 지어내는 셈이다.
+ */
+export function deliveryKmOf(o: StopSource): number | null {
+    const after = [...(o.pickupDetails?.slice(1) ?? []), ...(o.dropoffDetails?.slice(0, -1) ?? []), lastDropoffStop(o)];
+    let km = 0;
+    for (const stop of after) {
+        if (stop?.distanceKm == null) return null;
+        km += stop.distanceKm;
+    }
+    return km;
 }
 
 /**

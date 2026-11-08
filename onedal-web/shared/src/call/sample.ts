@@ -2,7 +2,7 @@ import type { CallMoney } from './money';
 import type { OrderForm, TripType } from './badges';
 import type { CallLoad } from '../cargo/callLoad';
 import type { CallIdentity, CallProvenance } from './callIdentity';
-import type { OfficeOrder } from './orderShapes';
+import type { CallStop, OfficeOrder } from './orderShapes';
 
 export const OFFICE_ORDER_SAMPLE = {
     // ── 목록 칸 (SimplifiedOfficeOrder) ──
@@ -1309,7 +1309,7 @@ const OFFICE_ORDER_SAMPLE_09 = {
         distanceKm: 101,                  // 내 자리 → 상차지(화면 직선 거리)
         geo: { x: 127.312587, y: 37.363298 },   // 서버가 붙이는 좌표 — 원달앱은 비워 둔다
         memo: "상차 메모",
-    }],
+    }] satisfies CallStop[],
     dropoffDetails: [{
         listText: "신둔면",
         promiseText: "하차 약속 글자",    // 하차 쪽 원문 — 인성 «14시전» · 플렉스 «10:20전» · 픽커 «17:18까지 배송»
@@ -1325,7 +1325,7 @@ const OFFICE_ORDER_SAMPLE_09 = {
         distanceKm: 201,                  // 앞 정거장(상차지) → 여기
         geo: { x: 127.401207, y: 37.309733 },
         memo: "하차 메모",
-    }],
+    }] satisfies CallStop[],
 
     // ── 돈 ──
     money: {
@@ -1394,7 +1394,7 @@ const STOP_EXAMPLE_09_INSUNG = {
         geo: null,
         memo: null,
     }],
-};
+} satisfies Pick<OfficeOrder, 'pickupDetails' | 'dropoffDetails'>;
 
 /**
  * 화물24시 — 같은 콜의 목록 줄과 상세 두 장 (위 `LIST_EXAMPLE_HWAMUL24` 와 같은 콜):
@@ -1438,7 +1438,7 @@ const STOP_EXAMPLE_09_HWAMUL24 = {
         geo: null,
         memo: null,
     }],
-};
+} satisfies Pick<OfficeOrder, 'pickupDetails' | 'dropoffDetails'>;
 
 /**
  * 카카오 픽커 — 위 `STOP_EXAMPLE_KAKAOPICKER` 와 같은 사진 ex_images/카카오픽커/이미지글자_카카오픽커.md 실물_2026/06_상세_마감시각_준비시간.jpeg(확정 전 상세):
@@ -1481,7 +1481,7 @@ const STOP_EXAMPLE_09_KAKAOPICKER = {
         geo: null,
         memo: null,
     }],
-};
+} satisfies Pick<OfficeOrder, 'pickupDetails' | 'dropoffDetails'>;
 
 /**
  * 인성플렉스 (실물) — 같은 콜의 목록 줄과 상세 (위 `LIST_EXAMPLE_ISFLEX` · `STOP_EXAMPLE_ISFLEX` 와 같은 콜):
@@ -1524,4 +1524,4 @@ const STOP_EXAMPLE_09_ISFLEX = {
         geo: null,
         memo: null,
     }],
-};
+} satisfies Pick<OfficeOrder, 'pickupDetails' | 'dropoffDetails'>;

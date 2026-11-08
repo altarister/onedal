@@ -29,7 +29,9 @@ object InsungPages {
             FieldSpec(PageField.CLOCK, "도착지 칸 앞글자 (도착 약속)", "낼8/ · 8시/ · 낼10시/", Seen.REAL, Handling.DROPPED, "InsungParser.parse — 출발지 쪽이 있으면 버림"),
             FieldSpec(PageField.VEHICLE_TYPE, "차종 칸", "1t · 다 · 라 · 1t화물", Seen.REAL, Handling.READ, "InsungParser.readVehicleAndFare"),
             FieldSpec(PageField.FARE, "요금 칸 (천 원 단위)", "40.0 · 270.0", Seen.REAL, Handling.READ, "InsungParser.readVehicleAndFare"),
+            /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선으로 읽음(상세 «(직선)»과 같은 뜻 — 목록엔 표시 없음) */
             FieldSpec(PageField.PICKUP_DISTANCE, "거리 칸 윗줄", "17.8", Seen.REAL, Handling.READ, "InsungParser.parse"),
+            /* 하차 정거장 거리(상차지 → 하차지) · 직선으로 읽음 · «0.0» 은 배송 거리 모름 */
             FieldSpec(PageField.DELIVERY_DISTANCE, "거리 칸 아랫줄", "0.0 · 341.3", Seen.REAL, Handling.READ, "InsungParser.parse"),
         ),
         Page.NEW_CALL to listOf(
@@ -61,8 +63,9 @@ object InsungPages {
                 read = Regex("""적요 내용\s+([\s\S]*?)\s*닫기"""), part = "popup"),
             FieldSpec(PageField.MEMO, "본문 «적요상세» 줄", "적요상세 10시전하차 착불", Seen.SIM, Handling.READ, "서버 적요(detailMemo) — 팝업이 없을 때 · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""적요상세(?!/)[ \t]+([^\n]+)"""), part = "body"),
+            /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선(화면 글자 «(직선)») */
             FieldSpec(PageField.PICKUP_DISTANCE, "적요 칸 둘째 줄", "현위치 → 상차지(직선)23.5KM", Seen.REAL, Handling.UNUSED),
-            /* 실물: 확정 전 상세 0/3 · 확정 뒤 5/5 — 확정 뒤에만 나온다(같은 콜 신한로직스로 확인) */
+            /* 실물: 확정 전 상세 0/3 · 확정 뒤 5/5 — 확정 뒤에만 나온다(같은 콜 신한로직스로 확인) · 하차 정거장 거리(상차지 → 하차지) · 직선(화면 글자 «(직선)») */
             FieldSpec(PageField.DELIVERY_DISTANCE, "적요 칸 셋째 줄", "상차지 → 하차지(직선)35.9KM", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "출발지 상세 팝업 «위치»", "경기 용인시 처인구 양지면 …", Seen.SIM, Handling.READ, "InsungPopupAddress · 서버 원문 칸 읽기(위치 — 이름표만 있는 줄이면 다음 줄 값)",
                 read = Regex("""\[출발지상세\](?:(?!\[도착지상세\])[\s\S])*?\n위치[ \t]*:?[ \t]*(?:\n[ \t]*)?([^\n]+)""")),
