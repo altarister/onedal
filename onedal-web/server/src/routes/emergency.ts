@@ -56,6 +56,8 @@ export function emergencyAlertFrom(report: EmergencyReport, orderId: string, now
         orderId,
         reason: report.reason,
         screenContext: report.screenContext,
+        screenPage: report.screenPage ?? null,
+        screenOverlay: report.screenOverlay ?? null,
         screenText: report.screenText?.substring(0, 300),
         timestamp: report.timestamp || nowIso,
         ...(keepLost ? { keepLost: true } : {}),
@@ -67,13 +69,13 @@ export function emergencyAlertFrom(report: EmergencyReport, orderId: string, now
 router.post("/", async (req, res) => {
     try {
         const report = req.body as EmergencyReport;
-        const { deviceId, orderId, reason, screenContext, screenText } = report;
+        const { deviceId, orderId, reason, screenContext, screenPage, screenOverlay, screenText } = report;
 
         slog('경고', `\n🚨🚨🚨 [EMERGENCY] 비상 보고 수신 🚨🚨🚨`);
         slog('경고', `   기기: ${deviceLabelOf(deviceId)}`);
         slog('경고', `   오더: ${orderId}`);
         slog('경고', `   사유: ${reason}`);
-        slog('경고', `   화면: ${screenContext}`);
+        slog('경고', `   화면: ${screenContext} · ${screenPage ?? '-'} · ${screenOverlay ?? '-'}`);
         slog('경고', `   텍스트: ${screenText?.substring(0, 100)}...`);
 
         /* 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 가짜 기사로 받지 않는다 (core/deviceAuth) */

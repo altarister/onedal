@@ -74,6 +74,13 @@ describe('🚨 비상 보고 — 값만 받는 셈', () => {
         expect(a.screenText.length).toBe(300);
         expect(emergencyAlertFrom({ ...report, timestamp: 'T0' }, 'o1', 'T1').timestamp).toBe('T0');
     });
+
+    it('🔴 알림에 페이지 이름 · 덧칸 이름을 보고 그대로 싣는다 · 보고에 없으면 null', () => {
+        const report = { deviceId: 'devA', orderId: 'o1', reason: 'BUTTON_NOT_FOUND', screenContext: 'DETAIL_PRE_CONFIRM', screenText: '', timestamp: 'T0' } as any;
+        expect(emergencyAlertFrom({ ...report, screenPage: '확정 전 상세', screenOverlay: '적요 상세 팝업' }, 'o1', 'T1'))
+            .toMatchObject({ screenContext: 'DETAIL_PRE_CONFIRM', screenPage: '확정 전 상세', screenOverlay: '적요 상세 팝업' });
+        expect(emergencyAlertFrom(report, 'o1', 'T1')).toMatchObject({ screenPage: null, screenOverlay: null });
+    });
 });
 
 describe('⚖️ 결재 줄 · 빨리 접기 — 값만 받는 셈', () => {

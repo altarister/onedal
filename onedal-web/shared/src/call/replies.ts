@@ -41,7 +41,7 @@ export interface EmergencyAlert {
     deviceId: string;
     orderId: string;
     reason: string;
-    /** 🧭 화면 칸 셋 — 서버는 지금 화면 값만 싣는다 · 관제웹은 이 칸을 그리지 않는다 */
+    /** 🧭 화면 칸 셋 — 서버는 화면 값 · 페이지 이름 · 덧칸 이름을 보고 그대로 싣는다 · 관제웹은 이 칸을 그리지 않는다 */
     screenContext: ScreenContextType | null;
     screenPage?: string | null;
     screenOverlay?: string | null;

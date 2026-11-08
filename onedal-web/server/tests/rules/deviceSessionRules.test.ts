@@ -1,6 +1,7 @@
 // @ts-nocheck
 import db from '../../src/db';
 import devicesRouter from '../../src/routes/devices';
+import scrapRouter from '../../src/routes/scrap';
 import { touchDeviceSession, getActiveDevicesSnapshot } from '../../src/state/deviceSessions';
 import { otherAutoPhoneOf } from '../../src/state/deviceRegistry';
 import { getUserSession } from '../../src/state/userSessionStore';
@@ -120,6 +121,26 @@ describe('🧹 목록 복귀 — 정의는 shared 하나 · 직접콜은 안 치
         const s = evaluating(dev, 'li-popup', { type: 'AUTO', isPreview: false, detailSeen: true });
         touchDeviceSession(dev, ADMIN, 0, 'DETAIL_PRE_CONFIRM', quiet, undefined, undefined, undefined, undefined, undefined, undefined, 'insung', { screenPage: '확정 전 상세', screenOverlay: '출발지 상세 팝업' });
         expect(s.entries.has('listExit_li-popup')).toBe(false);
+    });
+
+    it('🔴 폰 보고 경로(/api/scrap)는 보내는 값 목록 밖 화면 값(«POPUP_MEMO»)으로 기기 화면을 바꾸지 않는다 · 목록 안 값이면 바꾼다', async () => {
+        const dev = 'dev-rules-scrap-screen';
+        register(dev, U);
+        const handler = (() => {
+            const layer = scrapRouter.stack.find((l: any) => l.route?.path === '/' && l.route.methods.post);
+            return layer.route.stack[layer.route.stack.length - 1].handle;
+        })();
+        const post = async (body: Record<string, unknown>) => {
+            const res = { status: () => res, json: () => res };
+            await handler({ app: { get: (k: string) => (k === 'io' ? quiet : undefined) }, ip: '127.0.0.1', headers: {}, get: () => undefined,
+                body: { data: [], deviceId: dev, supplyLinked: true, ...body } }, res);
+        };
+        await post({ screenContext: 'LIST' });
+        expect(sessionOf(dev)?.screenContext).toBe('LIST');
+        await post({ screenContext: 'POPUP_MEMO', screenPage: '확정 전 상세' });
+        expect(sessionOf(dev)?.screenContext).toBe('LIST');
+        await post({ screenContext: 'DETAIL_PRE_CONFIRM', screenPage: '확정 전 상세' });
+        expect(sessionOf(dev)?.screenContext).toBe('DETAIL_PRE_CONFIRM');
     });
 
     it('🔴 직접 잡은 콜(MANUAL · MANUAL_CLICK 딱지)은 목록으로 가도 안 치우고 이탈 유예도 안 건다 · 자동 콜은 유예를 건다', () => {

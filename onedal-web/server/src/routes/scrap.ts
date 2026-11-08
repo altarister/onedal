@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { scrapReleaseCodes } from "../core/releases";
-import { isTargetApp, DEFAULT_TARGET_APP, callFromAppReport, firstPickupStop, lastDropoffStop, firstStopKm, deliveryKmOf } from "@onedal/shared";
-import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
+import { isTargetApp, DEFAULT_TARGET_APP, callFromAppReport, firstPickupStop, lastDropoffStop, firstStopKm, deliveryKmOf, screenReportOf } from "@onedal/shared";
+import type { SimplifiedOfficeOrder, TargetAppType } from "@onedal/shared";
 import db from "../db";
 import { reportSourceOf } from "../core/helpers";
 import { getUserSession } from "../state/userSessionStore";
@@ -36,10 +36,9 @@ let intelCountCache: number | null = null;
 
 router.post("/", (req, res) => {
     try {
-        const { data, deviceId, screenContext, isHolding, lat, lng } = req.body as {
+        const { data, deviceId, isHolding, lat, lng } = req.body as {
             data: SimplifiedOfficeOrder[],
             deviceId?: string,
-            screenContext?: ScreenContextType,  // [Safety Mode V3] 앱폰 화면 상태 (물리적 페이지)
             isHolding?: boolean,                // [Page/Hold 분리] 콜 처리 중 여부
             lat?: number,                       // [GPS 텔레메트리] 앱폰 위도
             lng?: number,                       // [GPS 텔레메트리] 앱폰 경도
@@ -51,6 +50,8 @@ router.post("/", (req, res) => {
         /** 🏷️ 실물 앱인가 시뮬레이터인가 — 보고 한 칸(한 보고 = 한 화면). 모르는 값·옛 앱은 null (규칙 ④) */
         const body = req.body as { source?: unknown; screenWords?: Parameters<typeof noteScreenWords>[2] };
         const source = reportSourceOf(body.source);
+        /** 🧭 화면 칸 셋(화면 값 · 페이지 이름 · 덧칸 이름) — 보내는 값 목록 밖이면 null 이고, null 은 «안 보냄»과 같게 넘겨 기기 화면을 바꾸지 않는다 */
+        const screen = screenReportOf(req.body);
 
         // 1. 🔑 연결 안 된 폰 · 틀린 토큰은 거절 — 폰 문 한 곳 (core/deviceAuth)
         const auth = authDevice(deviceId, deviceTokenOf(req));
@@ -137,7 +138,7 @@ router.post("/", (req, res) => {
         }
         const totalScrap = intelCountCache;
 
-        if (data.length > 0) logRoadmapEvent('통신', "서버", ` [/api/scrap 수신] User: ${userId} (${deviceLabelOf(deviceId)}) | ${data.length}항목 적재 중${screenContext ? ` [화면: ${screenContext}]` : ''}`);
+        if (data.length > 0) logRoadmapEvent('통신', "서버", ` [/api/scrap 수신] User: ${userId} (${deviceLabelOf(deviceId)}) | ${data.length}항목 적재 중${screen.screenContext ? ` [화면: ${screen.screenContext}]` : ''}`);
         // console.log(`🛡️ [서버] /api/scrap 수신 직후: 서버단 2차 해시 검증 및 무효 콜 필터링 통과 완료`);
         // logRoadmapEvent("서버", "앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음");
 
@@ -152,7 +153,7 @@ router.post("/", (req, res) => {
              */
             const appFilterVersion = typeof (req.body as any)?.filterVersion === 'string'
                 ? (req.body as any).filterVersion as string : undefined;
-            touchDeviceSession(deviceId, userId, data.length, screenContext, io, isHolding, lat, lng, (req.body as any).screenNodeCount, (req.body as any).isScreenOn, (req.body as any).filterTally, targetApp, {
+            touchDeviceSession(deviceId, userId, data.length, screen.screenContext ?? undefined, io, isHolding, lat, lng, (req.body as any).screenNodeCount, (req.body as any).isScreenOn, (req.body as any).filterTally, targetApp, {
                 appVersion: (req.body as any).appVersion,
                 workStage: (req.body as any).workStage,
                 workStageStep: (req.body as any).workStageStep,
@@ -161,8 +162,8 @@ router.post("/", (req, res) => {
                 effectiveMode: (req.body as any).effectiveMode,
                 filterVersion: appFilterVersion,
                 openBlocked: openBlockedOf((req.body as any).openBlocked),
-                screenPage: typeof (req.body as any).screenPage === 'string' ? (req.body as any).screenPage : undefined,
-                screenOverlay: typeof (req.body as any).screenOverlay === 'string' ? (req.body as any).screenOverlay : undefined,
+                screenPage: screen.screenPage ?? undefined,
+                screenOverlay: screen.screenOverlay ?? undefined,
                 suppliedMode: (req.body as any).suppliedMode,
                 supplyLinked: (req.body as any).supplyLinked,
                 nearbyPermitted: (req.body as any).nearbyPermitted,
