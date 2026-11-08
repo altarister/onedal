@@ -161,7 +161,8 @@ const PROMISE_GLUE_BACK = new Set(['/', ')']);
  *    ① 원문 앞에 «/» · «@» · «(» 가 붙었거나 뒤에 «/» · «)» 가 붙은 첫 자리를 붙은 글자와 함께 —
  *       «@낼8:30/가산동» − «@낼8:30» → « 가산동» · «오포읍(14시전)» − «14시전» → «오포읍 »
  *    ② 그런 자리가 없으면 낱말 머리(글 시작이나 빈칸 뒤)의 첫 자리 — «14시전쌍림동» − «14시전» → « 쌍림동»
- *    둘 다 없으면 그대로.
+ *    ③ 그것도 없으면 낱말 끝(뒤가 글 끝이나 빈칸)의 첫 자리 — «쌍림동14시전» − «14시전» → «쌍림동 »
+ *    셋 다 없으면 그대로.
  */
 function withoutPromise(text: string, promise: string): string {
     const at: number[] = [];
@@ -174,7 +175,8 @@ function withoutPromise(text: string, promise: string): string {
         const end = glued + promise.length + (backGlued(glued) ? 1 : 0);
         return `${text.slice(0, start)} ${text.slice(end)}`;
     }
-    const head = at.find(i => i === 0 || /\s/.test(text[i - 1]));
+    const head = at.find(i => i === 0 || /\s/.test(text[i - 1]))
+        ?? at.find(i => i + promise.length === text.length || /\s/.test(text[i + promise.length]));
     return head === undefined ? text : `${text.slice(0, head)} ${text.slice(head + promise.length)}`;
 }
 

@@ -71,6 +71,7 @@ describe('📍 stopQueryOf — 지금 판정 글자와 같다', () => {
         expect(stopQueryOf('insung', { listText: '예약/예약물류', promiseText: '예약' }).text).toBe('예약물류');
         expect(stopQueryOf('isflex', { addressDetail: '경기 광주시 예약물류센터 @예약/초월읍', promiseText: '예약' }).text).toBe('경기 광주시 예약물류센터 초월읍');
         expect(stopQueryOf('insung', { listText: '오포읍(14시전)', promiseText: '14시전' }).text).toBe('오포읍');
+        expect(stopQueryOf('insung', { listText: '쌍림동14시전', promiseText: '14시전' }).text).toBe('쌍림동');
     });
     it('빈 정거장은 빈 글자', () => {
         expect(stopQueryOf('insung', null)).toEqual({ text: '', need: true });
