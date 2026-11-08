@@ -347,11 +347,11 @@ export function businessDayKey(ms: number): string {
 }
 
 /**
- * 이 콜의 보관 날 `YYYY-MM-DD` — 잡은 날 + `reservedDay` 일. 오늘 콜(0 · 없음)이면 null.
+ * 이 콜의 보관 날 `YYYY-MM-DD` — 잡은 날 + 첫 상차 정거장 `requestedDay` 일. 오늘 콜(0 · 없음)이면 null.
  * 날 경계는 `businessDayKey`(영업일 전환과 같은 자정) 하나로 잰다. 서버(판정 · 보관)와 관제웹(판정석 예약 알약)이 같이 쓴다.
  */
-export function reservedForOf(order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string }): string | null {
-    const days = order.reservedDay;
+export function reservedForOf(order: StopSource & { capturedAt?: string; timestamp?: string }): string | null {
+    const days = firstPickupStop(order)?.requestedDay;
     if (days == null || !(days >= 1)) return null;
     const base = Date.parse(order.capturedAt ?? order.timestamp ?? '');
     if (!Number.isFinite(base)) return null;
@@ -633,16 +633,17 @@ export interface TimingOrderFields {
     capturedAt?: string;
     /** ⏱️ 적요 — 상차 시계("HH:MM상차")를 여기서 읽는다 (두 시계 · ⑯) */
     itemDescription?: string;
-    /** 📅 예약 날(0 오늘 · 1 내일 · N)·시각 «HH:MM» — 있으면 상차 시계가 이것으로 날짜를 만든다 */
-    reservedDay?: number | null;
-    reservedAt?: string | null;
     detailMemo?: string;
     approachDurationMin?: number;
     totalDistanceKm?: number;
     kakaoSoloDistanceKm?: number;
     kakaoSoloDurationMin?: number;
-    /** 🚚 앱이 화면에서 읽어 보낸 배송거리(km) — 단독 주행 추정의 입력 (soloMinutesOf) */
-    deliveryDistance?: number;
+    /**
+     * 🚏 상차 · 하차 정거장 — 첫 상차의 예약 날(0 오늘 · 1 내일 · N) · 시각 «HH:MM»이 상차 시계의 날짜를 만들고,
+     *    정거장 거리(배송 거리 `deliveryKmOf`)가 단독 주행 추정의 입력이다 (soloMinutesOf)
+     */
+    pickupDetails?: CallStop[];
+    dropoffDetails?: CallStop[];
 }
 
 export interface CallTiming {
@@ -763,26 +764,27 @@ export function derivationInputsOf(cfg: Pick<JudgmentConfig, 'unknown' | 'deadli
  * 통화로 굳힌 약속은 호출부(declared)가 이긴다. 파생 한 곳 — 시딩과 타임라인이 같이 쓴다.
  */
 export function pickupClockMsOf(
-    order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo' | 'reservedDay' | 'reservedAt'>,
+    order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo' | 'pickupDetails'>,
     capturedMs: number, offsetMinutes: number,
 ): number | null {
+    const { requestedDay, requestedTime } = firstPickupStop(order) ?? {};
     /**
-     * 📅 **예약이 먼저다** — «잡은 날 + reservedDay 일»의 reservedAt 시각.
+     * 📅 **예약이 먼저다** — «잡은 날 + 첫 상차 `requestedDay` 일»의 `requestedTime` 시각.
      *    오늘 안의 «예약 18:30»(0일)도 여기서 맞는다. 적요 시각은 날을 모르니 예약이 없을 때만 쓴다.
      */
-    const at = /^(\d{1,2}):(\d{2})$/.exec(order.reservedAt ?? '');
-    if (at && order.reservedDay != null && order.reservedDay >= 0) {
-        const day = kstDateText(capturedMs + order.reservedDay * 86_400_000);
+    const at = /^(\d{1,2}):(\d{2})$/.exec(requestedTime ?? '');
+    if (at && requestedDay != null && requestedDay >= 0) {
+        const day = kstDateText(capturedMs + requestedDay * 86_400_000);
         const t = Date.parse(`${day}T${at[1].padStart(2, '0')}:${at[2]}:00+09:00`);
         if (Number.isFinite(t) && t >= capturedMs) return t;   // 과거 시각이면 무시 (적요 시각과 같은 규칙)
     }
     /**
      * 📅 **날만 알고 시각을 모르는 예약(«내상»·«낼»)은 모름** — 기본 시각을 지어내지 않는다(규칙 ④).
-     *    앱이 상차 쪽 글자에서 시각을 찾아 reservedAt 을 채운다 — 못 찾았으면 상차 시각이 없다는 뜻이다.
+     *    앱이 상차 쪽 글자에서 시각을 찾아 예약 시각을 채운다 — 못 찾았으면 상차 시각이 없다는 뜻이다.
      *    적요 시각도 붙이지 않는다 — 적요는 상차·하차를 안 가른다(«10시전하차»가 내일 상차 10:00 이 된다).
      *    약속은 기사님이 상차지 통화로 넣으신다.
      */
-    if ((order.reservedDay ?? 0) >= 1) return null;
+    if ((requestedDay ?? 0) >= 1) return null;
     const hint = parseCargoHints(order.itemDescription, order.detailMemo).promisedAt;
     if (hint) {
         const kstDay = kstDateText(capturedMs);
@@ -824,10 +826,9 @@ export function pickupClockMsOf(
  *    `approachKm = 전체 − solo` 도 이 짝에 기대므로 섞이면 접근 거리까지 틀린다.
  */
 export function soloMinutesOf(
-    order: {
+    order: StopSource & {
         kakaoSoloDurationMin?: number | null;
         kakaoSoloDistanceKm?: number | null;
-        deliveryDistance?: number | null;
     },
     rules: { speedShortKmh?: number; speedMidKmh?: number; speedLongKmh?: number }
         = DEFAULT_DEADLINE_RULES,
@@ -845,8 +846,8 @@ export function soloMinutesOf(
     const mKm = pos(order.kakaoSoloDistanceKm);
     if (mMin != null) return { minutes: mMin, km: mKm, estimated: false };
 
-    // ② 화면 배송거리 → 구간 속도로 환산. 거리·시간이 같은 출처가 된다
-    const km = pos(order.deliveryDistance);
+    // ② 화면 배송거리(정거장 거리의 합 `deliveryKmOf`) → 구간 속도로 환산. 거리·시간이 같은 출처가 된다
+    const km = pos(deliveryKmOf(order));
     if (km != null) {
         const kmh = km < 10 ? (rules.speedShortKmh ?? DEFAULT_JUDGMENT.speed.shortKmh)
             : km < 25 ? (rules.speedMidKmh ?? DEFAULT_JUDGMENT.speed.midKmh)

@@ -2,7 +2,7 @@
  * ⚖️ **결재 · 경로 다시 재기 · 새 콜 심사 넘기기** — KEEP · 취소 · 강제 정리, 정거장이 바뀌면 카카오로 다시 잰다.
  * 바깥 일을 하는 함수: applyRouteAndSave · applySoloRouteAndSave · forceCancelEvaluatingOrder · promiseOrderOpts · recalcRouteIfStopsChanged · recalculateActiveKakaoRoute · recalculateKakaoRoute · syncDetourFilter · handleDecision · evaluateNewOrder · rebuildDestinationKeywords(세션 · 장부(DB) · 카카오 · 설정 · 지금 시각 · 소켓 · 로그) (장소 이름 · 장부에 적을 정거장 셈 normalizePlaceName · stopPlaceFrom 은 값만 받는다)
  */
-import { businessDayKey, normalizeVehicleType, isEvaluating, isTerminal, reservedForOf, type DecisionStatus } from "@onedal/shared";
+import { businessDayKey, normalizeVehicleType, isEvaluating, isTerminal, reservedForOf, firstPickupStop, lastDropoffStop, type DecisionStatus } from "@onedal/shared";
 import { isLaterThan, takeReserved } from "./reservedOrders";
 import type { SecuredOrder, PendingOrder, MyOrder, CallStop } from "@onedal/shared";
 import { calculateSoloRoute } from "./kakaoService";
@@ -262,9 +262,10 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
             // 단독 오더 라우팅
             // 🔴 이미 상차했으면 상차지를 경유하지 않는다 — 안 그러면 되돌아가는 경로가 나온다.
             //    합짐(composeMergedRoute)도 같은 규칙이다.
+            const p = firstPickupStop(activeMain)?.geo, d = lastDropoffStop(activeMain)?.geo;
             const res = await calculateSoloRoute(
-                activeMain.pickupX!, activeMain.pickupY!,
-                activeMain.dropoffX!, activeMain.dropoffY!,
+                p?.x!, p?.y!,
+                d?.x!, d?.y!,
                 originOf(session),
                 routingOptions.defaultPriority,
                 routingOptions.carType,
@@ -340,9 +341,10 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
 
         if (!isDetour) {
+            const p = firstPickupStop(securedOrder)?.geo, d = lastDropoffStop(securedOrder)?.geo;
             const result = await calculateSoloRoute(
-                securedOrder.pickupX!, securedOrder.pickupY!,
-                securedOrder.dropoffX!, securedOrder.dropoffY!,
+                p?.x!, p?.y!,
+                d?.x!, d?.y!,
                 originOf(session),
                 priority || routingOptions.defaultPriority,
                 routingOptions.carType,
@@ -579,14 +581,16 @@ export async function handleDecision(userId: string, orderId: string, status: De
                 OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
 
                 // 2. places UPSERT 및 orderStops 추가 (상차지)
-                const p = stopPlaceFrom(cachedOrder.pickupDetails?.[0], cachedOrder.pickup, cachedOrder.pickupX, cachedOrder.pickupY);
+                const ps = firstPickupStop(cachedOrder);
+                const p = stopPlaceFrom(cachedOrder.pickupDetails?.[0], ps?.listText ?? '', ps?.geo?.x, ps?.geo?.y);
                 const pPlaceId = PlaceRepository.upsertPlace(userId, p.address, p.name, p.region, p.x, p.y, p.phone);
                 if (pPlaceId) {
                     OrderRepository.insertOrderStop(cachedOrder.id, pPlaceId, 'pickup', p.name, p.phone);
                 }
 
                 // 3. places UPSERT 및 orderStops 추가 (하차지)
-                const d = stopPlaceFrom(cachedOrder.dropoffDetails?.[0], cachedOrder.dropoff, cachedOrder.dropoffX, cachedOrder.dropoffY);
+                const ds = lastDropoffStop(cachedOrder);
+                const d = stopPlaceFrom(cachedOrder.dropoffDetails?.[0], ds?.listText ?? '', ds?.geo?.x, ds?.geo?.y);
                 const dPlaceId = PlaceRepository.upsertPlace(userId, d.address, d.name, d.region, d.x, d.y, d.phone);
                 if (dPlaceId) {
                     OrderRepository.insertOrderStop(cachedOrder.id, dPlaceId, 'dropoff', d.name, d.phone);
@@ -618,7 +622,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
                 console.error('🚚 [예약 콜 단독 배송 재기 실패]', e);
             }
             saveConfirmedToLedger(0);
-            slog('결재', `📅 [예약 보관] ${orderId.slice(0, 8)} → ${reservedFor} ${(cachedOrder as any).reservedAt ?? ''} — 오늘 하루에 안 넣는다`);
+            slog('결재', `📅 [예약 보관] ${orderId.slice(0, 8)} → ${reservedFor} ${firstPickupStop(cachedOrder)?.requestedTime ?? ''} — 오늘 하루에 안 넣는다`);
             io.to(userId).emit("order-confirmed", orderId);
             birthStepsOnKeep(userId, orderId, io);   // 🌱 상차지 통화 단계 — 결재가 어느 길로 오든 여기 한 곳
             return { success: true, action: status };
@@ -636,7 +640,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
              *    하차의 **행정 시**가 오늘 목적지 시인가 하나로 가른다(`keepGoalCityOf`).
              * 🔴 넣기 **전에** 적는다 — 승격본·캐시본 둘 다 (화면·장부가 갈리지 않게)
              */
-            const goal = keepGoalCityOf({ dropoff: String((cachedOrder as any).dropoff ?? ''), destCities: destCitiesOf(session),
+            const goal = keepGoalCityOf({ dropoff: lastDropoffStop(cachedOrder)?.listText ?? '', destCities: destCitiesOf(session),
                 dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) });
             confirmedOrder.goalCity = goal.city || undefined;
             (cachedOrder as any).goalCity = confirmedOrder.goalCity;

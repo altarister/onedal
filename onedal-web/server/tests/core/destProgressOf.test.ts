@@ -135,6 +135,6 @@ describe('🧭 첫짐 심사가 전진율을 싣는다 (배선)', () => {
         /* 목적지는 goalNow() 한 곳 — 오늘 콜은 goalCityOf, 내일 콜은 기본 설정 목적지 */
         expect(ev).toMatch(/goal: goalNow\(\)/);
         /* 그 사진의 기점 · 목적지가 전진율에 실리는지는 judgmentBranches(단독 지리 · 등 뒤 상차 · 판정 불가 지리)가 끝까지 돌려 문다 */
-        expect(ev).toMatch(/dropoff:\s*\{\s*x:\s*securedOrder\.dropoffX,\s*y:\s*securedOrder\.dropoffY\s*\}/);
+        expect(ev).toMatch(/dropoff:\s*lastDropoffStop\(securedOrder\)\?\.geo/);
     });
 });

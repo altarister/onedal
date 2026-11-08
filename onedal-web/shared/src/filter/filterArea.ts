@@ -30,6 +30,7 @@
 
 import { cityCenter, haversineKm } from './callNet';
 import { DONG_CENTROIDS } from './dongCentroids';
+import { lastDropoffStop, type StopSource } from '../time/timing';
 
 /**
  * 🎯 **살아 있는 목적지 하나 — «사실»만 담는다.**
@@ -243,14 +244,15 @@ export function lastDropOf(o: {
     homeOn: boolean;
     homeCity: string | null | undefined;
     stops: ReadonlyArray<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
-    calls: ReadonlyArray<{ id: string; goalCity?: string | null; dropoffX?: number; dropoffY?: number }>;
+    calls: ReadonlyArray<StopSource & { id: string; goalCity?: string | null }>;
 }): { x: number; y: number } | null {
     for (let i = o.stops.length - 1; i >= 0; i--) {
         const st = o.stops[i];
         if (st.stopType !== 'dropoff') continue;
         const call = o.calls.find(c => c.id === st.orderId);
         if (!call || isHomeCallOf(call, o) !== o.isHome) continue;
-        return Number.isFinite(call.dropoffX) && Number.isFinite(call.dropoffY) ? { x: call.dropoffX as number, y: call.dropoffY as number } : null;
+        const geo = lastDropoffStop(call)?.geo;
+        return geo && Number.isFinite(geo.x) && Number.isFinite(geo.y) ? geo : null;
     }
     return null;
 }

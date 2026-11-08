@@ -22,7 +22,7 @@ import { intelRowsOf } from "../services/intelRows";
 import type { OpsBoardFilter, OpsBoardIntel, OpsBoardMember, OpsBoardPhone, OpsBoardServer, OpsHome, OpsLocations, OpsStats } from "@onedal/shared";
 import { marketStatsOf, clampStatsRange, flowCellsOf, flowRowsBetween, watchedDaysOf } from "../services/callFlowStats";
 import { rangeOf } from "./stats";
-import { TARGET_APPS, accountBlocked, judgingCallOf, kakaoTotalOf, kstDateText, nearestDong, screenLabelOf, type ScreenContextType } from "@onedal/shared";
+import { TARGET_APPS, accountBlocked, judgingCallOf, kakaoTotalOf, kstDateText, nearestDong, screenLabelOf, firstPickupStop, lastDropoffStop, type ScreenContextType } from "@onedal/shared";
 import { latestContent, isContentKind } from "./contents";
 import { noticeOf, type NoticeRow } from "./notices";
 import { slog } from "../utils/fileLogger";
@@ -510,7 +510,7 @@ router.get("/board/member", (req, res) => {
     const j = session ? judgingCallOf(buildOrderSync(session).active as Array<Record<string, any>>) : undefined;
     const body: OpsBoardMember = {
         location: loc ? { lat: loc.y, lng: loc.x, at: loc.at != null ? new Date(loc.at).toISOString() : null, source: loc.source ?? null, isFallback: !!loc.isFallback, region: nearestDong({ lng: loc.x, lat: loc.y }).region } : null,
-        judging: j ? { id: j.id, pickup: j.pickup ?? null, dropoff: j.dropoff ?? null, status: j.status ?? null, isPreview: !!j.isPreview, fare: j.fare ?? null, judgment: j.judgment ?? null } : null,
+        judging: j ? { id: j.id, pickup: firstPickupStop(j)?.listText ?? null, dropoff: lastDropoffStop(j)?.listText ?? null, status: j.status ?? null, isPreview: !!j.isPreview, fare: j.fare ?? null, judgment: j.judgment ?? null } : null,
         newWords: recentNewWords(7),
     };
     res.json(body);

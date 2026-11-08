@@ -6,7 +6,7 @@
 import { getActiveCalls } from '../core/activeCalls';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
-import { haversineKm, DEFAULT_JUDGMENT } from '@onedal/shared';
+import { haversineKm, DEFAULT_JUDGMENT, lastDropoffStop } from '@onedal/shared';
 import { shouldStoreGpsPoint, bufferGpsPoint, type GpsPoint } from './gpsTrackStore';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
@@ -100,10 +100,7 @@ export function getLastDropoffCoord(session: { myOrders: MyOrder[] }): {x: numbe
         const end = poly[poly.length - 1];
         return { x: end.x, y: end.y };
     }
-    if (last?.dropoffX != null && last?.dropoffY != null) {
-        return { x: last.dropoffX, y: last.dropoffY };
-    }
-    return null;
+    return last ? lastDropoffStop(last)?.geo ?? null : null;
 }
 
 

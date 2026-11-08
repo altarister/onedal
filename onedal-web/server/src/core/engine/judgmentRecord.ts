@@ -1,4 +1,5 @@
-import type { JudgedCallInfo, JudgedFilterInfo } from '@onedal/shared';
+import type { JudgedCallInfo, JudgedFilterInfo, StopSource } from '@onedal/shared';
+import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 
 /**
  * 🧾 **판정할 때 함께 남길 «무슨 콜이었고 어떤 필터였나»** (기사님 «1 예»).
@@ -8,7 +9,7 @@ import type { JudgedCallInfo, JudgedFilterInfo } from '@onedal/shared';
  * 판정 시작 때 뜬 필터 사진(`snap.filter`)을 받는다 — 판정 도중 필터가 바뀌어도 그 판정의 필터다.
  * 🔴 필터는 **서버 필터**다 — 원달앱이 걸러 올린 폰 필터와는 다음 보고까지 한 판 어긋날 수 있다.
  */
-type CallLike = { pickup?: string; dropoff?: string; fare?: number; targetApp?: string | null; isPreview?: boolean; isSimulated?: boolean };
+type CallLike = StopSource & { fare?: number; targetApp?: string | null; isPreview?: boolean; isSimulated?: boolean };
 type FilterLike = {
     destinationCity?: string | null; goalCity?: string | null; callTarget?: string | null;
     pickupRadiusKm?: number | null; minFare?: number | null; isActive?: boolean | null; userOverrides?: boolean;
@@ -18,8 +19,8 @@ type FilterLike = {
 export function judgmentRecordOf(order: CallLike, filter: FilterLike): { call: JudgedCallInfo; filter: JudgedFilterInfo } {
     return {
         call: {
-            pickup: order.pickup ?? '',
-            dropoff: order.dropoff ?? '',
+            pickup: firstPickupStop(order)?.listText ?? '',
+            dropoff: lastDropoffStop(order)?.listText ?? '',
             fare: order.fare ?? 0,
             targetApp: order.targetApp ?? null,
             kind: order.isSimulated ? '체험' : order.isPreview ? '미리보기' : '콜',

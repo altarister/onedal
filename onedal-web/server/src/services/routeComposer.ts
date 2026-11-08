@@ -1,5 +1,5 @@
 import type { MyOrder, PendingOrder } from "@onedal/shared";
-import { isAlreadyLoaded, hasVisitedStop } from "@onedal/shared";
+import { isAlreadyLoaded, hasVisitedStop, firstPickupStop, lastDropoffStop, type StopSource } from "@onedal/shared";
 import { haversineKm, nearestDong, minutesLateMs } from "@onedal/shared";
 import { calculateDetourRoute, calculateSoloRoute } from "./kakaoService";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
@@ -239,11 +239,8 @@ export function applyRoute(holder: RouteHolder, r: RouteResult): void {
 
 /** 좌표가 상·하차 **둘 다** 있는 콜만 경유지로 쓴다 */
 function toCoordPair(c: RouteHolder): { pickup: Coord; dropoff: Coord } | null {
-    if (c.pickupX == null || c.pickupY == null || c.dropoffX == null || c.dropoffY == null) return null;
-    return {
-        pickup: { x: c.pickupX, y: c.pickupY },
-        dropoff: { x: c.dropoffX, y: c.dropoffY },
-    };
+    const pickup = firstPickupStop(c)?.geo, dropoff = lastDropoffStop(c)?.geo;
+    return pickup && dropoff ? { pickup, dropoff } : null;
 }
 
 export interface ComposeMergedRouteParams {
@@ -308,23 +305,21 @@ export { isAlreadyLoaded, hasVisitedStop };
  * 기사님: *"그 정보가 있어야 점수를 낼 수 있지 않아?"*
  */
 export async function measureSoloDelivery(
-    call: {
+    call: StopSource & {
         id: string;
-        pickupX?: number | null; pickupY?: number | null;
-        dropoffX?: number | null; dropoffY?: number | null;
         kakaoSoloDistanceKm?: number | null;
         kakaoSoloDurationMin?: number | null;
     },
     opts: { priority?: string; carType?: number } = {},
 ): Promise<{ km: number; minutes: number } | null> {
     if (call.kakaoSoloDurationMin != null && call.kakaoSoloDurationMin > 0) return null;   // 이미 잰 콜
-    const { pickupX, pickupY, dropoffX, dropoffY } = call;
-    if (pickupX == null || pickupY == null || dropoffX == null || dropoffY == null) return null;
+    const pickup = firstPickupStop(call)?.geo, dropoff = lastDropoffStop(call)?.geo;
+    if (!pickup || !dropoff) return null;
 
     try {
         /** 기점을 안 넘긴다 → 카카오의 origin 이 상차지가 된다 (접근 구간이 애초에 없다) */
         const r = await calculateSoloRoute(
-            pickupX, pickupY, dropoffX, dropoffY, null,
+            pickup.x, pickup.y, dropoff.x, dropoff.y, null,
             opts.priority ?? 'RECOMMEND', opts.carType ?? 1, false,
         );
         const km = toKm(r.distance);

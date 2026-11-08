@@ -7,7 +7,7 @@ import { driverLocationOf } from "../services/driverLocation";
 import { getActiveCalls } from "../core/activeCalls";
 import { mapCoverage } from "../services/geoService";
 import { SettingsRepository } from "../repositories/SettingsRepository";
-import { effectiveRadii } from "@onedal/shared";
+import { effectiveRadii, firstPickupStop, lastDropoffStop } from "@onedal/shared";
 import { getUserDevicesSnapshot } from "../state/deviceSessions";
 import { phoneCheckOf, sentFilterVersionOf } from "../core/phoneCheck";
 import { BOOTED_AT } from "./health";
@@ -265,9 +265,10 @@ function scenarioWorld(userId: string, now: number): ScenarioWorld {
     const byId = new Map<string, WorldOrder>();
     const put = (o: any) => {
         if (!o?.id) return;
+        const ps = firstPickupStop(o), ds = lastDropoffStop(o);
         byId.set(o.id, {
-            id: o.id, status: o.status, pickup: o.pickup, dropoff: o.dropoff, fare: o.fare,
-            pickupX: o.pickupX, pickupY: o.pickupY, dropoffX: o.dropoffX, dropoffY: o.dropoffY,
+            id: o.id, status: o.status, pickup: ps?.listText ?? undefined, dropoff: ds?.listText ?? undefined, fare: o.fare,
+            pickupX: ps?.geo?.x, pickupY: ps?.geo?.y, dropoffX: ds?.geo?.x, dropoffY: ds?.geo?.y,
             arrivedPickupAt: o.arrivedPickupAt, arrivedDropoffAt: o.arrivedDropoffAt,
         });
     };

@@ -8,8 +8,8 @@ import { callTargetToday } from "../core/callTargetEvents";
 import { getActiveCalls } from "../core/activeCalls";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
-import type { OrderStatus, GoalZone } from "@onedal/shared";
-import { goalZonesOf, withNearness, nearestDong, effectiveRadii, activeGoals, cityOfDropoff } from "@onedal/shared";
+import type { OrderStatus, GoalZone, StopSource } from "@onedal/shared";
+import { goalZonesOf, withNearness, nearestDong, effectiveRadii, activeGoals, cityOfDropoff, lastDropoffStop } from "@onedal/shared";
 
 type Session = ReturnType<typeof getUserSession>;
 type Filter = Session['activeFilter'];
@@ -57,9 +57,10 @@ export function goalCityFrom(filter: Pick<Filter, 'destinationCity' | 'callTarge
 }
 
 /** 🎯 콜의 판 — 적힌 값. 비었으면(서버가 다시 켜져 메모리가 비었다) 하차지의 시로 대신한다 */
-function boardOf(o: { goalCity?: string; dropoffX?: number; dropoffY?: number }): string | undefined {
+function boardOf(o: StopSource & { goalCity?: string }): string | undefined {
     if (o.goalCity) return o.goalCity;
-    return o.dropoffX != null && o.dropoffY != null ? nearestDong({ lng: o.dropoffX, lat: o.dropoffY }).region : undefined;
+    const geo = lastDropoffStop(o)?.geo;
+    return geo ? nearestDong({ lng: geo.x, lat: geo.y }).region : undefined;
 }
 
 /**
@@ -82,7 +83,7 @@ export function goalCitiesOf(session: ReturnType<typeof getUserSession>, userId:
  * 🔴 **이번 운행(`deckOfCycle`)으로 세지 않는다** — 그건 진행 중인 콜이 0건이면 빈 목록이라, 콜 0건 틈에 «안 잡음»이 됐다.
  *    켠 시각은 `call_target_events` 오늘 줄에서 읽어 넘긴다(`goalZonesNow`) — 서버를 다시 띄워도 같다.
  */
-export function homeCallsFrom<T extends { status?: string; capturedAt?: string; goalCity?: string; dropoffX?: number; dropoffY?: number }>(
+export function homeCallsFrom<T extends StopSource & { status?: string; capturedAt?: string; goalCity?: string }>(
     orders: T[], homeOnAt: string | null, home: string | null,
 ): T[] {
     return orders.filter(o => isHomeCallSince({ status: o.status, capturedAt: o.capturedAt, board: boardOf(o) }, homeOnAt, home));

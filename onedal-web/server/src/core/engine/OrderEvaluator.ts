@@ -5,7 +5,7 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
          deriveRouteTimeline, minRouteBuffer, marginalDetourMin, tailSplitOf,
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
-         soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf } from "@onedal/shared";
+         soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf, firstPickupStop, lastDropoffStop, type StopSource } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP, geocodeTargetOf, minutesLate } from '@onedal/shared';
 import type { GeocodeSource } from '@onedal/shared';
@@ -65,7 +65,7 @@ function verdictLine(v: JudgmentSnapshot): string {
  * 판정 입력 — 기점 · 잡은 콜 · 목적지. 판정(`evaluate`)과 1차 신호 미리 출발(`prefetch`)이 같은 한 벌을 쓴다.
  * 세션을 읽기만 한다 — 부를 때마다 그때 값을 읽는다.
  */
-export function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: { reservedDay?: number | null; capturedAt?: string; timestamp?: string; dropoff?: string }) {
+export function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: StopSource & { capturedAt?: string; timestamp?: string }) {
     /**
      * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (기사님 결정 3 «가»).
      *    ① 접근 구간은 지금 자리가 아니라 **집**에서 잰다 — 그날은 집에서 출발한다. 집이 비면 기점이 없다 → 그 축은 «잴 게 없음».
@@ -81,7 +81,7 @@ export function evaluationInputsOf(userId: string, session: ReturnType<typeof ge
      */
     /* 🏠 오늘 콜은 KEEP 과 같은 목표 시(관내 콜은 그 목적지 시 · 그 밖은 필터값) — 복귀를 켠 뒤 관내 콜을 «집 방향»으로 깎지 않는다 (38 F41 · `keepGoalCityOf`) */
     const goalNow = () => reservedLater ? (session.baseFilter.destinationCity ?? '')
-        : keepGoalCityOf({ dropoff: String(order.dropoff ?? ''), destCities: destCitiesOf(session), dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) }).city;
+        : keepGoalCityOf({ dropoff: lastDropoffStop(order)?.listText ?? '', destCities: destCitiesOf(session), dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) }).city;
     /**
      * 🔙 등 뒤 상차의 여유(상차 반경) — 내일 콜은 **내일의 반경**(기본 설정 값). 오늘 자동 반경으로 줄인 값으로 재면 내일 콜을 등 뒤로 깎는다.
      *    기본 값이 비면 오늘 반경으로 물러서지 않고 «모름»(null) — 깎지 않는다.
@@ -168,10 +168,10 @@ export class OrderEvaluator {
      *    세션은 읽기만(기점 · 잡은 콜 수) · 알림·저장 없음 · 판정을 시작하지 않는다(문지기는 /detail 에 그대로).
      *    좌표 둘 → 잡은 콜이 없으면 단독 길찾기까지. 합짐은 좌표만(합짐 경로 인자는 약속 순서·비교 경로 캐시와 얽혀 떼면 두 벌이 된다).
      */
-    public prefetch(userId: string, order: { pickup?: string; dropoff?: string; reservedDay?: number | null; capturedAt?: string; timestamp?: string }): Promise<void> {
+    public prefetch(userId: string, order: StopSource & { capturedAt?: string; timestamp?: string }): Promise<void> {
         return hedgeBudget.run({ left: 2, used: 0 }, async () => {
             try {
-                if (!process.env.KAKAO_REST_API_KEY || !order.pickup || !order.dropoff) return;
+                if (!process.env.KAKAO_REST_API_KEY || !firstPickupStop(order)?.listText || !lastDropoffStop(order)?.listText) return;
                 const [p, d] = await Promise.all([
                     geocodeCallAddress(geocodeTargetOf(this.targetApp as TargetAppType, order as GeocodeSource, 'pickup').text),
                     geocodeCallAddress(geocodeTargetOf(this.targetApp as TargetAppType, order as GeocodeSource, 'dropoff').text),
@@ -212,7 +212,7 @@ export class OrderEvaluator {
         let timeExt = "카카오 연산 실패";
 
         slog('판정', `\n======================================================`);
-        slog('판정', `[서버-사이드 카카오 연산] 🚀 ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
+        slog('판정', `[서버-사이드 카카오 연산] 🚀 ${firstPickupStop(securedOrder)?.listText ?? ''} ➡️ ${lastDropoffStop(securedOrder)?.listText ?? ''}`);
         if (reservedLater) slog('판정', `   - ${reservedLaterLineOf(reservedForOf(securedOrder), snap.origin, snap.pickupRadiusKm)}`);
 
         // 1. 주소 정규화 — 상차·하차는 원달앱이 올린 전체 주소 그대로다(서버는 팝업에서 주소를 꺼내지 않는다)
@@ -232,7 +232,7 @@ export class OrderEvaluator {
 
                 // 카카오 라우팅 연산
                 // ⚠️ 두 쪽 모두 X 로 본다 — 아래 else 의 진단문이 X 로 «어느 쪽이 없나»를 가른다
-                if (securedOrder.pickupX && securedOrder.dropoffX) {
+                if (firstPickupStop(securedOrder)?.geo?.x && lastDropoffStop(securedOrder)?.geo?.x) {
                     const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
                     const activeCalls = snap.activeCalls;
                     const activeMain = activeCalls[0];
@@ -264,8 +264,9 @@ export class OrderEvaluator {
                      */
                     const who = callName({ target: snap.filter.callTarget,
                                            index: snap.activeCalls.length, candidate: true });
-                    const missing = !securedOrder.pickupX ? '상차지' : '하차지';
-                    const addr = (!securedOrder.pickupX ? securedOrder.pickup : securedOrder.dropoff) || '';
+                    const pickupStop = firstPickupStop(securedOrder);
+                    const missing = !pickupStop?.geo?.x ? '상차지' : '하차지';
+                    const addr = (!pickupStop?.geo?.x ? pickupStop?.listText : lastDropoffStop(securedOrder)?.listText) || '';
                     reasons.push(`${who}의 ${missing} 주소를 찾지 못했습니다`);
                     slog('경고', `   - ❌ ${who}: ${missing} 좌표 변환 실패 — '${addr}'`);
                 }
@@ -330,8 +331,8 @@ export class OrderEvaluator {
         try {
             // 단독 오더 연산
             const result = await timed(calculateSoloRoute(...soloRouteArgsOf(userId, () => snap.origin,
-                { x: securedOrder.pickupX!, y: securedOrder.pickupY! },
-                { x: securedOrder.dropoffX!, y: securedOrder.dropoffY! })), ms => { routeMs = ms; });
+                firstPickupStop(securedOrder)!.geo!,
+                lastDropoffStop(securedOrder)!.geo!)), ms => { routeMs = ms; });
 
             // 🔴 필드를 손으로 채우지 않는다 — routeComposer 의 규약을 안 타면
             //    **접근 구간(현위치 → 상차지)이 통째로 버려진다.** 콜을 잡는 주 경로라 특히 그렇다.
@@ -344,9 +345,10 @@ export class OrderEvaluator {
              * 남긴다 — 로그는 3일 순환이라 표본이 증발한다. 역산은 `pnpm reach`.
              */
             const me = snap.origin;
-            if (me && securedOrder.pickupX && securedOrder.pickupY
+            const pickupGeo = firstPickupStop(securedOrder)?.geo;
+            if (me && pickupGeo?.x && pickupGeo.y
                 && securedOrder.approachDurationMin != null) {
-                const lineKm = haversineKm(me, { lat: securedOrder.pickupY, lng: securedOrder.pickupX });
+                const lineKm = haversineKm(me, { lat: pickupGeo.y, lng: pickupGeo.x });
                 if (lineKm > 0.3) {
                     slog('판정',
                         `   - 🧪 [도달 계수 수집] 직선 ${lineKm.toFixed(1)}km → 카카오 ${securedOrder.approachDurationMin}분 ` +
@@ -670,7 +672,7 @@ export class OrderEvaluator {
             if (keywords.length === 0) {
                 reasons.push(`경유 미확정 (경로가 아직 안 잡혔습니다)`);
             } else {
-                const dropoffText = order.dropoff || '';
+                const dropoffText = lastDropoffStop(order)?.listText || '';
                 // 🗺️ 사전 확장 매칭 (④) — "남동"⊂"남동구" 부분 문자열 오탐을 트랩으로 거른다
                 const matched = anyRegionHit(dropoffText, keywords, filter.keywordTraps, filter.destinationDongSigungu);
                 if (!matched) {
@@ -838,7 +840,7 @@ export function soloJudgmentFrom(o: {
      */
     const progress = destProgressOf({
         me: origin,
-        dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
+        dropoff: lastDropoffStop(securedOrder)?.geo ?? {},
         goalCity: goal,
         destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
     });
@@ -877,12 +879,12 @@ export function soloJudgmentFrom(o: {
          */
         pickupBackward: pickupBackwardOf({
             me: origin,
-            pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
+            pickup: firstPickupStop(securedOrder)?.geo ?? {},
             goalCity: goal,
             pickupRadiusKm,
         }),
         // 🏔️ 들어가면 빈 차로 나오는 곳 — 요금으로는 안 보인다 (노하우 148행)
-        trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
+        trapped: trappedOf(lastDropoffStop(securedOrder)?.geo ?? {}),
         excludedHits,
         tags,
     }), judgmentCfg));
@@ -1029,9 +1031,8 @@ export function mergedJudgmentFrom(o: {
          */
         const o = (orderId === securedOrder.id ? securedOrder
             : activeCalls.find(c => c.id === orderId)) as any;
-        const x = stopType === 'pickup' ? o?.pickupX : o?.dropoffX;
-        const y = stopType === 'pickup' ? o?.pickupY : o?.dropoffY;
-        return Number.isFinite(x) && Number.isFinite(y) ? { x: x as number, y: y as number } : null;
+        const geo = !o ? null : stopType === 'pickup' ? firstPickupStop(o)?.geo : lastDropoffStop(o)?.geo;
+        return geo && Number.isFinite(geo.x) && Number.isFinite(geo.y) ? geo : null;
     };
     /* ☎️ 정거장의 동 이름 — 늦으면 «전화할 곳»이다 (전수표 #42). 좌표를 모르면 null.
      *    ⚠️ 동 이름은 중심점 «최근접»이라 경계 근처에선 한 동 어긋날 수 있다 — 표시 전용, 판정은 좌표로 잰다 */
@@ -1137,7 +1138,7 @@ export function mergedJudgmentFrom(o: {
             }
             const p = destProgressOf({
                 me: from,
-                dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
+                dropoff: lastDropoffStop(securedOrder)?.geo ?? {},
                 goalCity: goal,
             });
             /**
@@ -1159,7 +1160,7 @@ export function mergedJudgmentFrom(o: {
          *    (`isTrappedRegion`), 다른 축은 갇힘을 아무도 안 본다. 빼면 「합짐일 때는
          *    갇힘을 안 본다」는 칸이 새로 생긴다.
          */
-        trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
+        trapped: trappedOf(lastDropoffStop(securedOrder)?.geo ?? {}),
         // 🏗️ 정차 중(모으는 중) ↔ 주행 중 — 가르는 곳은 `resolvePhaseKey` 하나다
         phase: resolvePhaseKey(filter.callTarget, filter.dispatchPhase),
         tags,
@@ -1190,17 +1191,17 @@ export function fallbackJudgmentFrom(o: {
          */
         progress: destProgressOf({
             me: origin,
-            dropoff: { x: securedOrder.dropoffX, y: securedOrder.dropoffY },
+            dropoff: lastDropoffStop(securedOrder)?.geo ?? {},
             goalCity: goal,
             destinationRadiusKm: DEST_ARRIVED_RADIUS_KM,
         }),
         pickupBackward: pickupBackwardOf({
             me: origin,
-            pickup: { x: securedOrder.pickupX, y: securedOrder.pickupY },
+            pickup: firstPickupStop(securedOrder)?.geo ?? {},
             goalCity: goal,
             pickupRadiusKm,
         }),
-        trapped: trappedOf({ x: securedOrder.dropoffX, y: securedOrder.dropoffY }),
+        trapped: trappedOf(lastDropoffStop(securedOrder)?.geo ?? {}),
         tags: [`판정 불가 — ${why}`, ...approxTagsOf(securedOrder)],
     }), judgmentCfg));
     return dry;

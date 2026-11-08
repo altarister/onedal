@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode, firstPickupStop, lastDropoffStop } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -224,7 +224,7 @@ router.post("/confirm", (req, res) => {
         if (io) {
             slog('통신', `📤 [Socket 푸시] order-evaluating (${pendingOrder.id}) - 상태: ${pendingOrder.status}`);
             io.to(userId).emit("order-evaluating", pendingOrder);
-            slog('콜단계', `⏱️ [1차 선점 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${deviceLabelOf(payload.deviceId)})`);
+            slog('콜단계', `⏱️ [1차 선점 수신] ${firstPickupStop(pendingOrder)?.listText ?? ''} ➡️ ${lastDropoffStop(pendingOrder)?.listText ?? ''} (기기: ${deviceLabelOf(payload.deviceId)})`);
             logRoadmapEvent('콜단계', "서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");
             logRoadmapEvent('콜단계', "서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
 

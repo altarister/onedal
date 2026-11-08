@@ -3,7 +3,7 @@
  * 🔴 이 파일은 마일스톤(services/milestones)을 가져오지 않는다 — 방향: sessionRestore · milestones → dispatchEngine(결재 · 경로 재계산).
  * 바깥 일을 하는 함수: bootstrapUserSession · bootstrapOnce · hydrateVisitedStops · restoreAndRecalculateSession(세션 · 장부(DB) · 단계 장부 · 궤적 저장 · 카카오 · 설정 · 지금 시각 · 소켓 · 로그) (콜 한 줄 · 다녀온 정거장 · 마지막 점 셈 restoredOrderFrom · visitedStopsFrom · restoredFixFrom 은 값만 받는다)
  */
-import { businessDayKey, restoreWhere, deriveDispatchPhase, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, restoreWindow } from "@onedal/shared";
+import { businessDayKey, restoreWhere, deriveDispatchPhase, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_BUSINESS_DAYS, restoreWindow, firstPickupStop, lastDropoffStop } from "@onedal/shared";
 import { isHeldReserved } from "../services/reservedOrders";
 import type { MyOrder } from "@onedal/shared";
 import { calculateSoloRoute } from "../services/kakaoService";
@@ -366,7 +366,9 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         const activeSubs = activeCalls.slice(1);
 
         // 3. 첫짐 콜의 카카오 궤적 1회 복구
-        if (activeMain && activeMain.pickupX && activeMain.dropoffX) {
+        const mainP = activeMain ? firstPickupStop(activeMain)?.geo : null;
+        const mainD = activeMain ? lastDropoffStop(activeMain)?.geo : null;
+        if (activeMain && mainP?.x && mainD?.x) {
             /**
              * 🗺️ **장부에 궤적이 있으면 다시 재지 않는다** (기사님 확정).
              *
@@ -383,8 +385,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 // 🔴 복구도 마찬가지다 — 상차하고 달리다 **새로고침만 해도** 경로가 상차지로
                 //    되돌아가던 자리다.
                 const res = await calculateSoloRoute(
-                    activeMain.pickupX, activeMain.pickupY!,
-                    activeMain.dropoffX, activeMain.dropoffY!,
+                    mainP.x, mainP.y,
+                    mainD.x, mainD.y,
                     originOf(session),
                     routingOptions.defaultPriority,
                     routingOptions.carType,

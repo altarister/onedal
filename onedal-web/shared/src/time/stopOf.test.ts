@@ -5,7 +5,7 @@ import { firstPickupStop, lastDropoffStop, isReservedCall, firstStopKm, delivery
  * 🚏 **첫 상차 · 마지막 하차 정거장** — 맨 위 칸만 있는 콜과 정거장 칸도 있는 콜에서 같은 칸을 낸다.
  *    **예약 콜** — 첫 상차 정거장의 «예약» 글자 · 날로 가른다.
  *    **상차 거리 · 배송 거리** — 정거장 거리에서 꺼내고, 배송 거리는 한 곳이라도 모르면 null.
- * 못 잡는 것: 서버가 이 함수를 읽는지(읽는 걸음에서) · 관제웹 화면 글자는 관제웹 `stopScreenText.test.ts`.
+ * 못 잡는 것: 관제웹 화면 글자(관제웹 `stopScreenText.test.ts`) · 서버 판정 값(서버 jest).
  */
 describe('🚏 firstPickupStop · lastDropoffStop', () => {
     it('맨 위 칸만 있는 콜 — 목록 글자와 좌표를 정거장 모양으로', () => {
