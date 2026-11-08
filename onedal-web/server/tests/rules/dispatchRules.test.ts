@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { sameCallOf } from '../../src/routes/detail';
+import { callFromShape, callShapeOf, CALL_SHAPE_VERSION } from '@onedal/shared';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -189,6 +190,32 @@ describe('🔁 같은 콜 찾기 — sameCallOf', () => {
 
     it('번호가 같으면 같은 콜이다', () => {
         expect(sameCallOf(call('a', { listText: '가산동' }, { listText: '방배동' }), call('a', { listText: '구로동' }, { listText: '방배동' }, 1))).toBe(true);
+    });
+
+    /* 🔢 오더 번호 — 두 콜 모두 번호가 있을 때만 번호로 가른다(배차망 이름이 아니라 «번호가 있다» 사실로) */
+    const pickup24 = { listText: '경기 군포 부곡동', addressDetail: '경기 군포 당정동 공단로124번길 4 (크레텍)' };
+    const dropoff24 = { listText: '경기 화성 신동', addressDetail: '경기 화성 신동 703' };
+    const numbered = (id: string, orderNo: string | null, pickup = pickup24): any => ({ ...call(id, pickup, dropoff24, 250000), orderNo });
+
+    it('🔴 노선 · 요금 · 상차 상세 주소가 같아도 오더 번호가 다르면 다른 콜이다', () => {
+        expect(sameCallOf(numbered('a', '3-4991-0836'), numbered('b', '3-5100-2200'))).toBe(false);
+    });
+
+    it('오더 번호가 같으면 상차 글자가 조금 달라도 같은 콜이다', () => {
+        const reopened = numbered('b', '3-4991-0836', { listText: '경기 군포 당정동', addressDetail: '경기 군포 당정동 공단로124번길 4' });
+        expect(sameCallOf(numbered('a', '3-4991-0836'), reopened)).toBe(true);
+    });
+
+    it('한쪽이라도 오더 번호가 없으면 노선 · 요금 · 주소로 가른다', () => {
+        expect(sameCallOf(numbered('a', '3-4991-0836'), numbered('b', null))).toBe(true);
+        expect(sameCallOf(numbered('a', null), numbered('b', '3-5100-2200'))).toBe(true);
+        expect(sameCallOf(numbered('a', null), numbered('b', null))).toBe(true);
+    });
+
+    it('🔴 콜 한 칸으로 되살린 콜도 오더 번호로 가른다', () => {
+        const restored = callFromShape(callShapeOf(numbered('a', '3-4991-0836')), CALL_SHAPE_VERSION) as any;
+        expect(restored.orderNo).toBe('3-4991-0836');
+        expect(sameCallOf(restored, numbered('b', '3-5100-2200'))).toBe(false);
     });
 });
 

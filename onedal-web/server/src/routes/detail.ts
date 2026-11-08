@@ -32,6 +32,8 @@ const router = Router();
 /**
  * 🔁 **같은 콜인가 — 값만 받는 셈** (앞에 잡은 콜 · 새로 연 상세).
  *    번호가 같거나 · 요금 · 상차 · 하차 정거장 글자(`stopTextOf` — 상세 주소가 먼저)가 같고 상차 전화나 상차 상세 주소가 같으면 같은 콜이다.
+ *    두 콜 모두 오더 번호(`orderNo`)가 있으면 오더 번호가 같은지만 답이다 — 배차망 이름이 아니라 «번호가 있다» 사실로 가른다.
+ *    오더 번호 — 지금 읽는 배차망은 화물24시뿐(정의 표 `orderNo` 줄).
  */
 export function sameCallOf(existingOrder: SecuredOrder | PendingOrder, pendingOrder: SecuredOrder | PendingOrder): boolean {
     const phone1 = existingOrder.pickupDetails?.[0]?.phone1;
@@ -47,6 +49,7 @@ export function sameCallOf(existingOrder: SecuredOrder | PendingOrder, pendingOr
     const isExactAddrMatch = !!p1Addr && !!p2Addr && p1Addr === p2Addr;
 
     if (existingOrder.id === pendingOrder.id) return true;
+    if (existingOrder.orderNo && pendingOrder.orderNo) return existingOrder.orderNo === pendingOrder.orderNo;
     if (isPhoneMatch && isPickupAddressMatch && isDropoffAddressMatch && isFareMatch) return true;
     if (isFareMatch && isPickupAddressMatch && isDropoffAddressMatch && isExactAddrMatch) return true;
     return false;
