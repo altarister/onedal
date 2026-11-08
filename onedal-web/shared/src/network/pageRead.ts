@@ -105,9 +105,12 @@ export function stopTextOf(stop: CallStop | null | undefined): string {
 }
 
 const SPACES = /\s+/;
-/** 약속 앞글자 · 뒷글자와 동을 가르는 표 — «낼8:30/가산동» · «@낼8:30)방배동» · «내곡동/7시까지» */
+/** 약속 앞글자 · 뒷글자와 동을 가르는 표 — «낼8:30/가산동» · «@낼8:30)방배동» · «내곡동/7시까지» · 글자에 «(» 가 있으면 «)» 는 인성 끝 괄호라 «/» 만 */
 const PROMISE_CUT = /[/)]/;
-/** 동 꼴 토막 — 한글 둘 이상으로 시작하고 숫자는 동 번호 둘까지(«역삼1동» · «을지로6가») · «낼8:30» · «7시까지»는 아니다 */
+const PROMISE_CUT_NO_PAREN = /\//;
+/** 지역 끝말이 붙은 토막 — 원달앱 `LocationTextAnalyzer` 1차와 같은 끝말(숫자+동 · 가 · 동 · 읍 · 면 · 리 · 시 · 구 · 군) · «오늘중»은 아니다 */
+const REGION_PIECE = /^[가-힣]{2,}(?:\d{1,2}[동가]|[동읍면리시구군])$/;
+/** 동 꼴 토막 — 끝말 토막이 없을 때 · 한글 둘 이상으로 시작하고 숫자는 동 번호 둘까지(«역삼1동» · «을지로6가») · «낼8:30» · «7시까지»는 아니다 */
 const PLACE_PIECE = /^[가-힣]{2,}\d{0,2}[가-힣]*$/;
 const JOINED_CITY_GU = /^([가-힣]+[시군])([가-힣]+구)$/;
 /** 번지 — 숫자만 · 숫자-숫자 토막(«907» · «158-95») · «은행2동» 같은 동 번호는 아니다 */
@@ -152,16 +155,19 @@ function unglueCity(dong: string, head: readonly string[]): string {
 
 /**
  * 📍 **판정 글자** — 지오코딩 · 필터 · 상세 요건이 읽는 다듬은 글자와, 좌표를 다시 찍을지(`geocodeTargetOf` 와 같은 규칙).
- *    ① `stopTextOf` ② 토막마다 앞 «@» 를 떼고, 마지막 토막에 약속 글자가 «/» · «)» 로 붙어 있으면 동 꼴 토막만 남긴다
+ *    ① `stopTextOf` ② 토막마다 앞 «@» 를 떼고, 마지막 토막에 약속 글자가 «/» · «)»(글자에 «(» 가 없을 때만) 로 붙어 있으면
+ *       지역 끝말 토막을 · 없으면 동 꼴 토막을 남긴다(원달앱 `LocationTextAnalyzer` 의 1차 · 2차 순서)
  *    ③ 정의 표 `addressCut` ④ 붙은 «…시…구» · «시 이름 + 동»을 명부에 있을 때만 띄운다(원달앱 `IsflexAddress.clean` 과 같은 규칙)
  *    ⑤ 번지가 없고 상호가 있으면(그 상호가 아직 글자에 없을 때) 뒤에 잇는다.
  *    정거장에는 화면 원문이 남고, 이 글자는 저장하지 않는다.
  */
 export function stopQueryOf(app: TargetAppType, stop: (CallStop & { geoText?: string }) | null | undefined): { text: string; need: boolean } {
     const tokens = stopTextOf(stop).trim().split(SPACES).map(t => t.replace(/^@+/, '')).filter(Boolean);
+    const promiseCut = tokens.some(t => t.includes('(')) ? PROMISE_CUT_NO_PAREN : PROMISE_CUT;
     const last = tokens.pop();
     if (last !== undefined) {
-        const place = PROMISE_CUT.test(last) ? last.split(PROMISE_CUT).filter(p => PLACE_PIECE.test(p)).pop() : undefined;
+        const pieces = promiseCut.test(last) ? last.split(promiseCut) : [];
+        const place = pieces.filter(p => REGION_PIECE.test(p)).pop() ?? pieces.filter(p => PLACE_PIECE.test(p)).pop();
         tokens.push(place ?? last);
     }
     const cut = addressOf(app, tokens.join(' ')).split(SPACES).filter(Boolean);

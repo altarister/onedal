@@ -23,10 +23,13 @@ describe('📍 stopQueryOf — 지금 판정 글자와 같다', () => {
         expect(stopQueryOf('insung', { listText: '안녕동', addressDetail: detail, customerName: '*레드캠프' }).text)
             .toBe(geocodeTargetOf('insung', { pickup: '안녕동', pickupDetails: [{ addressDetail: detail }] }, 'pickup').text);
         expect(stopQueryOf('insung', { addressDetail: detail }).text).toBe('경기 화성시 안녕동 158-95');
+        expect(stopQueryOf('insung', { addressDetail: '경기 화성시 안녕동 158-95(경기 화성시 안녕동)' }).text).toBe('경기 화성시 안녕동 158-95');
     });
-    it('인성 목록만 — 약속 앞글자 · «@» 를 뗀다', () => {
+    it('인성 목록만 — 약속 앞글자 · 뒷글자 · «@» 를 뗀다', () => {
         expect(stopQueryOf('insung', { listText: '@낼8:30/가산동' }).text).toBe('가산동');
         expect(stopQueryOf('insung', { listText: '10:20전/쌍림동' }).text).toBe('쌍림동');
+        expect(stopQueryOf('insung', { listText: '내곡동/7시까지' }).text).toBe('내곡동');
+        expect(stopQueryOf('insung', { listText: '가산동/오늘중' }).text).toBe('가산동');
     });
     it('픽커 목록 — 다듬을 것 없음', () => {
         expect(stopQueryOf('kakaopicker', { listText: '광주 송정' }).text)

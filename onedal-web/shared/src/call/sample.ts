@@ -42,12 +42,12 @@ export const OFFICE_ORDER_SAMPLE = {
     orderForm: "형태",
     detailMemo: "적요",
     pickupDetails: [{
-        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당", mileage: 0,
+        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당",
         phone1: "상차 전화1", phone2: "상차 전화2", region: "초월읍",
         addressDetail: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점", requestedTime: "", memo: "상차 메모",
     }],
     dropoffDetails: [{
-        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당", mileage: 0,
+        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당",
         phone1: "하차 전화1", phone2: "하차 전화2", region: "신둔면",
         addressDetail: "경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점", requestedTime: "", memo: "하차 메모",
     }],
@@ -114,14 +114,14 @@ const OFFICE_ORDER_SAMPLE_02 = {
     orderForm: "형태",
     detailMemo: "적요",
     pickupDetails: [{
-        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당", mileage: 0,
+        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당",
         phone1: "상차 전화1", phone2: "상차 전화2", region: "초월읍",
         addressDetail: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
         requestedDay: 0, requestedTime: "10:01",          // ← reservedDay · reservedAt · pickupTime 자리
         memo: "상차 메모",
     }],
     dropoffDetails: [{
-        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당", mileage: 0,
+        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당",
         phone1: "하차 전화1", phone2: "하차 전화2", region: "신둔면",
         addressDetail: "경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점",
         requestedDay: 0, requestedTime: "13:01",          // ← 하차 약속 — 날이 새로 생김
@@ -183,14 +183,14 @@ const OFFICE_ORDER_SAMPLE_03 = {
     orderForm: "형태",
     detailMemo: "적요",
     pickupDetails: [{
-        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당", mileage: 0,
+        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당",
         phone1: "상차 전화1", phone2: "상차 전화2", region: "초월읍",
         addressDetail: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
         requestedDay: 0, requestedTime: "10:01",
         memo: "상차 메모",
     }],
     dropoffDetails: [{
-        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당", mileage: 0,
+        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당",
         phone1: "하차 전화1", phone2: "하차 전화2", region: "신둔면",
         addressDetail: "경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점",
         requestedDay: 0, requestedTime: "13:01",
@@ -394,14 +394,14 @@ const OFFICE_ORDER_SAMPLE_04 = {
     orderForm: "형태",
     detailMemo: "적요",
     pickupDetails: [{
-        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당", mileage: 0,
+        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당",
         phone1: "상차 전화1", phone2: "상차 전화2", region: "초월읍",
         addressDetail: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
         requestedDay: 0, requestedTime: "10:01",
         memo: "상차 메모",
     }],
     dropoffDetails: [{
-        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당", mileage: 0,
+        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당",
         phone1: "하차 전화1", phone2: "하차 전화2", region: "신둔면",
         addressDetail: "경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점",
         requestedDay: 0, requestedTime: "13:01",
@@ -552,14 +552,14 @@ const OFFICE_ORDER_SAMPLE_05 = {
     orderForm: "형태",
     detailMemo: "적요",
     pickupDetails: [{
-        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당", mileage: 0,
+        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당",
         phone1: "상차 전화1", phone2: "상차 전화2", region: "초월읍",
         addressDetail: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
         requestedDay: 0, requestedTime: "10:01",
         memo: "상차 메모",
     }],
     dropoffDetails: [{
-        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당", mileage: 0,
+        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당",
         phone1: "하차 전화1", phone2: "하차 전화2", region: "신둔면",
         addressDetail: "경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점",
         requestedDay: 0, requestedTime: "13:01",
@@ -700,14 +700,14 @@ const OFFICE_ORDER_SAMPLE_06 = {
 
     // ── 정거장 ──
     pickupDetails: [{
-        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당", mileage: 0,
+        customerName: "상차 고객명", department: "상차 부서", contactName: "상차 담당",
         phone1: "상차 전화1", phone2: "상차 전화2", region: "초월읍",
         addressDetail: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
         requestedDay: 0, requestedTime: "10:01",
         memo: "상차 메모",
     }],
     dropoffDetails: [{
-        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당", mileage: 0,
+        customerName: "하차 고객명", department: "하차 부서", contactName: "하차 담당",
         phone1: "하차 전화1", phone2: "하차 전화2", region: "신둔면",
         addressDetail: "경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점",
         requestedDay: 0, requestedTime: "13:01",
