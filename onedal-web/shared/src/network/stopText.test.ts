@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { geocodeTargetOf, stopTextOf, stopQueryOf } from './pageRead';
+import type { CallStop, TargetAppType } from '../index';
 
 /**
  * 🏠 **이 정거장 글자 · 판정 글자** — `stopTextOf` 는 상세 주소가 먼저 · 없으면 목록 원문,
@@ -75,5 +78,19 @@ describe('📍 stopQueryOf — 지금 판정 글자와 같다', () => {
     });
     it('빈 정거장은 빈 글자', () => {
         expect(stopQueryOf('insung', null)).toEqual({ text: '', need: true });
+    });
+});
+
+/**
+ * 📍 **플렉스 판정 글자 문제지** — 공통 문제지 `pageReadCases.json` `stopQueryCases`(실물 수집 원문 · 상세 xml 칸)를 `stopQueryOf` 로 푼다.
+ *    `expect` 는 맞는 답 · `appNow` 는 지금 원달앱 `IsflexAddress.clean` 답(견주기 기록) · `expect` 가 null 이면 원문이 잘려 모름이라 풀지 않는다.
+ *    못 잡는 것: 원달앱 짝 함수가 같은 답인지(원달앱 걸음 몫) · 실제 카카오 좌표.
+ */
+describe('📍 stopQueryOf — 플렉스 판정 글자 문제지 (stopQueryCases)', () => {
+    const sheet = JSON.parse(readFileSync(join(__dirname, 'pageReadCases.json'), 'utf8')) as
+        { stopQueryCases: Array<{ network: TargetAppType; side: 'pickup' | 'dropoff'; stop: CallStop; expect: string | null; appNow: string; rule: 'stopQueryOf' | 'promise' | 'addressCut'; why: string }> };
+    const known = sheet.stopQueryCases.filter(c => c.expect !== null);
+    it.each(known.map(c => [c.side, JSON.stringify(c.stop), c] as const))('%s %s', (_side, _stop, c) => {
+        expect(stopQueryOf(c.network, c.stop).text).toBe(c.expect);
     });
 });

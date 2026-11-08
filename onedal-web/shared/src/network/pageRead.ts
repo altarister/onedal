@@ -156,6 +156,21 @@ function unglueCity(dong: string, head: readonly string[]): string {
     return dong;
 }
 
+const UNCLOSED_PAREN = /^(.*)\(([^()]*)$/;
+const UNPAIRED_BRACKET = /^([^[\]]*)\]([^[\]]*)$/;
+
+/**
+ * 안 닫힌 «(» · 짝 없는 «]» 가르기 — 목록 칸 글이 잘려 «(» 뒤 · «]» 앞에 덧글이 붙은 꼴(«고덕동(평택» · «광주]역동»).
+ *    덧글이 명부의 시 · 군 짧은 이름이면 `city` 로 돌려준다(«시 동»으로 잇는다) · 아니면 버린다. 닫힌 괄호(인성 끝 «(…)»)는 건드리지 않는다.
+ */
+function unclosedOf(token: string): { base: string; city?: string } {
+    const paren = UNCLOSED_PAREN.exec(token);
+    const bracket = paren ? null : UNPAIRED_BRACKET.exec(token);
+    const [base, extra] = paren ? [paren[1], paren[2]] : bracket ? [bracket[2], bracket[1]] : [token, ''];
+    if (!base) return { base: token };
+    return cityDongs().byCity.has(extra) ? { base, city: extra } : { base };
+}
+
 const PROMISE_GLUE_FRONT = new Set(['/', '@', '(']);
 const PROMISE_GLUE_BACK = new Set(['/', ')']);
 
@@ -190,6 +205,7 @@ function withoutPromise(text: string, promise: string): string {
  *       지역 끝말 토막(`REGION_PIECE`)을 · 없으면 동 꼴 토막(`PLACE_PIECE`)을 남긴다.
  *       끝말 목록은 원달앱 `LocationTextAnalyzer` 1차와 같다. 원달앱은 토막을 나누지 않아 «가산동/오늘중»을 «오늘중»으로 읽는다.
  *       어느 쪽이든 토막마다 앞 «@» 는 뗀다
+ *       마지막 토막에 안 닫힌 «(» 뒤 · 짝 없는 «]» 앞 글이 있으면 먼저 가른다 — 그 글이 명부의 시 · 군 짧은 이름이면 «시 동»으로 잇고(«고덕동(평택» → «평택 고덕동»), 아니면 버린다(«상대원동(1박스» → «상대원동»)
  *    ③ 정의 표 `addressCut` ④ 붙은 «…시…구» · «시 이름 + 동»을 명부에 있을 때만 띄운다(원달앱 `IsflexAddress.clean` 과 같은 규칙)
  *    ⑤ 번지가 없고 상호가 있으면(그 상호가 아직 글자에 없을 때) 뒤에 잇는다.
  *    정거장에는 화면 원문이 남고, 이 글자는 저장하지 않는다.
@@ -198,6 +214,8 @@ export function stopQueryOf(app: TargetAppType, stop: CallStop | null | undefine
     const promise = stop?.promiseText?.trim();
     const raw = promise ? withoutPromise(stopTextOf(stop), promise) : stopTextOf(stop);
     const tokens = raw.trim().split(SPACES).map(t => t.replace(/^@+/, '')).filter(Boolean);
+    const open = tokens.length ? unclosedOf(tokens.pop()!) : undefined;
+    if (open) tokens.push(open.base);
     const last = promise ? undefined : tokens.pop();
     if (last !== undefined) {
         const promiseCut = tokens.some(t => t.includes('(')) || last.includes('(') ? PROMISE_CUT_NO_PAREN : PROMISE_CUT;
@@ -205,6 +223,7 @@ export function stopQueryOf(app: TargetAppType, stop: CallStop | null | undefine
         const place = pieces.filter(p => REGION_PIECE.test(p)).pop() ?? pieces.filter(p => PLACE_PIECE.test(p)).pop();
         tokens.push(place ?? last);
     }
+    if (open?.city) tokens.splice(tokens.length - 1, 0, open.city);
     const cut = addressOf(app, tokens.join(' ')).split(SPACES).filter(Boolean);
     const dong = cut.pop();
     const head = cut.flatMap(splitCityGu);

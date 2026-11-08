@@ -88,9 +88,9 @@ describe('주소 다듬기 (addressCut)', () => {
         insung: a => a.replace(/\(.*?\)$/g, '').trim(),
         hwamul24: a => a.split(',')[0].trim(),
         kakaopicker: a => a.trim(),
-        isflex: a => a.trim(),
+        isflex: a => a.replace(/^@?[A-Z.](?=[가-힣])/, '').trim(),
     };
-    const SAMPLES = ['서울 강남구 역삼동 123 (역삼빌딩)', '가 (나) 다 (라)', '경기 군포 부곡동, 101동 1호', ' 용산 한남 ', '경기 광주시 경안동', '(앞괄호) 서울 중구', '', ',앞쉼표'];
+    const SAMPLES = ['서울 강남구 역삼동 123 (역삼빌딩)', '가 (나) 다 (라)', '경기 군포 부곡동, 101동 1호', ' 용산 한남 ', '경기 광주시 경안동', '(앞괄호) 서울 중구', '', ',앞쉼표', '@A한남동', '@.대치동'];
     it('배차망마다 칸이 있고 · 공통 문법 · 기준 답과 같은 답', () => {
         for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
             expect(spec.addressCut === null || typeof spec.addressCut === 'string', `${net} addressCut`).toBe(true);
