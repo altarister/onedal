@@ -46,6 +46,21 @@ describe('📄 상세 콜 자료 — 정의 표', () => {
         expect(receipt.billingType).toBe('인수증');
         expect(receipt.paymentType).toBeUndefined();
     });
+    it('🔴 화물24시 상세 상차지 · 하차지 칸 → 정거장 상세 주소 · 끝 괄호 상호(주소 9) — 원문은 공통 문제지에서', () => {
+        const sheet = SHEET.cases.find(c => c.network === 'hwamul24' && c.field === 'pickup')!.texts.join(' ');
+        expect(detailRecordOf('hwamul24', sheet)).toMatchObject({
+            pickupDetails: [{ addressDetail: '경기 군포 당정동 공단로124번길 4', customerName: '크레텍' }],
+            dropoffDetails: [{ addressDetail: '경기 안산 단원구 와동왕복' }],
+        });
+        expect(detailRecordOf('hwamul24', sheet).dropoffDetails[0].customerName).toBeUndefined();
+    });
+    it('🔴 플렉스 상세 원문 → 정거장 빈 목록 그대로 — 조각 없는 출발 · 도착 줄은 정거장을 만들지 않는다', () => {
+        expect(detailRecordOf('isflex', sheetText('isflex', 'pickup'))).toMatchObject({ pickupDetails: [], dropoffDetails: [] });
+    });
+    it('🔴 인성 머리표 없는 원문 → 빈 목록 그대로', () => {
+        const noTags = FULL.replace('[출발지상세]', '').replace('[도착지상세]', '');
+        expect(detailRecordOf('insung', noTags)).toMatchObject({ pickupDetails: [], dropoffDetails: [] });
+    });
     it('화면 글자가 «모름»이면 결제 · 증빙에 담지 않는다 — «모름» 값은 돈 묶음(paymentOf)에서만', () => {
         expect(detailRecordOf('insung', '요금 : 40,000(모름)(모름)')).toEqual({ pickupDetails: [], dropoffDetails: [] });
         expect(detailRecordOf('hwamul24', '결제방법 모름').paymentType).toBeUndefined();

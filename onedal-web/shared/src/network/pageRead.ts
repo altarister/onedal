@@ -224,9 +224,9 @@ const DETAIL_RECORD: ReadonlyArray<readonly [key: DetailRecordText, field: PageF
     ['tollFare', 'toll'], ['tripType', 'tags'], ['orderForm', 'reservation'],
     ['dispatcherName', 'contact', 'dispatcher'], ['dispatcherPhone', 'contact', 'dispatcherPhone'],
 ];
-/** 연락처 팝업 한 덩어리의 조각 — 출발 · 도착이 같은 꼴이다 */
-const STOP_CONTACT: ReadonlyArray<readonly [key: keyof CallStop, field: PageField, part: (side: string) => string]> = [
-    ['customerName', 'contact', s => `${s}.customer`], ['addressDetail', 'pickup', () => ''], ['department', 'contact', s => `${s}.department`],
+/** 정거장 한 덩어리의 조각 — 출발 · 도착이 같은 꼴이다 · 상세 주소는 `<쪽>.address` 조각 줄이 먼저, 없으면 조각 없는 줄(`plainToo`) */
+const STOP_CONTACT: ReadonlyArray<readonly [key: keyof CallStop, field: PageField, part: (side: string) => string, plainToo?: true]> = [
+    ['customerName', 'contact', s => `${s}.customer`], ['addressDetail', 'pickup', s => `${s}.address`, true], ['department', 'contact', s => `${s}.department`],
     ['contactName', 'contact', s => `${s}.contactName`], ['phone1', 'contact', s => `${s}.phone1`], ['phone2', 'contact', s => `${s}.phone2`],
 ];
 
@@ -234,7 +234,8 @@ const STOP_CONTACT: ReadonlyArray<readonly [key: keyof CallStop, field: PageFiel
  * 📄 **상세 원문의 콜 자료** — 상태 · 물품 · 결제 · 계산서 · 수수료 · 탁송료 · 구분 · 형태 · 배차사 · 적요 · 출발 · 도착 연락처(서버 `/detail` · 기사님 «1~5 모두 가»).
  *    칸마다 상세 화면 정의 줄의 읽는 법으로 읽는다. 🔴 못 찾은 칸은 싣지 않는다 — `/detail` 이 이 결과를 앞 기억 위에 펼치므로 빈 칸이 아는 값을 지우면 안 된다.
  *    결제 · 계산서는 알려진 값(결제 · 증빙 값 목록 `money.ts` — «모름» 은 빼고)일 때만 · 적요는 팝업 글(줄바꿈 → 공백)이 먼저, 없으면 본문 «적요상세» 줄(상차 약속 시각이 본문 시각으로 바뀌지 않게).
- *    출발 · 도착 연락처는 그 팝업 머리표가 원문에 있을 때만 한 덩어리(없으면 빈 목록).
+ *    출발 · 도착 정거장은 인성 팝업 머리표가 원문에 있거나 그 정거장 조각(`pickup.` · `dropoff.`) 줄을 하나라도 읽었을 때만 한 덩어리(없으면 빈 목록) —
+ *    조각 없는 출발 · 도착 줄만 읽힌 원문(플렉스 상세)은 덩어리를 만들지 않는다.
  */
 export type DetailRecord = DetailFields
     & { pickupDetails: CallStop[]; dropoffDetails: CallStop[] };
@@ -249,13 +250,16 @@ export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecor
     const memo = read('memo', 'popup')?.replace(/\s+/g, ' ').trim() || read('memo', 'body');
     if (memo) out.detailMemo = memo;
     const stopOf = (side: 'pickup' | 'dropoff', tag: string): CallStop[] => {
-        if (!rawText.includes(tag)) return [];
         const info: CallStop = {};
-        for (const [key, field, part] of STOP_CONTACT) {
-            const v = read(field === 'pickup' ? side : field, part(side));
+        let partRead = false;
+        for (const [key, field, part, plainToo] of STOP_CONTACT) {
+            const name = field === 'pickup' ? side : field;
+            const fromPart = read(name, part(side));
+            if (fromPart !== undefined) partRead = true;
+            const v = fromPart ?? (plainToo ? read(name) : undefined);
             if (v !== undefined) (info as Record<string, string>)[key] = v;
         }
-        return [info];
+        return partRead || rawText.includes(tag) ? [info] : [];
     };
     return { ...out, pickupDetails: stopOf('pickup', '[출발지상세]'), dropoffDetails: stopOf('dropoff', '[도착지상세]') };
 }

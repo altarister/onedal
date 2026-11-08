@@ -22,6 +22,10 @@ describe('📍 geocodeTargetOf', () => {
         expect(geocodeTargetOf('insung', later)).toEqual({ text: DETAIL, need: true });
         expect(geocodeTargetOf('insung', { ...later, geoText: DETAIL }).need).toBe(false);
     });
+    it('🔴 화물24시 하차 주소 끝 «왕복»은 지오코딩 글에서 뗀다 · 쉼표 뒤 상세는 지금처럼 지운다', () => {
+        expect(geocodeTargetOf('hwamul24', { listText: '경기 안산 단원구 와동', addressDetail: '경기 안산 단원구 와동왕복' }).text).toBe('경기 안산 단원구 와동');
+        expect(geocodeTargetOf('hwamul24', { addressDetail: '경기 군포 당정동 공단로124번길 4, 2층' }).text).toBe('경기 군포 당정동 공단로124번길 4');
+    });
     it('좌표가 없으면 찍는다 · 찍은 글을 모르는 옛 콜도 한 번 다시 찍는다', () => {
         expect(geocodeTargetOf('insung', { listText: '초월읍' }).need).toBe(true);
         expect(geocodeTargetOf('insung', { listText: '초월읍', geo: { x: 1, y: 2 } }).need).toBe(true);
