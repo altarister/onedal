@@ -80,8 +80,8 @@ class ListRowScan(
          */
         if ((firstPickupStop(order)?.requestedDay ?: 0) < 1) {
             val scanRadiusKm = scrapParser.todayPickupRadiusKm()
-            callMemory.releaseIfCloser(orderHash, firstPickupStop(order)?.distanceKm, scanRadiusKm)?.let { was ->
-                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔁 [가까워져 다시 판정] ${StopText.of(firstPickupStop(order))}→${StopText.of(lastDropoffStop(order))} · $was → ${firstPickupStop(order)?.distanceKm}km (반경 ${scanRadiusKm}km)")
+            callMemory.releaseIfCloser(orderHash, firstStopKm(order), scanRadiusKm)?.let { was ->
+                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔁 [가까워져 다시 판정] ${StopText.of(firstPickupStop(order))}→${StopText.of(lastDropoffStop(order))} · $was → ${firstStopKm(order)}km (반경 ${scanRadiusKm}km)")
             }
         }
         if (callMemory.alreadyEvaluated(orderHash)) {
@@ -149,7 +149,7 @@ class ListRowScan(
          */
         if (!isTarget) callMemory.onScanned(orderHash, wasEvaluated, passed = false)
         // 🔁 상차 축으로 막았으면 그때 km 를 적는다 — 가까워지면 위에서 푼다
-        if (!isTarget && wasEvaluated) firstPickupStop(order)?.distanceKm?.let { km -> if (judged.verdict == "pickup") callMemory.rememberBlockedKm(orderHash, km) }
+        if (!isTarget && wasEvaluated) firstStopKm(order)?.let { km -> if (judged.verdict == "pickup") callMemory.rememberBlockedKm(orderHash, km) }
         if (!wasEvaluated) {
             AppLogger.d(TAG, LogTag.FILTER, "🔒 [평가 보류] ${StopText.of(firstPickupStop(order)).take(14)} → ${StopText.of(lastDropoffStop(order)).take(14)} " +
                 "${order.fare}원 — 필터 잠김(선점 중·대기), 다음 스캔에서 다시 본다")

@@ -66,4 +66,16 @@ class PickerFinalFareTest {
 
     @Test fun `목록 요금이 없으면 안전장치 없이 최종 수익`() =
         assertEquals(1302, fareOf(PickerDetailOcrParser().verify(detail(1302), null, null, emptyList(), "")))
+
+    private fun orderOf(r: PickerDetailOcrParser.VerifyResult) = (r as PickerDetailOcrParser.VerifyResult.Success).order
+
+    /** 🔴 픽커 목록에는 배송 거리가 없다 — 사진 «배송 Nkm» 가 하차 정거장 거리 · «픽업 Nkm» 은 목록 상차 거리가 없을 때만 */
+    @Test fun `사진 «배송 9km» 가 하차 정거장 거리 - 목록 상차 거리가 먼저`() {
+        val tapped = orderOf(PickerDetailOcrParser().verify(detail(11796), listCard.copy(pickupDetails = listOf(CallStop(listText = "중원 상대원1", distanceKm = 12.4))), null, emptyList(), ""))
+        assertEquals(9.0, com.onedal.app.core.lastDropoffStop(tapped)?.distanceKm)
+        assertEquals("목록 상차 거리 그대로", 12.4, firstPickupStop(tapped)?.distanceKm)
+        val hand = orderOf(PickerDetailOcrParser().verify(detail(11796), null, null, emptyList(), ""))
+        assertEquals("목록 줄이 없으면 사진 픽업 거리", 12.7, firstPickupStop(hand)?.distanceKm)
+        assertEquals(9.0, com.onedal.app.core.deliveryKmOf(hand))
+    }
 }

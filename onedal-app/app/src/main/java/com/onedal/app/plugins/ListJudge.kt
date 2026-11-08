@@ -8,6 +8,8 @@ import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.core.firstPickupStop
 import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.firstStopKm
+import com.onedal.app.core.deliveryKmOf
 import com.onedal.app.core.StopText
 
 /**
@@ -98,18 +100,16 @@ object ListJudge {
          *   2km 에 10,000원   → 상하차 품값도 안 나온다  ← `minFare` 가 막는다
          *   400km 에 100,000원 → 단가가 안 나온다        ← `ratePerKm` 가 막는다
          *
-         * 🔴 **배송거리(마지막 하차 정거장 거리)를 안 읽는 배차망(지금 화물24시)은 단가 판정이 꺼진다.**
-         *    24시 카드에 그 숫자가 있는지부터 확인해야 한다.
-         *    기사님 확정: «24시 목록엔 상차지거리만 있다» — 배송거리는 실물 화면이 생기면 다시 본다.
-         *    없으면 `useRateModel` 이 false 라 **지금은 `minFare` 단독으로만 돈다** —
-         *    안전망을 빼지 않으려는 폴백이다 (규칙 ②). 배송거리를 읽게 되는 순간
-         *    이 판정이 **저절로 켜진다.**
+         * 🔴 **배송 거리(`deliveryKmOf`)를 모르는 콜은 단가 판정이 꺼진다.**
+         *    기사님 확정: «24시 목록엔 상차지거리만 있다» — 화물24시 목록 단계는 `useRateModel` 이 false 라
+         *    `minFare` 단독으로만 돈다 — 안전망을 빼지 않으려는 폴백이다 (규칙 ②).
+         *    상세 하차지 칸 «NKm» 이 하차 정거장 거리를 채운 뒤의 필터(`passesFilterAfterFill`)에서는 이 판정이 켜진다.
          */
         // 단가 조회는 인성과 **같은 함수**를 쓴다 — 차종 별칭 규칙이 두 벌이 되면 망마다 값이 갈린다 · 어느 차종 글자인지는 배차망이 고른다(`Rules.rateVehicleOf`)
         val rateFloor = rules.rateVehicleOf(order, filter)?.let { vt -> FareFloor.rateOf(filter.ratePerKm, vt) }
-        val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && lastDropoffStop(order)?.distanceKm != null
+        val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && deliveryKmOf(order) != null
         val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
-                        (!useRateModel || order.fare >= lastDropoffStop(order)?.distanceKm!! * rateFloor!!) &&
+                        (!useRateModel || order.fare >= deliveryKmOf(order)!! * rateFloor!!) &&
                         (!hasFareCeiling || order.fare <= filter.maxFare)
 
         // ── 조건 4: 상차지 ──
@@ -124,7 +124,7 @@ object ListJudge {
             true
         } else {
             // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 여기까지 오지 않는다
-            firstPickupStop(order)?.distanceKm?.let { it <= filter.pickupRadiusKm } == true
+            firstStopKm(order)?.let { it <= filter.pickupRadiusKm } == true
         }
 
         // ── 조건 5: 블랙리스트 제외 — 볼 글은 배차망이 고른다(`Rules.blacklistTextOf` · 화물24시는 적요가 든 원문 전체) ──
@@ -147,7 +147,7 @@ object ListJudge {
                     (if (pickupListCheck != null)
                         "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${StopText.query(rules.netCode, firstPickupStop(order))})=${if(pickupListMatch) "✅" else "❌"} "
                      else
-                        "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${firstPickupStop(order)?.distanceKm ?: "?"})=${if(distanceMatch) "✅" else "❌"} ") +
+                        "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${firstStopKm(order) ?: "?"})=${if(distanceMatch) "✅" else "❌"} ") +
                     "블랙=${if(blacklistClear) "✅" else "❌"}", "LIST")
         }
 

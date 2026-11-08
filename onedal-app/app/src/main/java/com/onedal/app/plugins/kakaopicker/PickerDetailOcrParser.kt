@@ -12,6 +12,7 @@ import com.onedal.app.core.ReservationText
 import com.onedal.app.core.withFirstPickup
 import com.onedal.app.core.firstPickupStop
 import com.onedal.app.core.withLastDropoff
+import com.onedal.app.core.withStopKm
 import com.onedal.app.models.CallStop
 
 /**
@@ -125,11 +126,11 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
                 vehicleType = KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE,
                 tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ") +
                     (twinNote?.let { " · $it" } ?: "")
-            )?.let { withPhotoStops(it, parsed) } ?: SimplifiedOfficeOrder(
+            ) ?: SimplifiedOfficeOrder(
                 id = "MANUAL-${System.currentTimeMillis()}",
                 type = "MANUAL_CLICK",
-                pickupDetails = listOf(CallStop().fromPhoto(parsed.pickup)),
-                dropoffDetails = listOf(CallStop().fromPhoto(parsed.dropoff)),
+                pickupDetails = listOf(CallStop()),
+                dropoffDetails = listOf(CallStop()),
                 fare = resolvedFare,
                 timestamp = now,
                 rawText = rawScreenStr,
@@ -138,7 +139,7 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
                 tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ") +
                     (twinNote?.let { " · $it" } ?: "")
             )
-            return VerifyResult.Success(withDetailPromises(manualOrder, parsed), parsed)
+            return VerifyResult.Success(withDetailPromises(withPhotoStops(manualOrder, parsed), parsed), parsed)
         }
     }
 
@@ -166,9 +167,13 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
         return fin
     }
 
-    /** 🏠 사진의 상차 · 하차 정거장을 첫 상차 · 마지막 하차 정거장에 싣는다 — 목록 원문(`listText`)은 그대로 */
+    /**
+     * 🏠 사진의 상차 · 하차 정거장을 첫 상차 · 마지막 하차 정거장에 싣는다 — 목록 원문(`listText`)은 그대로.
+     * 📏 사진 «픽업 Nkm» · «배송 Nkm»(직선)은 정거장 거리 — 목록 값이 없을 때만(목록에는 배송 거리가 없어 하차 거리는 여기서 처음 선다).
+     */
     private fun withPhotoStops(order: SimplifiedOfficeOrder, parsed: PickerDetailFromImage): SimplifiedOfficeOrder =
-        withLastDropoff(withFirstPickup(order) { it.fromPhoto(parsed.pickup) }) { it.fromPhoto(parsed.dropoff) }
+        withStopKm(withLastDropoff(withFirstPickup(order) { it.fromPhoto(parsed.pickup) }) { it.fromPhoto(parsed.dropoff) },
+            parsed.pickup.straightKm, parsed.dropoff.straightKm)
 
     /**
      * 🏠 **사진 정거장 한 곳 → 정거장 칸** — 행정동 주소는 상세 주소(`addressDetail`), 회색 상호는 상호 칸(`customerName` · 없으면 null).

@@ -16,6 +16,29 @@ fun firstPickupStop(o: SimplifiedOfficeOrder): CallStop? = o.pickupDetails.first
 /** 🚏 마지막 하차 정거장 — 하차 목록의 끝. 없으면 null */
 fun lastDropoffStop(o: SimplifiedOfficeOrder): CallStop? = o.dropoffDetails.lastOrNull()
 
+/** 📏 **상차 거리** — 첫 상차 정거장의 정거장 거리(내 자리 → 상차지). 모르면 null (shared `firstStopKm` · 같은 문제지 `stopKmCases`) */
+fun firstStopKm(o: SimplifiedOfficeOrder): Double? = firstPickupStop(o)?.distanceKm
+
+/**
+ * 📏 **배송 거리** — 첫 상차 뒤 정거장(남은 상차 → 하차 차례)의 정거장 거리를 다 더한 것 (shared `deliveryKmOf` · 같은 문제지 `stopKmCases`).
+ *    한 곳이라도 모르면 null — 아는 것만 더하면 짧은 거리를 지어내는 셈이다.
+ */
+fun deliveryKmOf(o: SimplifiedOfficeOrder): Double? {
+    val after = o.pickupDetails.drop(1) + o.dropoffDetails.dropLast(1) + listOf(lastDropoffStop(o))
+    var km = 0.0
+    for (stop in after) km += stop?.distanceKm ?: return null
+    return km
+}
+
+/**
+ * ✏️ **상세에서 읽은 정거장 거리를 비었을 때만 싣는다** — 네 배차망 같은 순서: 목록 값 먼저 · 없으면 상세 값.
+ *    상차는 첫 상차 정거장 · 하차는 마지막 하차 정거장. 상세 값이 null 이면 그 정거장은 그대로.
+ */
+fun withStopKm(o: SimplifiedOfficeOrder, pickupKm: Double?, dropoffKm: Double?): SimplifiedOfficeOrder {
+    val withPickup = if (pickupKm == null || firstPickupStop(o)?.distanceKm != null) o else withFirstPickup(o) { it.copy(distanceKm = pickupKm) }
+    return if (dropoffKm == null || lastDropoffStop(withPickup)?.distanceKm != null) withPickup else withLastDropoff(withPickup) { it.copy(distanceKm = dropoffKm) }
+}
+
 /**
  * 📅 **예약 콜** — 첫 상차 정거장 약속 원문에 «예약» 글자가 보이거나 첫 상차 날이 1 이상 (shared `isReservedCall` · 같은 문제지 `reservedCallCases`).
  *    «당상»(날 0) · 픽커 «17:04까지 픽업»처럼 날 · 시각만 있는 오늘 콜은 예약 콜이 아니다. 로그 낱말(`ReservationGate.wordOf`)이 읽는다.

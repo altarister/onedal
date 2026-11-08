@@ -19,6 +19,7 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.models.withPromises
 import com.onedal.app.core.firstPickupStop
 import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.firstStopKm
 import com.onedal.app.core.StopText
 import com.onedal.app.models.CallStop
 
@@ -633,7 +634,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /** 🍷 고른 줄이 쌍둥이 콜(함께 뜬 · 모두 같고 요금만 다름)의 낮은 요금이면 꼬리 글 — 목록 줄 대조 · 사진 대조가 같이 쓴다 (`PickerTwinCallTest`) */
         fun twinNoteOf(base: SimplifiedOfficeOrder?, recent: List<SimplifiedOfficeOrder>): String? {
             base ?: return null
-            fun key(c: SimplifiedOfficeOrder) = listOf(StopText.of(firstPickupStop(c)), StopText.of(lastDropoffStop(c)), firstPickupStop(c)?.distanceKm, c.tagsText, c.itemSize)
+            fun key(c: SimplifiedOfficeOrder) = listOf(StopText.of(firstPickupStop(c)), StopText.of(lastDropoffStop(c)), firstStopKm(c), c.tagsText, c.itemSize)
             val (low, fares) = com.onedal.app.core.ListSightings.lowestOfTwins(recent.filter { key(it) == key(base) }.distinctBy { it.fare }) ?: return null
             return if (low.fare == base.fare) "요금 둘 중 낮은 값 · ${fares.joinToString(" / ") { "%,d".format(it) }}" else null
         }
@@ -649,7 +650,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 (same?.let { " · 같은 콜이 요금만 올랐다(${s[3].joinToString(" → ") { c -> "${c.fare}" }}) — 마지막에 본 ${it.fare}원" } ?: "") +
                 (twin?.let { " · 같은 경로 요금 둘 — 낮은 ${"%,d".format(it.first.fare)}" } ?: "") +
                 // 🔎 km 까지 맞은 후보가 여럿이면 무엇이었는지(목록 줄임 이름 · 요금) — 못 고른 까닭을 로그로 가른다
-                (if (s[2].size > 1) " · 후보 " + s[2].joinToString(" · ") { c -> "${"%,d".format(c.fare)}(${StopText.of(firstPickupStop(c))}→${StopText.of(lastDropoffStop(c))} ${firstPickupStop(c)?.distanceKm}km)" } else "")
+                (if (s[2].size > 1) " · 후보 " + s[2].joinToString(" · ") { c -> "${"%,d".format(c.fare)}(${StopText.of(firstPickupStop(c))}→${StopText.of(lastDropoffStop(c))} ${firstStopKm(c)}km)" } else "")
         }
 
         /** 상차 → 하차 → km → 같은 콜 하나로 — 단계마다 남은 줄 (대조와 진단이 같은 단계를 쓴다) */
@@ -658,7 +659,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val dropoffKeys = regionKeys("${dropoff.admin} ${dropoff.place.orEmpty()}")
             val byPickup = recent.filter { c -> cardKeys(StopText.of(firstPickupStop(c))).let { k -> k.isNotEmpty() && k.all { it in pickupKeys } } }
             val byDropoff = byPickup.filter { c -> cardKeys(StopText.of(lastDropoffStop(c))).let { k -> k.isNotEmpty() && k.all { it in dropoffKeys } } }
-            val byKm = byDropoff.filter { c -> firstPickupStop(c)?.distanceKm?.let { km -> kotlin.math.abs(km - pickup.straightKm) <= PHOTO_MATCH_KM } == true }
+            val byKm = byDropoff.filter { c -> firstStopKm(c)?.let { km -> kotlin.math.abs(km - pickup.straightKm) <= PHOTO_MATCH_KM } == true }
             return listOf(byPickup, byDropoff, byKm, mergePartialRows(byKm.distinctBy { Triple(StopText.of(firstPickupStop(it)), StopText.of(lastDropoffStop(it)), it.fare) }))
         }
 
@@ -671,7 +672,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val cp = cardKeys(StopText.of(firstPickupStop(c))).toSet(); val cd = cardKeys(StopText.of(lastDropoffStop(c))).toSet()
             cands.none { d ->
                 d !== c && d.fare == c.fare &&
-                    firstPickupStop(c)?.distanceKm.let { ck -> firstPickupStop(d)?.distanceKm.let { dk -> ck != null && dk != null && kotlin.math.abs(ck - dk) <= 0.1 } } &&
+                    firstStopKm(c).let { ck -> firstStopKm(d).let { dk -> ck != null && dk != null && kotlin.math.abs(ck - dk) <= 0.1 } } &&
                     cardKeys(StopText.of(firstPickupStop(d))).toSet().let { dp -> dp.containsAll(cp) } && cardKeys(StopText.of(lastDropoffStop(d))).toSet().let { dd -> dd.containsAll(cd) } &&
                     cardKeys(StopText.of(firstPickupStop(d))).size + cardKeys(StopText.of(lastDropoffStop(d))).size > cp.size + cd.size
             }
@@ -736,7 +737,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val day = firstPickupStop(order)?.requestedDay ?: 0
             val kind = when { !laterDay(order) -> "오늘 콜"; day == 1 -> "내일 콜"; else -> "${day}일 뒤 콜" }
             val r = "%.2f".format(java.util.Locale.US, pickupRadiusFor(order, pickupRadiusKm, reservedPickupRadiusKm)).trimEnd('0').trimEnd('.')
-            return "상차 ${firstPickupStop(order)?.distanceKm ?: "?"}km > $kind 반경 ${r}km"
+            return "상차 ${firstStopKm(order) ?: "?"}km > $kind 반경 ${r}km"
         }
 
         /** 🏘️ 시군구 열쇠(«성남시 분당구»)의 꼴들 — 열쇠 · 토막 · 시/구/군 뗀 토막 (`destinationDongSigungu` 와 같은 꼴) */
@@ -779,7 +780,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val homeList = reservedPickupKeywords?.takeIf { it.isNotEmpty() }
             val pickupOk = if (laterDay(order) && homeList != null)
                 StopText.of(firstPickupStop(order)).isBlank() || pickupListOk(StopText.query(TargetApp.KAKAOPICKER, firstPickupStop(order)), homeList, keywordTraps, reservedPickupGroups)
-            else firstPickupStop(order)?.distanceKm?.let { it <= pickupRadiusFor(order, pickupRadiusKm, reservedPickupRadiusKm) } == true
+            else firstStopKm(order)?.let { it <= pickupRadiusFor(order, pickupRadiusKm, reservedPickupRadiusKm) } == true
             val destOk = when {
                 destKeywords.isEmpty() -> true      // 도착 목표가 없다(관내·목표 미설정) — 제한 없음
                 // 하차를 아직 모른다(도보 목록) — 판정을 채운 뒤로 미룬다: 상세 사진으로 채운 하차로 `passesFilterAfterFill` 이 다시 본다
@@ -1253,7 +1254,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         //    🔕 같은 콜 · 같은 결과 · 같은 필터면 한 번만 — 누르지 못한 콜이 목록이 바뀔 때마다(≈15초) 같은 줄을 되풀이했다
         if (com.onedal.app.core.LogOnce.changed("alarm-judge:${com.onedal.app.core.CallMemory.fingerprintOf(order)}", "$pass|$a|${filterJson.hashCode()}"))
         com.onedal.app.core.AppLogger.d("1DAL_PICKER", com.onedal.app.core.LogTag.FILTER,
-            "🔔 [알람 판정] ${order.fare}원·픽업 ${firstPickupStop(order)?.distanceKm ?: "?"}km·도착 ${StopText.of(lastDropoffStop(order)).ifEmpty { "?" }}·예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(order)} — " +
+            "🔔 [알람 판정] ${order.fare}원·픽업 ${firstStopKm(order) ?: "?"}km·도착 ${StopText.of(lastDropoffStop(order)).ifEmpty { "?" }}·예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(order)} — " +
             "하한 ${c.minFare}·반경 ${c.pickupRadiusKm}km·도착목표 ${c.destKeywords.size}개 → ${if (pass) "통과" else "탈락"}" +
             " · 축 요금${mark(a.fare)} 상차${mark(a.pickup)} 도착${mark(a.destination)} 예약${mark(a.reservation)}" +
             (if (!a.pickup) " · ${pickupMissWord(order, c.pickupRadiusKm, c.reservedPickupRadiusKm, c.reservedPickupKeywords)}" else ""))

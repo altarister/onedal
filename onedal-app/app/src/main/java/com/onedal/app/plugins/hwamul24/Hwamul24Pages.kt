@@ -59,7 +59,7 @@ object Hwamul24Pages {
             FieldSpec(PageField.CONTACT, "상차지 칸 주소 끝 괄호", "(크레텍)", Seen.REAL, Handling.READ, "서버 상세 자료 정거장 상호(detailRecordOf pickupDetails customerName) · 원달앱 상호 칸(Hwamul24Parser.fillFromDetail)",
                 read = Regex("""상차지\s+[^\s(\[](?:(?!\s*[(\[]|\s+(?:(?:당상|내상|지상|당착|내착|지착|당/내|수|지)(?:\s|${'$'})|\d+\s*Km|하차지\s|화물정보))[\s\S])*\s*\(([^)]+)\)"""), part = "pickup.customer"),
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선 · 「하차지」 앞까지에서 찾는다 · 실물 캡처 3/3 에 있다(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) — 서버 원문 0 건이라 원문 기준으로는 모름 */
-            FieldSpec(PageField.PICKUP_DISTANCE, "상차지 칸 끝", "5Km · 18Km", Seen.REAL, Handling.READ, "원달앱 Hwamul24CardGrouping.pickupDistanceOf(손 상세 — 정의 표 줄이 아니라 그 함수 글자로 읽음)",
+            FieldSpec(PageField.PICKUP_DISTANCE, "상차지 칸 끝", "5Km · 18Km", Seen.REAL, Handling.READ, "Hwamul24Parser.fillFromDetail — 첫 상차 정거장 거리(목록 값이 없을 때만) · 손 상세의 목록 읽기는 Hwamul24CardGrouping.pickupDistanceOf 함수 글자로",
                 read = Regex("""상차지\s(?:(?!하차지)[\s\S])*?(\d+)\s*Km""")),
             FieldSpec(PageField.DROPOFF, "하차지 칸", "서울 중구 을지로6가 [당착][수]", Seen.REAL, Handling.UNUSED, "목록 값을 쓴다"),
             /* 하차지 칸 주소 — 끝 «(상호)» · 배지 · «NKm» · «화물정보» 앞까지 · 끝 «왕복»은 주소에 남고 지오코딩 글에서 addressCut 이 뗀다(실물 캡처 51 «와동왕복 32Km») — 서버 원문 0 건이라 원문 기준으로는 모름 */
@@ -69,7 +69,7 @@ object Hwamul24Pages {
             FieldSpec(PageField.CONTACT, "하차지 칸 주소 끝 괄호", "(상호)", Seen.REAL, Handling.READ, "서버 상세 자료 정거장 상호(detailRecordOf dropoffDetails customerName) · 원달앱 상호 칸(Hwamul24Parser.fillFromDetail)",
                 read = Regex("""하차지\s+[^\s(\[](?:(?!\s*[(\[]|\s+(?:(?:당상|내상|지상|당착|내착|지착|당/내|수|지)(?:\s|${'$'})|\d+\s*Km|하차지\s|화물정보))[\s\S])*\s*\(([^)]+)\)"""), part = "dropoff.customer"),
             /* 하차 정거장 거리(상차지 → 하차지) · 최단거리(상세 안내 «상ㆍ하차지간 거리는 최단거리이므로 실제 도로거리와 다를 수 있습니다») — 직선으로 읽음 · 「화물정보」 앞까지에서 찾는다 · 실물 캡처 3/3 에 있다(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) — 서버 원문 0 건이라 원문 기준으로는 모름 */
-            FieldSpec(PageField.DELIVERY_DISTANCE, "하차지 칸 오른쪽", "36Km · 와동왕복 32Km", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 거리 5 · 걸음 5)",
+            FieldSpec(PageField.DELIVERY_DISTANCE, "하차지 칸 오른쪽", "36Km · 와동왕복 32Km", Seen.REAL, Handling.READ, "Hwamul24Parser.fillFromDetail — 하차 정거장 거리(목록에는 배송 거리가 없다)",
                 read = Regex("""하차지\s(?:(?!화물정보)[\s\S])*?(\d+)\s*Km""")),
             FieldSpec(PageField.MEMO, "화물정보 칸", "지금상 당착 59박스 수/수-A [독차]", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «화물정보» 다음 «톤수» 앞(배지 «독차» 포함) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""화물정보\s+(?!톤수)([\s\S]*?)(?=\s+톤수|${'$'})""")),

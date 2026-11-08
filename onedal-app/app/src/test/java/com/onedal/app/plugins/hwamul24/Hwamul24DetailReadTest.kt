@@ -88,6 +88,15 @@ class Hwamul24DetailReadTest {
         assertNull("누른 그 콜", com.onedal.app.core.engine.TappedCall.mismatch(com.onedal.app.core.TargetApp.HWAMUL24, row, filled))
     }
 
+    /** 🔴 화물24시 목록에는 배송 거리가 없다 — 상세 하차지 칸 «36Km»(실물 캡처 18)가 하차 정거장 거리 · 목록 상차 거리가 있으면 그대로 */
+    @Test fun `🔴 상세 하차지 칸 «36Km» 가 하차 정거장 거리 — 목록 값이 먼저`() {
+        val filled = Hwamul24Parser.fillFromDetail(appOpened("경기 군포 부곡동", "서울 중구 을지로6가", real18))
+        assertEquals(36.0, lastDropoffStop(filled)?.distanceKm)
+        assertEquals(36.0, com.onedal.app.core.deliveryKmOf(filled))
+        val listed = appOpened("경기 군포 부곡동", "서울 중구 을지로6가", real18).let { o -> com.onedal.app.core.withFirstPickup(o) { it.copy(distanceKm = 4.0) } }
+        assertEquals("목록 상차 거리 그대로", 4.0, firstPickupStop(Hwamul24Parser.fillFromDetail(listed))?.distanceKm)
+    }
+
     /** 상세 상차지 칸 주소 끝 괄호(실물 캡처 53 «(크레텍)»)는 상호 칸 — 주소에는 안 남는다 · 못 읽은 칸은 목록 값 그대로 */
     @Test fun `상세 상차지 칸 끝 괄호는 상호 칸 · 칸이 없으면 목록 값 그대로`() {
         val detail = real18.map { if (it == "경기 군포 부곡동") "경기 군포 당정동 공단로124번길 4 (크레텍)" else it }

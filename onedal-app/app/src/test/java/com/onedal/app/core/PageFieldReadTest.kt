@@ -53,6 +53,17 @@ class PageFieldReadTest {
         assertEquals(0, PageFieldRead.withFare(empty, KakaoPickerPages.pages, Page.NEW_CALL, listOf("최종 수익 2,387")).fare)
     }
 
+    /** 📏 인성 확정 전 상세 적요 «현위치 → 상차지(직선)» · «상차지 → 하차지(직선)» — 정거장이 비었을 때만 싣는다(목록 «0.0» 은 빈 값이라 여기서 선다) */
+    @Test fun `상세 거리 칸은 정거장이 비었을 때만 - 목록 값이 먼저`() {
+        val detail = listOf("상태 : 배차", "현위치 → 상차지(직선)0.7KM", "상차지 → 하차지(직선)14.9KM", "확정(10)")
+        val listed = SimplifiedOfficeOrder(id = "c", timestamp = "t", pickupDetails = listOf(CallStop(listText = "가산동", distanceKm = 1.2)), dropoffDetails = listOf(CallStop(listText = "논현동")))
+        val filled = PageFieldRead.withDetailKm(listed, InsungPages.pages, Page.NEW_CALL, detail)
+        assertEquals("목록 상차 거리 그대로", 1.2, firstStopKm(filled))
+        assertEquals(14.9, deliveryKmOf(filled))
+        assertEquals("거리 줄이 없으면 그대로", listed, PageFieldRead.withDetailKm(listed, InsungPages.pages, Page.NEW_CALL, insungDetail))
+        assertEquals("확정 뒤 상세 하차 거리", 56.6, PageFieldRead.kmOf(InsungPages.pages, Page.MY_CALL, PageField.DELIVERY_DISTANCE, listOf("상태 : 배송", "현위치 → 상차지(직선)8.8KM", "상차지 → 하차지(직선)56.6KM")))
+    }
+
     @Test fun `공통 길은 배차망 이름으로 가르지 않는다`() {
         val names = Regex("""insung|hwamul24|kakaopicker|인성|24시|픽커""", RegexOption.IGNORE_CASE)
         val code = { p: String -> File("src/main/java/com/onedal/app/$p").readText()

@@ -26,6 +26,8 @@ import java.util.Locale
 import java.util.UUID
 import com.onedal.app.core.firstPickupStop
 import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.firstStopKm
+import com.onedal.app.core.deliveryKmOf
 import com.onedal.app.core.StopText
 import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
@@ -398,10 +400,10 @@ class InsungParser(private val context: Context) : IScrapParser {
              * 콜할인율가 "전부"면 서버가 단가를 0 으로 내려 보낸다 → `fare >= 거리 × 0` 은 항상 참.
              */
             val rateFloor = order.vehicleType?.let { vt -> FareFloor.rateOf(filter.ratePerKm, vt) }
-            val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && lastDropoffStop(order)?.distanceKm != null
+            val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && deliveryKmOf(order) != null
 
             val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
-                (!useRateModel || order.fare >= lastDropoffStop(order)?.distanceKm!! * rateFloor!!) &&
+                (!useRateModel || order.fare >= deliveryKmOf(order)!! * rateFloor!!) &&
                 (!hasFareCeiling || order.fare <= filter.maxFare)
 
             // ── 조건 3: 상차지 ──
@@ -425,7 +427,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 true // 합짐 모드: 상차 반경 무시 (경유 필터가 대신 판단)
             } else {
                 // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 여기까지 오지 않는다
-                firstPickupStop(order)?.distanceKm?.let { it <= filter.pickupRadiusKm } == true
+                firstStopKm(order)?.let { it <= filter.pickupRadiusKm } == true
             }
 
             // ── 조건 4: 블랙리스트 제외 ──
@@ -446,13 +448,13 @@ class InsungParser(private val context: Context) : IScrapParser {
                 AppLogger.roadmap(LogTag.FILTER, "🔍 [타겟 콜 필터 결과] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "?"})=${if(vehicleMatch) "✅" else "❌"} " +
                             "도착지(${filter.destinationKeywords.size}중 ${StopText.query(TargetApp.INSUNG, lastDropoffStop(order))})=${if(regionMatch) "✅" else "❌"} " +
                             (if (useRateModel)
-                                "요금/단가(${lastDropoffStop(order)?.distanceKm}km × ${rateFloor}원 = ${((lastDropoffStop(order)?.distanceKm ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "
+                                "요금/단가(${deliveryKmOf(order)}km × ${rateFloor}원 = ${((deliveryKmOf(order) ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "
                              else
                                 "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} ") +
                             (if (pickupListCheck != null)
                                 "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${StopText.query(TargetApp.INSUNG, firstPickupStop(order))})=${if(pickupListMatch) "✅" else "❌"} "
                              else
-                                "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${firstPickupStop(order)?.distanceKm ?: "?"}km)=${if(distanceMatch) "✅" else "❌"} ") +
+                                "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${firstStopKm(order) ?: "?"}km)=${if(distanceMatch) "✅" else "❌"} ") +
                             "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
             }
 

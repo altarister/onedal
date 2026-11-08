@@ -92,9 +92,10 @@ fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOffic
         pickupDetails = listOf(CallStop(listText = StopText.of(firstPickupStop(tempOrder)).takeIf {
             it.isNotBlank() && InsungParser.looksLikeAddress(it)
         })),
+        /* 📏 하차 정거장 거리는 내 콜 화면 적요 «상차지 → 하차지(직선)NKM» — InsungPages MY_CALL DELIVERY_DISTANCE 의 READ */
         dropoffDetails = listOf(CallStop(listText = StopText.of(lastDropoffStop(tempOrder)).takeIf {
             it.isNotBlank() && InsungParser.looksLikeAddress(it)
-        })),
+        }, distanceKm = com.onedal.app.core.PageFieldRead.kmOf(InsungPages.pages, com.onedal.app.core.Page.MY_CALL, com.onedal.app.core.PageField.DELIVERY_DISTANCE, screenTexts))),
         /* 💰 목록 규칙(차종 다음 칸)이 못 읽으면 내 콜 화면 정의(«요금 : N»)로 — InsungPages MY_CALL FARE 의 READ */
         fare = tempOrder.fare.takeIf { it > 0 }
             ?: (com.onedal.app.core.PageFieldRead.fareOf(InsungPages.pages, com.onedal.app.core.Page.MY_CALL, screenTexts) ?: 0),

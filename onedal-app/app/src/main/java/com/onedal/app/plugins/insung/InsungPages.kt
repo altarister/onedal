@@ -75,10 +75,10 @@ object InsungPages {
             FieldSpec(PageField.MEMO, "본문 «적요상세» 줄", "적요상세 10시전하차 착불", Seen.SIM, Handling.READ, "서버 적요(detailMemo) — 팝업이 없을 때 · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""적요상세(?!/)[ \t]+([^\n]+)"""), part = "body"),
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선(화면 글자 «(직선)») · 실물 캡처 확정 전 상세 3/3 에 있다(상세-미확정(다른사람 잡을수 있음) · 상세-미확정3 · 상세-미확정4 — 자리는 «적요 글 바로 다음 줄») — 서버 원문 0 건이라 원문 기준으로는 모름 */
-            FieldSpec(PageField.PICKUP_DISTANCE, "적요 칸 둘째 줄", "현위치 → 상차지(직선)23.5KM", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 거리 5 · 걸음 5 — 목록 값이 없을 때 상차 정거장 거리)",
+            FieldSpec(PageField.PICKUP_DISTANCE, "적요 칸 둘째 줄", "현위치 → 상차지(직선)23.5KM", Seen.REAL, Handling.READ, "InsungPlugin.fillDetail — 첫 상차 정거장 거리(목록 값이 없을 때만)",
                 read = Regex("""현위치\s*→\s*상차지\(직선\)\s*([\d.]+)\s*KM""")),
             /* 하차 정거장 거리(상차지 → 하차지) · 직선(화면 글자 «(직선)») · 실물: 인성 설명 영상_0532 · 영상_0938 확정 전 상세(상태 «배차» · «확정(10)» 단추)에 있다 · PNG 확정 전 캡처 3건에는 없다 — 서버 원문 인성 0 건이라 «모름» */
-            FieldSpec(PageField.DELIVERY_DISTANCE, "적요 칸 다음 둘째 거리 줄", "상차지 → 하차지(직선)14.9KM", Seen.REAL, Handling.READ, "지금 읽는 곳 없음",
+            FieldSpec(PageField.DELIVERY_DISTANCE, "적요 칸 다음 둘째 거리 줄", "상차지 → 하차지(직선)14.9KM", Seen.REAL, Handling.READ, "InsungPlugin.fillDetail — 하차 정거장 거리(목록 값이 없을 때만 · 목록 «0.0» 은 빈 값)",
                 read = Regex("""상차지\s*→\s*하차지\(직선\)\s*([\d.]+)\s*KM""")),
             FieldSpec(PageField.PICKUP, "출발지 상세 팝업 «위치»", "경기 용인시 처인구 양지면 …", Seen.SIM, Handling.READ, "InsungPopupAddress → 원달앱 정거장 상세 주소(addressDetail) · 서버 원문 칸 읽기(위치 — 이름표만 있는 줄이면 다음 줄 값)",
                 read = Regex("""\[출발지상세\](?:(?!\[도착지상세\])[\s\S])*?\n위치[ \t]*:?[ \t]*(?:\n[ \t]*)?([^\n]+)""")),
@@ -137,7 +137,7 @@ object InsungPages {
             FieldSpec(PageField.STAGE, "상태 줄", "상태 : 배송", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.VEHICLE_TYPE, "차량 줄", "차량 : 다마스", Seen.REAL, Handling.UNUSED),
             /* 실물: PNG 확정 전 0/3 · 영상 확정 전 2/2(영상_0532 · 영상_0938) · 확정 뒤 5/5 · 하차 정거장 거리(상차지 → 하차지) · 직선(화면 글자 «(직선)») */
-            FieldSpec(PageField.DELIVERY_DISTANCE, "적요 칸 다음 둘째 거리 줄", "상차지 → 하차지(직선)35.9KM", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 거리 5 · 걸음 5 — 목록 값이 없을 때 하차 정거장 거리)",
+            FieldSpec(PageField.DELIVERY_DISTANCE, "적요 칸 다음 둘째 거리 줄", "상차지 → 하차지(직선)35.9KM", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen — 손으로 확정한 콜의 하차 정거장 거리",
                 read = Regex("""상차지\s*→\s*하차지\(직선\)\s*([\d.]+)\s*KM""")),
             FieldSpec(PageField.TOLL, "탁송료 줄", "탁송료 : 0", Seen.REAL, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱 돈 9(걸음 5)",
                 read = Regex("""탁송료[ \t]*:[ \t]*([\d,]+)""")),

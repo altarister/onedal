@@ -29,6 +29,7 @@ import com.onedal.app.core.lastDropoffStop
 import com.onedal.app.core.StopText
 import com.onedal.app.core.withFirstPickup
 import com.onedal.app.core.withLastDropoff
+import com.onedal.app.core.withStopKm
 import com.onedal.app.models.CallStop
 
 /**
@@ -213,7 +214,7 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
         /**
          * 🏠 **앱이 연 콜을 상세 값으로 채운다** (`IsflexPlugin.fillDetail`) — 읽을 글은 `order.rawText`(공통이 채우기 전에 상세 이은 글로 바꿔 둔다).
          * 상세 «출발 · 도착» 원문은 그 정거장 상세 주소(`addressDetail`) — 목록 칸 원문(`listText`)은 그대로 둔다.
-         * 지역 · 약속 · 꼬리표는 상세 값으로 덮고 못 읽으면 목록 값 그대로 · 차종 · 거리는 비었을 때만(앱이 연 콜은 목록 출발지까지를 둔다).
+         * 지역 · 약속 · 꼬리표는 상세 값으로 덮고 못 읽으면 목록 값 그대로 · 차종은 비었을 때만 · 정거장 거리는 정거장마다 비었을 때만(`withStopKm` — 네 배차망 같은 순서).
          */
         fun fillFromDetail(order: SimplifiedOfficeOrder, now: LocalDateTime): SimplifiedOfficeOrder {
             val d = parseDetail(listOf(order.rawText ?: ""), now)
@@ -225,13 +226,12 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
                 vehicleType = order.vehicleType ?: d.vehicleType,
             )
             val withPickup = withFirstPickup(filled) { stop ->
-                (if (readPickup) stop.copy(addressDetail = dp?.listText, region = dp?.region ?: stop.region, promiseText = dp?.promiseText, requestedDay = dp?.requestedDay, requestedTime = dp?.requestedTime) else stop)
-                    .copy(distanceKm = stop.distanceKm ?: dp?.distanceKm)
+                if (readPickup) stop.copy(addressDetail = dp?.listText, region = dp?.region ?: stop.region, promiseText = dp?.promiseText, requestedDay = dp?.requestedDay, requestedTime = dp?.requestedTime) else stop
             }
-            return withLastDropoff(withPickup) { stop ->
-                (if (dd?.listText != null) stop.copy(addressDetail = dd.listText, region = dd.region ?: stop.region, promiseText = dd.promiseText, requestedDay = dd.requestedDay, requestedTime = dd.requestedTime) else stop)
-                    .copy(distanceKm = stop.distanceKm ?: dd?.distanceKm)
+            val withDropoff = withLastDropoff(withPickup) { stop ->
+                if (dd?.listText != null) stop.copy(addressDetail = dd.listText, region = dd.region ?: stop.region, promiseText = dd.promiseText, requestedDay = dd.requestedDay, requestedTime = dd.requestedTime) else stop
             }
+            return withStopKm(withDropoff, dp?.distanceKm, dd?.distanceKm)
         }
 
         /** 마지막 토막(동) — 판정 글자 목록 «수원 이의동» · 상세 «경기 수원시 영통구 이의동» 모두 «이의동» */

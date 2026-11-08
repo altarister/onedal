@@ -76,7 +76,11 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
         return context.handleInsungPreConfirmExecution(rootNode, screenTexts)
     }
 
-    /** 🏠 팝업 «위치»를 콜에 — 규칙은 `InsungPopupAddress.fill` */
+    /**
+     * 🏠 팝업 «위치»를 콜에 — 규칙은 `InsungPopupAddress.fill`.
+     * 📏 상세 적요 칸 «현위치 → 상차지(직선)» · «상차지 → 하차지(직선)»은 정거장 거리 — 목록 값이 없을 때만(목록 «0.0» 은 빈 값이라 여기서 선다).
+     */
     override fun fillDetail(context: ScanContext, order: SimplifiedOfficeOrder): SimplifiedOfficeOrder =
-        InsungPopupAddress.fill(order, context.session.accumulatedDetailText)
+        com.onedal.app.core.PageFieldRead.withDetailKm(InsungPopupAddress.fill(order, context.session.accumulatedDetailText),
+            InsungPages.pages, com.onedal.app.core.Page.NEW_CALL, listOf(order.rawText ?: ""))
 }

@@ -109,6 +109,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         /**
          * 🏠 **앱이 연 콜에 상세 상차지 · 하차지 칸을 싣는다** (`Hwamul24Plugin.fillDetail`) — 읽을 글은 `order.rawText`(공통이 채우기 전에 상세 이은 글로 바꿔 둔다).
          * 칸 주소는 그 정거장 상세 주소(`addressDetail`) · 칸 끝 괄호는 상호(`customerName`) — 서버 `detailRecordOf` 와 같은 정의 표 줄로 읽는다.
+         * 상차지 · 하차지 칸 «NKm» 은 정거장 거리 — 목록 값이 없을 때만(목록에는 배송 거리가 없어 하차 거리는 여기서 처음 선다).
          * 목록 칸 원문(`listText`)은 그대로 · 못 읽은 칸은 목록 값 그대로.
          */
         fun fillFromDetail(order: SimplifiedOfficeOrder): SimplifiedOfficeOrder {
@@ -116,7 +117,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             fun read(field: PageField, part: String) = PageFieldRead.fieldOf(Hwamul24Pages.pages, Page.NEW_CALL, field, texts, part)
             fun CallStop.withDetail(address: String?, name: String?) = if (address == null) this else copy(addressDetail = address, customerName = name ?: customerName)
             val withPickup = withFirstPickup(order) { it.withDetail(read(PageField.PICKUP, "pickup.address"), read(PageField.CONTACT, "pickup.customer")) }
-            return withLastDropoff(withPickup) { it.withDetail(read(PageField.DROPOFF, "dropoff.address"), read(PageField.CONTACT, "dropoff.customer")) }
+            val withDropoff = withLastDropoff(withPickup) { it.withDetail(read(PageField.DROPOFF, "dropoff.address"), read(PageField.CONTACT, "dropoff.customer")) }
+            return PageFieldRead.withDetailKm(withDropoff, Hwamul24Pages.pages, Page.NEW_CALL, texts)
         }
 
         fun badgesOf(texts: List<String>): String? =

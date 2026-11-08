@@ -25,6 +25,14 @@ object PageFieldRead {
     fun fareFirst(order: SimplifiedOfficeOrder, pages: PageSpecs, page: Page, texts: List<String>): SimplifiedOfficeOrder =
         fareOf(pages, page, texts)?.let { order.copy(fare = it) } ?: order
 
+    /** 📏 정거장 거리 칸 — 값 글자를 km 숫자로 · 못 읽으면 null */
+    fun kmOf(pages: PageSpecs, page: Page, field: PageField, texts: List<String>): Double? =
+        fieldOf(pages, page, field, texts)?.toDoubleOrNull()
+
+    /** 📏 그 화면의 상차 · 하차 거리 칸을 정거장이 비었을 때만 싣는다 — 목록 값 먼저 (`withStopKm`) */
+    fun withDetailKm(order: SimplifiedOfficeOrder, pages: PageSpecs, page: Page, texts: List<String>): SimplifiedOfficeOrder =
+        withStopKm(order, kmOf(pages, page, PageField.PICKUP_DISTANCE, texts), kmOf(pages, page, PageField.DELIVERY_DISTANCE, texts))
+
     /** 콜에 요금이 비었을 때만 그 화면의 정의로 채운다 — 이미 있는 값(앱이 연 콜의 목록 값)은 그대로 */
     fun withFare(order: SimplifiedOfficeOrder, pages: PageSpecs, page: Page, texts: List<String>): SimplifiedOfficeOrder =
         if (order.fare > 0) order else fareOf(pages, page, texts)?.let { order.copy(fare = it) } ?: order

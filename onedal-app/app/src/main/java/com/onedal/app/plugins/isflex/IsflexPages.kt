@@ -48,7 +48,7 @@ object IsflexPages {
         ),
         Page.NEW_CALL to listOf(
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선인지 모름 */
-            FieldSpec(PageField.PICKUP_DISTANCE, "지도 아래 «출발지까지» 다음", "출발지까지 26.7km", Seen.REAL, Handling.READ, "원달앱 IsflexParser — 목록 값이 없을 때만",
+            FieldSpec(PageField.PICKUP_DISTANCE, "지도 아래 «출발지까지» 다음", "출발지까지 26.7km", Seen.REAL, Handling.READ, "IsflexParser.fillFromDetail — 정거장 거리(목록 값이 없을 때만)",
                 read = Regex("""출발지까지\s+([\d.]+)km""")),
             FieldSpec(PageField.VEHICLE_TYPE, "거리 다음", "오토", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
                 read = Regex("""출발지까지\s+[\d.]+km\s+(\S+)""")),
@@ -59,7 +59,7 @@ object IsflexPages {
             FieldSpec(PageField.PICKUP, "«출발» 다음 — «@시도 시군구 @(예약)동»", "@서울 서초구 @낼8:30)방배동", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser → 정거장 상세 주소(addressDetail — fillFromDetail)",
                 read = Regex("""(?:^|\s)출발\s+(?:약\s+[\d.]+km\s+)?(\S[\s\S]*?)(?:\s+약\s+[\d.]+km)?\s+도착\s""")),
             /* 하차 정거장 거리(상차지 → 하차지) · 직선인지 모름 */
-            FieldSpec(PageField.DELIVERY_DISTANCE, "출발 주소 아래", "약 2.3km", Seen.REAL, Handling.READ, "원달앱 IsflexParser — 목록 값이 없을 때만",
+            FieldSpec(PageField.DELIVERY_DISTANCE, "출발 주소 아래", "약 2.3km", Seen.REAL, Handling.READ, "IsflexParser.fillFromDetail — 정거장 거리(목록 값이 없을 때만)",
                 read = Regex("""(?:^|\s)출발\s[\s\S]*?약\s+([\d.]+)km""")),
             /* 판정 시한에 넣지 않는다 — 기록만 */
             FieldSpec(PageField.CLOCK, "도착 주소 동 앞 마감 앞글자", "10:20전/", Seen.REAL, Handling.READ, "IsflexParser"),

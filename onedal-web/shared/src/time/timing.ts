@@ -1449,6 +1449,7 @@ export const firstStopKm = (o: StopSource): number | null => firstPickupStop(o)?
 /**
  * 📏 **배송 거리** — 첫 상차 뒤 정거장(남은 상차 → 하차 차례)의 정거장 거리를 다 더한 것.
  *    한 곳이라도 모르면 null — 아는 것만 더하면 짧은 거리를 지어내는 셈이다.
+ *    원달앱 짝 `firstStopKm` · `deliveryKmOf`(`core/CallStops.kt`)가 같은 문제지(`pageReadCases.json` `stopKmCases`)로 같은 답을 낸다.
  */
 export function deliveryKmOf(o: StopSource): number | null {
     const after = [...(o.pickupDetails?.slice(1) ?? []), ...(o.dropoffDetails?.slice(0, -1) ?? []), lastDropoffStop(o)];

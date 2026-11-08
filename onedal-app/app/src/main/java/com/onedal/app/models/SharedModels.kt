@@ -121,9 +121,9 @@ data class SimplifiedOfficeOrder(
     /** 🏢 공유콜 — 인성 목록 출발지 «@»(다른 사무실 콜) · 표시가 없으면 거짓 · 뜻을 모르는 배차망은 null (shared `CallIdentity.fromOtherOffice`) */
     val fromOtherOffice: Boolean? = null,
     /**
-     * 🚏 **상차 · 하차 정거장** — 목록 글자(`listText`) · 정거장 거리(`distanceKm` — 첫 상차 = 내 자리 → 상차지, 마지막 하차 = 배송 거리) ·
+     * 🚏 **상차 · 하차 정거장** — 목록 글자(`listText`) · 정거장 거리(`distanceKm` — 첫 상차 = 내 자리 → 상차지, 그 뒤 정거장 = 앞 정거장 → 이 정거장 · 목록 먼저, 없으면 상세) ·
      * 약속(`promiseText` 화면 원문 · `requestedDay` · `requestedTime` — 정거장 약속 읽기 `ReservationText.read` 가 채운다 · 하차 날 글자가 없으면 상차 날).
-     * 읽는 곳은 `firstPickupStop` · `lastDropoffStop` · `StopText.of`(`core/CallStops.kt`) — 원달앱은 정거장 한 곳씩 싣는다.
+     * 읽는 곳은 `firstPickupStop` · `lastDropoffStop` · `StopText.of` · `firstStopKm` · `deliveryKmOf`(`core/CallStops.kt`) — 원달앱은 정거장 한 곳씩 싣는다.
      */
     val pickupDetails: List<CallStop> = listOf(CallStop()),
     val dropoffDetails: List<CallStop> = listOf(CallStop()),

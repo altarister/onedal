@@ -7,7 +7,7 @@ import type { CallStop } from '../index';
 /**
  * 🚏 **첫 상차 · 마지막 하차 정거장** — 정거장만 있는 콜에서 상차 목록의 처음 · 하차 목록의 끝을 낸다.
  *    **예약 콜** — 첫 상차 정거장의 «예약» 글자 · 날로 가른다(원달앱 `CallStopsTest` 가 같은 문제지로 같은 답을 문다).
- *    **상차 거리 · 배송 거리** — 정거장 거리에서 꺼내고, 배송 거리는 한 곳이라도 모르면 null.
+ *    **상차 거리 · 배송 거리** — 정거장 거리에서 꺼내고, 배송 거리는 한 곳이라도 모르면 null(원달앱 `CallStopsTest` 가 같은 문제지 `stopKmCases` 로 같은 답을 문다).
  * 못 잡는 것: 관제웹 화면 글자(관제웹 `stopScreenText.test.ts`) · 서버 판정 값(서버 jest).
  */
 describe('🚏 firstPickupStop · lastDropoffStop', () => {
@@ -38,29 +38,14 @@ describe('📅 isReservedCall — «예약» 글자가 보이거나 첫 상차 �
     });
 });
 
-describe('📏 firstStopKm · deliveryKmOf — 정거장 거리에서 꺼낸다', () => {
-    const km = (pickups: Array<number | null>, drops: Array<number | null>) => ({
-        pickupDetails: pickups.map(distanceKm => ({ distanceKm })),
-        dropoffDetails: drops.map(distanceKm => ({ distanceKm })),
+describe('📏 firstStopKm · deliveryKmOf — 정거장 거리에서 꺼낸다 (공통 문제지 stopKmCases)', () => {
+    const sheet = JSON.parse(readFileSync(join(__dirname, '../network/pageReadCases.json'), 'utf8')) as
+        { stopKmCases: Array<{ pickups: CallStop[]; dropoffs: CallStop[]; firstKm: number | null; deliveryKm: number | null; why: string }> };
+    it('문제지가 비지 않았다', () => expect(sheet.stopKmCases.length).toBeGreaterThan(5));
+    it.each(sheet.stopKmCases.map(c => [c.why, c] as const))('%s', (_, c) => {
+        const o = { pickupDetails: c.pickups, dropoffDetails: c.dropoffs };
+        expect(firstStopKm(o)).toBe(c.firstKm);
+        expect(deliveryKmOf(o)).toBe(c.deliveryKm);
     });
-    it('한 곳 — 상차 거리는 첫 상차 · 배송 거리는 마지막 하차 정거장 거리', () => {
-        const o = km([2.6], [20.4]);
-        expect(firstStopKm(o)).toBe(2.6);
-        expect(deliveryKmOf(o)).toBe(20.4);
-    });
-    it('0 은 그대로 0 — 거르는 일은 부르는 쪽 몫', () => {
-        expect(deliveryKmOf(km([20.4], [0]))).toBe(0);
-    });
-    it('두 곳 — 첫 상차 뒤 정거장 거리를 다 더한다', () => {
-        const o = km([5], [12, 30]);
-        expect(firstStopKm(o)).toBe(5);
-        expect(deliveryKmOf(o)).toBe(42);
-        expect(deliveryKmOf(km([5, 3], [30]))).toBe(33);
-    });
-    it('한 곳이라도 모르면 null — 아는 것만 더하지 않는다', () => {
-        expect(firstStopKm(km([null], [20.4]))).toBeNull();
-        expect(deliveryKmOf(km([6.8], [null]))).toBeNull();
-        expect(deliveryKmOf(km([5], [null, 30]))).toBeNull();
-        expect(deliveryKmOf({})).toBeNull();
-    });
+    it('정거장 목록 칸이 없어도 빈 값', () => expect(deliveryKmOf({})).toBeNull());
 });

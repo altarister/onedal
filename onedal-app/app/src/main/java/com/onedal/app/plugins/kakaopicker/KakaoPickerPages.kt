@@ -48,7 +48,7 @@ object KakaoPickerPages {
             FieldSpec(PageField.CONTACT, "픽업 주소 아래 회색 상호", "분당스퀘어", Seen.REAL, Handling.READ, "원달앱 상호 칸(customerName) — PickerDetailOcrParser 사진 정거장 상호",
                 part = "pickup.customer"),
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선 · 캡처 근거: 실물 상세 6건 + A24 판독 사진 9건 15/15 */
-            FieldSpec(PageField.PICKUP_DISTANCE, "사진 정거장 오른쪽", "픽업 4.7km", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 거리 5 · 걸음 5 — 사진 정거장 straightKm → 정거장 거리) · 원달앱 PickerScreenOcr 는 같은 글자를 straightKm 로 읽어 손 상세의 목록 줄 찾기에만 쓴다",
+            FieldSpec(PageField.PICKUP_DISTANCE, "사진 정거장 오른쪽", "픽업 4.7km", Seen.REAL, Handling.READ, "PickerDetailOcrParser.withPhotoStops — 사진 정거장 straightKm → 첫 상차 정거장 거리(목록 값이 없을 때만) · 손 상세의 목록 줄 찾기(KakaoPickerParser.photoMatchCard)도 같은 값",
                 read = Regex("""픽업\s+([\d.]+)km""")),
             FieldSpec(PageField.CLOCK, "픽업 상호 오른쪽 회색", "15:00까지 픽업", Seen.REAL, Handling.READ, "서버 원문의 [사진] 줄(원달앱 사진 판독 줄 · 57 3단계) — 약속 · 마감에는 아직 안 쓴다(57 5단계 미룸)",
                 read = Regex("""([0-9]{1,2}:[0-9]{2})\s*\S{0,2}\s*픽업(?!예약)"""), part = "pickup"),
@@ -56,7 +56,7 @@ object KakaoPickerPages {
             FieldSpec(PageField.CONTACT, "배송 주소 아래 회색 상호", "NC이스트폴", Seen.REAL, Handling.READ, "원달앱 상호 칸(customerName) — PickerDetailOcrParser 사진 정거장 상호",
                 part = "dropoff.customer"),
             /* 하차 정거장 거리(상차지 → 하차지) · 직선 · 캡처 근거: 실물 상세 6건 + A24 판독 사진 9건 15/15 */
-            FieldSpec(PageField.DELIVERY_DISTANCE, "사진 정거장 오른쪽", "배송 26.4km", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 거리 5 · 걸음 5 — 사진 정거장 straightKm → 정거장 거리) · 원달앱 PickerScreenOcr 는 straightKm 로 읽고 안 쓴다",
+            FieldSpec(PageField.DELIVERY_DISTANCE, "사진 정거장 오른쪽", "배송 26.4km", Seen.REAL, Handling.READ, "PickerDetailOcrParser.withPhotoStops — 사진 정거장 straightKm → 하차 정거장 거리(목록에는 배송 거리가 없다)",
                 read = Regex("""배송\s+([\d.]+)km""")),
             FieldSpec(PageField.CLOCK, "배송 상호 오른쪽 회색", "18:28까지 배송", Seen.REAL, Handling.READ, "서버 원문의 [사진] 줄(원달앱 사진 판독 줄 · 57 3단계) — 약속 · 마감에는 아직 안 쓴다(57 5단계 미룸)",
                 read = Regex("""([0-9]{1,2}:[0-9]{2})\s*\S{0,2}\s*배송"""), part = "dropoff"),

@@ -1,5 +1,5 @@
 {
-  "about": "배차망 화면 글 → 칸 값 공통 문제지 — 원달앱 PageFieldReadTest(JUnit)가 지금 읽고, 서버 jest 가 3단계에 같은 줄을 푼다. texts 는 원달앱이 받는 노드 글 그대로(한 칸 띄어 이어 읽는다) · expect 는 1번 묶음의 원문 글자 · fare 는 요금 칸을 숫자로 바꾼 값(쉼표 떼고 정수 · 0 이하는 못 읽음 — 원달앱 PageFieldRead.fareOf 와 서버가 같은 규칙) · null = 못 읽음(지어내지 않는다). badgeCases 는 표시 글자 «배차망 · 자리 · 글자 → 뜻 갈래 · 값»(shared badgeOf 가 정의 표 badgeWords 에서 찾는다) · meaning null = 표시 글자 아님. stopQueryCases 는 정거장 «원문 → 판정 글자»(플렉스 실물 수집 · 인성 화면 칸 — shared stopQueryOf 와 원달앱 StopText.query 가 같은 답) · expect 는 맞는 답(null = 원문이 잘려 모름) · rule 은 어느 함수 몫(stopQueryOf 글자 규칙 · promise 약속 원문 떼기 · addressCut 정의 표). reservedCallCases 는 «첫 상차 · 마지막 하차 정거장 약속 → 예약 콜인가»(shared isReservedCall 과 원달앱 isReservedCall 이 같은 답) · pickup · dropoff 는 정거장 한 곳(null = 없음).",
+  "about": "배차망 화면 글 → 칸 값 공통 문제지 — 원달앱 PageFieldReadTest(JUnit)가 지금 읽고, 서버 jest 가 3단계에 같은 줄을 푼다. texts 는 원달앱이 받는 노드 글 그대로(한 칸 띄어 이어 읽는다) · expect 는 1번 묶음의 원문 글자 · fare 는 요금 칸을 숫자로 바꾼 값(쉼표 떼고 정수 · 0 이하는 못 읽음 — 원달앱 PageFieldRead.fareOf 와 서버가 같은 규칙) · null = 못 읽음(지어내지 않는다). badgeCases 는 표시 글자 «배차망 · 자리 · 글자 → 뜻 갈래 · 값»(shared badgeOf 가 정의 표 badgeWords 에서 찾는다) · meaning null = 표시 글자 아님. stopQueryCases 는 정거장 «원문 → 판정 글자»(플렉스 실물 수집 · 인성 화면 칸 — shared stopQueryOf 와 원달앱 StopText.query 가 같은 답) · expect 는 맞는 답(null = 원문이 잘려 모름) · rule 은 어느 함수 몫(stopQueryOf 글자 규칙 · promise 약속 원문 떼기 · addressCut 정의 표). reservedCallCases 는 «첫 상차 · 마지막 하차 정거장 약속 → 예약 콜인가»(shared isReservedCall 과 원달앱 isReservedCall 이 같은 답) · pickup · dropoff 는 정거장 한 곳(null = 없음). stopKmCases 는 «상차 · 하차 정거장 목록 → 상차 거리 · 배송 거리»(shared firstStopKm · deliveryKmOf 와 원달앱 firstStopKm · deliveryKmOf 가 같은 답) · null = 모름.",
   "cases": [
     {"network": "insung", "page": "newCall", "field": "fare", "texts": ["고양퀵서비스-031-932-7722 전표 상태 : 신규 물품 : 박스 1개 차량 : 다마스 탁송료 : 수수료 : 23% 요금 : 50,000(카드) 구분 : 편도 형태 : 보통 적요상세 *카고 입니다. 세금계산서필 03:57 상차."], "expect": "50,000", "why": "로컬 10-02 03:40:28 원달앱이 보낸 인성(시뮬) 상세 원문", "fare": 50000},
     {"network": "insung", "page": "newCall", "field": "fare", "texts": ["전표", "상태 : 신규", "물품 : 샘플 박스", "차량 : 5t", "탁송료 :", "수수료 : 23%", "요금 : 150,000(카드)", "구분 : 편도"], "expect": "150,000", "why": "탁송료 칸이 비어 있다 — «탁송료 :» 에 안 속는다(03:42:39 새 글자 예시와 같은 줄)", "fare": 150000},
@@ -560,5 +560,15 @@
     {"pickup": {"promiseText": "내상", "requestedDay": 1, "requestedTime": null}, "dropoff": null, "reserved": true, "why": "화물24시 «내상» — 첫 상차 날 1"},
     {"pickup": null, "dropoff": null, "reserved": false, "why": "약속 없는 콜"},
     {"pickup": {"listText": "가산동"}, "dropoff": {"promiseText": "내착", "requestedDay": 1, "requestedTime": null}, "reserved": false, "why": "하차 날만 1 — 예약 콜은 첫 상차 정거장만 본다"}
+  ],
+  "stopKmCases": [
+    {"pickups": [{"listText": "경기 군포 부곡동", "distanceKm": 5}], "dropoffs": [{"listText": "서울 중구 을지로6가", "distanceKm": 36}], "firstKm": 5, "deliveryKm": 36, "why": "상차 하나 · 하차 하나 — 상차 거리는 첫 상차 · 배송 거리는 하차 정거장 거리"},
+    {"pickups": [{"distanceKm": 20.4}], "dropoffs": [{"distanceKm": 0}], "firstKm": 20.4, "deliveryKm": 0, "why": "0 은 그대로 0 — 거르는 일은 부르는 쪽 몫"},
+    {"pickups": [{"distanceKm": 5}], "dropoffs": [{"distanceKm": 12}, {"distanceKm": 30}], "firstKm": 5, "deliveryKm": 42, "why": "하차 둘 — 첫 상차 뒤 정거장 거리를 다 더한다"},
+    {"pickups": [{"distanceKm": 5}, {"distanceKm": 3}], "dropoffs": [{"distanceKm": 30}], "firstKm": 5, "deliveryKm": 33, "why": "상차 둘 — 둘째 상차 정거장 거리도 배송 거리에 든다"},
+    {"pickups": [{"distanceKm": 5}], "dropoffs": [{"distanceKm": null}, {"distanceKm": 30}], "firstKm": 5, "deliveryKm": null, "why": "하차 둘 · 하나 모름 → 빈 값 — 아는 것만 더하면 짧은 거리를 지어낸다"},
+    {"pickups": [{"listText": "용산 한남", "distanceKm": null}], "dropoffs": [{"listText": "강남 역삼"}], "firstKm": null, "deliveryKm": null, "why": "거리 모름 — 상차 · 배송 거리 모두 빈 값"},
+    {"pickups": [{"listText": "경기 군포 부곡동", "distanceKm": 5}], "dropoffs": [{"listText": "경기 안산 단원구 오", "addressDetail": "경기 안산 단원구 와동", "distanceKm": 32}], "firstKm": 5, "deliveryKm": 32, "why": "상세만 있는 하차 거리 — 목록에 없던 하차 거리를 상세가 채운 정거장(화물24시 상세 하차지 칸 «32Km»)"},
+    {"pickups": [], "dropoffs": [], "firstKm": null, "deliveryKm": null, "why": "정거장 없음 — 둘 다 빈 값"}
   ]
 }
