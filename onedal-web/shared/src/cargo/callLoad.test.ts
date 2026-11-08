@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boxesOf, vehicleMatchOf, type CallLoad } from './callLoad';
+import { boxesOf, loadFrom, vehicleMatchOf, type CallLoad } from './callLoad';
 
 /**
  * 🚚 **짐 묶음에서 우리 차종 · 라면박스 수를 꺼낸다 — 지금 정의 표 데이터로**.
@@ -54,5 +54,16 @@ describe('boxesOf', () => {
 
     it('픽커 «대형» 은 박스 수 모름이고 차종 글자도 없으면 null 이다', () => {
         expect(boxesOf(loadOf(null, '대형'), 'kakaopicker')).toBeNull();
+    });
+});
+
+describe('loadFrom — 콜 한 칸의 짐 덩어리를 푼다', () => {
+    it('틀린 줄(모르는 갈래 · 글자 아닌 shown)은 버리고 나머지는 남긴다', () => {
+        const raw = { vehicleText: '다', sizeText: 3, itemText: '박스', lines: [{ kind: 'weight', shown: '3.85톤' }, { kind: 'color', shown: '빨강' }, { kind: 'care', shown: 3 }, null] };
+        expect(loadFrom(raw)).toEqual({ vehicleText: '다', sizeText: null, itemText: '박스', lines: [{ kind: 'weight', shown: '3.85톤' }] });
+    });
+
+    it('객체가 아니면 null', () => {
+        for (const raw of [null, undefined, '다', 3, []]) expect(loadFrom(raw)).toBeNull();
     });
 });

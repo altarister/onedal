@@ -159,6 +159,10 @@ const TEST_ONLY_KEEP = {
     isReservedCall: '예약 콜인가 — 정의(`timing.ts`)를 먼저 세웠다 · 부르는 걸음은 아직 정하지 않았다(흐름 통계 `callFlowStats.ts` 가 이 함수를 읽을지는 걸음 1 맞춤 3-3 의 고칠 자리 표에서 정한다) · 부르면 이 줄을 뺀다.',
     firstStopKm: '상차 거리 — 정의(`timing.ts`)를 먼저 세웠고 서버가 `intel` 상차 거리 칸에 이 값을 적는 걸음(거리 계획 7)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
     screenReportOf: '보고 몸에서 화면 칸 셋을 꺼내는 함수 — 정의(`screenKinds.ts`)를 먼저 세웠고 서버 `routes/scrap.ts` 가 화면 칸을 이 함수 하나로 읽는 걸음(화면 계획 6)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
+    callShapeOf: '콜 모양 → 콜 한 칸 글 — 정의(`callShape.ts`)를 먼저 세웠고 장부 쓰기(`OrderRepository.upsertOrder`)가 부르는 걸음(여덟계획 맞춤 걸음 3 «서버 저장» · 고칠 자리 표 3-2-3)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
+    callFromShape: '콜 한 칸 글 → 콜 모양 — 정의(`callShape.ts`)를 먼저 세웠고 서버 되살리기 · 관제웹 콜 목록 문 · 단계 씨앗이 부르는 걸음(여덟계획 맞춤 걸음 3 «서버 저장» · 고칠 자리 표 3-2-3)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
+    ledgerCopiesOf: '사본 칸을 콜 하나에서 — 정의(`callShape.ts`)를 먼저 세웠고 장부 쓰기(`OrderRepository.upsertOrder`)가 부르는 걸음(여덟계획 맞춤 걸음 3 «서버 저장» · 고칠 자리 표 3-2-3)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
+    OFFICE_ORDER_SAMPLE_09: '콜 모양 견본의 마지막 판 — 견본은 본 코드가 부르지 않는 것이 맞고, 콜 한 칸 문제지(`callShape.test.ts`)가 이 견본으로 글 왕복을 묻는다.',
 };
 /** 🤖 원달앱에서 이름으로 안 불리는데 남기는 fun · const val — 사유 없이는 못 넣는다 (①-3) */
 const KT_KEEP = {

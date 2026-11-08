@@ -3,7 +3,7 @@
  * 누가: 서버 페이지 읽기 · 파서 · 콜 모양
  * 언제: 배차망 화면의 돈 줄 · 결제 · 증빙 글자를 담고 꺼낼 때
  * 어디서: 콜 한 건의 돈 묶음
- * 무엇을: MONEY_KINDS · PAYMENT_TYPES · BILLING_TYPES · CallMoney · incomeOf · collectOf · moneyOf · paymentOf
+ * 무엇을: MONEY_KINDS · PAYMENT_TYPES · BILLING_TYPES · CallMoney · incomeOf · collectOf · moneyOf · moneyFrom · paymentOf
  * 어떻게: 화면에 보인 돈 줄만 담고 기사님 몫 · 받을 돈은 그 갈래 줄에서 꺼낸다
  * 왜: 배차망마다 뜻이 다른 숫자 하나에 기사님 몫과 받을 돈이 섞이지 않게 하기 위해서다
  */
@@ -66,13 +66,19 @@ export function paymentOf(shown: string | null): Pick<CallMoney, 'paymentType' |
     return { ...none, paymentType: oneOf(PAYMENT_TYPES, text) ?? '모름', paymentShown: text };
 }
 
-/** 콜 한 칸(orders.callShape)의 money 덩어리 → 돈 묶음 · 비었거나 깨졌으면 빈 묶음(줄 없음) · 모양이 틀린 줄 · 목록 밖 값은 담지 않는다 */
+const emptyMoney = (): CallMoney => ({ lines: [], feeRateText: null, paymentType: null, paymentShown: null, billingType: null, billingShown: null });
+
+/** 글(JSON)로 쓴 돈 덩어리 → 돈 묶음 · 비었거나 깨졌으면 빈 묶음(줄 없음) · 푼 뒤는 moneyFrom 과 같다 */
 export function moneyOf(json: string | null): CallMoney {
-    const empty: CallMoney = { lines: [], feeRateText: null, paymentType: null, paymentShown: null, billingType: null, billingShown: null };
-    if (!json) return empty;
+    if (!json) return emptyMoney();
     let raw: unknown;
-    try { raw = JSON.parse(json); } catch { return empty; }
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return empty;
+    try { raw = JSON.parse(json); } catch { return emptyMoney(); }
+    return moneyFrom(raw);
+}
+
+/** 콜 한 칸(orders.callShape)을 푼 money 덩어리 → 돈 묶음 · 객체가 아니면 빈 묶음 · 모양이 틀린 줄 · 목록 밖 값은 담지 않는다 */
+export function moneyFrom(raw: unknown): CallMoney {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return emptyMoney();
     const o = raw as Record<string, unknown>;
     const lines = (Array.isArray(o.lines) ? o.lines : []).flatMap((l): MoneyLine[] => {
         if (!l || typeof l !== 'object') return [];

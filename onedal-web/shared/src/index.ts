@@ -12,6 +12,7 @@ export * from './device/deviceModes';
 export * from './network/screenKinds';
 export * from './device/deviceSession';
 export * from './call/orderShapes';
+export * from './call/callShape';
 export * from './filter/dispatchFilter';
 
 export { LET_GO_STATUSES, isLetGoStatus, type LetGoStatus, DECISION_STATUSES, type DecisionStatus } from './call/orderStatuses';

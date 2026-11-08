@@ -57,6 +57,11 @@ describe('💰 돈 묶음', () => {
         for (const json of [null, '', '{', 'null', '[]', '"글자"']) expect(moneyOf(json)).toEqual(empty);
         expect(incomeOf(moneyOf('{'))).toBeNull();
     });
+
+    it('틀린 줄(모르는 갈래 · 숫자 아닌 원)은 버리고 나머지는 남긴다', () => {
+        const json = '{"lines":[{"kind":"income","won":5000,"shown":"5,000"},{"kind":"bonus","won":1,"shown":"x"},{"kind":"fee","won":"2","shown":"2"}]}';
+        expect(moneyOf(json).lines).toEqual([{ kind: 'income', won: 5000, shown: '5,000' }]);
+    });
 });
 
 describe('💳 결제 · 증빙 화면 글자 → 값', () => {

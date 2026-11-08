@@ -62,7 +62,7 @@ export const OFFICE_ORDER_SAMPLE = {
 };
 
 /*
- * 📚 아래는 위 `OFFICE_ORDER_SAMPLE`(지금 콜 모양)에서 한 묶음씩 바꿔 가는 견본 차례다 — 아무 코드도 읽지 않는다.
+ * 📚 아래는 위 `OFFICE_ORDER_SAMPLE`(지금 콜 모양)에서 한 묶음씩 바꿔 가는 견본 차례다 — 본 코드는 아무것도 읽지 않는다(`_09` 는 콜 한 칸 문제지 `callShape.test.ts` 가 왕복을 묻는 데 쓴다).
  *   `_02` 정거장 약속 → `_03` 돈(+ 배차망별 돈 예 `MONEY_EXAMPLE_*`) → `_04` 번호 → `_05` 출처 → `_06` 목록 글자 · 거리 · 표시 글자 →
  *   `_07` 정거장 정리 → `_08` 짐 → `_09` 정거장 묶음 · 돈 줄만 · 판정 축 자리 — **`_09` 가 마지막 모양**이다.
  *   `_04` 부터는 견본마다 바로 아래에 배차망 넷(인성 · 화물24시 · 카카오 픽커 · 인성플렉스)의 실물 화면 예(`*_EXAMPLE_*`)가 붙는다.
@@ -1254,7 +1254,7 @@ const LOAD_EXAMPLE_ISFLEX = {
  *   · 같은 칸에 목록 값과 상세 값이 다르면 — 거리는 목록 먼저 · 약속 시각은 목록과 상세를 합침(목록 날 + 상세 시각) ·
  *     주소는 상세 주소가 `addressDetail`, 목록 글자는 `listText` 로 둘 다 남김
  */
-const OFFICE_ORDER_SAMPLE_09 = {
+export const OFFICE_ORDER_SAMPLE_09 = {
     // ── 번호 (CallIdentity) ──
     id: "콜 번호",
     targetApp: "배차망",

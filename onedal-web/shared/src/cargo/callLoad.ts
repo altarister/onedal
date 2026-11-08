@@ -3,7 +3,7 @@
  * 누가: 콜 모양 · 서버 판정 · 합짐 자리 · 관제웹 짐 표시
  * 언제: 배차망 화면의 차종 · 크기 · 물품 글자를 담거나, 거기서 우리 차종 · 라면박스 수를 꺼낼 때
  * 어디서: 콜 한 건의 짐 묶음과 배차망 정의 표의 차종 낱말 · 크기 낱말 · 사실 칸
- * 무엇을: LOAD_KINDS · CallLoad · VEHICLE_MATCH_KINDS · VehicleMatch · vehicleMatchOf · boxesOf
+ * 무엇을: LOAD_KINDS · CallLoad · loadFrom · VEHICLE_MATCH_KINDS · VehicleMatch · vehicleMatchOf · boxesOf
  * 어떻게: 짐 묶음에는 화면 글자만 담고, 우리 차종 맞춤 · 박스 수는 정의 표를 읽는 함수로 꺼낸다
  * 왜: 네 배차망의 짐 글자를 한 모양으로 담고, 차종 거르기 · 단가 · 합짐 자리가 같은 답을 보게 하기 위해서다
  */
@@ -32,6 +32,21 @@ export interface CallLoad {
     sizeText: string | null;    // 크기 낱말 «소형» · «다마» — 없으면 null
     itemText: string | null;    // 물품 글 통째 «중형 세 변의 합 140cm · 20kg 이하»
     lines: LoadLine[];          // 무게 · 치수 · 몸 모양 · 동승 · 품목 · 취급 주의
+}
+
+const textOrNull = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+
+/** 콜 한 칸(orders.callShape)을 푼 load 덩어리 → 짐 묶음 · 객체가 아니면 null · 글자 칸은 글자일 때만 · 모르는 갈래 · 글자 아닌 shown 줄은 담지 않는다 */
+export function loadFrom(raw: unknown): CallLoad | null {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const o = raw as Record<string, unknown>;
+    const lines = (Array.isArray(o.lines) ? o.lines : []).flatMap((l): LoadLine[] => {
+        if (!l || typeof l !== 'object') return [];
+        const { kind, shown } = l as Record<string, unknown>;
+        return typeof kind === 'string' && (LOAD_KINDS as readonly string[]).includes(kind) && typeof shown === 'string'
+            ? [{ kind: kind as LoadKind, shown }] : [];
+    });
+    return { vehicleText: textOrNull(o.vehicleText), sizeText: textOrNull(o.sizeText), itemText: textOrNull(o.itemText), lines };
 }
 
 /* 차종 맞춤 넷 — 저장하지 않고 꺼낸다 · 수단 상관없음(ANY)은 허용 차종을 지나고, 우리 차종에 없음(NONE)은 못 싣는 콜이다 */

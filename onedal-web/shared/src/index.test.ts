@@ -69,3 +69,11 @@ describe('OrderStatus Helpers', () => {
         });
     });
 });
+
+describe('콜 한 칸 — 입구에서 꺼낸다', () => {
+    it('판 번호와 함수 셋을 `@onedal/shared` 하나로 가져온다', async () => {
+        const m = await import('./index');
+        expect(m.CALL_SHAPE_VERSION).toBe(1);
+        for (const f of [m.callShapeOf, m.callFromShape, m.ledgerCopiesOf]) expect(typeof f).toBe('function');
+    });
+});
