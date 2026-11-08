@@ -38,6 +38,6 @@ describe('🏷️ intel 출처 칸', () => {
         const block = orders.slice(orders.lastIndexOf('INSERT INTO intel', i), i + 1200);
         expect(block).toMatch(/rawDetailText, reserved, reservedDay, reservedAt, source\)/);
         expect(block).toContain('reportSourceOf((payload as any).source)');
-        expect(block).toContain('(payload.order as any).reservedDay ?? null');
+        expect(block).toContain('pickupStop?.requestedDay ?? null');
     });
 });

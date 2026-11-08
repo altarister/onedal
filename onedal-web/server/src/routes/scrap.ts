@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { scrapReleaseCodes } from "../core/releases";
-import { isTargetApp, DEFAULT_TARGET_APP, addressOf } from "@onedal/shared";
+import { isTargetApp, DEFAULT_TARGET_APP, callFromAppReport, firstPickupStop, lastDropoffStop, firstStopKm, deliveryKmOf } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
 import { reportSourceOf } from "../core/helpers";
@@ -80,19 +80,23 @@ router.post("/", (req, res) => {
         // logRoadmapEvent("서버", "방대한 스크랩 배열값을 intel 테이블 DB 저장");
         // 2. 비동기 Write Queue를 통해 밀려들어오는 데이터를 오류 없이 INSERT
         data.forEach(item => {
+            /* 📱→🚏 보고의 맨 위 칸을 정거장으로 — 글자 · 좌표 · 거리 · 상차 약속은 첫 상차 · 마지막 하차 정거장에서 읽는다(잡은 콜 장부와 같은 규칙) */
+            const call = callFromAppReport(item);
+            const pickupStop = firstPickupStop(call);
+            const dropoffStop = lastDropoffStop(call);
             dbQueue.runAsync(
                 "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText, vehicleType, deliveryDistanceKm, scheduleText, postTime, rawText, pickupX, pickupY, dropoffX, dropoffY, verdict, reserved, reservedDay, reservedAt, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 userId,
                 deviceId || null,
                 "INTEL_BULK",
-                addressOf(targetApp, item.pickup),
-                addressOf(targetApp, item.dropoff),
+                pickupStop?.listText ?? '',
+                dropoffStop?.listText ?? '',
                 item.fare || 0,
                 timestamp,
                 targetApp,
                 // 🌐 픽커 수집 필드 셋 — 인성·24시 콜은 안 보내므로 null (픽커_수집.md §5-①)
                 (item as any).itemSize ?? null,
-                (item as any).pickupDistance ?? null,
+                firstStopKm(call),
                 (item as any).tagsText ?? null,
                 /**
                  * 📋 **리스트 화면이 주는 것을 버리지 않는다** (기사님 지시).
@@ -103,20 +107,20 @@ router.post("/", (req, res) => {
                  *    어느 망인지는 `targetApp` 이 답한다.
                  */
                 (item as any).vehicleType ?? null,
-                (item as any).deliveryDistance ?? null,
-                (item as any).scheduleText ?? null,
+                deliveryKmOf(call),
+                pickupStop?.promiseText ?? null,
                 (item as any).postTime ?? null,
                 (item as any).rawText ?? null,
-                (item as any).pickupX ?? null,
-                (item as any).pickupY ?? null,
-                (item as any).dropoffX ?? null,
-                (item as any).dropoffY ?? null,
+                pickupStop?.geo?.x ?? null,
+                pickupStop?.geo?.y ?? null,
+                dropoffStop?.geo?.x ?? null,
+                dropoffStop?.geo?.y ?? null,
                 /* 🗳️ 앱이 낸 판정 — 화면이 다시 재지 않게 */
                 (item as any).verdict ?? null,
                 /* 📅 예약 표시·날·시각 — 받아 적기만 · 참/거짓이 아니면 모름(NULL) */
                 typeof (item as any).reserved === 'boolean' ? ((item as any).reserved ? 1 : 0) : null,
-                (item as any).reservedDay ?? null,
-                (item as any).reservedAt ?? null,
+                pickupStop?.requestedDay ?? null,
+                pickupStop?.requestedTime ?? null,
                 source
             );
         });

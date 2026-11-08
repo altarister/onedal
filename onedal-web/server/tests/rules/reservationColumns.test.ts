@@ -1,16 +1,39 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import db from '../../src/db';
+import scrapRouter from '../../src/routes/scrap';
+import { clearUserSession } from '../../src/state/userSessionStore';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * 📅 **예약 셋 — 받아 적기만**.
  *
  * 원달앱이 콜 줄마다 `reserved`(예약 표시가 있나 · true/false/null) · `reservedDay`(0 오늘 · 1 내일 · N 그 뒤 · null 모름) · `reservedAt`(«HH:MM» · null)을 싣는다.
- * 서버는 목록 원문(`intel`)에 그대로, 장부(`orders`)에는 서버 입구가 옮겨 담은 첫 상차 정거장 약속 칸(`requestedDay` · `requestedTime`)에서 적는다.
+ * 서버는 목록 원문(`intel`)과 장부(`orders`)에 서버 입구가 옮겨 담은 첫 상차 정거장 약속 칸(`requestedDay` · `requestedTime`)에서 적는다 — 값은 보고 그대로다.
  * 🔴 서버 칸이 앱보다 먼저 선다 — 앱이 칸을 더했는데 서버에 없으면 `intelColumns` 짝이 빨간불이다.
  *    shared 콜 양식(`SimplifiedOfficeOrder`)의 세 칸은 원달앱 칸과 같은 때 든다 — `appOrderShape` 짝이 한쪽만 있으면 빨간불이다.
  */
 const SRC = join(__dirname, '../../src');
 const read = (p: string) => readFileSync(p, 'utf8');
+
+const U = 'test-reservation-intel';
+const DEV = 'dev-reservation-intel-1';
+const scrapHandler = (() => {
+    const layer = (scrapRouter as any).stack.find((l: any) => l.route?.path === '/' && l.route.methods.post);
+    return layer.route.stack[layer.route.stack.length - 1].handle;
+})();
+beforeAll(() => {
+    db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, 'reserve@test', '예약칸검사');
+    approvedUser(U);
+    db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id) VALUES (?, ?)`).run(U, DEV);
+});
+afterAll(async () => {
+    await new Promise(r => setTimeout(r, 200));
+    db.prepare(`DELETE FROM intel WHERE device_id = ?`).run(DEV);
+    db.prepare(`DELETE FROM user_devices WHERE user_id = ?`).run(U);
+    db.prepare(`DELETE FROM users WHERE id = ?`).run(U);
+    clearUserSession(U);
+});
 
 describe('📅 예약 셋', () => {
     it('intel · orders 에 칸이 선다', () => {
@@ -19,10 +42,26 @@ describe('📅 예약 셋', () => {
         expect(db).toMatch(/ensureColumns\('orders', \{ reserved: 'INTEGER', reservedDay: 'INTEGER', reservedAt: 'TEXT' \}\)/);
     });
 
-    it('목록 보고가 intel 에 적는다', () => {
+    it('목록 보고가 intel 에 적는다 — 정거장으로 옮긴 값이 보고 그대로', async () => {
         const scrap = read(join(SRC, 'routes/scrap.ts'));
         expect(scrap).toMatch(/INSERT INTO intel \([^)]*reserved, reservedDay, reservedAt[,)]/);
-        expect(scrap).toContain('(item as any).reservedDay ?? null');
+        const item = {
+            pickup: '강남 대치2', dropoff: '분당 이매2', fare: 12000, pickupDistance: 3.2, deliveryDistance: 17.5,
+            scheduleText: '예약', reserved: true, reservedDay: 1, reservedAt: '14:00',
+            pickupX: 127.06, pickupY: 37.5, dropoffX: 127.13, dropoffY: 37.39,
+        };
+        const res: any = { status: () => res, json: () => res };
+        await scrapHandler({ body: { data: [item], deviceId: DEV, supplyLinked: true }, app: { get: () => ({ to: () => ({ emit: () => {} }) }) } }, res);
+        let row: any;
+        for (let i = 0; i < 50 && !row; i++) {
+            await new Promise(r => setTimeout(r, 20));
+            row = db.prepare(`SELECT * FROM intel WHERE device_id = ?`).get(DEV);
+        }
+        expect(row).toMatchObject({
+            pickup: '강남 대치2', dropoff: '분당 이매2', pickupDistanceKm: 3.2, deliveryDistanceKm: 17.5,
+            scheduleText: '예약', reserved: 1, reservedDay: 1, reservedAt: '14:00',
+            pickupX: 127.06, pickupY: 37.5, dropoffX: 127.13, dropoffY: 37.39,
+        });
     });
 
     it('장부가 적고, 재확정 때 빈 값이 기존 값을 안 지운다', () => {
