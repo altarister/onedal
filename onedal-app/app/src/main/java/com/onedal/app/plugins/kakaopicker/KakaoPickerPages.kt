@@ -66,29 +66,29 @@ object KakaoPickerPages {
             FieldSpec(PageField.ITEM_SIZE, "사진 물품 정보", "중형 세 변의 합 140cm · 20kg 이하", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail · 서버 제외어 찾는 칸(excludeScan) — 접근성 글에서 «최종 수익» · «유의사항» · 버튼 앞까지 · 관제웹 물품 칸(서버 pageFieldOf)",
                 read = Regex("""물품\s*정보\s+([\s\S]*?)(?=\s+유의사항|\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
             /* 짐 줄 «치수» — 글자 그대로(cm 숫자로 바꾸지 않는다) · 캡처 근거: 실물 캡처 ex_images/카카오픽커/실물_2026 물품 정보 */
-            FieldSpec(PageField.ITEM_SIZE, "물품 정보 크기 낱말 뒤 치수", "세 변의 합 140cm", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다",
+            FieldSpec(PageField.ITEM_SIZE, "물품 정보 크기 낱말 뒤 치수", "세 변의 합 140cm", Seen.REAL, Handling.READ, "서버 상세 자료 짐 묶음 치수 줄(detailRecordOf load) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""(세 변의 합\s*\d+\s*cm)"""), part = "dimension"),
             /* 짐 줄 «무게» — 치수 바로 뒤만 읽는다(유의사항의 «5kg 이내» 같은 글에 안 속는다) */
-            FieldSpec(PageField.ITEM_SIZE, "물품 정보 치수 뒤 무게", "20kg 이하", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다",
+            FieldSpec(PageField.ITEM_SIZE, "물품 정보 치수 뒤 무게", "20kg 이하", Seen.REAL, Handling.READ, "서버 상세 자료 짐 묶음 무게 줄(detailRecordOf load) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""세 변의 합\s*\d+\s*cm\s*\S?\s*(\d+(?:\.\d+)?\s*kg\s*이하)"""), part = "weight"),
             /* 짐 줄 «취급 주의» — 출처 불명 참고 글자(짐 계획 짐 글자 모음)의 «…이에요» 꼴만 읽는다 · 서버 원문 145 건 중 0 · 같은 자리에 품목 글(«식품» · «검체 채취 키트»)과 현금 착불 안내가 오는 원문이 8 건 — 그 글은 취급 주의로 읽지 않는다 */
-            FieldSpec(PageField.ITEM_SIZE, "물품 정보 무게 뒤 취급 주의 글", "전자제품이에요", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다",
+            FieldSpec(PageField.ITEM_SIZE, "물품 정보 무게 뒤 취급 주의 글", "전자제품이에요", Seen.UNKNOWN, Handling.READ, "서버 상세 자료 짐 묶음 취급 주의 줄(detailRecordOf load) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""kg[ \t]*이하[ \t]+([^\n]*?(?:이에요|예요))(?=[ \t]|\n|${'$'})"""), part = "care"),
             /* 가게(배달앱) 주문 번호 글자 통째 — 우리 콜 번호 아님 */
-            FieldSpec(PageField.ORDER_NO, "물품 정보 글 끝", "요기요 주문번호 : 903", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 번호 7 · 걸음 3 — 가게 주문 번호) · 원달앱은 이 칸을 안 읽는다",
+            FieldSpec(PageField.ORDER_NO, "물품 정보 글 끝", "요기요 주문번호 : 903", Seen.REAL, Handling.READ, "서버 상세 자료 가게 주문 번호(detailRecordOf clientOrderNo) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""(\S+\s*주문번호\s*:\s*\S+)"""), part = "client"),
             FieldSpec(PageField.MEMO, "사진 유의사항", "바로 배송가주실 분만 잡아주세요", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «유의사항» 다음 «최종 수익» · 버튼 앞 · 원달앱은 이 칸을 안 읽는다(사진 판독도 안 씀)",
                 read = Regex("""유의사항\s+([\s\S]*?)(?=\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
             /* 같은 콜의 최종 수익이 보는 중에 오른다(배송비 그대로 · 실물 4번) — 판독 뒤 오른 값은 모른다 */
             FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "PickerDetailOcrParser.detailFare(사진 판독 · 판정 요금)"),
             /* 같은 화면 자리에 이름표 없는 줄과 둘 — 읽는 숫자는 같은 «최종 수익» · 캡처 근거: 실물 상세 8/8 */
-            FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3 — 기사님 몫 줄) · 판정 요금은 이름표 없는 줄(사진 판독) — 돈 8(걸음 4)이 판정 입력을 이 줄로 옮기며 이름표 없는 줄을 지운다",
+            FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "서버 상세 자료 돈 묶음 기사님 몫 줄(detailRecordOf money) · 판정 요금은 이름표 없는 줄(사진 판독) — 돈 8 은 걸음 5 의 돈 9 뒤에 판정 입력을 이 줄로 옮기며 이름표 없는 줄을 지운다",
                 read = Regex("""최종 수익\s+([\d,]+)"""), part = "income"),
             /* 캡처 근거: 실물 상세 6/6 — 서버 원문은 수익 상자 아래가 잘린 콜이 많다 */
-            FieldSpec(PageField.FARE, "최종 수익 아래 배송비", "배송비 9,730P", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3)",
+            FieldSpec(PageField.FARE, "최종 수익 아래 배송비", "배송비 9,730P", Seen.REAL, Handling.READ, "서버 상세 자료 돈 묶음 배송비 줄(detailRecordOf money)",
                 read = Regex("""배송비\s+([\d,]+)P"""), part = "deliveryFee"),
             /* 캡처 근거: 실물 상세 2/3 */
-            FieldSpec(PageField.FARE, "배송비 아래 프로모션", "프로모션 1,100P", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3)",
+            FieldSpec(PageField.FARE, "배송비 아래 프로모션", "프로모션 1,100P", Seen.REAL, Handling.READ, "서버 상세 자료 돈 묶음 프로모션 줄(detailRecordOf money)",
                 read = Regex("""프로모션\s+([\d,]+)P"""), part = "promo"),
         ),
         Page.MY_LIST to listOf(

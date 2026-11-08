@@ -31,7 +31,7 @@ export type BillingType = typeof BILLING_TYPES[number];
 export interface MoneyLine {
     kind: MoneyKind;
     won: number;          // 원(픽커 P 는 1P = 1원)
-    shown: string;        // 화면 글자 그대로 «운송료 60,000» · «배송비 5,500P» · 쌍둥이 콜은 고른 목록 줄의 요금 글자 «6,160»
+    shown: string;        // 읽는 법이 잡은 글자 «2,387» · 쌍둥이 콜은 고른 목록 줄의 요금 글자 «6,160»
 }
 
 /** 콜 한 건의 돈 — 돈 줄만. 기사님 몫 · 받을 돈은 아래 함수로 꺼낸다 */

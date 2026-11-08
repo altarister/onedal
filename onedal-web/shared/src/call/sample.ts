@@ -434,7 +434,7 @@ const OFFICE_ORDER_SAMPLE_04 = {
  * 머리 줄 «(주)신한로직스[1588-5480]» · 상태 «배차» · 의뢰지 줄 «***» · 출발지 줄 «@1시/화성송동»
  * - 지금: 서버 읽는 법이 «이름-전화» 꼴만 알아 배차사가 «(주)신한로직스[1588», 전화는 빈 값으로 읽힌다 ·
  *   의뢰지 줄은 안 읽어 `companyName` 이 빈다 · «@» 는 담을 칸이 없다 · 상태는 `receiptStatus` «배차»
- * - 묶음: 배차사 «(주)신한로직스» 와 전화 «1588-5480» 을 가른다 · 의뢰인은 화면 글자 «***»(배차망이 가린 글자) 그대로 ·
+ * - 묶음: 배차사 «(주)신한로직스» 와 전화 «1588-5480» 을 가른다 · 가린 글자 «***»는 칸 없음(정의 표 읽는 법이 못 읽은 것으로) ·
  *   «@» 가 있어 공유콜 참(원달앱은 목록 원문의 «@» 로 정한다 — 이 사진에서는 출발지 줄 앞 «@») · 인성 화면에는 오더 번호 · 가게 주문 번호가 없어 null
  */
 const IDENTITY_EXAMPLE_INSUNG = {
@@ -445,7 +445,7 @@ const IDENTITY_EXAMPLE_INSUNG = {
     fromOtherOffice: true,
     dispatcherName: "(주)신한로직스",
     dispatcherPhone: "1588-5480",
-    requesterName: "***",
+    // requesterName 없음 — 가린 글자 «***»는 칸 없음(정의 표 읽는 법이 못 읽은 것으로)
     stageText: "배차",
 } satisfies Partial<CallIdentity>;
 
