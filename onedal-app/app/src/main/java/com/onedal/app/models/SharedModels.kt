@@ -79,7 +79,10 @@ data class EmergencyReport(
     val timestamp: String,
     val targetApp: String = "insung",
     /** 🛑 계약 취소 버튼을 실제로 눌렀나 — false 면 계약이 남아 있다 · 모르면 null (`CancelReport` · shared `EmergencyReport.cancelPressed`) */
-    val cancelPressed: Boolean? = null
+    val cancelPressed: Boolean? = null,
+    /** 📡 배차망 페이지 이름 · 덧칸 이름 — 하트비트와 같은 값(`TelemetryManager.screenPage` · `screenOverlay`) */
+    val screenPage: String? = null,
+    val screenOverlay: String? = null,
 )
 
 // ────────────────────────────────────────────────

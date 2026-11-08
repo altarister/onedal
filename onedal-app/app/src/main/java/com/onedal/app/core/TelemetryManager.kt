@@ -39,6 +39,9 @@ class TelemetryManager(
         private const val FAST_POLLING_MS = 1000L // 1.0초 (결재 대기 중 1초 보고)
         private const val DEBOUNCE_MS = 300L // 콜 수집 후 모아쏘기 위한 디바운스 대기시간
 
+        /** 📡 이상 보고 · 안 먹힘 보고가 싣는 화면 글자 — 서버로 보내는 값(`reportedScreen`)에서 한 곳으로 */
+        fun sentScreenOf(reported: ScreenContext): String = reported.name
+
         /** ⏱️ 다음 빈 통신까지 — 결재 대기 1초 · 목록 화면 15초 · 그 밖 60초 */
         /** @param unlinked 서버가 이 폰을 거절했다(`DeviceLink`) — 1초 결재 대기도 멈추고 60초로 늦춘다 */
         fun heartbeatIntervalMs(waitingDecision: Boolean, screen: ScreenContext, unlinked: Boolean = false): Long = when {
@@ -74,8 +77,8 @@ class TelemetryManager(
     // [Safety Mode V3] 현재 화면 상태 (HijackService에서 상태 전이 시 업데이트)
     @Volatile
     var currentScreenContext: ScreenContext = ScreenContext.UNKNOWN
-    /** 📡 서버로 보내는 화면 값 · 배차망 페이지 이름 · 덧칸 이름 — 상세 위 팝업도 페이지 값(DETAIL_*) · 내 오더는 MY_ORDERS · 모르면 원달앱 안 값 */
-    var reportedScreen: ScreenContext? = null
+    /** 📡 서버로 보내는 화면 값 · 배차망 페이지 이름 · 덧칸 이름 — 상세 위 팝업도 페이지 값(DETAIL_*) · 내 오더는 MY_ORDERS · 판별 전이면 «모름» */
+    var reportedScreen: ScreenContext = ScreenContext.UNKNOWN
     var screenPage: String? = null
     var screenOverlay: String? = null
 
@@ -362,7 +365,7 @@ class TelemetryManager(
         val payload = ScrapPayload(
             deviceId = apiClient.getDeviceId(),
             data = snapshot,
-            screenContext = (reportedScreen ?: currentScreenContext).value,  // [Safety Mode V3] 화면 상태 (물리적 페이지) — 서버로 보내는 페이지 값
+            screenContext = reportedScreen.value,  // [Safety Mode V3] 화면 상태 (물리적 페이지) — 서버로 보내는 페이지 값
             screenPage = screenPage,
             screenOverlay = screenOverlay,
             isHolding = isHolding,                       // [Page/Hold 분리] 콜 처리 중 여부

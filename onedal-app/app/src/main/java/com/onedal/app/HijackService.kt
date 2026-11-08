@@ -676,7 +676,7 @@ class HijackService : AccessibilityService(), ScanContext {
         com.onedal.app.core.InterruptReport.sink = { n ->
             apiClient.sendAnomalyReport(
                 targetApp = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).label,
-                screenName = telemetryManager.currentScreenContext.name,
+                screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
                 failureReason = "INTERRUPT: 끼어들기 ${n}번(지난 기록 뒤)",
                 detailParsedText = null,
             )
@@ -716,10 +716,11 @@ class HijackService : AccessibilityService(), ScanContext {
             }
         }
         // 👆 «누르기 안 먹힘»은 이상 징후로 — 어느 배차망 · 어느 화면이든 같은 한 줄 (`TapInFlight`)
+        touchManager.sentScreen = { telemetryManager.reportedScreen }
         touchManager.onTapFailed = { f ->
             apiClient.sendAnomalyReport(
                 targetApp = currentTargetApp,
-                screenName = f.screen.name,
+                screenName = TelemetryManager.sentScreenOf(f.sent),
                 failureReason = "TAP_FAILED: ${f.key.take(30)} · ${f.reason} · ${f.waitedMs}ms · 이 콜 ${f.streak}번째",
             )
             // 👆 안 먹힌 누르기가 세운 «앱이 연 콜»을 되돌린다 — 목록 그대로라 목록 리셋이 안 온다 (`DetailOwner.releaseOnTapFailed`)
@@ -1060,7 +1061,7 @@ class HijackService : AccessibilityService(), ScanContext {
         apiClient.sendAnomalyReport(
             targetApp = currentTargetApp,
             /* 🧾 화면 칸 = 누른 화면(앱이 누른 콜) — 손으로 누른 콜이면 알림 때 화면 */
-            screenName = (session.alarmTappedScreen ?: telemetryManager.currentScreenContext).name,
+            screenName = TelemetryManager.sentScreenOf(session.alarmTappedScreen ?: telemetryManager.reportedScreen),
             failureReason = com.onedal.app.core.CallTakenNote.reason(notice, tappedPage, notifiedPage, foundToTap, firstSeen, listAge),
             listOrderInfo = card?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
             detailParsedText = text.take(200),
@@ -2260,7 +2261,7 @@ class HijackService : AccessibilityService(), ScanContext {
             deviceId = apiClient.getDeviceId(),
             orderId = orderId,
             reason = reason.value,
-            screenContext = telemetryManager.currentScreenContext.value,
+            screenContext = telemetryManager.reportedScreen.value, screenPage = telemetryManager.screenPage, screenOverlay = telemetryManager.screenOverlay,
             screenText = extraText,
             timestamp = nowTimestamp(),
             targetApp = forNetwork ?: currentTargetApp,

@@ -8,6 +8,7 @@ import com.onedal.app.core.LogTag
 import com.onedal.app.core.ModeActs
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.ScreenReader
+import com.onedal.app.core.TelemetryManager
 import com.onedal.app.models.ScreenContext
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.DispatchPluginRegistry
@@ -126,7 +127,7 @@ fun ScanContext.handlePreConfirmScreen(
     if (missing.isNotEmpty()) {
         apiClient.sendAnomalyReport(
             targetApp = currentTargetApp,
-            screenName = telemetryManager.currentScreenContext.name,
+            screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
             failureReason = "REQUIREMENT_UNMET: ${missing.joinToString(" · ")}",
             listOrderInfo = mapOf("fare" to order.fare, "pickup" to order.pickup, "dropoff" to order.dropoff),
             detailParsedText = rawScreenStr.take(500),
@@ -179,7 +180,7 @@ fun ScanContext.handlePreConfirmScreen(
                 AppLogger.w(TAG, "🛑 [확정 실패] 확정 버튼을 못 눌렀다 — 상세 보고를 보내지 않고 빠져나온다")
                 apiClient.sendAnomalyReport(
                     targetApp = currentTargetApp,
-                    screenName = telemetryManager.currentScreenContext.name,
+                    screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
                     failureReason = "CONFIRM_BUTTON_NOT_FOUND",
                     listOrderInfo = mapOf("fare" to order.fare, "pickup" to order.pickup, "dropoff" to order.dropoff),
                     detailParsedText = rawScreenStr.take(500),
@@ -317,7 +318,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                 if (missing.isNotEmpty()) {
                     apiClient.sendAnomalyReport(
                         targetApp = currentTargetApp,
-                        screenName = telemetryManager.currentScreenContext.name,
+                        screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
                         failureReason = "REQUIREMENT_UNMET: ${missing.joinToString(" · ")}",
                         listOrderInfo = mapOf("fare" to verifiedOrder.fare, "pickup" to verifiedOrder.pickup, "dropoff" to verifiedOrder.dropoff),
                         detailParsedText = rawScreenStr.take(500),
@@ -378,7 +379,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                 AppLogger.w(TAG, "⚠️ [스냅샷 판독 실패] $reason -> 이상 징후 보고 뒤 버린다(요건 못 채움)")
                 apiClient.sendAnomalyReport(
                     targetApp = currentTargetApp,
-                    screenName = telemetryManager.currentScreenContext.name,
+                    screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
                     failureReason = "SNAPSHOT_PARSE_FAILED: $reason",
                     listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
                     detailParsedText = rawScreenStr.take(500),
@@ -421,7 +422,7 @@ fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: 
         AppLogger.w(TAG, LogTag.CALL_STAGE, "🎯 [누른 콜 아님] $reason — 판정만 할 상세라 닫지 않는다 · 손 상세로 판정만")
         apiClient.sendAnomalyReport(
             targetApp = currentTargetApp,
-            screenName = telemetryManager.currentScreenContext.name,
+            screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
             failureReason = "DETAIL_MISMATCH: $reason · 손 상세로 봄",
             listOrderInfo = mapOf("fare" to tapped.fare, "pickup" to tapped.pickup, "dropoff" to tapped.dropoff),
             detailParsedText = rawScreenStr.take(500),
@@ -434,7 +435,7 @@ fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: 
     AppLogger.w(TAG, LogTag.CALL_STAGE, "🎯 [누른 콜 아님] $reason — 계약할 상세라 서버에 보내지 않고 목록으로")
     apiClient.sendAnomalyReport(
         targetApp = currentTargetApp,
-        screenName = telemetryManager.currentScreenContext.name,
+        screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
         failureReason = "DETAIL_MISMATCH: $reason",
         listOrderInfo = mapOf("fare" to tapped.fare, "pickup" to tapped.pickup, "dropoff" to tapped.dropoff),
         detailParsedText = rawScreenStr.take(500),

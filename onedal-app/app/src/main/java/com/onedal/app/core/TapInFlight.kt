@@ -34,12 +34,14 @@ object TapInFlight {
         val completed: Boolean = false,
         /** 시스템이 무시해 한 번 다시 누른 것인가 — 또 무시되면 실패다 */
         val refired: Boolean = false,
+        /** 누른 순간 서버로 보내는 화면 값 — 안 먹힘 보고가 싣는다(`screen` 은 원달앱 안 값이라 판정이 쓴다) */
+        val sent: ScreenContext = screen,
     )
 
     enum class Verdict { NONE, TAKEN, NOT_TAKEN, EXPIRED }
 
-    /** 안 먹힘 보고 — 무엇 · 누를 때 화면 종류 · 기다린 ms · 까닭 · 같은 무엇의 연속 실패 횟수 */
-    data class Failure(val key: String, val screen: ScreenContext, val waitedMs: Long, val reason: String, val streak: Int)
+    /** 안 먹힘 보고 — 무엇 · 누를 때 화면 종류 · 기다린 ms · 까닭 · 같은 무엇의 연속 실패 횟수 · 누를 때 보내는 화면 값 */
+    data class Failure(val key: String, val screen: ScreenContext, val waitedMs: Long, val reason: String, val streak: Int, val sent: ScreenContext)
 
     /**
      * 같은 무엇 · 같은 화면 종류의 누르기가 아직 진행 중인가 — 그러면 보내지 않는다.

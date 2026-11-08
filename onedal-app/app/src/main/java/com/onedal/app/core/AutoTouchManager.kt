@@ -52,6 +52,8 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
     private val failStreak = TapInFlight.FailStreak()
     /** «누르기 안 먹힘»을 서버 이상 징후로 올리는 길 — 서비스가 잇는다 */
     var onTapFailed: ((TapInFlight.Failure) -> Unit)? = null
+    /** 지금 서버로 보내는 화면 값 — 누를 때 `Record` 에 함께 적는다(서비스가 잇는다 · 안 이으면 안 값) */
+    var sentScreen: () -> ScreenContext = { screenNow }
 
     /**
      * 📡 **화면 알림마다 — 누른 것이 먹혔나 판정한다** (`TapInFlight.judge`). 화면 처리보다 먼저 불러야 같은 알림에서 누르는 쪽이 새 판정을 본다.
@@ -85,7 +87,7 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
         val streak = failStreak.fail(rec.key)
         val waited = now - rec.firedAtMs
         AppLogger.e(TAG, LogTag.TAP, "⌛ [누르기 안 먹힘] «${rec.key.take(20)}» · ${rec.screen} · ${waited}ms · 까닭: $reason · 이 콜 ${streak}번째")
-        onTapFailed?.invoke(TapInFlight.Failure(rec.key, rec.screen, waited, reason, streak))
+        onTapFailed?.invoke(TapInFlight.Failure(rec.key, rec.screen, waited, reason, streak, rec.sent))
         inFlight = null
         inFlightRefire = null
     }
@@ -306,7 +308,7 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
 
         // 👆 쏘는 순간 기록한다 — 미뤘다 쏘는 목록 줄도 여기서 같은 감지에 든다. 알림은 이 기록(seq)에 묶는다
         val seq = ++tapSeq
-        inFlight = TapInFlight.Record(seq, key, screenNow, android.os.SystemClock.elapsedRealtime(), refired = isRefire)
+        inFlight = TapInFlight.Record(seq, key, screenNow, android.os.SystemClock.elapsedRealtime(), refired = isRefire, sent = sentScreen())
         inFlightRefire = refire
         lastAppTapAtMs = android.os.SystemClock.elapsedRealtime()
         val dispatched = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
@@ -435,7 +437,7 @@ class AutoTouchManager(private val service: AccessibilityService, private val wa
         if (dispatched) lastAppBackAtMs = android.os.SystemClock.elapsedRealtime()
         // 전역 동작은 «끝났다» 알림이 없다 — 보내는 순간 끝난 것으로 적는다
         if (dispatched) {
-            inFlight = TapInFlight.Record(++tapSeq, BACK_KEY, screenNow, android.os.SystemClock.elapsedRealtime(), completed = true)
+            inFlight = TapInFlight.Record(++tapSeq, BACK_KEY, screenNow, android.os.SystemClock.elapsedRealtime(), completed = true, sent = sentScreen())
             inFlightRefire = null
         }
         if (dispatched) {
