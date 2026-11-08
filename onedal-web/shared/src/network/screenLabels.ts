@@ -41,7 +41,6 @@ export interface ScreenLabel {
 const GREEN = "text-success bg-success/15 border-success/20";
 const BLUE = "text-info bg-info/15 border-info/20";
 const AMBER = "text-warning bg-warning/15 border-warning/20";
-const PURPLE = "text-accent-alt bg-accent-alt/15 border-accent-alt/20";
 const RED_BLINK = "text-danger bg-danger/20 animate-pulse border-danger/30";
 /** 🏠 «일을 안 잡고 있다» — 색으로 눈을 끌지 않는다. 파랑·초록은 «일하는 중»의 몫이다 */
 const GRAY = "text-text-muted bg-text-muted/15 border-text-muted/20";
@@ -49,9 +48,6 @@ const GRAY = "text-text-muted bg-text-muted/15 border-text-muted/20";
 /** 어느 배차망에도 있는 화면 — 이름이 같으면 여기서 한 번만 적는다 */
 const COMMON: Partial<Record<ScreenContextType, ScreenLabel>> = {
     LIST: { label: "콜 리스트", color: GREEN },
-    // 완료 리스트도 "콜에서 손을 뗀" 화면이다 — 앱이 여기로 빠져나가면 서버가 콜을 놓는다.
-    // 이 값이 shared 타입에 있어야 서버·관제웹이 읽는다 — 빠지면 앱만 보내고 아무도 못 읽어 유령 카드가 남는다
-    LIST_COMPLETED: { label: "완료 리스트", color: GREEN },
     UNKNOWN: { label: "⚠️ 미등록 팝업", color: RED_BLINK },
     LAUNCHER: { label: "바탕화면 (홈)", color: GRAY },
     OTHER_APP: { label: "기타 앱 (배차망 밖)", color: AMBER },
@@ -61,15 +57,11 @@ const COMMON: Partial<Record<ScreenContextType, ScreenLabel>> = {
     NETWORK_MENU: { label: "배차망 메뉴", color: GRAY },
 };
 
-/** 🏢 인성콜 — 잡는 수순이 곧 화면이다. 진행은 GPS 가 답한다 */
+/** 🏢 인성콜 — 잡는 수순이 곧 화면이다. 진행은 GPS 가 답한다 · 상세 위 팝업은 화면 값이 아니라 덧칸 이름(`overlayLabelOf`)이다 */
 export const INSUNG_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel>> = {
     ...COMMON,
     DETAIL_PRE_CONFIRM: { label: "상세페이지", color: BLUE },
     DETAIL_CONFIRMED: { label: "확정페이지", color: AMBER },
-    POPUP_PICKUP: { label: "출발지 팝업", color: BLUE },
-    POPUP_DROPOFF: { label: "도착지 팝업", color: BLUE },
-    POPUP_MEMO: { label: "적요 팝업", color: PURPLE },
-    POPUP_ERROR: { label: "취소 불가 팝업", color: RED_BLINK },
     /** 🏠 첫 화면 — 인성 «인성퀵화면분할» · 화물24시 «전국24시콜화물» (기사님 «가») */
     HOME: { label: "홈", color: GRAY },
 };
@@ -86,9 +78,6 @@ export const HWAMUL24_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLab
  *    폰 화면에 「픽업 완료해주세요」라고 떠 있는데 관제웹이 «상차지 도착»이라 하면
  *    폰과 화면을 대조할 때 한 번 더 옮겨 생각해야 한다. 배지 앞에 「픽커」가 이미
  *    붙으므로 어느 배차망의 말인지도 헷갈리지 않는다.
- *
- * ⚠️ 픽커에는 인성식 팝업(출발지·도착지·적요)이 **없다** — 그래서 그 셋을 안 적는다.
- *    빠진 화면은 `screenLabelOf` 가 «알 수 없는 화면»으로 답한다.
  */
 export const PICKER_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel>> = {
     ...COMMON,
@@ -101,7 +90,6 @@ export const PICKER_SCREEN_LABELS: Partial<Record<ScreenContextType, ScreenLabel
     MY_ORDERS: { label: "내 오더", color: GREEN },
     DETAIL_PRE_CONFIRM: { label: "상세페이지", color: BLUE },
     DETAIL_CONFIRMED: { label: "확정페이지", color: AMBER },
-    POPUP_ERROR: { label: "이미 배정됨", color: RED_BLINK },
     // 🚚 수락 뒤 — 이동은 파랑, 도착은 초록 (기사님 확정)
     RUN_TO_PICKUP: { label: "픽업지 이동", color: BLUE },
     RUN_AT_PICKUP: { label: "픽업 완료 대기", color: GREEN },

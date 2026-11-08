@@ -1,9 +1,8 @@
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
-import { LIST_SCREENS, isListScreen } from "@onedal/shared";
+import { LIST_SCREENS, NETWORK_PAGES, isListScreen } from "@onedal/shared";
 
 const SERVER = join(__dirname, "../../src");
-const APP = join(__dirname, "../../../../onedal-app/app/src/main/java/com/onedal/app");
 const read = (rel: string) => readFileSync(join(SERVER, rel), "utf8");
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
@@ -14,35 +13,36 @@ const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/
  * 리스트로 돌아가는데, 관제앱은 계속 기다리는 버그가 있어. 이건 크리티컬한 버그야."*
  *
  * 🔴 **«리스트로 돌아왔다»는 앱과 서버가 한 정의를 쓴다** — 같은 판단을 두 곳에서 따로 정의하면 갈라진다.
- *   앱   — `LIST` · `LIST_COMPLETED` 둘 다 "리스트 복귀"로 보고 세션을 리셋한다
- *   서버 — 같은 목록(`isListScreen` · `LIST_SCREENS`)을 쓴다
- * 서버가 `LIST` 하나만 인정하면 완료 리스트로 빠져나갈 때 서버가 콜을 계속 쥐어, 관제탑 카드가 남고
+ *   앱   — 콜 목록(`LIST`)과, 내 오더 페이지 중 정의 표 `listReturn` 이 켜진 곳(인성 완료 탭 · 화물24시 배차내역 목록)을 복귀로 본다(`ScreenDetector`)
+ *   서버 — 원달앱이 보내는 값 `MY_ORDERS` + 페이지 이름을 같은 표 칸으로 읽는다(`isListScreen`)
+ * 서버가 콜 목록 하나만 인정하면 완료 탭으로 빠져나갈 때 서버가 콜을 계속 쥐어, 관제탑 카드가 남고
  * `isActive` 도 꺼진 채라 **콜 잡기가 통째로 멈춘다.**
  */
 describe('유령 카드 — "리스트로 돌아왔다"의 정의는 하나다', () => {
 
-
-    it('🔴 완료 리스트도 "손을 뗀 화면"이다 — 이게 빠져서 사고가 났다', () => {
+    it('🔴 인성 완료 탭도 "손을 뗀 화면"이다 — 이게 빠져서 사고가 났다', () => {
         expect(isListScreen('LIST')).toBe(true);
-        expect(isListScreen('LIST_COMPLETED')).toBe(true);
-        expect(LIST_SCREENS).toEqual(['LIST', 'LIST_COMPLETED']);
+        expect(isListScreen('MY_ORDERS', 'insung', '완료 탭')).toBe(true);
+        expect(LIST_SCREENS).toEqual(['LIST']);
     });
 
-    it('상세·팝업은 손을 뗀 것이 아니다 (여기서 정리하면 잡는 중인 콜이 날아간다)', () => {
-        for (const s of ['DETAIL_PRE_CONFIRM', 'DETAIL_CONFIRMED', 'POPUP_PICKUP', 'POPUP_DROPOFF', 'POPUP_MEMO', 'POPUP_ERROR', 'UNKNOWN']) {
+    it('상세는 손을 뗀 것이 아니다 — 팝업 위에서도 원달앱은 상세 값을 보낸다 (여기서 정리하면 잡는 중인 콜이 날아간다)', () => {
+        for (const s of ['DETAIL_PRE_CONFIRM', 'DETAIL_CONFIRMED', 'UNKNOWN']) {
             expect(isListScreen(s)).toBe(false);
         }
         expect(isListScreen(undefined)).toBe(false);
         expect(isListScreen(null)).toBe(false);
     });
 
-    it('🔴 앱이 리스트로 치는 화면과 서버가 인정하는 화면이 같다', () => {
-        // 앱은 HijackService 에서 LIST · LIST_COMPLETED 를 복귀로 본다.
-        // 한쪽만 늘어나면 그 화면이 다시 새어 나간다
-        const hijack = readFileSync(join(APP, 'HijackService.kt'), 'utf8');
-        const appList = ['LIST', 'LIST_COMPLETED']
-            .filter(v => new RegExp(`ScreenContext\\.${v}\\b`).test(hijack));
-        expect(appList.sort()).toEqual([...LIST_SCREENS].sort());
+    it('🔴 원달앱이 목록 복귀로 치는 내 오더 페이지와 서버가 인정하는 페이지가 같다 — 둘 다 정의 표의 listReturn', () => {
+        let seen = 0;
+        for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
+            for (const page of spec.screens.filter(p => p.standard === 'MY_ORDERS')) {
+                expect(isListScreen('MY_ORDERS', net, page.name)).toBe(!!page.listReturn);
+                if (page.listReturn) seen++;
+            }
+        }
+        expect(seen).toBeGreaterThan(0);
     });
 });
 

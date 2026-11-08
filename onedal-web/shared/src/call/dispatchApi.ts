@@ -40,25 +40,6 @@ export interface DetourRouteData {
     }[];
 }
 
-// 안드로이드 앱폰 -> 서버로 쏘는 주기적인 상태 보고(텔레메트리)
-export interface EdgeDeviceTelemetry {
-    deviceId: string;                 // 기기 고유 식별자 (예: "phone-1")
-    macroStatus: 'IDLE' | 'SCANNING' | 'PAUSED' | 'ERROR'; // 현재 매크로 엔진 상태
-    lastOrderCheckedAt: string;       // "오더 조회 중입니다" 토스트가 마지막으로 뜬 시간 (ISO 8601)
-
-    // 앱에서 긁어낸 실시간 통계 누적 현황
-    collectedCount: number;           // 인성망에서 긁어낸 전체 오더 갯수 (블랙리스트 걸러지기 전)
-    acceptedCount: number;            // 선점(확정 버튼 자동 클릭)이 성공해서 수락된 배차 갯수
-    bannedCount: number;              // 지뢰콜/하한가/까대기 등으로 로컬 필터가 뱉어버린 콜 갯수
-
-    // 정합성 검사 용도
-    appVersion?: string;              // 안드로이드 앱 버전 정보
-    activeFilterHash?: string;        // 앱폰이 현재 들고 있는 AutoDispatchFilter의 해시/ID (웹폰과 세팅값이 불일치하는지 검사용)
-
-    // (현재 폰 화면에 표시되어 있는 스크래핑된 오더 리스트 미러링용)
-    visibleOrders?: SimplifiedOfficeOrder[];
-}
-
 // 1-A. 앱폰 -> 서버: 1차 호출 (리스트 창에서 '확정' 버튼 클릭 직후)
 export interface DispatchBasicRequest {
     step: 'BASIC';

@@ -167,7 +167,7 @@ describe('배차망 페이지 목록 (screens)', () => {
         }
     });
 
-    it('목록 복귀(listReturn)는 인성 완료 탭 · 화물24시 배차내역 목록뿐 — 지금 동작(LIST_COMPLETED)과 같다 · 픽커 내 오더는 아니다', () => {
+    it('목록 복귀(listReturn)는 인성 완료 탭 · 화물24시 배차내역 목록뿐 — 원달앱은 MY_ORDERS 를 보내고 목록 복귀는 표의 listReturn 이 답한다 · 픽커 내 오더는 아니다', () => {
         expect(all.filter(({ s }) => s.listReturn).map(({ net, s }) => `${net} ${s.name}`).sort()).toEqual(['hwamul24 배차내역 목록', 'insung 완료 탭']);
         expect(all.filter(({ s }) => s.listReturn).every(({ s }) => s.standard === 'MY_ORDERS')).toBe(true);
     });

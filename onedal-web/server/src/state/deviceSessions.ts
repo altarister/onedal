@@ -328,7 +328,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     // 서버가 쥐고 있는 대기 중(롱폴링)인 콜 결정을 즉시 강제 파괴하여 데드락을 방지합니다!
     /**
      * 🔴 "리스트 계열인가"는 `shared.isListScreen` 이 유일한 정의다.
-     *    `=== 'LIST'` 로 직접 판정하면 앱이 리스트로 치는 `LIST_COMPLETED` 가 **새어 나가** 유령 카드가 남는다.
+     *    `=== 'LIST'` 로 직접 판정하면 앱이 리스트로 치는 완료 탭(`MY_ORDERS` + 표의 `listReturn`)이 **새어 나가** 유령 카드가 남는다.
      */
     /**
      * 🔴 **상세를 본 콜만 목록 보고 때 치운다** (#154) — «지금 목록»이나 «직전 화면»으로 가르지 않는다.

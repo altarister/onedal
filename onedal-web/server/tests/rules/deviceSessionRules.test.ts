@@ -107,7 +107,7 @@ describe('⏱️ 직전 보고 시각 — 덮기 전에 옮긴다', () => {
 });
 
 describe('🧹 목록 복귀 — 정의는 shared 하나 · 직접콜은 안 치운다', () => {
-    it('🔴 shared 의 목록 화면 모두(LIST · LIST_COMPLETED)가 «돌아왔다» — 잡은 콜에 목록 이탈 유예를 건다 · 상세 위 팝업은 아니다', () => {
+    it('🔴 shared 의 목록 화면 모두(LIST_SCREENS)가 «돌아왔다» — 잡은 콜에 목록 이탈 유예를 건다 · 상세 위 팝업(상세 값 + 덧칸 이름)은 아니다', () => {
         for (const list of LIST_SCREENS) {
             const dev = `dev-rules-list-${list}`;
             touch(dev, 'DETAIL_PRE_CONFIRM');
@@ -118,7 +118,7 @@ describe('🧹 목록 복귀 — 정의는 shared 하나 · 직접콜은 안 치
         const dev = 'dev-rules-popup';
         touch(dev, 'DETAIL_PRE_CONFIRM');
         const s = evaluating(dev, 'li-popup', { type: 'AUTO', isPreview: false, detailSeen: true });
-        touch(dev, 'POPUP_PICKUP');
+        touchDeviceSession(dev, ADMIN, 0, 'DETAIL_PRE_CONFIRM', quiet, undefined, undefined, undefined, undefined, undefined, undefined, 'insung', { screenPage: '확정 전 상세', screenOverlay: '출발지 상세 팝업' });
         expect(s.entries.has('listExit_li-popup')).toBe(false);
     });
 

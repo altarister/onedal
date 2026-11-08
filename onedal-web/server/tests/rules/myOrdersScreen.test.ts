@@ -19,8 +19,7 @@ describe('📋 픽커 내 오더 화면 이름', () => {
 
 /**
  * 📋 **«내 오더» 하나 + «목록 복귀인가»는 배차망 정의 표의 사실**.
- * 새 원달앱은 인성 완료 탭 · 화물24시 배차내역 목록도 MY_ORDERS 로 보내고 페이지 이름을 싣는다 — 서버가 표에서 목록 복귀를 찾는다.
- * 옛 원달앱의 LIST_COMPLETED 는 그대로 목록 복귀다.
+ * 원달앱은 인성 완료 탭 · 화물24시 배차내역 목록도 MY_ORDERS 로 보내고 페이지 이름을 싣는다 — 서버가 표에서 목록 복귀를 찾는다.
  */
 describe('📋 내 오더 + 목록 복귀는 표에서', () => {
     it('인성 완료 탭 · 화물24시 배차내역 목록은 목록 복귀 — 픽커 내 오더 탭은 아니다', () => {
@@ -29,9 +28,8 @@ describe('📋 내 오더 + 목록 복귀는 표에서', () => {
         expect(isListScreen('MY_ORDERS', 'kakaopicker', '내 오더 탭')).toBe(false);
     });
 
-    it('페이지 이름이 없으면(옛 원달앱) MY_ORDERS 는 목록이 아니고 LIST_COMPLETED 는 목록이다', () => {
+    it('페이지 이름이 없으면 MY_ORDERS 는 목록이 아니다 · 콜 목록은 페이지 이름과 무관하게 목록이다', () => {
         expect(isListScreen('MY_ORDERS')).toBe(false);
-        expect(isListScreen('LIST_COMPLETED')).toBe(true);
         expect(isListScreen('LIST', 'insung', '신규 콜 목록')).toBe(true);
     });
 });

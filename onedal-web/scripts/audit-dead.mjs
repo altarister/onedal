@@ -154,6 +154,7 @@ const TEST_ONLY_KEEP = {
     moneyOf: '콜 한 칸의 돈 덩어리를 푸는 함수 — 정의(`money.ts`)를 먼저 세웠고 저장된 콜 한 칸을 읽는 걸음부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
     isExpressForm: '급송 콜인가 — 정의(`badges.ts`)를 먼저 세웠고 서버 isExpress 세 곳 · 관제웹 «급송» 표시 한 곳이 부르는 걸음(1-6-4)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
     boxesOf: '짐 묶음에서 라면박스 수를 꺼내는 함수 — 정의(`callLoad.ts`)를 먼저 세웠고 서버 합짐 자리(`computeLoadedPoints` · `dispatchEngine` 경고)가 부르는 걸음(짐 계획 8)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
+    screenReportOf: '보고 몸에서 화면 칸 셋을 꺼내는 함수 — 정의(`screenKinds.ts`)를 먼저 세웠고 서버 `routes/scrap.ts` 가 화면 칸을 이 함수 하나로 읽는 걸음(화면 계획 6)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
 };
 /** 🤖 원달앱에서 이름으로 안 불리는데 남기는 fun · const val — 사유 없이는 못 넣는다 (①-3) */
 const KT_KEEP = {

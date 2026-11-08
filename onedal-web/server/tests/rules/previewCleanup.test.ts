@@ -145,8 +145,8 @@ describe('🧹 목록으로 돌아왔을 때만 치운다', () => {
      * 목록으로 돌아간 같은 행동이 «안 잡겠다»와 «다음 것도 잡겠다» 두 뜻을 갖는다.
      * 가르는 사실은 **곧 새 선점이 뒤따르는가** 하나다.
      */
-    /** 📋 새 원달앱은 인성 완료 탭을 MY_ORDERS + 페이지 이름으로 보낸다 — 서버가 표에서 목록 복귀를 찾아 옛 LIST_COMPLETED 와 같게 */
-    it('🔴 인성 완료 탭(MY_ORDERS + «완료 탭»)으로 가면 잡은 콜에 목록 이탈 유예가 걸린다 — 옛 LIST_COMPLETED 와 같다', () => {
+    /** 📋 원달앱은 인성 완료 탭을 MY_ORDERS + 페이지 이름으로 보낸다 — 서버가 정의 표의 listReturn 으로 목록 복귀를 찾는다 */
+    it('🔴 인성 완료 탭(MY_ORDERS + «완료 탭»)으로 가면 잡은 콜에 목록 이탈 유예가 걸린다 · 픽커 내 오더 탭은 아니다', () => {
         touch('phone-done-tab', 'DETAIL_PRE_CONFIRM');
         const s = secured('phone-done-tab', 'sc-done-tab');
         devices.touchDeviceSession('phone-done-tab', ADMIN, 0, 'MY_ORDERS' as any, io, undefined, undefined, undefined, undefined, undefined, undefined, 'insung', { screenPage: '완료 탭' } as any);
@@ -251,10 +251,12 @@ describe('👀 미리보기 노출 — 상세를 보고 있는 동안만', () =>
         expect(s.pendingOrdersData.has('pv-home')).toBe(false);
     });
 
-    it('상세 위 팝업은 이탈이 아니다 — 인성은 팝업으로 적요 · 출발지 · 도착지를 훑는다', () => {
+    it('상세 위 팝업은 이탈이 아니다 — 인성은 팝업으로 적요 · 출발지 · 도착지를 훑고, 그동안 원달앱은 상세 값 + 덧칸 이름을 보낸다', () => {
         touch('phone-popup', 'DETAIL_PRE_CONFIRM');
         const s = preview('phone-popup', 'pv-popup');
-        touch('phone-popup', 'POPUP_MEMO', 'POPUP_PICKUP', 'POPUP_DROPOFF', 'DETAIL_PRE_CONFIRM');
+        for (const overlay of ['적요 팝업', '출발지 상세 팝업', '도착지 상세 팝업', null]) {
+            devices.touchDeviceSession('phone-popup', ADMIN, 0, 'DETAIL_PRE_CONFIRM', io, undefined, undefined, undefined, undefined, undefined, undefined, 'insung', { screenPage: '확정 전 상세', screenOverlay: overlay });
+        }
         expect(s.pendingOrdersData.has('pv-popup')).toBe(true);
     });
 

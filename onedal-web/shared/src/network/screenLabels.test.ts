@@ -171,9 +171,11 @@ describe('배지 — 배차망 페이지 이름 · 덧칸', () => {
         expect(other!.label).toBe('목록 · 출발지 상세 팝업');
     });
 
-    it('페이지 이름이 없으면(옛 원달앱) 지금 이름 그대로', () => {
-        const b = deviceScreenBadge({ status: 'ONLINE', targetApp: 'insung', screenContext: 'POPUP_PICKUP', isScreenOn: true });
-        expect(b!.label).toBe('출발지팝업');
+    it('인성 출발지 팝업 위 — 화면 값은 상세 그대로 · 팝업은 덧칸 이름으로 붙는다 · 페이지 이름이 없으면 화면 값 이름', () => {
+        const b = deviceScreenBadge({ status: 'ONLINE', targetApp: 'insung', screenContext: 'DETAIL_PRE_CONFIRM', isScreenOn: true, screenPage: '확정 전 상세', screenOverlay: '출발지 상세 팝업' });
+        expect(b!.label).toBe('확정 전 상세 · 콜 상차지 팝업');
+        const noPage = deviceScreenBadge({ status: 'ONLINE', targetApp: 'insung', screenContext: 'DETAIL_PRE_CONFIRM', isScreenOn: true });
+        expect(noPage!.label).toBe('상세페이지');
     });
 });
 

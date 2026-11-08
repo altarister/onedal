@@ -206,7 +206,7 @@ const ANOMALY_SQL = `SELECT a.id, a.created_at, a.device_id, a.target_app, a.scr
 const anomalyOf = (a: AnomalyRow): OpsAnomaly => ({
     id: a.id, at: isoKst(a.created_at) ?? '', memberId: a.user_id, deviceId: a.device_id,
     targetApp: isTargetApp(a.target_app) ? a.target_app : 'insung',
-    /* 🖥️ 화면 칸은 한글 이름으로 — 옛 값(POPUP_* · LIST_COMPLETED)도 이름표가 있어 뜬다 */
+    /* 🖥️ 화면 칸은 한글 이름으로 — 원달앱이 보내는 화면 값(`REPORTED_SCREENS`)만 이름표가 있고 팝업은 화면 값이 아니다 */
     screen: a.screen_name ? (screenLabelOf(a.target_app, a.screen_name as ScreenContextType)?.label ?? a.screen_name) : '', reason: a.failure_reason,
     text: a.detail_parsed_text, hasShot: !!a.has_shot,
 });
