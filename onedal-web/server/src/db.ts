@@ -852,6 +852,17 @@ export function migrateAckedAtColumn(on: Database.Database = db): void {
     })();
 }
 migrateAckedAtColumn();
+
+/**
+ * 🧾 **콜 한 칸 · 판 번호 · 기사님 몫 사본** (여덟계획_맞춤 «저장 — 콜 한 칸» · 기사님 «나»).
+ *    ① 스키마: orders.callShape TEXT · orders.callShapeVersion INTEGER · orders.incomeWon INTEGER — 셋 다 기본값 없음(NULL) · NULL 허용 · CHECK 없음.
+ *    ② 값: callShape = 콜 모양(OfficeOrder) 전체 JSON · callShapeVersion = 그 모양의 판 번호(shared CALL_SHAPE_VERSION) ·
+ *          incomeWon = incomeOf(money) 원 — 모르면 NULL(0 은 «0원»이라 기본값을 두지 않는다).
+ *    ③ 시점: 장부에 콜을 적을 때마다 통째로(OrderRepository.upsertOrder 한 곳).
+ *    ④ 화면: 안 보임.
+ *    ⑤ 읽는 곳: 서버 되살리기 · 관제웹 콜 목록 문 · 단계 씨앗 — 판 번호를 모르거나 글이 깨졌으면 옛 칸으로 · incomeWon 은 SQL 통계 · 운영센터.
+ */
+ensureColumns('orders', { callShape: 'TEXT', callShapeVersion: 'INTEGER', incomeWon: 'INTEGER' });
 // ⚠️ intel 의 ensureColumns 는 여기 있으면 안 된다 — 그 표는 아래 [7] 에서 만들어진다.
 //    `ensureColumns` 는 표가 없으면 조용히 return 하므로(위 :32), 빈 DB 첫 부팅에서
 //    targetApp 이 안 붙은 채 scrap.ts 가 INSERT 해 `no such column` 으로 터졌다.
