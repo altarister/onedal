@@ -46,18 +46,18 @@ export function callStepsOf(steps: readonly LabStep[]): Extract<LabStep, { kind:
     return steps.filter((s): s is Extract<LabStep, { kind: 'call' }> => s.kind === 'call');
 }
 
+/** 손 콜 정거장 — `CallStop` 중 이 문이 싣는 칸만 */
+interface HandmadeStop { listText: string; geo: { x: number; y: number } }
+
 /** 서버 `/api/scrap` 이 기다리는 모양 — `SimplifiedOfficeOrder` 중 이 문이 읽는 칸만 */
 export interface HandmadeOrder {
     id: string;
     type: 'NEW_ORDER';
-    pickup: string;
-    dropoff: string;
     fare: number;
     timestamp: string;
-    pickupX: number;
-    pickupY: number;
-    dropoffX: number;
-    dropoffY: number;
+    /** 상차 · 하차 정거장 한 곳씩 — 목록 글자와 좌표(관제웹 손 콜은 문제지 좌표를 안다) */
+    pickupDetails: [HandmadeStop];
+    dropoffDetails: [HandmadeStop];
     rawText: string;
     verdict: null;
 }
@@ -79,14 +79,10 @@ export function handmadeOrderFrom(
     return {
         id: `HAND-${at.getTime()}-${seq}`,
         type: 'NEW_ORDER',
-        pickup: c.pickup,
-        dropoff: c.dropoff,
         fare: c.fare,
         timestamp: at.toISOString(),
-        pickupX: step.from.lng,
-        pickupY: step.from.lat,
-        dropoffX: step.to.lng,
-        dropoffY: step.to.lat,
+        pickupDetails: [{ listText: c.pickup, geo: { x: step.from.lng, y: step.from.lat } }],
+        dropoffDetails: [{ listText: c.dropoff, geo: { x: step.to.lng, y: step.to.lat } }],
         rawText: `${HANDMADE_MARK} ${c.pickup} → ${c.dropoff} ${c.fare}원`,
         verdict: null,
     };

@@ -6,6 +6,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.StopText
+import com.onedal.app.core.withFirstPickup
+import com.onedal.app.core.withLastDropoff
 
 /**
  * 💰 **픽커 상세의 «최종 수익»이 판정 요금이다** (기사님 «가» · onedal-1f).
@@ -14,7 +19,7 @@ import org.junit.Test
  * 손으로 연 상세가 목록 줄을 «요금이 같은 줄»로만 찾아 못 찾던 것(«손으로 연 상세가 평가 안 된다»)도 같은 뿌리다.
  */
 class PickerFinalFareTest {
-    private val listCard = SimplifiedOfficeOrder(id = "c", pickup = "중원 상대원1", dropoff = "용산 한남", fare = 11396, timestamp = "t", pickupDistance = 12.7)
+    private val listCard = SimplifiedOfficeOrder(id = "c", fare = 11396, timestamp = "t", pickupDetails = listOf(CallStop(listText = "중원 상대원1", distanceKm = 12.7)), dropoffDetails = listOf(CallStop(listText = "용산 한남")))
 
     private fun detail(finalIncome: Int?) = PickerDetailFromImage(
         pickup = PickerStopFromImage("경기 성남시 중원구 상대원1동", null, 12.7, null),
@@ -41,13 +46,13 @@ class PickerFinalFareTest {
     private val handOpened = listOf("픽업지 경기 성남시 중원구 상대원1동", "물품 정보", "초소형", "최종 수익", "11,796", "넘기기", "수락하기")
 
     @Test fun `손으로 연 상세 - 최종 수익이 목록 요금과 달라도 픽업지로 목록 줄을 찾는다`() {
-        val m = KakaoPickerParser.matchListCard(handOpened, listOf(listCard, listCard.copy(pickup = "수정 신흥2", fare = 11796)))
-        assertEquals("중원 상대원1", m.card?.pickup)
+        val m = KakaoPickerParser.matchListCard(handOpened, listOf(listCard, withFirstPickup(listCard.copy(fare = 11796)) { it.copy(listText = "수정 신흥2") }))
+        assertEquals("중원 상대원1", m.card?.let { StopText.of(firstPickupStop(it)) })
         assertTrue(m.why, m.why.contains("요금 달라"))
     }
 
     @Test fun `요금 없이 찾아도 여럿이면 고르지 않는다 - 추측 금지`() {
-        val m = KakaoPickerParser.matchListCard(handOpened, listOf(listCard, listCard.copy(dropoff = "강남 역삼2", fare = 9000)))
+        val m = KakaoPickerParser.matchListCard(handOpened, listOf(listCard, withLastDropoff(listCard.copy(fare = 9000)) { it.copy(listText = "강남 역삼2") }))
         assertNull(m.card)
     }
 

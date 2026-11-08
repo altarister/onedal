@@ -142,7 +142,7 @@ describe('🐥 확정 보고의 체험 표시 — 폰 모드로', () => {
             register('dev-mf-confirm', m);
             await setMode('dev-mf-confirm', m);
             const id = `mf-confirm-${m}`;
-            const order = { id, type: 'NEW_ORDER', pickup: '경기 광주시 경안동', dropoff: '경기 이천시 신둔면', fare: 45000, timestamp: new Date().toISOString() };
+            const order = { id, type: 'NEW_ORDER', pickupDetails: [{ listText: '경기 광주시 경안동' }], dropoffDetails: [{ listText: '경기 이천시 신둔면' }], fare: 45000, timestamp: new Date().toISOString() };
             await call(ordersRouter, '/confirm', 'post', { body: { step: 'BASIC', deviceId: 'dev-mf-confirm', order, capturedAt: new Date().toISOString(), matchType: 'AUTO' } });
             got[m] = (getUserSession(U).pendingOrdersData.get(id) as any)?.isSimulated;
         }

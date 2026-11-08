@@ -41,7 +41,7 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
     fun beginRead(steady: Boolean) { this.steady = steady; usedThisRead.clear() }
 
     private fun find(o: SimplifiedOfficeOrder): Entry? {
-        val p = tokens(o.pickup); val d = tokens(o.dropoff)
+        val p = tokens(StopText.of(firstPickupStop(o))); val d = tokens(StopText.of(lastDropoffStop(o)))
         if (p.isEmpty() || d.isEmpty()) return null
         val fp = CallMemory.fingerprintOf(o)
         return entries.firstOrNull { e ->
@@ -52,7 +52,7 @@ class AlarmedRoutes(private val forgetMs: Long = FORGET_MS) {
     }
 
     private fun entryOf(o: SimplifiedOfficeOrder, nowMs: Long): Entry? {
-        val p = tokens(o.pickup); val d = tokens(o.dropoff)
+        val p = tokens(StopText.of(firstPickupStop(o))); val d = tokens(StopText.of(lastDropoffStop(o)))
         if (p.isEmpty() || d.isEmpty()) return null
         val e = find(o) ?: Entry(p, d, nowMs, o.fare).also { entries.add(it) }
         if (p.size + d.size > e.pickup.size + e.dropoff.size) { e.pickup = p; e.dropoff = d }   // 자세한 쪽을 남긴다

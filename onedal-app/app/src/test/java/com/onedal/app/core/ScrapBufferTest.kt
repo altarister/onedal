@@ -5,13 +5,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 🏷️ **목록 줄의 출처(실물/시뮬)는 담을 때 정한다** (앱 교차 리뷰 · onedal-1f «가»).
  * 보낼 때의 화면 앱으로 정하면, 실물 픽커 줄이 버퍼에 있는 0.3초 안에 원달앱·홈으로 넘어갈 때 그 줄이 «sim»으로 나가 실물 통계에서 빠진다.
  */
 class ScrapBufferTest {
-    private fun row(id: String) = SimplifiedOfficeOrder(id = id, pickup = "분당 이매2", dropoff = "강남 논현2", fare = 15000, timestamp = "t")
+    private fun row(id: String) = SimplifiedOfficeOrder(id = id, fare = 15000, timestamp = "t", pickupDetails = listOf(CallStop(listText = "분당 이매2")), dropoffDetails = listOf(CallStop(listText = "강남 논현2")))
 
     @Test fun `출처가 같으면 한 보고로 모은다`() {
         val b = ScrapBuffer()

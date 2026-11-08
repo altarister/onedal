@@ -6,6 +6,9 @@ import com.onedal.app.core.engine.FareFloor
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 /**
  * 🧪 **목록 줄 판정 — 배차망이 달라도 같은 축 · 같은 차례** (예약 → 차종 → 도착지 → 요금 → 상차 목록 · 거리 → 제외어).
@@ -75,7 +78,7 @@ object ListJudge {
             false
         } else {
             // 🗺️ RegionMatch(④) — "남동"⊂"인천 남동구" 부분 문자열 오탐을 트랩으로 거른다
-            RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
+            RegionMatch.anyHit(StopText.of(lastDropoffStop(order)), filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
         }
 
         // ── 조건 3: 요금 하한선 + 상한선 ──
@@ -95,7 +98,7 @@ object ListJudge {
          *   2km 에 10,000원   → 상하차 품값도 안 나온다  ← `minFare` 가 막는다
          *   400km 에 100,000원 → 단가가 안 나온다        ← `ratePerKm` 가 막는다
          *
-         * 🔴 **배송거리(`deliveryDistance`)를 안 읽는 배차망(지금 화물24시)은 단가 판정이 꺼진다.**
+         * 🔴 **배송거리(마지막 하차 정거장 거리)를 안 읽는 배차망(지금 화물24시)은 단가 판정이 꺼진다.**
          *    24시 카드에 그 숫자가 있는지부터 확인해야 한다.
          *    기사님 확정: «24시 목록엔 상차지거리만 있다» — 배송거리는 실물 화면이 생기면 다시 본다.
          *    없으면 `useRateModel` 이 false 라 **지금은 `minFare` 단독으로만 돈다** —
@@ -104,16 +107,16 @@ object ListJudge {
          */
         // 단가 조회는 인성과 **같은 함수**를 쓴다 — 차종 별칭 규칙이 두 벌이 되면 망마다 값이 갈린다 · 어느 차종 글자인지는 배차망이 고른다(`Rules.rateVehicleOf`)
         val rateFloor = rules.rateVehicleOf(order, filter)?.let { vt -> FareFloor.rateOf(filter.ratePerKm, vt) }
-        val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && order.deliveryDistance != null
+        val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && lastDropoffStop(order)?.distanceKm != null
         val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
-                        (!useRateModel || order.fare >= order.deliveryDistance!! * rateFloor!!) &&
+                        (!useRateModel || order.fare >= lastDropoffStop(order)?.distanceKm!! * rateFloor!!) &&
                         (!hasFareCeiling || order.fare <= filter.maxFare)
 
         // ── 조건 4: 상차지 ──
         // 📋 상차 목록이 오면 그것으로 거른다 — 인성 파서와 같은 규칙 (`PickupListFilter` · 하차 목록»).
         //    그 배차망 상차지 글자(화물24시는 `cleanRegion`)에 동이 실리는지는 실물 캡처로 확인할 것 (규격 표 ⬜)
         //    🔴 칸이 안 오면(옛 서버) 아래 옛 판정 — 3단계(옛 칸 걷는 날)에 함께 지운다
-        val pickupListCheck = filter.pickupKeywords?.let { PickupListFilter.check(order.pickup, it, filter.keywordTraps) }
+        val pickupListCheck = filter.pickupKeywords?.let { PickupListFilter.check(StopText.of(firstPickupStop(order)), it, filter.keywordTraps) }
         val pickupListMatch = pickupListCheck?.passed ?: true
         val distanceMatch = if (pickupListCheck != null) {
             true
@@ -121,7 +124,7 @@ object ListJudge {
             true
         } else {
             // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 여기까지 오지 않는다
-            order.pickupDistance != null && order.pickupDistance <= filter.pickupRadiusKm
+            firstPickupStop(order)?.distanceKm?.let { it <= filter.pickupRadiusKm } == true
         }
 
         // ── 조건 5: 블랙리스트 제외 — 볼 글은 배차망이 고른다(`Rules.blacklistTextOf` · 화물24시는 적요가 든 원문 전체) ──
@@ -135,21 +138,21 @@ object ListJudge {
         }
 
         // ── 로그 출력 ──
-        val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
+        val isValidOrder = order.fare > 0 || StopText.of(firstPickupStop(order)) != "배차값없음" || StopText.of(lastDropoffStop(order)) != "배차값없음"
         // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다)
-        if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:${rules.netCode}|"+"${order.pickup}|${order.dropoff}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear")) {
+        if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:${rules.netCode}|"+"${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear")) {
             AppLogger.roadmap(LogTag.FILTER, "🔍 [${rules.logHead} 필터] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
-                    "도착지(${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
+                    "도착지(${StopText.of(lastDropoffStop(order))})=${if(regionMatch) "✅" else "❌"} " +
                     "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
                     (if (pickupListCheck != null)
-                        "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${order.pickup})=${if(pickupListMatch) "✅" else "❌"} "
+                        "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${StopText.of(firstPickupStop(order))})=${if(pickupListMatch) "✅" else "❌"} "
                      else
-                        "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "배차값없음"})=${if(distanceMatch) "✅" else "❌"} ") +
+                        "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${firstPickupStop(order)?.distanceKm ?: "배차값없음"})=${if(distanceMatch) "✅" else "❌"} ") +
                     "블랙=${if(blacklistClear) "✅" else "❌"}", "LIST")
         }
 
         // 📋 상차지는 상차 목록, 하차지는 하차 목록 — 두 모음에 들면 올린다. 방향은 서버 판정이 본다(규칙 ⑤).
-        if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0 && com.onedal.app.core.LogOnce.changed("pick:${rules.netCode}|"+"${order.pickup}|${order.dropoff}|${order.fare}", pickupListCheck.reason)) {
+        if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0 && com.onedal.app.core.LogOnce.changed("pick:${rules.netCode}|"+"${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", pickupListCheck.reason)) {
             AppLogger.d(TAG, LogTag.FILTER, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
         }
 

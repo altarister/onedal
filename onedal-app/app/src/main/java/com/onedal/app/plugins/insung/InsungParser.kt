@@ -23,6 +23,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
+import com.onedal.app.models.CallStop
 
 /**
  * 화면에서 추출된 원시 문자열 데이터를 파싱하여
@@ -278,9 +282,9 @@ class InsungParser(private val context: Context) : IScrapParser {
                     false
                 } else {
                     // 🗺️ RegionMatch(④) — 부분 문자열 오탐을 트랩으로 거른다
-                    RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
+                    RegionMatch.anyHit(StopText.of(lastDropoffStop(order)), filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
                 }
-                if (!isDetailPreConfirmStage && order.fare > 0 && com.onedal.app.core.LogOnce.changed("list1:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$matchResult")) AppLogger.d(TAG, LogTag.FILTER, "🔍 [1차 리스트 필터] 도착지=${order.dropoff}, 결과=$matchResult")
+                if (!isDetailPreConfirmStage && order.fare > 0 && com.onedal.app.core.LogOnce.changed("list1:"+"${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", "$matchResult")) AppLogger.d(TAG, LogTag.FILTER, "🔍 [1차 리스트 필터] 도착지=${StopText.of(lastDropoffStop(order))}, 결과=$matchResult")
                 matchResult
             }
 
@@ -315,10 +319,10 @@ class InsungParser(private val context: Context) : IScrapParser {
              * 콜할인율가 "전부"면 서버가 단가를 0 으로 내려 보낸다 → `fare >= 거리 × 0` 은 항상 참.
              */
             val rateFloor = order.vehicleType?.let { vt -> FareFloor.rateOf(filter.ratePerKm, vt) }
-            val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && order.deliveryDistance != null
+            val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && lastDropoffStop(order)?.distanceKm != null
 
             val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
-                (!useRateModel || order.fare >= order.deliveryDistance!! * rateFloor!!) &&
+                (!useRateModel || order.fare >= lastDropoffStop(order)?.distanceKm!! * rateFloor!!) &&
                 (!hasFareCeiling || order.fare <= filter.maxFare)
 
             // ── 조건 3: 상차지 ──
@@ -331,7 +335,7 @@ class InsungParser(private val context: Context) : IScrapParser {
              */
             val pickupListCheck = filter.pickupKeywords?.let { keys ->
                 val pickupText = (if (isDetailPreConfirmStage) PickupListFilter.insungDetailPickupText(rawText) else null)
-                    ?: order.pickup
+                    ?: StopText.of(firstPickupStop(order))
                 PickupListFilter.check(pickupText, keys, filter.keywordTraps)
             }
             val pickupListMatch = pickupListCheck?.passed ?: true
@@ -342,7 +346,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 true // 합짐 모드: 상차 반경 무시 (경유 필터가 대신 판단)
             } else {
                 // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 여기까지 오지 않는다
-                order.pickupDistance != null && order.pickupDistance <= filter.pickupRadiusKm
+                firstPickupStop(order)?.distanceKm?.let { it <= filter.pickupRadiusKm } == true
             }
 
             // ── 조건 4: 블랙리스트 제외 ──
@@ -355,26 +359,26 @@ class InsungParser(private val context: Context) : IScrapParser {
             }
 
             // ── 로그 출력 (디버깅용) ──
-            val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
+            val isValidOrder = order.fare > 0 || StopText.of(firstPickupStop(order)) != "배차값없음" || StopText.of(lastDropoffStop(order)) != "배차값없음"
             // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다)
-            if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${order.pickup}|${order.dropoff}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear$isDetailPreConfirmStage")) {
+            if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear$isDetailPreConfirmStage")) {
                 val screenCtxLog = if (isDetailPreConfirmStage) "DETAIL" else "LIST"
             
                 AppLogger.roadmap(LogTag.FILTER, "🔍 [타겟 콜 필터 결과] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
-                            "도착지(${filter.destinationKeywords.size}중 ${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
+                            "도착지(${filter.destinationKeywords.size}중 ${StopText.of(lastDropoffStop(order))})=${if(regionMatch) "✅" else "❌"} " +
                             (if (useRateModel)
-                                "요금/단가(${order.deliveryDistance}km × ${rateFloor}원 = ${((order.deliveryDistance ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "
+                                "요금/단가(${lastDropoffStop(order)?.distanceKm}km × ${rateFloor}원 = ${((lastDropoffStop(order)?.distanceKm ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "
                              else
                                 "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} ") +
                             (if (pickupListCheck != null)
-                                "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${order.pickup})=${if(pickupListMatch) "✅" else "❌"} "
+                                "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${StopText.of(firstPickupStop(order))})=${if(pickupListMatch) "✅" else "❌"} "
                              else
-                                "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "배차값없음"}km)=${if(distanceMatch) "✅" else "❌"} ") +
+                                "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${firstPickupStop(order)?.distanceKm ?: "배차값없음"}km)=${if(distanceMatch) "✅" else "❌"} ") +
                             "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
             }
 
             // 📋 상차지는 상차 목록, 하차지는 하차 목록 — 두 모음에 들면 올린다. 방향은 서버 판정이 본다(규칙 ⑤).
-            if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0 && com.onedal.app.core.LogOnce.changed("pick:"+"${order.pickup}|${order.dropoff}|${order.fare}", pickupListCheck.reason)) {
+            if (pickupListCheck != null && !pickupListCheck.passed && order.fare > 0 && com.onedal.app.core.LogOnce.changed("pick:"+"${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", pickupListCheck.reason)) {
                 AppLogger.d(TAG, LogTag.FILTER, "📋 [상차 목록] 차단 — ${pickupListCheck.reason}")
             }
 
@@ -512,19 +516,16 @@ class InsungParser(private val context: Context) : IScrapParser {
         return SimplifiedOfficeOrder(
             id = UUID.randomUUID().toString(),
             type = "NEW_ORDER",
-            pickup = pickup,
-            dropoff = dropoff,
             fare = fare,
             timestamp = now,
             postTime = postTime,
-            scheduleText = scheduleText,
             vehicleType = vehicleType,
             rawText = rawJoined,
-            pickupDistance = distances.getOrNull(0),
-            // 🔴 두 번째 값(배송거리)을 **보존**한다.
+            pickupDetails = listOf(CallStop(listText = pickup, promiseText = scheduleText, distanceKm = distances.getOrNull(0))),
+            // 🔴 두 번째 값(배송거리)을 마지막 하차 정거장 거리로 **보존**한다.
             //    단가 판정(fare ≥ 배송거리 × 단가)의 입력이다. 없으면 null →
             //    판정을 건너뛰고 통과시킨다 (앱은 일단 잡아와라, 서버가 정확히 잰다).
-            deliveryDistance = distances.getOrNull(1)
+            dropoffDetails = listOf(CallStop(listText = dropoff, distanceKm = distances.getOrNull(1))),
         ).withReservation(reservationOf(pickupInfo, java.time.LocalDateTime.now()))
     }
 

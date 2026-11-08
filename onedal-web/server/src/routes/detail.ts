@@ -6,7 +6,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder, EmergencyAlert } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, missingAlwaysOf, firstPickupStop, lastDropoffStop, stopTextOf, callFromAppReport, withStopLists, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, missingAlwaysOf, firstPickupStop, lastDropoffStop, stopTextOf, withStopLists, STOP_CONTACT_KEYS, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -113,9 +113,10 @@ router.post("/", async (req, res) => {
         /* 📝 빈 원문은 앞 기억의 원문(/confirm 이 남긴 화면 글)을 덮지 않는다 — 옛 원달앱 · 상세 글을 못 모은 길에서만 빈 채로 온다.
               덮으면 판정의 제외어 검사가 적요 · 유의사항을 못 본다. 비지 않은 원문(인성 팝업 모은 글)은 덮는다 */
         const { rawText: reportedRawText, ...reportedOrder } = payload.order;
-        /* 📱→🚏 원달앱 보고의 맨 위 칸을 정거장으로 — 보고에 없는 칸은 앞 기억 정거장 값을 잇는다(앞 기억 위에 펼치던 것과 같다) */
+        /* 📱🚏 원달앱 보고가 곧 콜이다 — 정거장은 보고 그대로, 원달앱이 안 보내는 서버 칸(좌표 · 찍은 글)만 앞 기억 정거장에서 잇는다 */
         let pendingOrder: PendingOrder = evolveOrder(session, realOrderId, {
-            ...callFromAppReport(reportedOrder, prevSame),
+            ...reportedOrder,
+            ...(prevSame ? withStopLists(reportedOrder, prevSame, ['geo', 'geoText']) : {}),
             ...(reportedRawText ? { rawText: reportedRawText } : {}),
             status: 'ORDER_SECURED_EVALUATING' as any,
             capturedDeviceId: payload.deviceId,
@@ -135,7 +136,7 @@ router.post("/", async (req, res) => {
         const rawText = pendingOrder.rawText;
         if (rawText) {
             // 📄 상세 콜 자료(상태 · 결제 · 수수료 · 구분 · 형태 · 배차사 · 적요 · 출발 · 도착 연락처)는 배차망 정의 표대로 — 못 찾은 칸은 싣지 않는다
-            //    연락처를 펼쳐도 첫 상차 · 마지막 하차의 글자 · 좌표 · 약속 · 거리는 남는다(withStopLists)
+            //    정거장은 콜 정거장 그대로, 상세 원문이 읽은 연락처 · 상세 주소 칸만 첫 상차 · 마지막 하차에 얹는다(withStopLists)
             //    짐은 보고에서 옮겨 담은 짐 위에 상세 차종 글자 · 짐 줄만 얹는다(크기 낱말 · 물품 글은 보고 값) · 돈 묶음은 상세 조각 줄을 읽었을 때만 실린다
             const { load: detailLoad, ...record } = detailRecordOf(targetApp, rawText);
             const before = pendingOrder.load;
@@ -143,7 +144,7 @@ router.post("/", async (req, res) => {
                 vehicleText: detailLoad.vehicleText ?? before?.vehicleText ?? null, sizeText: before?.sizeText ?? null, itemText: before?.itemText ?? null,
                 lines: detailLoad.lines.length ? detailLoad.lines : before?.lines ?? [],
             };
-            pendingOrder = { ...pendingOrder, ...record, ...withStopLists(pendingOrder, record), ...(load ? { load } : {}) };
+            pendingOrder = { ...pendingOrder, ...record, ...withStopLists(pendingOrder, record, STOP_CONTACT_KEYS), ...(load ? { load } : {}) };
             /* 🧾 늘 있던 칸이 이 상세에 없으면 한 줄 — 배차망 화면이 바뀌었을 수 있다(58 ② · 리뉴얼 신호 · 판정은 그대로) */
             const missingAlways = missingAlwaysOf(targetApp, 'newCall', rawText);
             /* 같은 배차망 · 같은 빠짐은 하루 한 번 — 리뉴얼이면 모든 콜이 같은 빠짐을 내 로그를 덮는다(원달앱 미등록 화면 보고와 같은 결) · 빠진 묶음이 달라지면 새 사건 */

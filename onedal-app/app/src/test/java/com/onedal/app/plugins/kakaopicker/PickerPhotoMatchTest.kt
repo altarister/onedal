@@ -4,6 +4,7 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 🧾 **손으로 연 상세 — 목록 대조가 못 가르면 사진의 상차·하차·픽업 km 로 한 번 더** (실물).
@@ -12,7 +13,7 @@ import org.junit.Test
  */
 class PickerPhotoMatchTest {
     private fun card(p: String, d: String, fare: Int, km: Double?) =
-        SimplifiedOfficeOrder(id = "$p$d$fare", pickup = p, dropoff = d, fare = fare, timestamp = "t", pickupDistance = km)
+        SimplifiedOfficeOrder(id = "$p$d$fare", fare = fare, timestamp = "t", pickupDetails = listOf(CallStop(listText = p, distanceKm = km)), dropoffDetails = listOf(CallStop(listText = d)))
     private fun stop(admin: String, place: String?, km: Double) = PickerStopFromImage(admin, place, km, null)
     private fun photo(p: PickerStopFromImage, d: PickerStopFromImage) = PickerDetailFromImage(p, d, "소형", false)
 

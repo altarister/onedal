@@ -114,7 +114,7 @@ describe('🚪 R11 끝난 콜에는 KEEP 을 싣지 않는다 — 앱은 이미 
 describe('👀 R12 미리보기에는 안전취소 기다림을 걸지 않는다 — 안 잡은 콜은 무를 것이 없다', () => {
     const confirm = (id: string, isPreview: boolean) => post(ordersRouter, '/confirm', {
         step: 'BASIC', deviceId: DEV, targetApp: 'insung', isPreview,
-        order: { id, pickup: '이천시 신둔면', dropoff: '서울 강남구', fare: 30000, rawText: '' },
+        order: { id, pickupDetails: [{ listText: '이천시 신둔면' }], dropoffDetails: [{ listText: '서울 강남구' }], fare: 30000, rawText: '' },
     });
     it('🔴 미리보기 선점 → 장부에 안전취소 없음', async () => {
         readySession();
@@ -133,7 +133,7 @@ describe('👀 R12 미리보기에는 안전취소 기다림을 걸지 않는다
         readySession();
         const r = await post(ordersRouter, '/confirm', {
             step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType: 'MANUAL',
-            order: { id: 'o-hand', pickup: '이천시 신둔면', dropoff: '서울 강남구', fare: 30000, rawText: '' },
+            order: { id: 'o-hand', pickupDetails: [{ listText: '이천시 신둔면' }], dropoffDetails: [{ listText: '서울 강남구' }], fare: 30000, rawText: '' },
         });
         expect(r.status).toBe(200);
         expect(getUserSession(U).entries.has('presecured_o-hand')).toBe(false);

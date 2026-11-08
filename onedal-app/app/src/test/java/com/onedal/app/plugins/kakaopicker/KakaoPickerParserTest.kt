@@ -8,6 +8,9 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 /**
  * 🌐 픽커 파서 채점 — **문제지는 실물 화면 덤프다**.
@@ -30,12 +33,12 @@ class KakaoPickerParserTest {
         val texts = listOf("퀵", "단거리", "준비 완료", "소형", "광주", "2,529", "4.7km", "광주", "경안", "경안")
         val o = parser.parse(texts)
         assertEquals(2529, o.fare)
-        assertEquals("광주 경안", o.pickup)
-        assertEquals("광주 경안", o.dropoff)
-        assertEquals(4.7, o.pickupDistance!!, 0.01)
+        assertEquals("광주 경안", StopText.of(firstPickupStop(o)))
+        assertEquals("광주 경안", StopText.of(lastDropoffStop(o)))
+        assertEquals(4.7, firstPickupStop(o)?.distanceKm!!, 0.01)
         assertEquals("소형", o.itemSize)
         assertTrue(o.tagsText!!.contains("준비 완료"))
-        assertNull(o.deliveryDistance)   // 픽커 리스트에는 배송거리가 없다 — 지어내지 않는다
+        assertNull(lastDropoffStop(o)?.distanceKm)   // 픽커 리스트에는 배송거리가 없다 — 지어내지 않는다
         assertNull(o.vehicleType)        // 차종 칸에 물품 크기를 섞어 싣지 않는다
     }
 
@@ -44,8 +47,8 @@ class KakaoPickerParserTest {
         val texts = listOf("퀵", "단거리", "준비 29분", "소형", "분당", "6,400", "14.9km", "분당", "야탑1", "이매1")
         val o = parser.parse(texts)
         assertEquals(6400, o.fare)
-        assertEquals("분당 야탑1", o.pickup)
-        assertEquals("분당 이매1", o.dropoff)
+        assertEquals("분당 야탑1", StopText.of(firstPickupStop(o)))
+        assertEquals("분당 이매1", StopText.of(lastDropoffStop(o)))
         assertTrue(o.tagsText!!.contains("준비 29분"))
     }
 
@@ -55,9 +58,9 @@ class KakaoPickerParserTest {
         val texts = listOf("퀵", "소형", "예약", "17:00", "수지", "14,168", "15.2km", "중원", "성남", "동천")
         val o = parser.parse(texts)
         assertEquals(14168, o.fare)
-        assertEquals("중원 성남", o.pickup)    // 성남시 중원구 성남동 — 구·동 표기
-        assertEquals("수지 동천", o.dropoff)
-        assertEquals("17:00", o.scheduleText)
+        assertEquals("중원 성남", StopText.of(firstPickupStop(o)))    // 성남시 중원구 성남동 — 구·동 표기
+        assertEquals("수지 동천", StopText.of(lastDropoffStop(o)))
+        assertEquals("17:00", firstPickupStop(o)?.promiseText)
     }
 
     @Test
@@ -131,7 +134,7 @@ class KakaoPickerParserTest {
         val texts = listOf("퀵", "승", "중형", "광주", "쌍령", "3.0km", "광주", "광남2", "4.3km", "15,785", "수락")
         val o = parser.parse(texts)
         assertEquals(15785, o.fare)
-        assertFalse("수락이 지역으로 들어감: ${o.rawText}", o.pickup.contains("수락") || o.dropoff.contains("수락"))
+        assertFalse("수락이 지역으로 들어감: ${o.rawText}", StopText.of(firstPickupStop(o)).contains("수락") || StopText.of(lastDropoffStop(o)).contains("수락"))
     }
 
     @Test
@@ -141,7 +144,7 @@ class KakaoPickerParserTest {
         //    필터(조건)가 아니라 요건(줄을 다 읽었나)이 막는다 — 다음 화면 읽기에서 읽히면 그때 본다
         //    (`OrderRequirement` · `KakaoPickerPlugin.allowsEmptyDropoff` · `PickerAlarmDropoffTest`).
         val edge = parser.parse(listOf("퀵", "소형", "12,000", "5.0km", "태평1"))
-        assertTrue(edge.dropoff.isEmpty())
+        assertTrue(StopText.of(lastDropoffStop(edge)).isEmpty())
         val plugin = KakaoPickerPlugin(null)
         assertFalse(com.onedal.app.core.engine.OrderRequirement.meets(edge, plugin.allowsEmptyDropoff(edge)))
     }
@@ -151,7 +154,7 @@ class KakaoPickerParserTest {
         // 🔴 도보 콜은 **원래** 하차지가 빈다 — 리스트에 가게 이름과 시간만 나와 지역 토막이 넷이 안 된다.
         //    퀵과 함께 막으면 도보 알람이 통째로 죽는다.
         val walk = parser.parse(listOf("도보", "준비 완료", "2,979", "18.3km", "올영 용인역북점"))
-        assertTrue(walk.dropoff.isEmpty())
+        assertTrue(StopText.of(lastDropoffStop(walk)).isEmpty())
         assertTrue(KakaoPickerParser.decide(walk, 2000, 20.0, listOf("성남"), emptyMap()))
     }
 
@@ -161,8 +164,8 @@ class KakaoPickerParserTest {
         // (실물 스크린샷의 «강남 대치2 · 16,478 · 착불» 카드)
         val texts = listOf("퀵", "승", "예약", "내일 착불", "강남", "16,478", "15.1km", "분당", "수내3", "대치2")
         val o = parser.parse(texts)
-        assertEquals("분당 수내3", o.pickup)
-        assertEquals("강남 대치2", o.dropoff)
+        assertEquals("분당 수내3", StopText.of(firstPickupStop(o)))
+        assertEquals("강남 대치2", StopText.of(lastDropoffStop(o)))
         assertTrue(o.tagsText!!.contains("착불"))
     }
 
@@ -187,8 +190,8 @@ class KakaoPickerParserTest {
         val texts = listOf("퀵", "반나절", "승", "강동", "14,466", "19.6km", "하남", "신장2", "천호3")
         val o = parser.parse(texts)
         assertEquals(14466, o.fare)
-        assertEquals("하남 신장2", o.pickup)
-        assertEquals("강동 천호3", o.dropoff)
+        assertEquals("하남 신장2", StopText.of(firstPickupStop(o)))
+        assertEquals("강동 천호3", StopText.of(lastDropoffStop(o)))
         assertTrue(o.tagsText!!.contains("반나절"))
         assertTrue(o.tagsText!!.contains("승"))
         assertNull(o.itemSize)   // 반나절 카드에는 물품 크기 표시가 없다 — 지어내지 않는다
@@ -199,8 +202,8 @@ class KakaoPickerParserTest {
         // 실수집에서 pickup="카드설정 수요지도" 로 저장됐던 그 모양
         val texts = listOf("퀵", "단거리", "준비 완료", "소형", "중원", "3,000", "14.2km", "중원", "금광2", "중원", "카드설정", "수요지도")
         val o = parser.parse(texts)
-        assertEquals("중원 금광2", o.pickup)
-        assertEquals("중원 중원", o.dropoff)
+        assertEquals("중원 금광2", StopText.of(firstPickupStop(o)))
+        assertEquals("중원 중원", StopText.of(lastDropoffStop(o)))
     }
 
     @Test
@@ -243,8 +246,8 @@ class MeterUnitTest {
     @org.junit.Test
     fun `미터 표기를 픽업거리로 읽는다 - 도착지에 새지 않는다`() {
         val o = parser.parse(listOf("퀵", "단거리", "소형", "광주", "15,400", "581m", "광주", "초월읍", "쌍동2"))
-        org.junit.Assert.assertEquals(0.581, o.pickupDistance!!, 0.001)
-        org.junit.Assert.assertFalse(o.dropoff.contains("581m"))
+        org.junit.Assert.assertEquals(0.581, firstPickupStop(o)?.distanceKm!!, 0.001)
+        org.junit.Assert.assertFalse(StopText.of(lastDropoffStop(o)).contains("581m"))
     }
 }
 
@@ -698,12 +701,12 @@ class SimulatorCardTest {
         val texts = listOf("퀵", "준비 완료", "대형", "파주", "42,290", "2.0km", "광주", "초월읍", "문산읍")
         val o = parser.parse(texts)
         assertEquals(42290, o.fare)
-        assertEquals("광주 초월읍", o.pickup)
-        assertEquals("파주 문산읍", o.dropoff)
-        assertEquals(2.0, o.pickupDistance!!, 0.01)
+        assertEquals("광주 초월읍", StopText.of(firstPickupStop(o)))
+        assertEquals("파주 문산읍", StopText.of(lastDropoffStop(o)))
+        assertEquals(2.0, firstPickupStop(o)?.distanceKm!!, 0.01)
         assertEquals("대형", o.itemSize)
         assertTrue(o.tagsText!!.contains("준비 완료"))
-        assertNull(o.deliveryDistance)
+        assertNull(lastDropoffStop(o)?.distanceKm)
         assertNull(o.vehicleType)
     }
 
@@ -712,9 +715,9 @@ class SimulatorCardTest {
         val texts = listOf("퀵", "준비 32분", "소형", "이천", "17,680", "8.1km", "광주", "목", "고담")
         val o = parser.parse(texts)
         assertEquals(17680, o.fare)
-        assertEquals("광주 목", o.pickup)
-        assertEquals("이천 고담", o.dropoff)
-        assertEquals(8.1, o.pickupDistance!!, 0.01)
+        assertEquals("광주 목", StopText.of(firstPickupStop(o)))
+        assertEquals("이천 고담", StopText.of(lastDropoffStop(o)))
+        assertEquals(8.1, firstPickupStop(o)?.distanceKm!!, 0.01)
         assertEquals("소형", o.itemSize)
         assertTrue(o.tagsText!!.contains("준비 32분"))
     }
@@ -885,8 +888,8 @@ class AssignedToastTest {
     fun `09-02 실주행 모양 - 토스트 글자와 요금뿐인 카드에서 토스트가 출발지가 되지 않는다`() {
         val o = parser.parse(listOf(realToast, "2,942"))
         assertEquals(2942, o.fare)
-        assertFalse("출발지에 토스트가 들어갔다: ${o.pickup}", o.pickup.contains("배정"))
-        assertFalse("도착지에 토스트가 들어갔다: ${o.dropoff}", o.dropoff.contains("배정"))
+        assertFalse("출발지에 토스트가 들어갔다: ${StopText.of(firstPickupStop(o))}", StopText.of(firstPickupStop(o)).contains("배정"))
+        assertFalse("도착지에 토스트가 들어갔다: ${StopText.of(lastDropoffStop(o))}", StopText.of(lastDropoffStop(o)).contains("배정"))
     }
 
     /** 🏁 «방금 배정된 오더입니다»(실물 알림 글)도 같은 «배정» 알림이다 — 카드 띠에 섞여도 출발지가 되지 않는다 (표의 «배정» 알림 덧칸) */
@@ -894,14 +897,14 @@ class AssignedToastTest {
     fun `방금 배정된 오더 토스트도 출발지가 되지 않는다`() {
         val o = parser.parse(listOf("방금 배정된 오더입니다.", "2,942"))
         assertEquals(2942, o.fare)
-        assertFalse("출발지에 토스트가 들어갔다: ${o.pickup}", o.pickup.contains("배정"))
+        assertFalse("출발지에 토스트가 들어갔다: ${StopText.of(firstPickupStop(o))}", StopText.of(firstPickupStop(o)).contains("배정"))
     }
 
     @Test
     fun `토스트가 멀쩡한 카드 띠에 섞여도 지역은 그대로다`() {
         val o = parser.parse(listOf("퀵", "소형", "수지", "14,168", realToast, "15.2km", "중원", "성남", "동천"))
-        assertEquals("중원 성남", o.pickup)
-        assertEquals("수지 동천", o.dropoff)
+        assertEquals("중원 성남", StopText.of(firstPickupStop(o)))
+        assertEquals("수지 동천", StopText.of(lastDropoffStop(o)))
     }
 }
 
@@ -913,32 +916,32 @@ class PickerLocationParsingEdgeCaseTest {
     fun `2토막 카드 - 하남 출발 종로 도착이 뒤집히지 않고 정확히 추출된다`() {
         val o = parser.parse(listOf("퀵", "초소형", "종로", "12,705", "16.9km", "하남"))
         assertEquals(12705, o.fare)
-        assertEquals("하남", o.pickup)
-        assertEquals("종로", o.dropoff)
+        assertEquals("하남", StopText.of(firstPickupStop(o)))
+        assertEquals("종로", StopText.of(lastDropoffStop(o)))
     }
 
     @Test
     fun `3토막 카드 Case A - 하남 감일 출발 종로 도착에서 하차지가 증발하지 않는다`() {
         val o = parser.parse(listOf("퀵", "초소형", "종로", "15,000", "16.9km", "하남", "감일"))
         assertEquals(15000, o.fare)
-        assertEquals("하남 감일", o.pickup)
-        assertEquals("종로", o.dropoff)
+        assertEquals("하남 감일", StopText.of(firstPickupStop(o)))
+        assertEquals("종로", StopText.of(lastDropoffStop(o)))
     }
 
     @Test
     fun `3토막 실측 분당 서초 방배본 - 태그줄에 도착지가 없어도 구와 동을 알아본다`() {
         val o = parser.parse(listOf("퀵", "16:10", "15,540", "14.4km", "분당", "서초", "방배본"))
         assertEquals(15540, o.fare)
-        assertEquals("분당", o.pickup)
-        assertEquals("서초 방배본", o.dropoff)
+        assertEquals("분당", StopText.of(firstPickupStop(o)))
+        assertEquals("서초 방배본", StopText.of(lastDropoffStop(o)))
     }
 
     @Test
     fun `5토막 카드 - 뒤에 건물명이 붙어도 행정동을 골라 하차지로 조립한다`() {
         val o = parser.parse(listOf("퀵", "초소형", "강남", "25,000", "18.0km", "분당", "수내1", "역삼1", "타워팰리스"))
         assertEquals(25000, o.fare)
-        assertEquals("분당 수내1", o.pickup)
-        assertEquals("강남 역삼1", o.dropoff)
+        assertEquals("분당 수내1", StopText.of(firstPickupStop(o)))
+        assertEquals("강남 역삼1", StopText.of(lastDropoffStop(o)))
     }
 
     /**
@@ -950,9 +953,9 @@ class PickerLocationParsingEdgeCaseTest {
         // 실측: 퀵 승 예약 17:30 6.8km 광주 송정 강남 19,404
         val o = parser.parse(listOf("퀵", "승", "예약", "17:30", "강남", "19,404", "6.8km", "광주", "송정"))
         assertEquals(19404, o.fare)
-        assertEquals("광주 송정", o.pickup)
-        assertEquals("강남", o.dropoff) // 🔴 dropoff 가 빈칸이 되면 19,404원 꿀콜이 도착지 축에서 탈락한다
-        assertEquals(6.8, o.pickupDistance!!, 0.01)
+        assertEquals("광주 송정", StopText.of(firstPickupStop(o)))
+        assertEquals("강남", StopText.of(lastDropoffStop(o))) // 🔴 dropoff 가 빈칸이 되면 19,404원 꿀콜이 도착지 축에서 탈락한다
+        assertEquals(6.8, firstPickupStop(o)?.distanceKm!!, 0.01)
 
         // 서울 필터 대조: 통과해야 함!
         val seoulKeywords = listOf("서울", "강남", "서초", "송파", "영등포")
@@ -967,8 +970,8 @@ class PickerLocationParsingEdgeCaseTest {
         // 실측: 퀵 반나절 중형 예약 18.7km 송파 영등포 11,242
         val o = parser.parse(listOf("퀵", "반나절", "중형", "예약", "영등포", "11,242", "18.7km", "송파"))
         assertEquals(11242, o.fare)
-        assertEquals("송파", o.pickup)
-        assertEquals("영등포", o.dropoff)
+        assertEquals("송파", StopText.of(firstPickupStop(o)))
+        assertEquals("영등포", StopText.of(lastDropoffStop(o)))
 
         // 영등포(서울) 필터 통과
         val seoulKeywords = listOf("서울", "영등포")
@@ -980,8 +983,8 @@ class PickerLocationParsingEdgeCaseTest {
         // 실측: 퀵 승 예약 16:10 14.4km 분당 야탑3 서초 방배본 15,540
         val o = parser.parse(listOf("퀵", "승", "예약", "16:10", "서초", "15,540", "14.4km", "분당", "야탑3", "방배본"))
         assertEquals(15540, o.fare)
-        assertEquals("분당 야탑3", o.pickup)
-        assertEquals("서초 방배본", o.dropoff)
+        assertEquals("분당 야탑3", StopText.of(firstPickupStop(o)))
+        assertEquals("서초 방배본", StopText.of(lastDropoffStop(o)))
 
         // 서초(서울) 필터 통과
         val seoulKeywords = listOf("서울", "서초", "방배동")
@@ -995,8 +998,8 @@ class PickerLocationParsingEdgeCaseTest {
         // 실측: 퀵 중형 18.6km 수정 신촌 성북 장위3 17,362
         val o = parser.parse(listOf("퀵", "중형", "성북", "17,362", "18.6km", "수정", "신촌", "장위3"))
         assertEquals(17362, o.fare)
-        assertEquals("수정 신촌", o.pickup)
-        assertEquals("성북 장위3", o.dropoff)
+        assertEquals("수정 신촌", StopText.of(firstPickupStop(o)))
+        assertEquals("성북 장위3", StopText.of(lastDropoffStop(o)))
 
         // 성북(서울) 필터 통과
         val seoulKeywords = listOf("서울", "성북", "장위동")
@@ -1008,8 +1011,8 @@ class PickerLocationParsingEdgeCaseTest {
         // 태그에 지역이 없고 본문에 "광주 송정 강남" 3토막만 있는 변칙 상황
         val o = parser.parse(listOf("퀵", "승", "17:30", "19,404", "6.8km", "광주", "송정", "강남"))
         assertEquals(19404, o.fare)
-        assertEquals("광주 송정", o.pickup)
-        assertEquals("강남", o.dropoff) // 본문 3토막이어도 [구, 동, 구] -> 출발: 광주 송정, 도착: 강남
+        assertEquals("광주 송정", StopText.of(firstPickupStop(o)))
+        assertEquals("강남", StopText.of(lastDropoffStop(o))) // 본문 3토막이어도 [구, 동, 구] -> 출발: 광주 송정, 도착: 강남
     }
 }
 

@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import com.onedal.app.models.CallStop
 
 /**
  * 📋 **목록 완독에 상차지거리 — «모르면 통과» 없음** (기사님 «상차지 거리를 찾는 건 공통»)
@@ -21,8 +22,12 @@ class ListCompleteTest {
     private val root = "src/main/java/com/onedal/app"
 
     private fun order(km: Double?) = SimplifiedOfficeOrder(
-        id = "t", type = "NEW_ORDER", pickup = "가나시 다라동", dropoff = "마바시 사아동",
-        fare = 20000, timestamp = "2026-09-29T10:00:00", pickupDistance = km,
+        id = "t",
+        type = "NEW_ORDER",
+        fare = 20000,
+        timestamp = "2026-09-29T10:00:00",
+        pickupDetails = listOf(CallStop(listText = "가나시 다라동", distanceKm = km)),
+        dropoffDetails = listOf(CallStop(listText = "마바시 사아동")),
     )
 
     @Test

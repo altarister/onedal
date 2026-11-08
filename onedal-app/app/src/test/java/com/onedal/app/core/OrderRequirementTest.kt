@@ -5,6 +5,7 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 📋 **콜 요건 — 모든 배차망이 같은 한 줄** (기사님 «요건은 공통»)
@@ -14,7 +15,7 @@ import org.junit.Test
 class OrderRequirementTest {
 
     private fun order(pickup: String, dropoff: String, fare: Int) =
-        SimplifiedOfficeOrder(id = "t", type = "MANUAL_CLICK", pickup = pickup, dropoff = dropoff, fare = fare, timestamp = "")
+        SimplifiedOfficeOrder(id = "t", type = "MANUAL_CLICK", fare = fare, timestamp = "", pickupDetails = listOf(CallStop(listText = pickup)), dropoffDetails = listOf(CallStop(listText = dropoff)))
 
     @Test
     fun `상차·하차·요금이 다 있으면 요건을 갖췄다`() {

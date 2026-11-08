@@ -8,6 +8,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import com.onedal.app.models.CallStop
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.StopText
 
 /**
  * 🧾 **같은 콜이 요금만 오르면 마지막에 본 줄** — 라이브 손 상세 «상차 맞음 8 · km 맞음 4 · 다른 콜 4 → 요금 없음».
@@ -20,7 +23,7 @@ class PickerSameCallTest {
     @Before @After fun clear() = ListSightings.clear()
 
     private fun card(fare: Int, pickup: String = "중원 성남", dropoff: String = "수정 수진2") =
-        SimplifiedOfficeOrder(id = "c$fare", pickup = pickup, dropoff = dropoff, fare = fare, timestamp = "t", pickupDistance = 14.9)
+        SimplifiedOfficeOrder(id = "c$fare", fare = fare, timestamp = "t", pickupDetails = listOf(CallStop(listText = pickup, distanceKm = 14.9)), dropoffDetails = listOf(CallStop(listText = dropoff)))
     private fun saw(o: SimplifiedOfficeOrder, vararg scans: Long) = scans.forEach { ListSightings.saw(CallMemory.fingerprintOf(o), it) }
 
     /** 사진 ok_1790764839089.jpg 의 두 정류장 */
@@ -62,13 +65,13 @@ class PickerPartialRowMergeTest {
     @Before @After fun clear() = ListSightings.clear()
 
     private fun card(pickup: String, dropoff: String) =
-        SimplifiedOfficeOrder(id = "$pickup$dropoff", pickup = pickup, dropoff = dropoff, fare = 10920, timestamp = "t", pickupDistance = 16.5)
+        SimplifiedOfficeOrder(id = "$pickup$dropoff", fare = 10920, timestamp = "t", pickupDetails = listOf(CallStop(listText = pickup, distanceKm = 16.5)), dropoffDetails = listOf(CallStop(listText = dropoff)))
     private val pickupStop = PickerStopFromImage("경기 성남시 분당구 삼평동", null, 16.5, null)
     private val dropoffStop = PickerStopFromImage("서울 강남구 일원본동", null, 3.0, null)
 
     @Test fun `동 없이 읽은 줄은 합친다 - 20시47분56초 두 후보`() {
         val full = card("분당 삼평", "강남 일원본"); val partial = card("분당", "강남")
-        assertEquals("분당 삼평", KakaoPickerParser.photoMatchCard(pickupStop, dropoffStop, listOf(full, partial))?.pickup)
+        assertEquals("분당 삼평", KakaoPickerParser.photoMatchCard(pickupStop, dropoffStop, listOf(full, partial))?.let { StopText.of(firstPickupStop(it)) })
         assertEquals(true, KakaoPickerParser.photoMatchReport(pickupStop, dropoffStop, listOf(full, partial)).contains("같은 콜을 동 없이 읽은 줄 합침"))
     }
 

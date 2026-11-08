@@ -13,6 +13,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 /**
  * 📄 **화물24시 상세를 상세로 읽는다** (29 X12 · 69판 장면 6) — 손 · 알람으로 연 상세에서 판정이 서야 한다.
@@ -43,8 +47,8 @@ class Hwamul24DetailReadTest {
 
     @Test fun `🔴 손으로 연 실물 상세 — 상차 · 하차 · 요금(운송료)이 선다`() {
         val o = readHandDetail(real18)
-        assertTrue(o.pickup, o.pickup.contains("군포"))
-        assertTrue(o.dropoff, o.dropoff.contains("중구"))
+        assertTrue(StopText.of(firstPickupStop(o)), StopText.of(firstPickupStop(o)).contains("군포"))
+        assertTrue(StopText.of(lastDropoffStop(o)), StopText.of(lastDropoffStop(o)).contains("중구"))
         assertEquals("잔액 · 산재보험료가 아니라 운송료", 60_000, o.fare)
     }
 
@@ -61,7 +65,7 @@ class Hwamul24DetailReadTest {
     }
 
     @Test fun `🔴 목록 줄 대조는 운송료로 — 잔액(50,000)에 속지 않는다`() {
-        val listRow = SimplifiedOfficeOrder(id = "row", pickup = "경기 군포 부곡동", dropoff = "서울 중구 을지로6가", fare = 60_000, timestamp = "t")
+        val listRow = SimplifiedOfficeOrder(id = "row", fare = 60_000, timestamp = "t", pickupDetails = listOf(CallStop(listText = "경기 군포 부곡동")), dropoffDetails = listOf(CallStop(listText = "서울 중구 을지로6가")))
         val other = listRow.copy(id = "other", fare = 50_000)
         assertEquals("row", parser.matchDetailOrder(real18, listOf(listRow, other))?.id)
     }
@@ -79,7 +83,7 @@ class Hwamul24DetailReadTest {
             listOf("(주)신한로직스-1588-5480", "전표", "상태 : 배송", "물품 : 서류", "차량 : 트럭-1t", "탁송료 : 3,000", "수수료 : 20%", "요금 : 85,000(신용)", "구분 : 왕복"),
         )
         for (t in samples) {
-            val read = SimplifiedOfficeOrder(id = "i", pickup = "", dropoff = "", fare = InsungParser.readVehicleAndFare(t).second, timestamp = "t")
+            val read = SimplifiedOfficeOrder(id = "i", fare = InsungParser.readVehicleAndFare(t).second, timestamp = "t", pickupDetails = listOf(CallStop(listText = "")), dropoffDetails = listOf(CallStop(listText = "")))
             val now = PageFieldRead.withFare(read, InsungPages.pages, Page.NEW_CALL, t).fare
             assertTrue(t.toString(), now > 0)
             assertEquals(t.toString(), now, PageFieldRead.fareFirst(read, InsungPages.pages, Page.NEW_CALL, t).fare)
@@ -88,7 +92,7 @@ class Hwamul24DetailReadTest {
 
     @Test fun `픽커는 상세 요금 칸 정의가 없어 그대로`() {
         assertNull(PageFieldRead.fareOf(KakaoPickerPages.pages, Page.NEW_CALL, listOf("픽업지", "15,785")))
-        val order = SimplifiedOfficeOrder(id = "p", pickup = "", dropoff = "", fare = 15_785, timestamp = "t")
+        val order = SimplifiedOfficeOrder(id = "p", fare = 15_785, timestamp = "t", pickupDetails = listOf(CallStop(listText = "")), dropoffDetails = listOf(CallStop(listText = "")))
         assertEquals(15_785, PageFieldRead.fareFirst(order, KakaoPickerPages.pages, Page.NEW_CALL, listOf("픽업지", "15,785")).fare)
         assertNotNull(order)
     }

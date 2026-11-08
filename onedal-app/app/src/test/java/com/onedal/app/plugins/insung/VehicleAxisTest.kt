@@ -4,6 +4,7 @@ import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 🚚 **1t 차에 5t 짐을 실을 수 없다** (기사님 실측)
@@ -36,12 +37,14 @@ class VehicleAxisTest {
     )
 
     private fun call(vehicle: String) = SimplifiedOfficeOrder(
-        id = "v-$vehicle", type = "NEW_ORDER",
-        pickup = "광주시 초월읍", dropoff = "이천시 호법면", fare = 210_000,
+        id = "v-$vehicle",
+        type = "NEW_ORDER",
+        fare = 210_000,
         timestamp = "2026-08-26T07:10:30",
         vehicleType = vehicle,
         rawText = "광주시 초월읍 이천시 호법면",
-        pickupDistance = 7.2, deliveryDistance = 15.5,
+        pickupDetails = listOf(CallStop(listText = "광주시 초월읍", distanceKm = 7.2)),
+        dropoffDetails = listOf(CallStop(listText = "이천시 호법면", distanceKm = 15.5)),
     )
 
     /** 서버가 1t 차에게 실제로 내려주는 목록 (서버 로그) */

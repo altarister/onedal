@@ -91,24 +91,11 @@ data class EmergencyReport(
 data class SimplifiedOfficeOrder(
     val id: String,
     val type: String = "NEW_ORDER",
-    val pickup: String,
-    val dropoff: String,
     val fare: Int = 0,
     val timestamp: String,
     val postTime: String? = null,
-    val scheduleText: String? = null,
     val vehicleType: String? = null,
     val rawText: String? = null,
-    val pickupX: Double? = null,
-    val pickupY: Double? = null,
-    val dropoffX: Double? = null,
-    val dropoffY: Double? = null,
-    val pickupDistance: Double? = null,
-    /**
-     * 배송거리(상차지 → 하차지, km). 리스트 최좌측 두 숫자 중 **두 번째** 값.
-     * 단가 판정(fare ≥ deliveryDistance × ratePerKm[차종])의 입력이다.
-     */
-    val deliveryDistance: Double? = null,
     /** 🌐 픽커 전용 — 물품 크기(초소형/소형…). 차종 칸에 섞어 싣지 않는다 (규칙 ⑤-4 ⑤) */
     val itemSize: String? = null,
     /** 🌐 픽커 전용 — 태그 원문(급송·예약 17:00·준비 29분…) */
@@ -130,34 +117,65 @@ data class SimplifiedOfficeOrder(
     val verdict: String? = null,
     val isSimulated: Boolean? = null,
     /**
-     * 📅 **예약** (`ReservationText`) — 상차 쪽 글자로 읽는다.
-     * 표시 없음 = `reserved` 거짓 · 날 모름 = `reserved` 참 + `reservedDay` null · `reservedDay` = 폰 달력으로 며칠 뒤(0 = 오늘).
-     * 상세에서 읽은 값이 목록 값을 덮는다(픽커 사진 «내일 14:00 픽업예약»).
+     * 📅 **예약 표시가 있나** (`ReservationText`) — 상차 쪽 글자로 읽는다.
+     * 표시 없음 = 거짓 · 날 모름 = 참 + 첫 상차 정거장 `requestedDay` null (`withReservation`).
      */
     val reserved: Boolean? = null,
-    val reservedDay: Int? = null,
-    /** 📅 예약 시각 «HH:MM» — 모르면 null */
-    val reservedAt: String? = null,
+    /**
+     * 🚏 **상차 · 하차 정거장** — 목록 글자(`listText`) · 정거장 거리(`distanceKm` — 첫 상차 = 내 자리 → 상차지, 마지막 하차 = 배송 거리) ·
+     * 약속(`promiseText` · `requestedDay` · `requestedTime` — 상세에서 읽은 값이 목록 값을 덮는다(픽커 사진 «내일 14:00 픽업예약»)).
+     * 읽는 곳은 `firstPickupStop` · `lastDropoffStop` · `StopText.of`(`core/CallStops.kt`) — 원달앱은 정거장 한 곳씩 싣는다.
+     */
+    val pickupDetails: List<CallStop> = listOf(CallStop()),
+    val dropoffDetails: List<CallStop> = listOf(CallStop()),
+) {
+    /** 📦 **짐 묶음** — 맨 위 차종 · 크기 글자 그대로(짐 줄 없음) · 둘 다 없으면 null. 생성자 칸에서 만들어 `copy` 해도 따라간다 */
+    val load: CallLoad? = if (vehicleType != null || itemSize != null) CallLoad(vehicleType, itemSize, null, emptyList()) else null
+}
+
+/**
+ * 🚏 **정거장 한 곳** — shared `CallStop` 과 같은 칸 이름. 좌표 · 찍은 글(`geo` · `geoText`)은 서버 칸이라 없다.
+ * 화면이 보인 것만 담고 못 읽은 칸은 비운다(Gson 은 빈 칸을 안 싣는다).
+ */
+data class CallStop(
+    val listText: String? = null,
+    val region: String? = null,
+    val addressDetail: String? = null,
+    val customerName: String? = null,
+    val department: String? = null,
+    val contactName: String? = null,
+    val phone1: String? = null,
+    val phone2: String? = null,
+    val promiseText: String? = null,
+    val requestedDay: Int? = null,
+    val requestedTime: String? = null,
+    val distanceKm: Double? = null,
+    val memo: String? = null,
 )
+
+/** 📦 짐 묶음 — shared `CallLoad` 과 같은 칸 이름 */
+data class CallLoad(
+    val vehicleText: String?,
+    val sizeText: String?,
+    val itemText: String?,
+    val lines: List<LoadLine> = emptyList(),
+)
+
+/** 📦 짐 줄 한 줄 — shared `LoadLine` (갈래 · 화면 글자) */
+data class LoadLine(val kind: String, val shown: String)
 
 // ────────────────────────────────────────────────
 // 2. 상세 콜 데이터 (웹의 DetailedOfficeOrder 대응)
-//    3단계(상세 페이지 스크래핑) 구현 시 사용
 // ────────────────────────────────────────────────
 data class DetailedOfficeOrder(
-    // SimplifiedOfficeOrder 필드 포함
     val id: String,
     val type: String = "NEW_ORDER",
-    val pickup: String,
-    val dropoff: String,
     val fare: Int = 0,
     val timestamp: String,
     val rawText: String? = null,
-    val pickupX: Double? = null,
-    val pickupY: Double? = null,
-    val dropoffX: Double? = null,
-    val dropoffY: Double? = null,
-    val pickupDistance: Double? = null
+    /** 🚏 그 콜의 정거장 그대로 — 서버는 좌표 · 찍은 글만 앞 기억에서 잇는다 */
+    val pickupDetails: List<CallStop> = listOf(CallStop()),
+    val dropoffDetails: List<CallStop> = listOf(CallStop()),
     // 상세 칸(배차사 · 수수료 · 적요 …)은 원달앱이 채우지 않는다 — 서버가 rawText 에서 뽑는다(server/utils/parser.ts)
 )
 
@@ -489,6 +507,6 @@ data class PairDeviceResponse(
 )
 
 
-/** 📅 콜에 읽은 예약을 싣는다 — 세 칸을 한 번에 (한 칸만 바꿔 «표시 없음인데 날이 있다»가 되지 않게) */
+/** 📅 콜에 읽은 예약을 싣는다 — 표시 · 첫 상차 날 · 시각을 한 번에 (한 칸만 바꿔 «표시 없음인데 날이 있다»가 되지 않게) */
 fun SimplifiedOfficeOrder.withReservation(r: com.onedal.app.core.Reservation): SimplifiedOfficeOrder =
-    copy(reserved = r.marked, reservedDay = r.day, reservedAt = r.at)
+    com.onedal.app.core.withFirstPickup(this) { it.copy(requestedDay = r.day, requestedTime = r.at) }.copy(reserved = r.marked)

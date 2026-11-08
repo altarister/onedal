@@ -3,6 +3,9 @@ package com.onedal.app.plugins.kakaopicker
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 /**
  * 🔀 **경유 콜 — 목적지가 여럿이다** (실물 카카오T픽커 라이브 · 6만 원짜리도 있었다).
@@ -32,9 +35,9 @@ class PickerViaCallTest {
             ),
         )
         assertEquals(62986, o.fare)
-        assertEquals("기흥 신갈", o.pickup)
-        assertTrue("경유가 주소에 샜다: ${o.pickup}→${o.dropoff}", !"${o.pickup} ${o.dropoff}".contains("경유"))
-        assertTrue("날짜가 주소에 샜다: ${o.pickup}→${o.dropoff}", !"${o.pickup} ${o.dropoff}".contains("9/18"))
+        assertEquals("기흥 신갈", StopText.of(firstPickupStop(o)))
+        assertTrue("경유가 주소에 샜다: ${StopText.of(firstPickupStop(o))}→${StopText.of(lastDropoffStop(o))}", !"${StopText.of(firstPickupStop(o))} ${StopText.of(lastDropoffStop(o))}".contains("경유"))
+        assertTrue("날짜가 주소에 샜다: ${StopText.of(firstPickupStop(o))}→${StopText.of(lastDropoffStop(o))}", !"${StopText.of(firstPickupStop(o))} ${StopText.of(lastDropoffStop(o))}".contains("9/18"))
     }
 
     @Test
@@ -45,7 +48,7 @@ class PickerViaCallTest {
                 "62,986", "기흥 신갈", "상현3, 원천, 해양, 해양, 송도1, 송도4, 용현5", "19.3km",
             ),
         )
-        assertEquals("수지 상현3", o.dropoff)
+        assertEquals("수지 상현3", StopText.of(lastDropoffStop(o)))
         assertTrue("들를 곳 수가 꼬리표에 없다: ${o.tagsText}", o.tagsText?.contains("경유") == true)
     }
 }

@@ -8,6 +8,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
+import com.onedal.app.core.withFirstPickup
 
 /**
  * 📋 **상차 목록으로 거른다 — 2단계 원달앱**.
@@ -65,9 +67,14 @@ class PickupListFilterTest {
     )
 
     private val d3 = SimplifiedOfficeOrder(
-        id = "D3", type = "NEW_ORDER", pickup = "신둔면", dropoff = "곤지암읍", fare = 30000,
-        timestamp = "2026-09-15T03:08:52", vehicleType = "승",
-        rawText = "신둔면 곤지암읍", pickupDistance = 7.1, deliveryDistance = 7.0,
+        id = "D3",
+        type = "NEW_ORDER",
+        fare = 30000,
+        timestamp = "2026-09-15T03:08:52",
+        vehicleType = "승",
+        rawText = "신둔면 곤지암읍",
+        pickupDetails = listOf(CallStop(listText = "신둔면", distanceKm = 7.1)),
+        dropoffDetails = listOf(CallStop(listText = "곤지암읍", distanceKm = 7.0)),
     )
 
     @Test
@@ -91,7 +98,7 @@ class PickupListFilterTest {
 
     @Test
     fun `상차 목록이 오면 상차 반경 숫자로는 안 막는다 - 첫짐이어도`() {
-        val far = d3.copy(pickupDistance = 30.0)
+        val far = withFirstPickup(d3) { it.copy(distanceKm = 30.0) }
         val firstLoad = filter(listOf("신둔면")).copy(isSharedMode = false)
         assertEquals(InsungParser.Companion.Verdict(true, "pass"), InsungParser.judge(far, firstLoad))
         // 상차 목록이 안 오면(null) 같은 콜이 반경(4.55km)에 막힌다

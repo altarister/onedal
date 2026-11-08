@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import com.onedal.app.models.CallStop
 
 /**
  * 🔔 **«이 콜로 이미 알람을 냈나» — 열쇠는 상차+하차(요금 뺌)** (기사님 «금액이 바뀌면 다시 판정» · 1f «가»).
@@ -15,7 +16,7 @@ import java.io.File
  */
 class AlarmedRoutesTest {
     private fun o(pickup: String, dropoff: String, fare: Int) =
-        SimplifiedOfficeOrder(id = "c", pickup = pickup, dropoff = dropoff, fare = fare, timestamp = "t", pickupDistance = 5.0)
+        SimplifiedOfficeOrder(id = "c", fare = fare, timestamp = "t", pickupDetails = listOf(CallStop(listText = pickup, distanceKm = 5.0)), dropoffDetails = listOf(CallStop(listText = dropoff)))
     private val min = 60_000L
 
     @Test fun `요금만 오른 같은 콜은 한 번만 센다`() {

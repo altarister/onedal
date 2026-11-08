@@ -28,7 +28,7 @@ const detail = async (id: string, matchType: 'AUTO' | 'MANUAL', isPreview = fals
     const res: any = { status: (c: number) => { code = c; return res; }, json: (b: any) => { out = b; return res; } };
     await handlerOf(detailRouter)({ app, body: {
         step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType, isPreview,
-        order: { id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 신둔면', fare: 38500, vehicleType: '다마스', rawText: '' },
+        order: { id, pickupDetails: [{ listText: '경기 광주시 곤지암읍' }], dropoffDetails: [{ listText: '경기 이천시 신둔면' }], fare: 38500, vehicleType: '다마스', rawText: '' },
     } }, res);
     return { code, out };
 };

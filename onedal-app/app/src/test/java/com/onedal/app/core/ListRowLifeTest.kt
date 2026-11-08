@@ -6,6 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * ⏳ **목록 줄 수명** — 다른 기사가 콜을 몇 초 만에 가져가나를 재는 기록(`ListRowLife`).
@@ -14,7 +15,7 @@ import org.junit.Test
  */
 class ListRowLifeTest {
     private fun o(p: String, d: String, fare: Int, size: String = "소형") =
-        SimplifiedOfficeOrder(id = "$p$d$fare", type = "LIST", pickup = p, dropoff = d, fare = fare, timestamp = "", itemSize = size)
+        SimplifiedOfficeOrder(id = "$p$d$fare", type = "LIST", fare = fare, timestamp = "", itemSize = size, pickupDetails = listOf(CallStop(listText = p)), dropoffDetails = listOf(CallStop(listText = d)))
 
     @Before fun reset() = ListRowLife.clear()
 

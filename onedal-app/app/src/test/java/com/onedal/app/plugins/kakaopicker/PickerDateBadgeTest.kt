@@ -3,6 +3,9 @@ package com.onedal.app.plugins.kakaopicker
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 /**
  * 📅 **예약 날짜 배지(«9/23(수)»)는 지역 이름이 아니다** (기사님 지시).
@@ -24,24 +27,24 @@ class PickerDateBadgeTest {
     fun `예약 날짜는 지역이 아니라 꼬리표다`() {
         val o = parser.parse(listOf("중형", "수정", "예약", "9/23(수)", "10,857", "퀵", "광주", "능평", "수진2", "12.0km"))
         assertEquals(10857, o.fare)
-        assertEquals("광주 능평", o.pickup)
-        assertEquals("수정 수진2", o.dropoff)
+        assertEquals("광주 능평", StopText.of(firstPickupStop(o)))
+        assertEquals("수정 수진2", StopText.of(lastDropoffStop(o)))
         assertTrue("날짜가 꼬리표에 없다: ${o.tagsText}", o.tagsText?.contains("9/23(수)") == true)
     }
 
     @Test
     fun `날짜가 붙어도 도착지를 잃지 않는다`() {
         val o = parser.parse(listOf("중형", "구로", "반나절", "예약", "9/23(수)", "퀵", "14,861", "수정", "위례", "구로1", "16.8km"))
-        assertEquals("수정 위례", o.pickup)
-        assertEquals("구로 구로1", o.dropoff)
+        assertEquals("수정 위례", StopText.of(firstPickupStop(o)))
+        assertEquals("구로 구로1", StopText.of(lastDropoffStop(o)))
     }
 
     /** 실물 원문: «소형 송파 퀵 반나절 예약 19:50 4,620 송파 문정2 장지 18.9km» */
     @Test
     fun `예약 시각은 지금도 꼬리표다 - 날짜를 더해도 안 깨진다`() {
         val o = parser.parse(listOf("소형", "송파", "퀵", "반나절", "예약", "19:50", "4,620", "송파", "문정2", "장지", "18.9km"))
-        assertEquals("송파 문정2", o.pickup)
-        assertEquals("송파 장지", o.dropoff)
+        assertEquals("송파 문정2", StopText.of(firstPickupStop(o)))
+        assertEquals("송파 장지", StopText.of(lastDropoffStop(o)))
         assertTrue("시각이 꼬리표에 없다: ${o.tagsText}", o.tagsText?.contains("19:50") == true)
     }
 
@@ -52,7 +55,7 @@ class PickerDateBadgeTest {
     @Test
     fun `배지 없는 카드는 그대로 읽힌다`() {
         val o = parser.parse(listOf("준비 완료", "소형", "기흥", "퀵", "단거리", "2,375", "기흥", "동백2", "동백1", "16.7km"))
-        assertEquals("기흥 동백2", o.pickup)
-        assertEquals("기흥 동백1", o.dropoff)
+        assertEquals("기흥 동백2", StopText.of(firstPickupStop(o)))
+        assertEquals("기흥 동백1", StopText.of(lastDropoffStop(o)))
     }
 }

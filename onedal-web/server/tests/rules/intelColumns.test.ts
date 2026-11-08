@@ -30,16 +30,15 @@ const read = (p: string) => readFileSync(p, 'utf8');
  * 🔤 앱 이름 → 서버 칸 이름. **단위를 붙이는 것 말고는 바꾸지 않는다** —
  *    이름이 갈리면 «같은 값인가»를 사람이 외워야 한다.
  */
-const COLUMN_OF: Record<string, string> = {
-    pickupDistance: 'pickupDistanceKm',
-    deliveryDistance: 'deliveryDistanceKm',
-};
+const COLUMN_OF: Record<string, string> = {};
 
 /**
  * 🚫 **서버가 안 담아도 되는 칸** — 이유가 있는 것만. 늘릴 때는 이유를 여기 적는다.
  *    · `id` 앱이 만든 UUID. 원장은 제 `AUTOINCREMENT` 를 쓴다 (두 계보를 안 섞는다)
+ *    · `pickupDetails` · `dropoffDetails` 정거장 묶음 — 정거장으로 옮겨 적음: 서버가 첫 상차 · 마지막 하차 정거장의
+ *      글자 · 거리 · 약속 · 좌표를 `pickup` · `dropoff` · `pickupDistanceKm` · `deliveryDistanceKm` · `scheduleText` · `reservedDay` · `reservedAt` · 좌표 넷 칸에 적는다
  */
-const NOT_STORED = new Set(['id', 'isSimulated']);
+const NOT_STORED = new Set(['id', 'isSimulated', 'pickupDetails', 'dropoffDetails']);
 
 /** 📱 앱 그릇(`SimplifiedOfficeOrder`)이 나르는 칸 */
 function appOrderFields(): string[] {

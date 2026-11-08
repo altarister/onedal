@@ -25,7 +25,7 @@ const report = async (id: string, rawText: string, targetApp = 'hwamul24') => {
     const res = { status: () => res, json: () => res };
     await handlerOf(detailRouter)({ app, headers: {}, body: {
         step: 'DETAILED', deviceId: DEV, targetApp,
-        order: { id, pickup: '경기 군포시 부곡동', dropoff: '서울 중구 을지로6가', fare: 60000, rawText },
+        order: { id, pickupDetails: [{ listText: '경기 군포시 부곡동' }], dropoffDetails: [{ listText: '서울 중구 을지로6가' }], fare: 60000, rawText },
     } }, res);
     spy.mockRestore();
     return seen;

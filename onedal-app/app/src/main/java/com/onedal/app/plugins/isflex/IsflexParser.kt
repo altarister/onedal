@@ -24,6 +24,12 @@ import java.time.LocalDateTime
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
+import com.onedal.app.core.withFirstPickup
+import com.onedal.app.core.withLastDropoff
+import com.onedal.app.models.CallStop
 
 /**
  * 📄 **인성플렉스 파서** — 목록 줄(칸 7개가 노드 7개로 따로 온다) · 상세(제목 글자 사이) → 콜 양식 (`IsflexParserTest` — 실물 기대값).
@@ -151,22 +157,19 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
             val order = SimplifiedOfficeOrder(
                 id = newId(),
                 type = "NEW_ORDER",
-                pickup = pickup?.address ?: OrderRequirement.MISSING,
-                dropoff = dropoff?.address ?: OrderRequirement.MISSING,
                 fare = fare,
                 timestamp = nowStamp(),
-                scheduleText = pickup?.prefix,
                 vehicleType = vehicle,
                 rawText = raw,
-                pickupDistance = pickupDistance,
-                deliveryDistance = delivery,
+                pickupDetails = listOf(CallStop(listText = pickup?.address ?: OrderRequirement.MISSING, promiseText = pickup?.prefix, distanceKm = pickupDistance)),
+                dropoffDetails = listOf(CallStop(listText = dropoff?.address ?: OrderRequirement.MISSING, distanceKm = delivery)),
                 tagsText = tagsOf(*badges.toTypedArray(), dropoff?.prefix, payment),
             ).withReservation(ReservationText.read(pickup?.prefix, now))   // 🔴 상차 쪽 글자만 — 도착 마감 «10:20전»은 넘기지 않는다
             if (order.fare > 0) {
                 /* 🔕 목록을 읽을 때마다 돈다 — 같은 콜은 글자가 바뀔 때만 */
-                val line = "📦 [플렉스 파싱] 상차=${order.pickup}, 하차=${order.dropoff}, 요금=${order.fare}, 차종=$vehicle, " +
-                    "출발지까지=${pickupDistance}km, 운행=${delivery}km, 예약=${order.scheduleText}, 꼬리표=${order.tagsText}"
-                if (com.onedal.app.core.LogOnce.changed("플렉스 파싱:${order.pickup}|${order.dropoff}|${order.fare}", line))
+                val line = "📦 [플렉스 파싱] 상차=${StopText.of(firstPickupStop(order))}, 하차=${StopText.of(lastDropoffStop(order))}, 요금=${order.fare}, 차종=$vehicle, " +
+                    "출발지까지=${pickupDistance}km, 운행=${delivery}km, 예약=${firstPickupStop(order)?.promiseText}, 꼬리표=${order.tagsText}"
+                if (com.onedal.app.core.LogOnce.changed("플렉스 파싱:${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", line))
                     AppLogger.d(TAG, LogTag.FILTER, line)
             }
             return order
@@ -187,15 +190,14 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
             return SimplifiedOfficeOrder(
                 id = newId(),
                 type = "NEW_ORDER",
-                pickup = pickup?.address ?: OrderRequirement.MISSING,
-                dropoff = dropoff?.address ?: OrderRequirement.MISSING,
                 fare = PageFieldRead.fareOf(IsflexPages.pages, Page.NEW_CALL, texts) ?: 0,
                 timestamp = nowStamp(),
-                scheduleText = pickup?.prefix,
                 vehicleType = detailField(texts, PageField.VEHICLE_TYPE),
                 rawText = texts.joinToString(" "),
-                pickupDistance = kmOf(detailField(texts, PageField.PICKUP_DISTANCE)),
-                deliveryDistance = kmOf(detailField(texts, PageField.DELIVERY_DISTANCE)),
+                pickupDetails = listOf(CallStop(listText = pickup?.address ?: OrderRequirement.MISSING, promiseText = pickup?.prefix,
+                    distanceKm = kmOf(detailField(texts, PageField.PICKUP_DISTANCE)))),
+                dropoffDetails = listOf(CallStop(listText = dropoff?.address ?: OrderRequirement.MISSING,
+                    distanceKm = kmOf(detailField(texts, PageField.DELIVERY_DISTANCE)))),
                 tagsText = tagsOf(detailField(texts, PageField.TAGS), dropoff?.prefix, detailField(texts, PageField.PAYMENT)),
             ).withReservation(ReservationText.read(pickup?.prefix, now))
         }
@@ -206,19 +208,22 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
          */
         fun fillFromDetail(order: SimplifiedOfficeOrder, now: LocalDateTime): SimplifiedOfficeOrder {
             val d = parseDetail(listOf(order.rawText ?: ""), now)
-            val readPickup = d.pickup != OrderRequirement.MISSING
-            return order.copy(
-                pickup = if (readPickup) d.pickup else order.pickup,
-                dropoff = if (d.dropoff != OrderRequirement.MISSING) d.dropoff else order.dropoff,
-                scheduleText = if (readPickup) d.scheduleText else order.scheduleText,
+            val readPickup = StopText.of(firstPickupStop(d)) != OrderRequirement.MISSING
+            val dp = firstPickupStop(d)
+            val dd = lastDropoffStop(d)
+            val filled = order.copy(
                 reserved = if (readPickup) d.reserved else order.reserved,
-                reservedDay = if (readPickup) d.reservedDay else order.reservedDay,
-                reservedAt = if (readPickup) d.reservedAt else order.reservedAt,
                 tagsText = if (readPickup) d.tagsText else order.tagsText,
                 vehicleType = order.vehicleType ?: d.vehicleType,
-                deliveryDistance = order.deliveryDistance ?: d.deliveryDistance,
-                pickupDistance = order.pickupDistance ?: d.pickupDistance,
             )
+            val withPickup = withFirstPickup(filled) { stop ->
+                (if (readPickup) stop.copy(listText = StopText.of(dp), promiseText = dp?.promiseText, requestedDay = dp?.requestedDay, requestedTime = dp?.requestedTime) else stop)
+                    .copy(distanceKm = stop.distanceKm ?: dp?.distanceKm)
+            }
+            return withLastDropoff(withPickup) { stop ->
+                (if (StopText.of(dd) != OrderRequirement.MISSING) stop.copy(listText = StopText.of(dd)) else stop)
+                    .copy(distanceKm = stop.distanceKm ?: dd?.distanceKm)
+            }
         }
 
         /** 마지막 토막(동) — 목록 «수원 이의동» · 상세 «경기 수원시 영통구 이의동» 모두 «이의동» */
@@ -230,11 +235,11 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
          */
         fun matchDetail(detailTexts: List<String>, recent: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
             val d = parseDetail(detailTexts, LocalDateTime.now())
-            if (d.fare <= 0 || d.pickup == OrderRequirement.MISSING || d.dropoff == OrderRequirement.MISSING) return null
+            if (d.fare <= 0 || StopText.of(firstPickupStop(d)) == OrderRequirement.MISSING || StopText.of(lastDropoffStop(d)) == OrderRequirement.MISSING) return null
             val hits = recent.reversed().filter {
-                it.fare == d.fare && lastToken(it.pickup) == lastToken(d.pickup) && lastToken(it.dropoff) == lastToken(d.dropoff)
+                it.fare == d.fare && lastToken(StopText.of(firstPickupStop(it))) == lastToken(StopText.of(firstPickupStop(d))) && lastToken(StopText.of(lastDropoffStop(it))) == lastToken(StopText.of(lastDropoffStop(d)))
             }
-            return hits.firstOrNull()?.takeIf { first -> hits.all { it.pickup == first.pickup && it.dropoff == first.dropoff } }
+            return hits.firstOrNull()?.takeIf { first -> hits.all { StopText.of(firstPickupStop(it)) == StopText.of(firstPickupStop(first)) && StopText.of(lastDropoffStop(it)) == StopText.of(lastDropoffStop(first)) } }
         }
     }
 

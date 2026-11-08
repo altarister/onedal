@@ -4,6 +4,9 @@ import com.onedal.app.core.OcrLine
 import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import com.onedal.app.models.CallStop
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.StopText
 
 /**
  * 📅 **날짜가 붙은 정류장 시각 · 읍·면 목록 줄** — 실물 손으로 연 상세(서버 이상 기록 511 · 사진 15줄 그대로).
@@ -22,7 +25,7 @@ class PickerDatedStopTest {
         OcrLine(465, "물품 정보"), OcrLine(192, "픽업 8.4km"), OcrLine(222, "$md 09:00"), OcrLine(567, "넘기기"),
         OcrLine(285, "배송 11.3km"), OcrLine(315, "$md 10:18"), OcrLine(466, "소형 세 변의 합 100cm. 5kg 이하"), OcrLine(567, "수락하기"),
     )
-    private val listCard = SimplifiedOfficeOrder(id = "c", pickup = "처인 모현", dropoff = "수지 죽전3", fare = 13013, timestamp = "t", pickupDistance = 8.4)
+    private val listCard = SimplifiedOfficeOrder(id = "c", fare = 13013, timestamp = "t", pickupDetails = listOf(CallStop(listText = "처인 모현", distanceKm = 8.4)), dropoffDetails = listOf(CallStop(listText = "수지 죽전3")))
 
     @Test fun `날짜가 붙은 시각은 정류장 시각이다 - 건물 이름 자리에 안 들어간다`() {
         val d = PickerScreenOcr.parseDetail(lines)!!
@@ -43,10 +46,10 @@ class PickerDatedStopTest {
         val d = PickerScreenOcr.parseDetail(lines)!!
         val r = PickerDetailOcrParser().verify(d, null, null, emptyList(), "", listOf(listCard)) as PickerDetailOcrParser.VerifyResult.Success
         assertEquals(true, r.order.reserved)
-        assertEquals(1, r.order.reservedDay)
-        assertEquals("09:00", r.order.reservedAt)
+        assertEquals(1, firstPickupStop(r.order)?.requestedDay)
+        assertEquals("09:00", firstPickupStop(r.order)?.requestedTime)
         assertEquals(13013, r.order.fare)
-        assertEquals("경기 용인시 처인구 모현읍 아인라이크", r.order.pickup)
+        assertEquals("경기 용인시 처인구 모현읍 아인라이크", StopText.of(firstPickupStop(r.order)))
     }
 }
 

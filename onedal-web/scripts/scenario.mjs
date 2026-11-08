@@ -496,9 +496,11 @@ async function ledger() {
         '', '[도착지상세]', '고객 : 장부 하차지', `위치 : ${src.dropoff}`, '전화1 : 010-0000-2001',
     ].join('\n');
     const order = {
-        id, pickup: src.pickup, dropoff: src.dropoff, fare: src.fare,
+        id, fare: src.fare,
+        pickupDetails: [{ listText: src.pickup }], dropoffDetails: [{ listText: src.dropoff }],
         vehicleType: src.vehicleType || '1t', timestamp: capturedAt,
         itemDescription: '장부 검사', rawText,
+        load: { vehicleText: src.vehicleType || '1t', sizeText: null, itemText: '장부 검사', lines: [] },
     };
     const post = (path, body) => fetch(`http://localhost:${PORT}/api/orders${path}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),

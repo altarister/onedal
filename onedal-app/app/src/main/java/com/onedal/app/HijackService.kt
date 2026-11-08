@@ -52,6 +52,9 @@ import android.content.IntentFilter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 /**
  * 1DAL 접근성 서비스 — 메인 관제탑
@@ -296,9 +299,9 @@ class HijackService : AccessibilityService(), ScanContext {
         session.alarmTappedCard?.let { card ->
             val hash = CallMemory.fingerprintOf(card)
             if (callMemory.demoteActed(hash)) {
-                AppLogger.d(TAG, LogTag.CALL_STAGE, "🧹 [막았다로 내림] ${card.pickup.take(14)} → ${card.dropoff.take(14)} ${card.fare}원 — $reason · 길이 바뀌면 다시 본다 (지문 $hash)")
+                AppLogger.d(TAG, LogTag.CALL_STAGE, "🧹 [막았다로 내림] ${StopText.of(firstPickupStop(card)).take(14)} → ${StopText.of(lastDropoffStop(card)).take(14)} ${card.fare}원 — $reason · 길이 바뀌면 다시 본다 (지문 $hash)")
             } else {
-                AppLogger.w(TAG, "🧹 [못 내림] ${card.pickup.take(14)} → ${card.dropoff.take(14)} ${card.fare}원 — $reason · «눌렀다» 기억에 이 지문이 없다 (지문 $hash)")
+                AppLogger.w(TAG, "🧹 [못 내림] ${StopText.of(firstPickupStop(card)).take(14)} → ${StopText.of(lastDropoffStop(card)).take(14)} ${card.fare}원 — $reason · «눌렀다» 기억에 이 지문이 없다 (지문 $hash)")
             }
         }
     }
@@ -1051,7 +1054,7 @@ class HijackService : AccessibilityService(), ScanContext {
             val fp = CallMemory.fingerprintOf(c)
             recentListOrders.firstOrNull { CallMemory.fingerprintOf(it) == fp }?.timestamp
         } ?: "모름"
-        val what = card?.let { "${it.fare}원 ${it.pickup}→${it.dropoff}" } ?: "누른 줄 모름"
+        val what = card?.let { "${it.fare}원 ${StopText.of(firstPickupStop(it))}→${StopText.of(lastDropoffStop(it))}" } ?: "누른 줄 모름"
         /* ⏳ 그 줄이 우리 목록에 처음 보인 뒤 지난 시간 — 짧으면 목록이 늦게 왔고, 길면 우리가 늦게 눌렀다 (`ListRowLife`) */
         val listAge = card?.let { com.onedal.app.core.ListRowLife.ageMs(it, android.os.SystemClock.elapsedRealtime()) }
             ?.let { com.onedal.app.core.ListRowLife.secs(it) } ?: "모름"
@@ -1063,7 +1066,7 @@ class HijackService : AccessibilityService(), ScanContext {
             /* 🧾 화면 칸 = 누른 화면(앱이 누른 콜) — 손으로 누른 콜이면 알림 때 화면 */
             screenName = TelemetryManager.sentScreenOf(session.alarmTappedScreen ?: telemetryManager.reportedScreen),
             failureReason = com.onedal.app.core.CallTakenNote.reason(notice, tappedPage, notifiedPage, foundToTap, firstSeen, listAge),
-            listOrderInfo = card?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
+            listOrderInfo = card?.let { mapOf("fare" to it.fare, "pickup" to StopText.of(firstPickupStop(it)), "dropoff" to StopText.of(lastDropoffStop(it))) },
             detailParsedText = text.take(200),
             ocrResult = null,
         )
@@ -1710,7 +1713,7 @@ class HijackService : AccessibilityService(), ScanContext {
         waitBook.cancel("누르기 넘김")
         val tapNowMs = android.os.SystemClock.elapsedRealtime()
         val best = if (bestIdx >= 0) alarmHits[bestIdx] else null
-        val label = best?.first?.let { "${it.pickup}→${it.dropoff} ${"%,d".format(it.fare)}원 · 예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(it)}" }
+        val label = best?.first?.let { "${StopText.of(firstPickupStop(it))}→${StopText.of(lastDropoffStop(it))} ${"%,d".format(it.fare)}원 · 예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(it)}" }
         /* ⏳ 알람 미룸은 상태가 있다 — 목록에서 누르는 모드 · 앱이 안 연 때만 묻는다 */
         val hold = if (tapsFromList && !session.openedByApp) alarmHold.decide(best?.third, label, scanMoving, android.os.SystemClock.elapsedRealtime()).let { d ->
             d.dropped?.let { AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [알람 미룸 → 탈락] $it") }
@@ -1745,7 +1748,7 @@ class HijackService : AccessibilityService(), ScanContext {
              * 판정은 이미 끝났고 기억에도 안 넣었으니, 1초마다 같은 글자여도 다시 보고(위 «미룬 콜 다시 보기») 심사가 풀린 첫 읽기에서 누른다.
              */
             if (gate.evaluatingStop) {
-                AppLogger.d(TAG, LogTag.TAP, "⏳ [클릭 미룸] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
+                AppLogger.d(TAG, LogTag.TAP, "⏳ [클릭 미룸] ${StopText.of(firstPickupStop(order)).take(14)} → ${StopText.of(lastDropoffStop(order)).take(14)} " +
                     "${order.fare}원 — 서버가 앞 콜을 심사 중입니다. 판정은 끝났으니 1초 뒤 다시 보고 풀리면 바로 누릅니다")
             }
             if (gate.planTap) {
@@ -1805,7 +1808,7 @@ class HijackService : AccessibilityService(), ScanContext {
                         }
                         /* ✍️ 앱이 계약하나 — 진입 줄과 세션 칸이 같은 값 하나를 쓴다(자동이어도 내일 콜이면 기사님 확정 · `appContractsOnOpen`) */
                         val willContract = com.onedal.app.core.engine.appContractsOnOpen(currentMode, order)
-                        AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🚪 [상세 진입] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
+                        AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🚪 [상세 진입] ${order.fare}원 (${StopText.of(firstPickupStop(order)).take(10)}→${StopText.of(lastDropoffStop(order)).take(10)}) " +
                             "모드 $currentMode — ${com.onedal.app.core.engine.openPlanText(currentMode, willContract)} · 결재가 없으면 돌아오는 시간 뒤 목록으로" +
                             " · 지문 ${CallMemory.fingerprintOf(order)} · 세션 ${order.id}")   // 🔗 목록(지문) · 상세(세션 id) · 결재(orderId) 줄을 한 줄로 잇는다
                         AppLogger.d(TAG, LogTag.TAP, "💥 [$currentMode] 꿀콜 조건 통과! 요금 최고 콜 터치 진행!")
@@ -1926,8 +1929,8 @@ class HijackService : AccessibilityService(), ScanContext {
                 order = DetailedOfficeOrder(
                     id = order.id,
                     type = order.type,
-                    pickup = order.pickup,
-                    dropoff = order.dropoff,
+                    pickupDetails = order.pickupDetails,
+                    dropoffDetails = order.dropoffDetails,
                     fare = order.fare,
                     timestamp = order.timestamp,
                     rawText = session.accumulatedDetailText

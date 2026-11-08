@@ -34,7 +34,7 @@ object ListSightings {
      */
     fun latestOfSameCall(cands: List<SimplifiedOfficeOrder>): SimplifiedOfficeOrder? {
         if (cands.size < 2) return cands.singleOrNull()
-        if (cands.map { it.pickup to it.dropoff }.distinct().size != 1) return null
+        if (cands.map { StopText.of(firstPickupStop(it)) to StopText.of(lastDropoffStop(it)) }.distinct().size != 1) return null
         val withRange = cands.map { it to (rangeOf(CallMemory.fingerprintOf(it)) ?: return null) }.sortedBy { it.second.first }
         if (withRange.zipWithNext().any { (a, b) -> b.second.first <= a.second.last }) return null
         return withRange.last().first
@@ -47,7 +47,7 @@ object ListSightings {
      */
     fun lowestOfTwins(cands: List<SimplifiedOfficeOrder>): Pair<SimplifiedOfficeOrder, List<Int>>? {
         if (cands.size < 2) return null
-        if (cands.map { listOf(it.pickup, it.dropoff, it.pickupDistance, it.tagsText, it.itemSize) }.distinct().size != 1) return null
+        if (cands.map { listOf(StopText.of(firstPickupStop(it)), StopText.of(lastDropoffStop(it)), firstPickupStop(it)?.distanceKm, it.tagsText, it.itemSize) }.distinct().size != 1) return null
         if (cands.map { it.fare }.distinct().size != cands.size) return null
         val ranges = cands.map { rangeOf(CallMemory.fingerprintOf(it)) ?: return null }.sortedBy { it.first }
         if (ranges.zipWithNext().none { (a, b) -> b.first <= a.last }) return null   // 함께 뜬 적 없음 = 요금만 오른 같은 콜

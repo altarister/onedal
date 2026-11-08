@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 📅 **내일 이후 예약 콜의 상차는 «집 둘레 기본 반경 안의 동 목록»으로 거른다** (기사님 «내일콜 가» · onedal-1f · onedal-ab 칸 reservedPickupKeywords).
@@ -13,8 +14,14 @@ import org.junit.Test
  * 상차 동을 못 읽은 줄은 모름 = 통과(서버 판정이 집 기준으로 다시 본다). 칸이 없으면 지금 길(reservedPickupRadiusKm + 목록 km).
  */
 class PickerReservedPickupListTest {
-    private fun call(pickup: String, km: Double, day: Int?) = SimplifiedOfficeOrder(id = "c", pickup = pickup, dropoff = "서대문 신촌", fare = 10000,
-        timestamp = "t", pickupDistance = km, reserved = day != null, reservedDay = day)
+    private fun call(pickup: String, km: Double, day: Int?) = SimplifiedOfficeOrder(
+        id = "c",
+        fare = 10000,
+        timestamp = "t",
+        reserved = day != null,
+        pickupDetails = listOf(CallStop(listText = pickup, distanceKm = km, requestedDay = day)),
+        dropoffDetails = listOf(CallStop(listText = "서대문 신촌")),
+)
     private fun pickupOk(o: SimplifiedOfficeOrder, list: List<String>?, reservedRadius: Double? = null) =
         KakaoPickerParser.decideAxes(o, 6000, 16.87, reservationMode = "tomorrowToo", reservedPickupRadiusKm = reservedRadius, reservedPickupKeywords = list).pickup
 

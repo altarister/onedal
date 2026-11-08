@@ -18,6 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import com.onedal.app.models.CallStop
 
 /**
  * 화물24시(전국24시콜화물) 전용 파서
@@ -252,16 +253,14 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         return SimplifiedOfficeOrder(
             id = "24H-" + UUID.randomUUID().toString().substring(0, 8),
             type = "NEW_ORDER",
-            pickup = pickup,
-            dropoff = dropoff,
             fare = fare,
             timestamp = now,
             postTime = postTime,
-            scheduleText = scheduleText,
             vehicleType = vehicleType,
             rawText = rawJoined,
-            pickupDistance = pickupDistance,
             tagsText = badgesOf(texts),
+            pickupDetails = listOf(CallStop(listText = pickup, promiseText = scheduleText, distanceKm = pickupDistance)),
+            dropoffDetails = listOf(CallStop(listText = dropoff)),
         ).withReservation(reservationOf(texts, pickupInfo, java.time.LocalDateTime.now(), memo = detailMemo))
     }
 

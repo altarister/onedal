@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import com.onedal.app.models.CallStop
 
 /**
  * 🔔 **같은 구 짝의 다른 콜을 «같은 경로»로 삼키지 않는다** (교차 리뷰 · onedal-1f «가»).
@@ -13,7 +14,7 @@ import java.io.File
  * 흔들림 없는 읽기에서만 가른다 — 겹친 틀 · 흐르는 목록에서는 요금을 잘못 읽을 수 있어 옛 판단(같은 경로면 같은 콜) 그대로.
  */
 class AlarmedRoutesSplitTest {
-    private fun o(p: String, d: String, fare: Int) = SimplifiedOfficeOrder(id = "$p$d$fare", type = "LIST", pickup = p, dropoff = d, fare = fare, timestamp = "")
+    private fun o(p: String, d: String, fare: Int) = SimplifiedOfficeOrder(id = "$p$d$fare", type = "LIST", fare = fare, timestamp = "", pickupDetails = listOf(CallStop(listText = p)), dropoffDetails = listOf(CallStop(listText = d)))
 
     @Test fun `요금이 내려가면 다른 콜 - 실물 송파→강남 10318 뒤 9086`() {
         val r = AlarmedRoutes()

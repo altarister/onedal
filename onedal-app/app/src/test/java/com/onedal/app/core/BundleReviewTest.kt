@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import com.onedal.app.models.CallStop
 
 /**
  * 🔍 **오늘 배포분 리뷰 묶음(앱 몫)** — onedal-ab 리뷰 · 04 리뷰 에이전트 · onedal-1f «가».
@@ -14,8 +15,14 @@ import java.io.File
  * 4 빨리 접기 전 상세를 만진 손이 안 잡혔다 · 5 내일 상차에 도착용 시 별칭이 섞였다 · 6 «탭 줄 못 찾음»을 손 필요(tabBar)로 보냈다.
  */
 class BundleReviewTest {
-    private fun call(pickup: String, km: Double) = SimplifiedOfficeOrder(id = "c", pickup = pickup, dropoff = "서대문 신촌", fare = 10000,
-        timestamp = "t", pickupDistance = km, reserved = true, reservedDay = 1)
+    private fun call(pickup: String, km: Double) = SimplifiedOfficeOrder(
+        id = "c",
+        fare = 10000,
+        timestamp = "t",
+        reserved = true,
+        pickupDetails = listOf(CallStop(listText = pickup, distanceKm = km, requestedDay = 1)),
+        dropoffDetails = listOf(CallStop(listText = "서대문 신촌")),
+)
     private fun pickupOk(o: SimplifiedOfficeOrder, list: List<String>?, aliases: List<String> = emptyList(), groups: Map<String, List<String>>? = null, reservedRadius: Double? = 25.0) =
         KakaoPickerParser.decideAxes(o, 6000, 16.87, cityAliases = aliases, reservationMode = "tomorrowToo", reservedPickupRadiusKm = reservedRadius,
             reservedPickupKeywords = list, reservedPickupGroups = groups).pickup

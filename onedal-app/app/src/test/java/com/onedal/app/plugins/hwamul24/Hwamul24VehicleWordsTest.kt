@@ -9,6 +9,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import com.onedal.app.core.VehicleWordMiss
 import java.time.LocalDate
+import com.onedal.app.models.CallStop
 
 /**
  * 🚚 **화물24시 차종 낱말 → 우리 차종 — 배차망 정의 표(vehicleWords) 한 곳** (기사님 «기준은 배차망 · 플러그인으로 맞춘다»)
@@ -20,8 +21,14 @@ class Hwamul24VehicleWordsTest {
     private val parser = Hwamul24Parser(ContextWrapper(null))
     private val small = FilterConfig(isActive = true, minFare = 30000, pickupRadiusKm = 10.0, destinationKeywords = listOf("장상동"),
         allowedVehicleTypes = listOf("오토바이", "다마스", "라보", "승용차"))
-    private fun call(vehicle: String?) = SimplifiedOfficeOrder(id = "c", pickup = "경기 시흥 정왕동", dropoff = "경기 안산 상록구 장상동",
-        fare = 50000, timestamp = "t", vehicleType = vehicle, pickupDistance = 5.0)
+    private fun call(vehicle: String?) = SimplifiedOfficeOrder(
+        id = "c",
+        fare = 50000,
+        timestamp = "t",
+        vehicleType = vehicle,
+        pickupDetails = listOf(CallStop(listText = "경기 시흥 정왕동", distanceKm = 5.0)),
+        dropoffDetails = listOf(CallStop(listText = "경기 안산 상록구 장상동")),
+)
     private fun axis(vehicle: String?, f: FilterConfig = small) = Hwamul24Parser.judge(call(vehicle), f).axis
 
     @Test fun `다마스 차종 줄을 읽는다 - 시뮬 원문`() {

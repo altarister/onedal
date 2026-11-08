@@ -8,6 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
+import com.onedal.app.models.CallStop
 
 /**
  * 📅 **시뮬 인성 목록의 새 시각 꼴을 앱이 맞게 가른다** (onedal-sim 93cbfbe4 · onedal-1f).
@@ -19,8 +20,15 @@ class InsungSimTimeLabelTest {
         InsungParser.reservationOf(LocationTextAnalyzer.analyze(cell), now)
 
     private fun isToday(r: Reservation): Boolean = ReservationGate.isToday(
-        SimplifiedOfficeOrder(id = "t", type = "LIST", pickup = "중리동", dropoff = "초월읍", fare = 50000, timestamp = "",
-            reserved = r.marked, reservedDay = r.day, reservedAt = r.at))
+        SimplifiedOfficeOrder(
+            id = "t",
+            type = "LIST",
+            fare = 50000,
+            timestamp = "",
+            reserved = r.marked,
+            pickupDetails = listOf(CallStop(listText = "중리동", requestedDay = r.day, requestedTime = r.at)),
+            dropoffDetails = listOf(CallStop(listText = "초월읍")),
+))
 
     @Test fun `새벽 03시43분 - 오전4시6 은 오늘 04시06 · 확정까지 간다`() {
         val r = read("오전4시6/중리동", LocalDateTime.of(2026, 10, 1, 3, 43))

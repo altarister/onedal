@@ -10,6 +10,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import com.onedal.app.models.CallStop
 
 /**
  * 💵 **최소 금액은 세 배차망에 같은 식으로 걸린다** (기사님 «화물24시·인성·픽커 모두 공통으로» · 인성은 «가»)
@@ -52,11 +53,14 @@ class FareFloorTest {
     )
 
     private fun insungOrder(fare: Int) = SimplifiedOfficeOrder(
-        id = "t", type = "NEW_ORDER",
-        pickup = "경기 광주시 태전동", dropoff = "경기 광주시 초월읍", fare = fare,
+        id = "t",
+        type = "NEW_ORDER",
+        fare = fare,
         timestamp = "2026-09-28T10:00:00",
-        vehicleType = "다마스", rawText = "경기 광주시 태전동 경기 광주시 초월읍",
-        deliveryDistance = 20.0,
+        vehicleType = "다마스",
+        rawText = "경기 광주시 태전동 경기 광주시 초월읍",
+        pickupDetails = listOf(CallStop(listText = "경기 광주시 태전동")),
+        dropoffDetails = listOf(CallStop(listText = "경기 광주시 초월읍", distanceKm = 20.0)),
     )
 
     @Test
@@ -70,8 +74,12 @@ class FareFloorTest {
     @Test
     fun `픽커 - 막대 아래 콜은 떨어지고 막대 0 은 통과한다`() {
         val o = SimplifiedOfficeOrder(
-            id = "p", type = "NEW_ORDER", pickup = "성남시 분당구 정자동", dropoff = "성남시 분당구 서현동",
-            fare = 8000, timestamp = "2026-09-28T10:00:00", pickupDistance = 2.0,
+            id = "p",
+            type = "NEW_ORDER",
+            fare = 8000,
+            timestamp = "2026-09-28T10:00:00",
+            pickupDetails = listOf(CallStop(listText = "성남시 분당구 정자동", distanceKm = 2.0)),
+            dropoffDetails = listOf(CallStop(listText = "성남시 분당구 서현동")),
         )
         assertFalse(KakaoPickerParser.decide(o, minFare = 10000, pickupRadiusKm = 10.0))
         assertTrue(KakaoPickerParser.decide(o, minFare = 0, pickupRadiusKm = 10.0))

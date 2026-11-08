@@ -19,7 +19,7 @@ object ListRowLife {
 
     private val rows = LinkedHashMap<String, Seen>()
 
-    fun keyOf(o: SimplifiedOfficeOrder): String = "${o.pickup}→${o.dropoff}·${o.itemSize ?: ""}"
+    fun keyOf(o: SimplifiedOfficeOrder): String = "${StopText.of(firstPickupStop(o))}→${StopText.of(lastDropoffStop(o))}·${o.itemSize ?: ""}"
 
     /** 줄을 다 읽은 목록 읽기 한 번 — 이번에 안 보인 줄을 돌려주고 잊는다 */
     @Synchronized
@@ -28,7 +28,7 @@ object ListRowLife {
         val gone = rows.filterKeys { it !in seenNow }.values.map { Gone(it.label, it.lastMs - it.firstMs, nowMs - it.lastMs) }
         rows.keys.retainAll(seenNow.keys)
         seenNow.forEach { (k, o) ->
-            val label = "${o.pickup}→${o.dropoff} ${o.fare}원"
+            val label = "${StopText.of(firstPickupStop(o))}→${StopText.of(lastDropoffStop(o))} ${o.fare}원"
             rows[k] = rows[k]?.copy(lastMs = nowMs, label = label) ?: Seen(nowMs, nowMs, label)
         }
         return gone

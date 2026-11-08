@@ -5,6 +5,7 @@ import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 🗳️ **화물24시도 떨어진 까닭을 콜에 싣는다 — 누름과 같은 분기**.
@@ -15,9 +16,15 @@ class Hwamul24VerdictTest {
     /** 도착지 키워드가 비면 24시는 «보류»(지역 탈락)다 — 지금 코드 그대로. 도착 동 하나를 준다 */
     private val on = FilterConfig(isActive = true, minFare = 30000, pickupRadiusKm = 10.0, destinationKeywords = listOf("장상동"))
     private fun call(fare: Int = 50000, vehicle: String? = "2.5톤/윙", km: Double? = 5.0, reservedDay: Int? = null) =
-        SimplifiedOfficeOrder(id = "c", pickup = "경기 시흥 정왕동", dropoff = "경기 안산 상록구 장상동", fare = fare,
-            timestamp = "t", vehicleType = vehicle, pickupDistance = km,
-            reserved = if (reservedDay != null) true else null, reservedDay = reservedDay)
+        SimplifiedOfficeOrder(
+            id = "c",
+            fare = fare,
+            timestamp = "t",
+            vehicleType = vehicle,
+            reserved = if (reservedDay != null) true else null,
+            pickupDetails = listOf(CallStop(listText = "경기 시흥 정왕동", distanceKm = km, requestedDay = reservedDay)),
+            dropoffDetails = listOf(CallStop(listText = "경기 안산 상록구 장상동")),
+)
 
     private fun axis(o: SimplifiedOfficeOrder, f: FilterConfig = on, t: FilterTally? = null) = Hwamul24Parser.judge(o, f, t)
 

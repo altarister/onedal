@@ -94,7 +94,7 @@ export function timeoutActionOf(r: { keep: boolean; who: WhoConfirmed; simulated
 export interface DispatchDetailedRequest {
     step: 'DETAILED';
     deviceId: string;
-    order: AppCallReport;   // 원달앱 양식(맨 위 칸) — 서버 입구가 `callFromAppReport` 로 콜에 옮겨 담는다
+    order: AppCallReport;   // 원달앱 보고 — 콜 모양 그대로(정거장 · 짐 묶음) · 서버 입구가 그대로 콜로 쓴다
     capturedAt: string;
     matchType: 'AUTO' | 'MANUAL';
     listRanking?: number;

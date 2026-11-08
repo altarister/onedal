@@ -77,7 +77,7 @@ describe('⏳ 되살리기 먼저', () => {
         const res = { status: () => res, json: () => res };
         await handlerOf(detailRouter)({ app, body: {
             step: 'DETAILED', deviceId: DEV, targetApp: 'insung',
-            order: { id: `${U}-new`, pickup: '경기 이천시', dropoff: '경기 여주시', fare: 30000, vehicleType: '다마스', rawText: '' },
+            order: { id: `${U}-new`, pickupDetails: [{ listText: '경기 이천시' }], dropoffDetails: [{ listText: '경기 여주시' }], fare: 30000, vehicleType: '다마스', rawText: '' },
         } }, res);
         expect(seen).toContain(`${U}-kept`);
         spy.mockRestore();
@@ -157,7 +157,7 @@ describe('🧾 재시작 직후 판정 중 콜은 확정 콜이 아니다', () =
         const res = { status: () => res, json: (b: any) => { body = b; return res; } };
         await handlerOf(detailRouter)({ app, body: {
             step: 'DETAILED', deviceId: DEV, targetApp: 'insung',
-            order: { id: `${U}-eval2`, pickup: '경기 광주시', dropoff: '경기 이천시', fare: 30000, vehicleType: '다마스', rawText: '' },
+            order: { id: `${U}-eval2`, pickupDetails: [{ listText: '경기 광주시' }], dropoffDetails: [{ listText: '경기 이천시' }], fare: 30000, vehicleType: '다마스', rawText: '' },
         } }, res);
         spy.mockRestore();
         /* 재열람은 «진짜 ID»(orderId)를 실은 ACK 로 끝난다 — 보통 판정 길의 ACK 에는 orderId 가 없다 */

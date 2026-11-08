@@ -4,6 +4,7 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 🧹 **서버 회차가 오르면 «본 콜» 기억과 «같은 길» 기억을 함께 비운다** (38 F32 · 기사님 «가»).
@@ -11,7 +12,7 @@ import org.junit.Test
  * 못 잡는 것: `HijackService` 회차 콜백 배선 — 폰 G1(R0 → 콜만으로 같은 길에 안 막힘).
  */
 class RoundResetTest {
-    private val call = SimplifiedOfficeOrder(id = "c", pickup = "초월읍", dropoff = "신둔면", fare = 28000, timestamp = "t", pickupDistance = 5.0)
+    private val call = SimplifiedOfficeOrder(id = "c", fare = 28000, timestamp = "t", pickupDetails = listOf(CallStop(listText = "초월읍", distanceKm = 5.0)), dropoffDetails = listOf(CallStop(listText = "신둔면")))
     private val hash = CallMemory.fingerprintOf(call)
 
     private fun opened(): Pair<CallMemory, AlarmedRoutes> {

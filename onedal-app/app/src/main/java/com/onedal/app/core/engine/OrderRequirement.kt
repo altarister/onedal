@@ -1,6 +1,9 @@
 package com.onedal.app.core.engine
 
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 /**
  * 📋 **콜 요건 — 모든 배차망이 같은 한 줄** (기사님 «요건은 공통» · 배차망_모드표.md)
@@ -14,7 +17,7 @@ object OrderRequirement {
     const val MISSING = "배차값없음"
 
     fun meets(order: SimplifiedOfficeOrder, allowsEmptyDropoff: Boolean): Boolean =
-        order.fare > 0 && filled(order.pickup) && (allowsEmptyDropoff || filled(order.dropoff))
+        order.fare > 0 && filled(StopText.of(firstPickupStop(order))) && (allowsEmptyDropoff || filled(StopText.of(lastDropoffStop(order))))
 
     /**
      * 🏠 **상세의 필수 요소 — 세 배차망 같다** (기사님 «상세에 들어간 뒤엔 모든 주소를 다 가지고 있어야 한다 · 배차망에 따라 달라질 수 없다»)
@@ -28,7 +31,7 @@ object OrderRequirement {
      * 상세에서는 거리를 요구하지 않는다(손으로 연 상세·사진으로 만든 콜에는 거리가 없다) — 상세는 `meets`.
      */
     fun listComplete(order: SimplifiedOfficeOrder, allowsEmptyDropoff: Boolean): Boolean =
-        meets(order, allowsEmptyDropoff) && order.pickupDistance != null
+        meets(order, allowsEmptyDropoff) && firstPickupStop(order)?.distanceKm != null
 
     /**
      * 📋 **모자란 요건을 이름으로** — «요건 미달»만으로는 요금인지 주소인지 몰라 사진부터 다시 캐야 했다 (실물).
@@ -36,8 +39,8 @@ object OrderRequirement {
      */
     fun missingDetail(order: SimplifiedOfficeOrder): List<String> = buildList {
         if (order.fare <= 0) add("요금 없음")
-        if (!AddressForm.isFull(order.pickup)) add("상차 주소 짧음(${order.pickup.take(20)})")
-        if (!AddressForm.isFull(order.dropoff)) add("하차 주소 짧음(${order.dropoff.take(20)})")
+        if (!AddressForm.isFull(StopText.of(firstPickupStop(order)))) add("상차 주소 짧음(${StopText.of(firstPickupStop(order)).take(20)})")
+        if (!AddressForm.isFull(StopText.of(lastDropoffStop(order)))) add("하차 주소 짧음(${StopText.of(lastDropoffStop(order)).take(20)})")
     }
 
     private fun filled(value: String): Boolean = value.isNotBlank() && value != MISSING

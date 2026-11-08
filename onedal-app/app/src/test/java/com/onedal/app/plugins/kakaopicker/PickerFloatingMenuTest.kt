@@ -3,6 +3,9 @@ package com.onedal.app.plugins.kakaopicker
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 /**
  * 🎈 **떠 있는 메뉴가 카드 한가운데 끼어든다** (실물 카카오T픽커 라이브).
@@ -31,10 +34,10 @@ class PickerFloatingMenuTest {
             ),
         )
         assertEquals(9317, o.fare)
-        assertTrue("메뉴 글자가 주소에 샜다: ${o.pickup}→${o.dropoff}",
-            !"${o.pickup} ${o.dropoff}".contains("서포트"))
-        assertTrue("메뉴 글자가 주소에 샜다: ${o.pickup}→${o.dropoff}",
-            !"${o.pickup} ${o.dropoff}".contains("1장"))
+        assertTrue("메뉴 글자가 주소에 샜다: ${StopText.of(firstPickupStop(o))}→${StopText.of(lastDropoffStop(o))}",
+            !"${StopText.of(firstPickupStop(o))} ${StopText.of(lastDropoffStop(o))}".contains("서포트"))
+        assertTrue("메뉴 글자가 주소에 샜다: ${StopText.of(firstPickupStop(o))}→${StopText.of(lastDropoffStop(o))}",
+            !"${StopText.of(firstPickupStop(o))} ${StopText.of(lastDropoffStop(o))}".contains("1장"))
     }
 
     @Test
@@ -45,8 +48,8 @@ class PickerFloatingMenuTest {
                 "중원", "상대원1", "서농", "13,930", "퀵 서포트 모드 1장 받기", "0/1건",
             ),
         )
-        assertEquals("중원 상대원1", o.pickup)
-        assertEquals("기흥 서농", o.dropoff)
+        assertEquals("중원 상대원1", StopText.of(firstPickupStop(o)))
+        assertEquals("기흥 서농", StopText.of(lastDropoffStop(o)))
     }
 
     @Test
@@ -54,7 +57,7 @@ class PickerFloatingMenuTest {
         val o = parser.parse(
             listOf("준비 완료", "소형", "기흥", "퀵", "단거리", "2,375", "기흥", "동백2", "동백1", "16.7km"),
         )
-        assertEquals("기흥 동백2", o.pickup)
-        assertEquals("기흥 동백1", o.dropoff)
+        assertEquals("기흥 동백2", StopText.of(firstPickupStop(o)))
+        assertEquals("기흥 동백1", StopText.of(lastDropoffStop(o)))
     }
 }

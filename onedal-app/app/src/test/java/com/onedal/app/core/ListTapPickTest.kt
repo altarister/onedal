@@ -8,6 +8,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 👆 **목록에서 누를 콜을 엮는 차례 · 조건** — 조각(손 먼저 · 알람 미룸 · 심사 중)마다 검사는 있었지만, 엮는 줄에서 하나가 빠져도 아무 검사도 몰랐다.
@@ -123,7 +124,7 @@ class ListTapPickTest {
 
     @Test fun `누르기 성공 뒤 기록 — 콜 기억 · 알람 경로 · 세션이 실제로 바뀐다`() {
         val memory = CallMemory(); val routes = AlarmedRoutes(); val session = SessionManager()
-        val o = SimplifiedOfficeOrder(id = "o1", pickup = "경기 광주 초월읍", dropoff = "경기 이천 신둔면", fare = 50000, timestamp = "t", pickupDistance = 3.0)
+        val o = SimplifiedOfficeOrder(id = "o1", fare = 50000, timestamp = "t", pickupDetails = listOf(CallStop(listText = "경기 광주 초월읍", distanceKm = 3.0)), dropoffDetails = listOf(CallStop(listText = "경기 이천 신둔면")))
         val hash = CallMemory.fingerprintOf(o)
         ListTapRecord.recordTapped(memory, routes, session, o, hash, willContract = true, nowMs = 1_000L, tapAtMs = 900L, foundAtMs = 800L,
             screen = ScreenContext.LIST, page = "목록")

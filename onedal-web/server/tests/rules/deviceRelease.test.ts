@@ -32,7 +32,7 @@ const call = async (router: any, body: any) => {
 };
 const detail = (id: string) => call(detailRouter, {
     step: 'DETAILED', deviceId: DEV, targetApp: 'insung',
-    order: { id, pickup: '경기 이천시 부발읍', dropoff: '경기 여주시 가남읍', fare: 30000, vehicleType: '다마스', rawText: '' },
+    order: { id, pickupDetails: [{ listText: '경기 이천시 부발읍' }], dropoffDetails: [{ listText: '경기 여주시 가남읍' }], fare: 30000, vehicleType: '다마스', rawText: '' },
 });
 let savedKey: string | undefined;
 
@@ -139,7 +139,7 @@ describe('⚠️ 안전취소 경고 문구의 초는 그 배차망의 DB 값이
         getUserSession(U2).deviceEvaluatingMap.set(DEV2, 'sc-a');
         await call(detailRouter, {
             step: 'DETAILED', deviceId: DEV2, targetApp: 'insung',
-            order: { id: 'sc-a', pickup: '경기 이천시 부발읍', dropoff: '경기 여주시 가남읍', fare: 30000, vehicleType: '다마스', rawText: '' },
+            order: { id: 'sc-a', pickupDetails: [{ listText: '경기 이천시 부발읍' }], dropoffDetails: [{ listText: '경기 여주시 가남읍' }], fare: 30000, vehicleType: '다마스', rawText: '' },
         });
         payloads.length = 0;
         jest.advanceTimersByTime(46_000);

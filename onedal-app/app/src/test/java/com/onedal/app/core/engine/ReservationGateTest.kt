@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 📅 **예약 필터 — 목록은 확실한 내일만 막고, 날 모름은 상세까지 들여 채운 뒤에 막는다** (예약콜 1단계 · 기사님 «가»).
@@ -17,8 +18,13 @@ import org.junit.Test
 class ReservationGateTest {
 
     private fun call(reserved: Boolean?, day: Int?) = SimplifiedOfficeOrder(
-        id = "c", pickup = "광주 경안", dropoff = "용산 한남", fare = 20000, timestamp = "t",
-        reserved = reserved, reservedDay = day, pickupDistance = 3.0)
+        id = "c",
+        fare = 20000,
+        timestamp = "t",
+        reserved = reserved,
+        pickupDetails = listOf(CallStop(listText = "광주 경안", requestedDay = day, distanceKm = 3.0)),
+        dropoffDetails = listOf(CallStop(listText = "용산 한남")),
+)
     private val none = call(null, null)
     private val today = call(true, 0)
     private val tomorrow = call(true, 1)
@@ -89,7 +95,7 @@ class ReservationGateTest {
     @Test fun `오늘 콜만 - 시각만 적힌 밤 콜은 통과하고 자동 확정 대상이다`() {
         val night = java.time.LocalDateTime.of(2026, 10, 2, 23, 15)
         val r = com.onedal.app.core.ReservationText.read("00:08", night)
-        val o = SimplifiedOfficeOrder(id = "n", pickup = "a", dropoff = "b", fare = 30000, timestamp = "t", reserved = r.marked, reservedDay = r.day)
+        val o = SimplifiedOfficeOrder(id = "n", fare = 30000, timestamp = "t", reserved = r.marked, pickupDetails = listOf(CallStop(listText = "a", requestedDay = r.day)), dropoffDetails = listOf(CallStop(listText = "b")))
         assertTrue(ReservationGate.passesList(o, ReservationGate.TODAY))
         assertTrue(ReservationGate.passesAfterFill(o, ReservationGate.TODAY))
         assertTrue(ReservationGate.isToday(o))

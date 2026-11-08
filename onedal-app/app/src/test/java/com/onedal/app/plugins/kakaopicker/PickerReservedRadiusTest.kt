@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 📅 **내일 이후 예약 콜은 줄이지 않은 기본 상차 반경으로 거른다** (기사님 «가» · onedal-1f).
@@ -13,8 +14,14 @@ import org.junit.Test
  */
 class PickerReservedRadiusTest {
     private fun call(fare: Int, km: Double, day: Int?, reserved: Boolean = day != null) =
-        SimplifiedOfficeOrder(id = "c$fare", pickup = "광주 경안", dropoff = "서대문 신촌", fare = fare, timestamp = "t",
-            pickupDistance = km, reserved = reserved, reservedDay = day)
+        SimplifiedOfficeOrder(
+            id = "c$fare",
+            fare = fare,
+            timestamp = "t",
+            reserved = reserved,
+            pickupDetails = listOf(CallStop(listText = "광주 경안", distanceKm = km, requestedDay = day)),
+            dropoffDetails = listOf(CallStop(listText = "서대문 신촌")),
+)
     private fun pickupOk(o: SimplifiedOfficeOrder, reserved: Double?) =
         KakaoPickerParser.decideAxes(o, 6000, 16.8735745562319, reservationMode = "tomorrowToo", reservedPickupRadiusKm = reserved).pickup
 

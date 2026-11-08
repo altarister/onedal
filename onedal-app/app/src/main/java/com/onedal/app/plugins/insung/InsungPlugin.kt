@@ -10,6 +10,8 @@ import com.onedal.app.core.engine.ScanContext
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.IDispatchAppPlugin
+import com.onedal.app.core.withFirstPickup
+import com.onedal.app.core.withLastDropoff
 
 /**
  * 📦 **인성데이타 플러그인 구현체**
@@ -78,9 +80,11 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
     /** 🏠 팝업 «위치»를 상차·하차 칸에 — 못 꺼낸 쪽은 목록 짧은 이름 그대로(그러면 상세 요건에서 탈락한다) */
     override fun fillDetail(context: ScanContext, order: SimplifiedOfficeOrder): SimplifiedOfficeOrder {
         val collected = context.session.accumulatedDetailText
-        return order.copy(
-            pickup = InsungPopupAddress.of(collected, InsungPopupAddress.PICKUP_TAG) ?: order.pickup,
-            dropoff = InsungPopupAddress.of(collected, InsungPopupAddress.DROPOFF_TAG) ?: order.dropoff,
-        )
+        val withPickup = withFirstPickup(order) { stop ->
+            InsungPopupAddress.of(collected, InsungPopupAddress.PICKUP_TAG)?.let { stop.copy(listText = it) } ?: stop
+        }
+        return withLastDropoff(withPickup) { stop ->
+            InsungPopupAddress.of(collected, InsungPopupAddress.DROPOFF_TAG)?.let { stop.copy(listText = it) } ?: stop
+        }
     }
 }

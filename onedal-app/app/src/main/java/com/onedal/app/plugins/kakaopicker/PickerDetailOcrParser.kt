@@ -7,6 +7,9 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.core.ScreenWords
 import com.onedal.app.core.WordKind
 import com.onedal.app.models.withReservation
+import com.onedal.app.core.withFirstPickup
+import com.onedal.app.core.withLastDropoff
+import com.onedal.app.models.CallStop
 
 /**
  * 📷 **카카오 픽커 상세 화면 OCR 파서 및 검증 구현체**
@@ -90,13 +93,11 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
         val photoSample = parsed.unreadLines.joinToString(" ")
         parsed.unreadLines.forEach { ScreenWords.add(it, WordKind.UNKNOWN, photoSample, page = com.onedal.app.core.Page.NEW_CALL) }   // 📸 찍은 화면(상세)으로 — 판독이 끝날 때 화면이 바뀌어 있어도
         if (alarmTappedCard != null) {
-            val verifiedOrder = alarmTappedCard.copy(
+            val verifiedOrder = withPhotoStops(alarmTappedCard.copy(
                 fare = detailFare(alarmTappedCard.fare, parsed.finalIncome) ?: alarmTappedCard.fare,
-                pickup = fullAddress(parsed.pickup),
-                dropoff = fullAddress(parsed.dropoff),
                 rawText = rawScreenStr,
                 itemSize = parsed.itemSize ?: alarmTappedCard.itemSize
-            ).withReservation(detailReservation(parsed))
+            ), parsed).withReservation(detailReservation(parsed))
             return VerifyResult.Success(verifiedOrder, parsed)
         } else {
             // 🧾 상세 글자로 못 가르면 사진의 상차·하차·픽업 km 로 한 번 더 — 꼭 한 줄일 때만 (`photoMatchCard`)
@@ -120,8 +121,6 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
             val manualOrder = baseOrder?.copy(
                 id = baseOrder.id.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
                 type = "MANUAL_CLICK",
-                pickup = fullAddress(parsed.pickup),
-                dropoff = fullAddress(parsed.dropoff),
                 fare = resolvedFare,
                 timestamp = now,
                 rawText = rawScreenStr,
@@ -129,11 +128,11 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
                 vehicleType = KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE,
                 tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ") +
                     (twinNote?.let { " · $it" } ?: "")
-            ) ?: SimplifiedOfficeOrder(
+            )?.let { withPhotoStops(it, parsed) } ?: SimplifiedOfficeOrder(
                 id = "MANUAL-${System.currentTimeMillis()}",
                 type = "MANUAL_CLICK",
-                pickup = fullAddress(parsed.pickup),
-                dropoff = fullAddress(parsed.dropoff),
+                pickupDetails = listOf(CallStop(listText = fullAddress(parsed.pickup))),
+                dropoffDetails = listOf(CallStop(listText = fullAddress(parsed.dropoff))),
                 fare = resolvedFare,
                 timestamp = now,
                 rawText = rawScreenStr,
@@ -169,6 +168,10 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
                 "💰 [요금] 목록 ${"%,d".format(list)} → 최종 수익 ${"%,d".format(fin)}")
         return fin
     }
+
+    /** 🏠 사진의 상차 · 하차 주소로 첫 상차 · 마지막 하차 정거장 글자를 덮는다 */
+    private fun withPhotoStops(order: SimplifiedOfficeOrder, parsed: PickerDetailFromImage): SimplifiedOfficeOrder =
+        withLastDropoff(withFirstPickup(order) { it.copy(listText = fullAddress(parsed.pickup)) }) { it.copy(listText = fullAddress(parsed.dropoff)) }
 
     /**
      * 📅 **상세 사진의 예약이 목록 값을 덮는다** — «오늘 17:00 픽업예약» 띠 줄을 먼저 읽고, 띠에서 날·시각을 못 읽을 때만

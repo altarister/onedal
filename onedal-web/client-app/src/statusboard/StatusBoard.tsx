@@ -591,7 +591,7 @@ function HandmadeCallCard() {
             if (!r.ok) { setMadeNote(`— 서버가 안 받았다 (HTTP ${r.status})`); return; }
 
             setSeq(n => n + 1);
-            setMadeNote(`✅ ${order.pickup} → ${order.dropoff} · ${wonText(order.fare)}`);
+            setMadeNote(`✅ ${order.pickupDetails[0].listText} → ${order.dropoffDetails[0].listText} · ${wonText(order.fare)}`);
         } catch {
             setMadeNote('— 서버에 못 닿았다');
         } finally {

@@ -8,6 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 🧪 #79 — **콜 잡는 중에 나타난 콜은 평가 없이 영영 삼켜진다**
@@ -40,15 +41,17 @@ class CallMemoryTest {
 
     /** 07번 — 터미널→신둔. 다른 콜을 잡는 동안 리스트에 처음 뜨는 콜 */
     private fun order07() = SimplifiedOfficeOrder(
-        id = "07", type = "NEW_ORDER",
-        pickup = "이천터미널", dropoff = "신둔면", fare = 30000,
+        id = "07",
+        type = "NEW_ORDER",
+        fare = 30000,
         timestamp = "2026-08-30T16:04:31",
         vehicleType = "다",
         rawText = "이천터미널 신둔면",
-        pickupDistance = 19.1, deliveryDistance = 5.8,
+        pickupDetails = listOf(CallStop(listText = "이천터미널", distanceKm = 19.1)),
+        dropoffDetails = listOf(CallStop(listText = "신둔면", distanceKm = 5.8)),
     )
 
-    private fun hash(o: SimplifiedOfficeOrder) = (o.pickup + o.dropoff + o.fare.toString()).hashCode()
+    private fun hash(o: SimplifiedOfficeOrder) = (StopText.of(firstPickupStop(o)) + StopText.of(lastDropoffStop(o)) + o.fare.toString()).hashCode()
 
     @Test
     fun `🔴 잠금 중 스캔된 콜은 잠금이 풀리면 다시 평가된다 - 영영 삼키지 않는다`() {
@@ -123,9 +126,14 @@ class CallMemoryTest {
      * 그래서 `CallMemory` 는 막힌 콜(blocked)만 필터 버전이 바뀔 때 비운다.
      */
     private fun b3() = SimplifiedOfficeOrder(
-        id = "B3", type = "NEW_ORDER", pickup = "사음동", dropoff = "중리동", fare = 50000,
-        timestamp = "2026-09-15T06:10:13", vehicleType = "다",
-        rawText = "사음동 중리동", pickupDistance = 2.9, deliveryDistance = 3.3,
+        id = "B3",
+        type = "NEW_ORDER",
+        fare = 50000,
+        timestamp = "2026-09-15T06:10:13",
+        vehicleType = "다",
+        rawText = "사음동 중리동",
+        pickupDetails = listOf(CallStop(listText = "사음동", distanceKm = 2.9)),
+        dropoffDetails = listOf(CallStop(listText = "중리동", distanceKm = 3.3)),
     )
 
     @Test

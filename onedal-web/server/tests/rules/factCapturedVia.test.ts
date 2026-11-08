@@ -19,7 +19,7 @@ const confirm = async (id: string, capturedVia: unknown) => {
     const res: any = { status: () => res, json: () => res };
     await layer.route.stack[layer.route.stack.length - 1].handle({ app, body: {
         step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType: 'AUTO', capturedVia,
-        order: { id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 신둔면', fare: 38500, rawText: '' },
+        order: { id, pickupDetails: [{ listText: '경기 광주시 곤지암읍' }], dropoffDetails: [{ listText: '경기 이천시 신둔면' }], fare: 38500, rawText: '' },
     } }, res);
     return getUserSession(U).pendingOrdersData.get(id) as any;
 };

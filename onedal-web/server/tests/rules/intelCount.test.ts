@@ -19,7 +19,7 @@ const handler = (() => {
 const report = async (n: number) => {
     let out: any = null;
     const res = { status: () => res, json: (b: any) => { out = b; return res; } };
-    const data = Array.from({ length: n }, (_, i) => ({ pickup: `상${i}`, dropoff: `하${i}`, fare: 10000 }));
+    const data = Array.from({ length: n }, (_, i) => ({ pickupDetails: [{ listText: `상${i}` }], dropoffDetails: [{ listText: `하${i}` }], fare: 10000 }));
     await handler({ body: { data, deviceId: DEV, supplyLinked: true }, app }, res);
     return out?.apiStatus?.totalItems;
 };

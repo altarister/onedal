@@ -65,8 +65,8 @@ class ListRowScan(
         val orderHash = CallMemory.fingerprintOf(order)
         com.onedal.app.core.ListSightings.saw(orderHash, listScanNo)   // 🧾 몇 번째 읽기에서 봤나 — 같은 콜 요금 인상 가르기
         // 📅 예약인데 날을 모른다 — 상세가 가른다. 배차망별로 몇 번인지 세려고 콜당 한 줄
-        if (order.reserved == true && order.reservedDay == null && LogOnce.changed("reservation-unknown:$orderHash", "1"))
-            AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 날 모름] $currentTargetApp · ${order.pickup}→${order.dropoff} ${order.fare}원 · ${order.tagsText ?: order.scheduleText ?: ""}")
+        if (order.reserved == true && firstPickupStop(order)?.requestedDay == null && LogOnce.changed("reservation-unknown:$orderHash", "1"))
+            AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 날 모름] $currentTargetApp · ${StopText.of(firstPickupStop(order))}→${StopText.of(lastDropoffStop(order))} ${order.fare}원 · ${order.tagsText ?: firstPickupStop(order)?.promiseText ?: ""}")
         /**
          * ⏭️ **건너뛰었다는 사실을 남긴다**.
          *
@@ -81,15 +81,15 @@ class ListRowScan(
          * 🔁 **가까워진 콜은 다시 판정한다** (기사님 «가») — 반경 밖이라 막았던 콜이 오늘 반경 안으로 들어오면 막은 기억을 푼다.
          * 소리는 울림 함 규칙(같은 길 한 번)대로다. 내일 이후 콜은 집 기준 목록으로 가르므로 폰 km 로 풀지 않는다.
          */
-        if ((order.reservedDay ?: 0) < 1) {
+        if ((firstPickupStop(order)?.requestedDay ?: 0) < 1) {
             val scanRadiusKm = scrapParser.todayPickupRadiusKm()
-            callMemory.releaseIfCloser(orderHash, order.pickupDistance, scanRadiusKm)?.let { was ->
-                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔁 [가까워져 다시 판정] ${order.pickup}→${order.dropoff} · $was → ${order.pickupDistance}km (반경 ${scanRadiusKm}km)")
+            callMemory.releaseIfCloser(orderHash, firstPickupStop(order)?.distanceKm, scanRadiusKm)?.let { was ->
+                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔁 [가까워져 다시 판정] ${StopText.of(firstPickupStop(order))}→${StopText.of(lastDropoffStop(order))} · $was → ${firstPickupStop(order)?.distanceKm}km (반경 ${scanRadiusKm}km)")
             }
         }
         if (callMemory.alreadyEvaluated(orderHash)) {
             // 🔕 콜마다 첫 한 번만 (차종만 바꾼 문제지 진단용) — 스캔마다 되풀이하지 않는다
-            if (LogOnce.changed("seen:$orderHash", "seen")) AppLogger.d(TAG, LogTag.FILTER, "⏭️ [이미 본 콜] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
+            if (LogOnce.changed("seen:$orderHash", "seen")) AppLogger.d(TAG, LogTag.FILTER, "⏭️ [이미 본 콜] ${StopText.of(firstPickupStop(order)).take(14)} → ${StopText.of(lastDropoffStop(order)).take(14)} " +
                 "${order.fare}원 (지문 $orderHash · 기억 ${callMemory.evaluatedCount}개)")
             return Outcome(Kind.SEEN, order, orderHash)
         }
@@ -128,9 +128,9 @@ class ListRowScan(
             // 🔔 이 경로의 통과 콜을 적어 둔다 — 요금만 오른 같은 콜은 같은 콜(판정은 위에서 다시 했다)
             val firstFare = alarmedRoutes.firstFareOf(order)
             if (alarmedRoutes.notePassing(order, nowMs))
-                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [새 통과 콜] ${order.pickup}→${order.dropoff} ${order.fare}원")
-            else if (LogOnce.changed("alarmed-route:${order.pickup}→${order.dropoff}", "${order.fare}"))
-                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [이미 본 콜] ${order.pickup}→${order.dropoff} · 요금 ${firstFare ?: "?"} → ${order.fare}")
+                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔔 [새 통과 콜] ${StopText.of(firstPickupStop(order))}→${StopText.of(lastDropoffStop(order))} ${order.fare}원")
+            else if (LogOnce.changed("alarmed-route:${StopText.of(firstPickupStop(order))}→${StopText.of(lastDropoffStop(order))}", "${order.fare}"))
+                AppLogger.i("1DAL_ALARM", LogTag.CALL_STAGE, "🔕 [이미 본 콜] ${StopText.of(firstPickupStop(order))}→${StopText.of(lastDropoffStop(order))} · 요금 ${firstFare ?: "?"} → ${order.fare}")
         }
         // 폰이 이미 연 콜은 요금만 올라도 다시 안 연다 — 적어 두기만 하고 못 연 콜(심사 중·미룸)은 연다
         val addHit = isTarget && !alarmedRoutes.opened(order)
@@ -152,9 +152,9 @@ class ListRowScan(
          */
         if (!isTarget) callMemory.onScanned(orderHash, wasEvaluated, passed = false)
         // 🔁 상차 축으로 막았으면 그때 km 를 적는다 — 가까워지면 위에서 푼다
-        if (!isTarget && wasEvaluated) order.pickupDistance?.let { km -> if (judged.verdict == "pickup") callMemory.rememberBlockedKm(orderHash, km) }
+        if (!isTarget && wasEvaluated) firstPickupStop(order)?.distanceKm?.let { km -> if (judged.verdict == "pickup") callMemory.rememberBlockedKm(orderHash, km) }
         if (!wasEvaluated) {
-            AppLogger.d(TAG, LogTag.FILTER, "🔒 [평가 보류] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
+            AppLogger.d(TAG, LogTag.FILTER, "🔒 [평가 보류] ${StopText.of(firstPickupStop(order)).take(14)} → ${StopText.of(lastDropoffStop(order)).take(14)} " +
                 "${order.fare}원 — 필터 잠김(선점 중·대기), 다음 스캔에서 다시 본다")
         }
         return Outcome(Kind.SCANNED, order, orderHash, addHit)

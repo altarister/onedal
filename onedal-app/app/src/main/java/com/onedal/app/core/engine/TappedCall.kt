@@ -1,6 +1,9 @@
 package com.onedal.app.core.engine
 
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 /**
  * 🎯 **«누른 그 콜인가» — 세 배차망 같은 한 검증** (기사님 «'누른 그 콜인가' 확인은 공통으로»)
@@ -14,10 +17,10 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 object TappedCall {
     /** 어긋나면 그 까닭, 맞으면 null */
     fun mismatch(tapped: SimplifiedOfficeOrder, detail: SimplifiedOfficeOrder): String? {
-        val pickupOk = dongMatch(tapped.pickup, detail.pickup)
-        val dropoffOk = dongMatch(tapped.dropoff, detail.dropoff)
+        val pickupOk = dongMatch(StopText.of(firstPickupStop(tapped)), StopText.of(firstPickupStop(detail)))
+        val dropoffOk = dongMatch(StopText.of(lastDropoffStop(tapped)), StopText.of(lastDropoffStop(detail)))
         return if (pickupOk && dropoffOk) null
-        else "주소 불일치 (누른 줄: ${tapped.pickup}→${tapped.dropoff} / 상세: ${detail.pickup}→${detail.dropoff})"
+        else "주소 불일치 (누른 줄: ${StopText.of(firstPickupStop(tapped))}→${StopText.of(lastDropoffStop(tapped))} / 상세: ${StopText.of(firstPickupStop(detail))}→${StopText.of(lastDropoffStop(detail))})"
     }
 
     /** 목록 줄 글자의 마지막 토막(동·읍·면·리 접미를 뗀 것)이 상세 주소에 있나. 목록 줄이 비었으면 대조할 것이 없다 */

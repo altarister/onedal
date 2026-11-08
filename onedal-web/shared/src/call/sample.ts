@@ -5,7 +5,7 @@ import type { CallIdentity, CallProvenance } from './callIdentity';
 import type { AppCallReport, CallStop, OfficeOrder } from './orderShapes';
 
 export const OFFICE_ORDER_SAMPLE = {
-    // ── 목록 칸 (SimplifiedOfficeOrder) ──
+    // ── 목록 칸 (옛 원달앱 양식 — 맨 위 주소 · 좌표 · 약속 · 거리 칸 포함) ──
     id: "콜 번호",
     type: "NEW_ORDER",                    // 기본 콜에 없음 — 보고 봉투의 갈래
     pickup: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",      // 상세 주소, 없으면 목록 동
@@ -69,7 +69,7 @@ export const OFFICE_ORDER_SAMPLE = {
  */
 
 /**
- * 🔍 **옛 콜 견본 — 바꿀 목록 1번(정거장 약속)을 적용한 모양** (`설계/바꿀목록_02.md` · 정거장 약속 칸은 `CallStop` 에 있고 맨 위 칸은 원달앱 보고(`AppCallReport`)에만 남아 있다)
+ * 🔍 **옛 콜 견본 — 바꿀 목록 1번(정거장 약속)을 적용한 모양** (`설계/바꿀목록_02.md` · 정거장 약속 칸은 `CallStop` 에 있다)
  *
  * 위 `OFFICE_ORDER_SAMPLE` 과 다른 것만:
  * - 뺌: `reserved` · `reservedDay` · `reservedAt` · `pickupTime` — 상차 약속은 `pickupDetails[0]` 의 날 · 시각 하나로
@@ -77,7 +77,7 @@ export const OFFICE_ORDER_SAMPLE = {
  * - 남김: `scheduleText` — 화면 원문
  */
 const OFFICE_ORDER_SAMPLE_02 = {
-    // ── 목록 칸 (SimplifiedOfficeOrder) ──
+    // ── 목록 칸 (옛 원달앱 양식 — 맨 위 주소 · 좌표 · 약속 · 거리 칸 포함) ──
     id: "콜 번호",
     type: "NEW_ORDER",
     pickup: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
@@ -149,7 +149,7 @@ const OFFICE_ORDER_SAMPLE_02 = {
  * - 규칙: 화면이 보여 준 것만 담는다 — 없는 돈을 계산해 채우지 않는다
  */
 const OFFICE_ORDER_SAMPLE_03 = {
-    // ── 목록 칸 (SimplifiedOfficeOrder) ──
+    // ── 목록 칸 (옛 원달앱 양식 — 맨 위 주소 · 좌표 · 약속 · 거리 칸 포함) ──
     id: "콜 번호",
     type: "NEW_ORDER",
     pickup: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
@@ -366,7 +366,7 @@ const OFFICE_ORDER_SAMPLE_04 = {
     requesterName: "의뢰인",               // ← companyName 이름 바꿈
     stageText: "진행 글자",                // ← receiptStatus 이름 바꿈(«배차» · «배송» — 전표 상태가 아니다)
 
-    // ── 목록 칸 (SimplifiedOfficeOrder) ──
+    // ── 목록 칸 (옛 원달앱 양식 — 맨 위 주소 · 좌표 · 약속 · 거리 칸 포함) ──
     // id: 위 번호 묶음으로 옮김
     type: "NEW_ORDER",
     pickup: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
@@ -530,7 +530,7 @@ const OFFICE_ORDER_SAMPLE_05 = {
     capturedMode: "수집 모드",            // ← 배차망 칸에서 옮겨 옴 — 그때 폰 모드
     isSimulated: false,                   // ← 목록 칸에서 옮겨 옴 — 연습 콜인가
 
-    // ── 목록 칸 (SimplifiedOfficeOrder) ──
+    // ── 목록 칸 (옛 원달앱 양식 — 맨 위 주소 · 좌표 · 약속 · 거리 칸 포함) ──
     // type · timestamp · rawText · isSimulated: 위 출처 묶음으로 옮김
     pickup: "경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점",
     dropoff: "경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점",

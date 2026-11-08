@@ -55,7 +55,7 @@ const app = (p: string) => (p === 'HijackService.kt' ? SEQUENCE_FILES : [p])
 const code = (src: string) => src.split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
 
 describe('👀 미리보기 콜 — 규격', () => {
-    const order: SimplifiedOfficeOrder = { id: 'c1', type: 'NEW_ORDER', pickup: '경기 광주 오포', dropoff: '이천시 신둔면', fare: 45000, timestamp: '2026-01-01T00:00:00.000Z' };
+    const order: SimplifiedOfficeOrder = { id: 'c1', type: 'NEW_ORDER', pickupDetails: [{ listText: '경기 광주 오포' }], dropoffDetails: [{ listText: '이천시 신둔면' }], fare: 45000, timestamp: '2026-01-01T00:00:00.000Z' };
     const base = { deviceId: 'phone-1', capturedAt: '2026-01-01T00:00:00.000Z', matchType: 'AUTO' as const };
 
     it('🔴 앱↔서버 규격에 미리보기 표시가 있다', () => {

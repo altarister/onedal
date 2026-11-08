@@ -65,8 +65,8 @@ class ScreenReadingOrderTest {
             sorted.map { Triple(it.text, (it.top + it.bottom) / 2, it.left + 20) })
         assertEquals(1, cards.size)
         val order = KakaoPickerParser(null).parse(cards[0].second)
-        assertEquals("광주 경안", order.pickup)
-        assertEquals("용산 한남", order.dropoff)
+        assertEquals("광주 경안", StopText.of(firstPickupStop(order)))
+        assertEquals("용산 한남", StopText.of(lastDropoffStop(order)))
     }
 
     /**

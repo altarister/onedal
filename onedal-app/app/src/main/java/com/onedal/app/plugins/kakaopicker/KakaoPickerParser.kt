@@ -16,6 +16,10 @@ import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.models.withReservation
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
+import com.onedal.app.models.CallStop
 
 /**
  * 🌐 카카오T픽커 리스트 파서 — **잡지 않는다** (수락 누름 없음).
@@ -579,10 +583,10 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             val dropoffPart = regionKeys(if (marker != null) joined.substring(marker.range.last + 1) else "")
             fun byPickupWith(fare: Int?) = recent
                 .filter { fare == null || it.fare == fare }
-                .filter { c -> cardKeys(c.pickup).let { k -> k.isNotEmpty() && k.all { it in pickupPart } } }
+                .filter { c -> cardKeys(StopText.of(firstPickupStop(c))).let { k -> k.isNotEmpty() && k.all { it in pickupPart } } }
                 // 요금 없이 찾을 때만 크기로 거른다 — 크기를 모르는 카드는 빼지 않는다 (규칙 ⑤-2 · 모르는 값으로 거르지 않는다)
                 .filter { c -> fare != null || size == null || c.itemSize == null || c.itemSize == size }
-                .distinctBy { Triple(it.pickup, it.dropoff, it.fare) }
+                .distinctBy { Triple(StopText.of(firstPickupStop(it)), StopText.of(lastDropoffStop(it)), it.fare) }
             /**
              * 💰 **요금이 같은 줄이 없으면 요금 없이 한 번 더** (기사님 «손으로 연 상세가 평가 안 된다» · 1f «가»).
              * 픽커는 시간이 지나며 요금을 올린다 — 앱이 기억한 목록 줄은 11,396 인데 상세 최종 수익은 11,796(실물).
@@ -597,7 +601,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 else -> "요금 없이 픽업지${if (size != null) " · 크기 $size" else ""}"
             }
             val picked = if (byPickup.size <= 1) byPickup
-                else byPickup.filter { c -> cardKeys(c.dropoff).let { k -> k.isNotEmpty() && k.all { it in dropoffPart } } }
+                else byPickup.filter { c -> cardKeys(StopText.of(lastDropoffStop(c))).let { k -> k.isNotEmpty() && k.all { it in dropoffPart } } }
             // 🧾 여럿이어도 같은 콜이 요금만 오른 것이면 마지막에 본 줄 (`ListSightings`)
             val latest = if (picked.size == 1) null else com.onedal.app.core.ListSightings.latestOfSameCall(picked.ifEmpty { byPickup })
             // 🍷 최종 수익을 못 읽었으면 쌍둥이 콜(함께 뜬 · 모두 같고 요금만 다름)의 낮은 요금 줄
@@ -628,7 +632,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /** 🍷 고른 줄이 쌍둥이 콜(함께 뜬 · 모두 같고 요금만 다름)의 낮은 요금이면 꼬리 글 — 목록 줄 대조 · 사진 대조가 같이 쓴다 (`PickerTwinCallTest`) */
         fun twinNoteOf(base: SimplifiedOfficeOrder?, recent: List<SimplifiedOfficeOrder>): String? {
             base ?: return null
-            fun key(c: SimplifiedOfficeOrder) = listOf(c.pickup, c.dropoff, c.pickupDistance, c.tagsText, c.itemSize)
+            fun key(c: SimplifiedOfficeOrder) = listOf(StopText.of(firstPickupStop(c)), StopText.of(lastDropoffStop(c)), firstPickupStop(c)?.distanceKm, c.tagsText, c.itemSize)
             val (low, fares) = com.onedal.app.core.ListSightings.lowestOfTwins(recent.filter { key(it) == key(base) }.distinctBy { it.fare }) ?: return null
             return if (low.fare == base.fare) "요금 둘 중 낮은 값 · ${fares.joinToString(" / ") { "%,d".format(it) }}" else null
         }
@@ -637,24 +641,24 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun photoMatchReport(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>, fareUnread: Boolean = false): String {
             val s = photoMatchSteps(pickup, dropoff, recent)
             val same = if (s[3].size > 1) com.onedal.app.core.ListSightings.latestOfSameCall(s[3]) else null
-            val merged = s[2].distinctBy { Triple(it.pickup, it.dropoff, it.fare) }.size > s[3].size
+            val merged = s[2].distinctBy { Triple(StopText.of(firstPickupStop(it)), StopText.of(lastDropoffStop(it)), it.fare) }.size > s[3].size
             val twin = if (s[3].size > 1 && same == null && fareUnread) com.onedal.app.core.ListSightings.lowestOfTwins(s[3]) else null
             return "최근 목록 ${recent.size}줄 · 상차 맞음 ${s[0].size} · 하차 맞음 ${s[1].size} · km 맞음 ${s[2].size} · 다른 콜 ${s[3].size}" +
                 (if (merged) " · 같은 콜을 동 없이 읽은 줄 합침" else "") +
                 (same?.let { " · 같은 콜이 요금만 올랐다(${s[3].joinToString(" → ") { c -> "${c.fare}" }}) — 마지막에 본 ${it.fare}원" } ?: "") +
                 (twin?.let { " · 같은 경로 요금 둘 — 낮은 ${"%,d".format(it.first.fare)}" } ?: "") +
                 // 🔎 km 까지 맞은 후보가 여럿이면 무엇이었는지(목록 줄임 이름 · 요금) — 못 고른 까닭을 로그로 가른다
-                (if (s[2].size > 1) " · 후보 " + s[2].joinToString(" · ") { c -> "${"%,d".format(c.fare)}(${c.pickup}→${c.dropoff} ${c.pickupDistance}km)" } else "")
+                (if (s[2].size > 1) " · 후보 " + s[2].joinToString(" · ") { c -> "${"%,d".format(c.fare)}(${StopText.of(firstPickupStop(c))}→${StopText.of(lastDropoffStop(c))} ${firstPickupStop(c)?.distanceKm}km)" } else "")
         }
 
         /** 상차 → 하차 → km → 같은 콜 하나로 — 단계마다 남은 줄 (대조와 진단이 같은 단계를 쓴다) */
         private fun photoMatchSteps(pickup: PickerStopFromImage, dropoff: PickerStopFromImage, recent: List<SimplifiedOfficeOrder>): List<List<SimplifiedOfficeOrder>> {
             val pickupKeys = regionKeys("${pickup.admin} ${pickup.place.orEmpty()}")
             val dropoffKeys = regionKeys("${dropoff.admin} ${dropoff.place.orEmpty()}")
-            val byPickup = recent.filter { c -> cardKeys(c.pickup).let { k -> k.isNotEmpty() && k.all { it in pickupKeys } } }
-            val byDropoff = byPickup.filter { c -> cardKeys(c.dropoff).let { k -> k.isNotEmpty() && k.all { it in dropoffKeys } } }
-            val byKm = byDropoff.filter { c -> c.pickupDistance != null && kotlin.math.abs(c.pickupDistance - pickup.straightKm) <= PHOTO_MATCH_KM }
-            return listOf(byPickup, byDropoff, byKm, mergePartialRows(byKm.distinctBy { Triple(it.pickup, it.dropoff, it.fare) }))
+            val byPickup = recent.filter { c -> cardKeys(StopText.of(firstPickupStop(c))).let { k -> k.isNotEmpty() && k.all { it in pickupKeys } } }
+            val byDropoff = byPickup.filter { c -> cardKeys(StopText.of(lastDropoffStop(c))).let { k -> k.isNotEmpty() && k.all { it in dropoffKeys } } }
+            val byKm = byDropoff.filter { c -> firstPickupStop(c)?.distanceKm?.let { km -> kotlin.math.abs(km - pickup.straightKm) <= PHOTO_MATCH_KM } == true }
+            return listOf(byPickup, byDropoff, byKm, mergePartialRows(byKm.distinctBy { Triple(StopText.of(firstPickupStop(it)), StopText.of(lastDropoffStop(it)), it.fare) }))
         }
 
         /**
@@ -663,12 +667,12 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 덜 그려진 카드가 동 없이 읽힌 것이다. 요금이 같으니 합쳐도 고르는 요금이 틀릴 수 없다. 부분집합이 아닌 줄은 그대로 남는다.
          */
         fun mergePartialRows(cands: List<SimplifiedOfficeOrder>): List<SimplifiedOfficeOrder> = cands.filter { c ->
-            val cp = cardKeys(c.pickup).toSet(); val cd = cardKeys(c.dropoff).toSet()
+            val cp = cardKeys(StopText.of(firstPickupStop(c))).toSet(); val cd = cardKeys(StopText.of(lastDropoffStop(c))).toSet()
             cands.none { d ->
                 d !== c && d.fare == c.fare &&
-                    c.pickupDistance != null && d.pickupDistance != null && kotlin.math.abs(c.pickupDistance - d.pickupDistance) <= 0.1 &&
-                    cardKeys(d.pickup).toSet().let { dp -> dp.containsAll(cp) } && cardKeys(d.dropoff).toSet().let { dd -> dd.containsAll(cd) } &&
-                    cardKeys(d.pickup).size + cardKeys(d.dropoff).size > cp.size + cd.size
+                    firstPickupStop(c)?.distanceKm.let { ck -> firstPickupStop(d)?.distanceKm.let { dk -> ck != null && dk != null && kotlin.math.abs(ck - dk) <= 0.1 } } &&
+                    cardKeys(StopText.of(firstPickupStop(d))).toSet().let { dp -> dp.containsAll(cp) } && cardKeys(StopText.of(lastDropoffStop(d))).toSet().let { dd -> dd.containsAll(cd) } &&
+                    cardKeys(StopText.of(firstPickupStop(d))).size + cardKeys(StopText.of(lastDropoffStop(d))).size > cp.size + cd.size
             }
         }
 
@@ -721,15 +725,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         fun pickupRadiusFor(order: SimplifiedOfficeOrder, pickupRadiusKm: Double, reservedPickupRadiusKm: Double?): Double =
             if (laterDay(order)) reservedPickupRadiusKm ?: pickupRadiusKm else pickupRadiusKm
 
-        private fun laterDay(order: SimplifiedOfficeOrder) = order.reserved == true && (order.reservedDay ?: 0) >= 1
+        private fun laterDay(order: SimplifiedOfficeOrder) = order.reserved == true && (firstPickupStop(order)?.requestedDay ?: 0) >= 1
 
         /** 📅 상차에서 떨어진 까닭 — «상차 20.0km > 내일 콜 반경 25km» (판정 줄 끝) */
         fun pickupMissWord(order: SimplifiedOfficeOrder, pickupRadiusKm: Double, reservedPickupRadiusKm: Double?, reservedPickupKeywords: List<String>? = null): String {
-            if (laterDay(order) && !reservedPickupKeywords.isNullOrEmpty()) return "상차 ${order.pickup} > 내일 콜 집 둘레 목록 밖"
-            val day = order.reservedDay ?: 0
+            if (laterDay(order) && !reservedPickupKeywords.isNullOrEmpty()) return "상차 ${StopText.of(firstPickupStop(order))} > 내일 콜 집 둘레 목록 밖"
+            val day = firstPickupStop(order)?.requestedDay ?: 0
             val kind = when { !laterDay(order) -> "오늘 콜"; day == 1 -> "내일 콜"; else -> "${day}일 뒤 콜" }
             val r = "%.2f".format(java.util.Locale.US, pickupRadiusFor(order, pickupRadiusKm, reservedPickupRadiusKm)).trimEnd('0').trimEnd('.')
-            return "상차 ${order.pickupDistance ?: "?"}km > $kind 반경 ${r}km"
+            return "상차 ${firstPickupStop(order)?.distanceKm ?: "?"}km > $kind 반경 ${r}km"
         }
 
         /** 🏘️ 시군구 열쇠(«성남시 분당구»)의 꼴들 — 열쇠 · 토막 · 시/구/군 뗀 토막 (`destinationDongSigungu` 와 같은 꼴) */
@@ -771,13 +775,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             //    빈 목록([])은 없는 것처럼 — 지도 자료를 못 읽어 빈 목록이 내일 콜을 전부 떨어뜨렸다(리뷰)
             val homeList = reservedPickupKeywords?.takeIf { it.isNotEmpty() }
             val pickupOk = if (laterDay(order) && homeList != null)
-                order.pickup.isBlank() || pickupListOk(order.pickup, homeList, keywordTraps, reservedPickupGroups)
-            else order.pickupDistance != null && order.pickupDistance <= pickupRadiusFor(order, pickupRadiusKm, reservedPickupRadiusKm)
+                StopText.of(firstPickupStop(order)).isBlank() || pickupListOk(StopText.of(firstPickupStop(order)), homeList, keywordTraps, reservedPickupGroups)
+            else firstPickupStop(order)?.distanceKm?.let { it <= pickupRadiusFor(order, pickupRadiusKm, reservedPickupRadiusKm) } == true
             val destOk = when {
                 destKeywords.isEmpty() -> true      // 도착 목표가 없다(관내·목표 미설정) — 제한 없음
                 // 하차를 아직 모른다(도보 목록) — 판정을 채운 뒤로 미룬다: 상세 사진으로 채운 하차로 `passesFilterAfterFill` 이 다시 본다
-                order.dropoff.isBlank() -> true
-                else -> destinationOk(order.dropoff, destKeywords, keywordTraps, cityAliases, dongSigungu)
+                StopText.of(lastDropoffStop(order)).isBlank() -> true
+                else -> destinationOk(StopText.of(lastDropoffStop(order)), destKeywords, keywordTraps, cityAliases, dongSigungu)
             }
             return AlarmAxes(fareOk, pickupOk, destOk, reservationOk)
         }
@@ -1197,17 +1201,14 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         return SimplifiedOfficeOrder(
             id = "",                          // 리스트에는 ID 가 없다 — 상세에만 오더번호가 있다 (0830 실측)
             type = "NEW_ORDER",
-            pickup = pickup,
-            dropoff = dropoff,
             fare = fare,
             timestamp = java.time.OffsetDateTime.now().toString(),
-            scheduleText = scheduleTime,
             vehicleType = null,               // 픽커에 차종 축이 없다 — 물품 크기가 대신한다. 섞어 싣지 않는다
             itemSize = itemSize,
             tagsText = tags.joinToString(" ").ifEmpty { null },
             rawText = texts.joinToString(" "),
-            pickupDistance = pickupKm,
-            deliveryDistance = null,          // 리스트에 배송거리가 없다 (인성과의 결정적 차이)
+            pickupDetails = listOf(CallStop(listText = pickup, promiseText = scheduleTime, distanceKm = pickupKm)),
+            dropoffDetails = listOf(CallStop(listText = dropoff)),   // 리스트에 배송거리가 없다 (인성과의 결정적 차이)
         ).withReservation(listReservation(tags, java.time.LocalDateTime.now()))
     }
 
@@ -1245,7 +1246,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         //    🔕 같은 콜 · 같은 결과 · 같은 필터면 한 번만 — 누르지 못한 콜이 목록이 바뀔 때마다(≈15초) 같은 줄을 되풀이했다
         if (com.onedal.app.core.LogOnce.changed("alarm-judge:${com.onedal.app.core.CallMemory.fingerprintOf(order)}", "$pass|$a|${filterJson.hashCode()}"))
         com.onedal.app.core.AppLogger.d("1DAL_PICKER", com.onedal.app.core.LogTag.FILTER,
-            "🔔 [알람 판정] ${order.fare}원·픽업 ${order.pickupDistance ?: "?"}km·도착 ${order.dropoff.ifEmpty { "?" }}·예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(order)} — " +
+            "🔔 [알람 판정] ${order.fare}원·픽업 ${firstPickupStop(order)?.distanceKm ?: "?"}km·도착 ${StopText.of(lastDropoffStop(order)).ifEmpty { "?" }}·예약 ${com.onedal.app.core.engine.ReservationGate.wordOf(order)} — " +
             "하한 ${c.minFare}·반경 ${c.pickupRadiusKm}km·도착목표 ${c.destKeywords.size}개 → ${if (pass) "통과" else "탈락"}" +
             " · 축 요금${mark(a.fare)} 상차${mark(a.pickup)} 도착${mark(a.destination)} 예약${mark(a.reservation)}" +
             (if (!a.pickup) " · ${pickupMissWord(order, c.pickupRadiusKm, c.reservedPickupRadiusKm, c.reservedPickupKeywords)}" else ""))

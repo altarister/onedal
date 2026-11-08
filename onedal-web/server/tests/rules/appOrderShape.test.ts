@@ -29,7 +29,9 @@ function appFields(): string[] {
     const src = readFileSync(APP_MODELS, 'utf8');
     const start = src.indexOf('data class SimplifiedOfficeOrder(');
     expect(start).toBeGreaterThan(-1);
-    const body = src.slice(start, src.indexOf('\n)', start))
+    /* 생성자 칸 + 본문 칸(`{ … }` — 생성자 칸에서 만들어 함께 보내는 칸 · Gson 은 둘 다 싣는다) */
+    const ctorEnd = src.indexOf('\n)', start);
+    const body = src.slice(start, src.startsWith(' {', ctorEnd + 2) ? src.indexOf('\n}', ctorEnd) : ctorEnd)
         .replace(/\/\*[\s\S]*?\*\//g, ' ')
         .replace(/\/\/.*$/gm, '');
     return [...body.matchAll(/\bva[lr]\s+(\w+)\s*:/g)].map(m => m[1]);
@@ -42,10 +44,10 @@ function appFields(): string[] {
 function serverFields(): string[] {
     const sample: Required<SimplifiedOfficeOrder> = {
         itemSize: null, tagsText: null, verdict: null,
-        id: 'c1', type: 'NEW_ORDER', pickup: '경기 광주 오포', dropoff: '이천시 신둔면', fare: 45000, timestamp: '2026-01-01T00:00:00.000Z',
-        postTime: '12:23', scheduleText: '', vehicleType: '1t', rawText: '',
-        pickupX: 0, pickupY: 0, dropoffX: 0, dropoffY: 0, pickupDistance: 0, deliveryDistance: 0,
-        isSimulated: false, reserved: null, reservedDay: null, reservedAt: null,
+        id: 'c1', type: 'NEW_ORDER', fare: 45000, timestamp: '2026-01-01T00:00:00.000Z',
+        postTime: '12:23', vehicleType: '1t', rawText: '',
+        isSimulated: false, reserved: null,
+        pickupDetails: [{ listText: '경기 광주 오포' }], dropoffDetails: [{ listText: '이천시 신둔면' }], load: { vehicleText: '1t', sizeText: null, itemText: null, lines: [] },
     };
     return Object.keys(sample);
 }

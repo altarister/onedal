@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode, firstPickupStop, lastDropoffStop, firstStopKm, callFromAppReport } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode, firstPickupStop, lastDropoffStop, firstStopKm } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -136,8 +136,8 @@ router.post("/confirm", (req, res) => {
          *    팝업 3장으로 따로 모으므로 이 칸이 늘 null 이다 (규칙 ④ — 지어내지 않는다).
          * ⚠️ 저장은 «기록»이지 판정 입력이 아니다 — 비동기 큐라 실패해도 선점을 안 막는다.
          */
-        /* 📱→🚏 원달앱 보고의 맨 위 칸을 정거장으로 — 이 뒤로는 콜 모양만 쓴다(상세 기록 줄도 정거장에서 읽는다) */
-        const reportedCall = callFromAppReport(payload.order);
+        /* 📱🚏 원달앱 보고가 곧 콜이다 — 상세 기록 줄도 정거장에서 읽는다 */
+        const reportedCall = payload.order;
         if ((payload as any).targetApp === 'kakaopicker' && payload.order?.rawText) {
             const pickupStop = firstPickupStop(reportedCall);
             dbQueue.runAsync(

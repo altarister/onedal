@@ -13,6 +13,9 @@ import com.onedal.app.models.ScreenContext
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.DispatchPluginRegistry
 import com.onedal.app.plugins.IDispatchAppPlugin
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 private const val TAG = "1DAL_PRE_CONFIRM"
 
@@ -129,7 +132,7 @@ fun ScanContext.handlePreConfirmScreen(
             targetApp = currentTargetApp,
             screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
             failureReason = "REQUIREMENT_UNMET: ${missing.joinToString(" · ")}",
-            listOrderInfo = mapOf("fare" to order.fare, "pickup" to order.pickup, "dropoff" to order.dropoff),
+            listOrderInfo = mapOf("fare" to order.fare, "pickup" to StopText.of(firstPickupStop(order)), "dropoff" to StopText.of(lastDropoffStop(order))),
             detailParsedText = rawScreenStr.take(500),
             ocrResult = null,
         )
@@ -157,7 +160,7 @@ fun ScanContext.handlePreConfirmScreen(
         if (session.contractedByApp && !appContractsOnOpen(effectiveMode, order)) {
             session.contractedByApp = false
             if (!ReservationGate.isToday(order))
-                AppLogger.i(TAG, LogTag.DECISION, "📅 [확정 안 누름] 상세가 오늘 콜이 아니다 — 예약 ${ReservationGate.wordOf(order)} ${order.reservedAt ?: ""} · 미리보기로 올리고 기사님이 확정")
+                AppLogger.i(TAG, LogTag.DECISION, "📅 [확정 안 누름] 상세가 오늘 콜이 아니다 — 예약 ${ReservationGate.wordOf(order)} ${firstPickupStop(order)?.requestedTime ?: ""} · 미리보기로 올리고 기사님이 확정")
             else
                 AppLogger.i(TAG, LogTag.DECISION, "🔐 [확정 안 누름] 지금 모드 $effectiveMode — 관제웹 없음 또는 서버 응답 없음 · 미리보기로 올리고 기사님이 확정")
         }
@@ -182,7 +185,7 @@ fun ScanContext.handlePreConfirmScreen(
                     targetApp = currentTargetApp,
                     screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
                     failureReason = "CONFIRM_BUTTON_NOT_FOUND",
-                    listOrderInfo = mapOf("fare" to order.fare, "pickup" to order.pickup, "dropoff" to order.dropoff),
+                    listOrderInfo = mapOf("fare" to order.fare, "pickup" to StopText.of(firstPickupStop(order)), "dropoff" to StopText.of(lastDropoffStop(order))),
                     detailParsedText = rawScreenStr.take(500),
                     ocrResult = null,
                 )
@@ -257,7 +260,7 @@ private fun ScanContext.abortPreConfirm(action: (() -> Unit)? = null) {
  */
 private fun ScanContext.logLateSnapshot(what: String, startedEpoch: Long, tapped: SimplifiedOfficeOrder?) {
     AppLogger.w(TAG, LogTag.CALL_STAGE, "🧹 [늦은 판독 버림] $what — 그 사이 콜이 끝났다(세대 $startedEpoch → ${session.epoch})" +
-        (tapped?.let { " · ${it.fare}원 ${it.pickup} → ${it.dropoff}" } ?: ""))
+        (tapped?.let { " · ${it.fare}원 ${StopText.of(firstPickupStop(it))} → ${StopText.of(lastDropoffStop(it))}" } ?: ""))
 }
 
 private fun ScanContext.handlePreConfirmSnapshot(
@@ -320,7 +323,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                         targetApp = currentTargetApp,
                         screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
                         failureReason = "REQUIREMENT_UNMET: ${missing.joinToString(" · ")}",
-                        listOrderInfo = mapOf("fare" to verifiedOrder.fare, "pickup" to verifiedOrder.pickup, "dropoff" to verifiedOrder.dropoff),
+                        listOrderInfo = mapOf("fare" to verifiedOrder.fare, "pickup" to StopText.of(firstPickupStop(verifiedOrder)), "dropoff" to StopText.of(lastDropoffStop(verifiedOrder))),
                         detailParsedText = rawScreenStr.take(500),
                         // 📸 사진 줄을 싣는다 — «무엇을 읽었길래 모자랐나»를 가른다 (판독 실패와 같은 모양)
                         ocrResult = mapOf(
@@ -347,7 +350,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                 val filteredOut = session.openedByApp && !passesFilterAfterFill(verifiedOrder)
                 clock.mark("필터")
                 if (filteredOut) {
-                    AppLogger.w(TAG, LogTag.CALL_STAGE, "🔎 [채운 뒤 탈락] ${verifiedOrder.pickup.take(14)} → ${verifiedOrder.dropoff.take(14)} ${verifiedOrder.fare}원 — 서버에 보내지 않고 목록으로")
+                    AppLogger.w(TAG, LogTag.CALL_STAGE, "🔎 [채운 뒤 탈락] ${StopText.of(firstPickupStop(verifiedOrder)).take(14)} → ${StopText.of(lastDropoffStop(verifiedOrder)).take(14)} ${verifiedOrder.fare}원 — 서버에 보내지 않고 목록으로")
                     session.isDetailScrapSent = true
                     abortPreConfirm()
                     return@post
@@ -364,7 +367,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                 session.isPreview = true
                 session.accumulatedDetailText = detailText
 
-                AppLogger.roadmap(LogTag.CALL_STAGE, "📸 [스냅샷 통과] 픽커 상세 검증 완료: ${orderWithId.pickup} → ${orderWithId.dropoff}", telemetryManager.currentScreenContext.name)
+                AppLogger.roadmap(LogTag.CALL_STAGE, "📸 [스냅샷 통과] 픽커 상세 검증 완료: ${StopText.of(firstPickupStop(orderWithId))} → ${StopText.of(lastDropoffStop(orderWithId))}", telemetryManager.currentScreenContext.name)
                 sendConfirmOnce(orderWithId, rawScreenStr)
                 sendDetail(orderWithId)
                 } finally {
@@ -381,7 +384,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                     targetApp = currentTargetApp,
                     screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
                     failureReason = "SNAPSHOT_PARSE_FAILED: $reason",
-                    listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to it.pickup, "dropoff" to it.dropoff) },
+                    listOrderInfo = tappedCard?.let { mapOf("fare" to it.fare, "pickup" to StopText.of(firstPickupStop(it)), "dropoff" to StopText.of(lastDropoffStop(it))) },
                     detailParsedText = rawScreenStr.take(500),
                     /**
                      * 👀 **읽은 줄을 그대로 싣는다** — 개수만 세면 «무엇을 읽었길래 실패했나»가 사라진다.
@@ -424,7 +427,7 @@ fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: 
             targetApp = currentTargetApp,
             screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
             failureReason = "DETAIL_MISMATCH: $reason · 손 상세로 봄",
-            listOrderInfo = mapOf("fare" to tapped.fare, "pickup" to tapped.pickup, "dropoff" to tapped.dropoff),
+            listOrderInfo = mapOf("fare" to tapped.fare, "pickup" to StopText.of(firstPickupStop(tapped)), "dropoff" to StopText.of(lastDropoffStop(tapped))),
             detailParsedText = rawScreenStr.take(500),
             ocrResult = null,
         )
@@ -437,7 +440,7 @@ fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: 
         targetApp = currentTargetApp,
         screenName = TelemetryManager.sentScreenOf(telemetryManager.reportedScreen),
         failureReason = "DETAIL_MISMATCH: $reason",
-        listOrderInfo = mapOf("fare" to tapped.fare, "pickup" to tapped.pickup, "dropoff" to tapped.dropoff),
+        listOrderInfo = mapOf("fare" to tapped.fare, "pickup" to StopText.of(firstPickupStop(tapped)), "dropoff" to StopText.of(lastDropoffStop(tapped))),
         detailParsedText = rawScreenStr.take(500),
         ocrResult = null,
     )
@@ -466,7 +469,7 @@ fun ScanContext.settleOpener(): String {
 
 /** 👆 «앱이 연 콜»을 풀어 손 상세로 — 앱이 누른 줄과 대조하지 않는다 */
 fun ScanContext.releaseAppOpened(reason: String) {
-    AppLogger.i(TAG, LogTag.CALL_STAGE, "👆 [손 상세로 봄] $reason — 앱이 누른 줄(${session.alarmTappedCard?.let { "${it.pickup}→${it.dropoff} ${it.fare}원" } ?: "없음"})과 대조하지 않는다")
+    AppLogger.i(TAG, LogTag.CALL_STAGE, "👆 [손 상세로 봄] $reason — 앱이 누른 줄(${session.alarmTappedCard?.let { "${StopText.of(firstPickupStop(it))}→${StopText.of(lastDropoffStop(it))} ${it.fare}원" } ?: "없음"})과 대조하지 않는다")
     session.openedByApp = false
     session.alarmTappedCard = null
     session.alarmTappedAtMs = 0L
@@ -482,8 +485,8 @@ fun ScanContext.passesFilterAfterFill(order: SimplifiedOfficeOrder): Boolean {
      * 목록은 확실한 다른 날만 막고 날 모름을 들였다 — 상세에서 채워도 날을 모르면 여기서 막는다(«내일 걸 오늘 잡으면 사고다»).
      */
     val reservationOk = ReservationGate.passesAfterFill(order, scrapParser.reservationMode())
-    if (!reservationOk && com.onedal.app.core.LogOnce.changed("reservation-after-fill:${order.id}", "${order.reserved}${order.reservedDay}"))
-        AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 막음] 채운 뒤 — $currentTargetApp · 예약 ${ReservationGate.wordOf(order)} ${order.reservedAt ?: ""} · ${order.pickup}→${order.dropoff}")
+    if (!reservationOk && com.onedal.app.core.LogOnce.changed("reservation-after-fill:${order.id}", "${order.reserved}${firstPickupStop(order)?.requestedDay}"))
+        AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 막음] 채운 뒤 — $currentTargetApp · 예약 ${ReservationGate.wordOf(order)} ${firstPickupStop(order)?.requestedTime ?: ""} · ${StopText.of(firstPickupStop(order))}→${StopText.of(lastDropoffStop(order))}")
     return reservationOk && scrapParser.shouldClick(order)
 }
 

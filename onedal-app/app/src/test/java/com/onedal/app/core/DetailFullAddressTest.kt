@@ -13,6 +13,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import com.onedal.app.models.CallStop
 
 /**
  * 🏠 **상세의 필수 요소는 전체 주소 — 세 배차망 같은 순서** (기사님 «상세에 들어간 뒤엔 모든 주소를 다 가지고 있어야 한다»)
@@ -34,7 +35,12 @@ class DetailFullAddressTest {
     private val full = "서울 강남구 역삼동"
 
     private fun order(pickup: String, dropoff: String, fare: Int = 20000) = SimplifiedOfficeOrder(
-        id = "t", type = "NEW_ORDER", pickup = pickup, dropoff = dropoff, fare = fare, timestamp = "2026-09-29T10:00:00",
+        id = "t",
+        type = "NEW_ORDER",
+        fare = fare,
+        timestamp = "2026-09-29T10:00:00",
+        pickupDetails = listOf(CallStop(listText = pickup)),
+        dropoffDetails = listOf(CallStop(listText = dropoff)),
     )
 
     @Test

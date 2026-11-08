@@ -3,6 +3,9 @@ package com.onedal.app.plugins.kakaopicker
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
 
 /**
  * 🚶 **도보 콜의 «31분 내» 는 지역 이름이 아니다** (`pnpm db parse` 가 찾아냈다).
@@ -32,8 +35,8 @@ class PickerWalkCardTest {
             listOf("31분 내", "준비 18분", "487m", "도보", "3,200", "교촌치킨-야탑역점", "금호프라자", "15.0km"),
         )
         assertEquals(3200, o.fare)
-        assertTrue("가게 이름이 출발지에 없다: ${o.pickup}", o.pickup.contains("교촌치킨-야탑역점"))
-        assertTrue("남은 시간이 주소에 샜다: ${o.pickup}→${o.dropoff}", !"${o.pickup} ${o.dropoff}".contains("31분"))
+        assertTrue("가게 이름이 출발지에 없다: ${StopText.of(firstPickupStop(o))}", StopText.of(firstPickupStop(o)).contains("교촌치킨-야탑역점"))
+        assertTrue("남은 시간이 주소에 샜다: ${StopText.of(firstPickupStop(o))}→${StopText.of(lastDropoffStop(o))}", !"${StopText.of(firstPickupStop(o))} ${StopText.of(lastDropoffStop(o))}".contains("31분"))
         assertTrue("남은 시간이 꼬리표에 없다: ${o.tagsText}", o.tagsText?.contains("31분 내") == true)
     }
 
@@ -44,7 +47,7 @@ class PickerWalkCardTest {
             listOf("31분", "내", "준비 14분", "1.5km", "도보", "2,241", "GS슈퍼[용인둔전]", "임원마을영화아파트", "14.0km"),
         )
         assertEquals(2241, o.fare)
-        assertTrue("가게 이름이 출발지에 없다: ${o.pickup}", o.pickup.contains("GS슈퍼[용인둔전]"))
+        assertTrue("가게 이름이 출발지에 없다: ${StopText.of(firstPickupStop(o))}", StopText.of(firstPickupStop(o)).contains("GS슈퍼[용인둔전]"))
         assertTrue("남은 시간이 꼬리표에 없다: ${o.tagsText}", o.tagsText?.contains("31분") == true)
     }
 
@@ -53,7 +56,7 @@ class PickerWalkCardTest {
         val o = parser.parse(
             listOf("51분", "내", "준비 완료", "1.2km", "도보", "2,104", "올영 판교아브뉴프랑점", "판교로 242", "16.1km"),
         )
-        assertTrue("가게 이름을 잃었다: ${o.pickup}", o.pickup.contains("올영 판교아브뉴프랑점"))
-        assertTrue("건물 이름을 잃었다: ${o.pickup}→${o.dropoff}", "${o.pickup} ${o.dropoff}".contains("판교로 242"))
+        assertTrue("가게 이름을 잃었다: ${StopText.of(firstPickupStop(o))}", StopText.of(firstPickupStop(o)).contains("올영 판교아브뉴프랑점"))
+        assertTrue("건물 이름을 잃었다: ${StopText.of(firstPickupStop(o))}→${StopText.of(lastDropoffStop(o))}", "${StopText.of(firstPickupStop(o))} ${StopText.of(lastDropoffStop(o))}".contains("판교로 242"))
     }
 }

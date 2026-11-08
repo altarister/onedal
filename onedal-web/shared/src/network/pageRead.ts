@@ -263,6 +263,8 @@ const STOP_CONTACT: ReadonlyArray<readonly [key: keyof CallStop, field: PageFiel
     ['customerName', 'contact', s => `${s}.customer`], ['addressDetail', 'pickup', s => `${s}.address`, true], ['department', 'contact', s => `${s}.department`],
     ['contactName', 'contact', s => `${s}.contactName`], ['phone1', 'contact', s => `${s}.phone1`], ['phone2', 'contact', s => `${s}.phone2`],
 ];
+/** 정거장 연락처 칸 이름 — 상세 원문이 채우는 칸(서버 `/detail` 이 콜 정거장 위에 이 칸만 얹는다) */
+export const STOP_CONTACT_KEYS: ReadonlyArray<keyof CallStop> = STOP_CONTACT.map(([key]) => key);
 
 /**
  * 📄 **상세 원문의 콜 자료** — 상태 · 물품 · 결제 · 계산서 · 수수료 · 탁송료 · 구분 · 형태 · 배차사 · 화물번호 · 가게 주문 번호 · 의뢰인 · 적요 · 출발 · 도착 연락처 · 돈 · 짐 묶음(서버 `/detail` · 기사님 «1~5 모두 가»).

@@ -4,6 +4,7 @@ import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 🧪 **필터 채점표 — 폰 없이 3초에 돈다** (기사님 확정)
@@ -72,12 +73,14 @@ class FilterVerdictTest {
     )
 
     private fun orderOf(p: Problem) = SimplifiedOfficeOrder(
-        id = p.label, type = "NEW_ORDER",
-        pickup = p.pickup, dropoff = p.dropoff, fare = p.fare,
+        id = p.label,
+        type = "NEW_ORDER",
+        fare = p.fare,
         timestamp = "2026-08-25T13:11:00",
         vehicleType = p.vehicle,
         rawText = "${p.pickup} ${p.dropoff}",
-        pickupDistance = p.pickupKm, deliveryDistance = p.deliveryKm,
+        pickupDetails = listOf(CallStop(listText = p.pickup, distanceKm = p.pickupKm)),
+        dropoffDetails = listOf(CallStop(listText = p.dropoff, distanceKm = p.deliveryKm)),
     )
 
     /**
@@ -131,16 +134,24 @@ class FilterVerdictTest {
         val filter = driveFilter()
 
         val 실으러가기 = SimplifiedOfficeOrder(
-            id = "x", pickup = "여주시 점동면", dropoff = "가남읍", fare = 50000,
-            timestamp = "2026-08-25T13:11:00", vehicleType = "다",
-            rawText = "여주시 점동면 가남읍", pickupDistance = 20.0, deliveryDistance = 8.7,
+            id = "x",
+            fare = 50000,
+            timestamp = "2026-08-25T13:11:00",
+            vehicleType = "다",
+            rawText = "여주시 점동면 가남읍",
+            pickupDetails = listOf(CallStop(listText = "여주시 점동면", distanceKm = 20.0)),
+            dropoffDetails = listOf(CallStop(listText = "가남읍", distanceKm = 8.7)),
         )
         assertEquals(false, InsungParser.decide(실으러가기, filter))
 
         val 내리러가기 = SimplifiedOfficeOrder(
-            id = "y", pickup = "가남읍", dropoff = "여주시 점동면", fare = 30000,
-            timestamp = "2026-08-25T13:11:00", vehicleType = "다",
-            rawText = "가남읍 여주시 점동면", pickupDistance = 1.0, deliveryDistance = 8.7,
+            id = "y",
+            fare = 30000,
+            timestamp = "2026-08-25T13:11:00",
+            vehicleType = "다",
+            rawText = "가남읍 여주시 점동면",
+            pickupDetails = listOf(CallStop(listText = "가남읍", distanceKm = 1.0)),
+            dropoffDetails = listOf(CallStop(listText = "여주시 점동면", distanceKm = 8.7)),
         )
         assertEquals(true, InsungParser.decide(내리러가기, filter))
     }
@@ -153,9 +164,13 @@ class FilterVerdictTest {
     fun `승용차는 승으로 판정된다`() {
         val filter = driveFilter()
         val 승용차콜 = SimplifiedOfficeOrder(
-            id = "z", pickup = "가남읍", dropoff = "여주시 세종대왕면", fare = 30000,
-            timestamp = "2026-08-25T13:11:00", vehicleType = "승",
-            rawText = "가남읍 세종대왕면", pickupDistance = 34.7, deliveryDistance = 6.8,
+            id = "z",
+            fare = 30000,
+            timestamp = "2026-08-25T13:11:00",
+            vehicleType = "승",
+            rawText = "가남읍 세종대왕면",
+            pickupDetails = listOf(CallStop(listText = "가남읍", distanceKm = 34.7)),
+            dropoffDetails = listOf(CallStop(listText = "여주시 세종대왕면", distanceKm = 6.8)),
         )
         assertEquals(true, InsungParser.decide(승용차콜, filter))
     }
@@ -177,8 +192,13 @@ class FilterVerdictTest {
     @Test
     fun `선점 중이어도 판정은 돈다 — 잠긴 것은 만석뿐이다`() {
         val order = SimplifiedOfficeOrder(
-            id = "t-eval", pickup = "오송읍", dropoff = "성곡동",
-            fare = 39000, vehicleType = "오토바이", type = "AUTO", timestamp = "2026-09-24T04:58:00+09:00",
+            id = "t-eval",
+            fare = 39000,
+            vehicleType = "오토바이",
+            type = "AUTO",
+            timestamp = "2026-09-24T04:58:00+09:00",
+            pickupDetails = listOf(CallStop(listText = "오송읍")),
+            dropoffDetails = listOf(CallStop(listText = "성곡동")),
         )
         /* 콜 잡기는 켜져 있고, 지금 다른 콜을 심사 중이다 */
         val f = driveFilter().copy(isActive = true, evaluatingNow = true)
@@ -188,8 +208,13 @@ class FilterVerdictTest {
     @Test
     fun `만석이면 지금처럼 잠긴다`() {
         val order = SimplifiedOfficeOrder(
-            id = "t-full", pickup = "오송읍", dropoff = "성곡동",
-            fare = 39000, vehicleType = "오토바이", type = "AUTO", timestamp = "2026-09-24T04:58:00+09:00",
+            id = "t-full",
+            fare = 39000,
+            vehicleType = "오토바이",
+            type = "AUTO",
+            timestamp = "2026-09-24T04:58:00+09:00",
+            pickupDetails = listOf(CallStop(listText = "오송읍")),
+            dropoffDetails = listOf(CallStop(listText = "성곡동")),
         )
         val f = driveFilter().copy(isActive = false)
         assertEquals("locked", InsungParser.judge(order, f).axis)

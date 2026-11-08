@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * ✍️ **앱이 확정을 누르나 — 자동 모드 · 수락 칸이 있는 배차망 · 오늘 콜** (예약콜 1단계 C5 · 기사님 «가»).
@@ -13,7 +14,13 @@ import org.junit.Test
  */
 class AppPressesAcceptTest {
     private fun call(reserved: Boolean?, day: Int?) = SimplifiedOfficeOrder(
-        id = "c", pickup = "a", dropoff = "b", fare = 30000, timestamp = "t", reserved = reserved, reservedDay = day)
+        id = "c",
+        fare = 30000,
+        timestamp = "t",
+        reserved = reserved,
+        pickupDetails = listOf(CallStop(listText = "a", requestedDay = day)),
+        dropoffDetails = listOf(CallStop(listText = "b")),
+)
     private val buttons = listOf("확정")
 
     @Test fun `오늘 콜 · 보통 콜은 누른다`() {

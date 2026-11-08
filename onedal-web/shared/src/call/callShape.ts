@@ -27,9 +27,9 @@ const SHAPE_KEYS: Record<keyof (MyOrder & PendingOrder & SecuredOrder), 'shape' 
     dispatcherName: 'shape', dispatcherPhone: 'shape', requesterName: 'shape', stageText: 'shape',
     // 출처 (CallProvenance)
     type: 'shape', timestamp: 'shape', rawText: 'shape', openedBy: 'shape', capturedMode: 'shape', isSimulated: 'shape', verdict: 'shape',
-    // 목록 콜 (SimplifiedOfficeOrder — 맨 위 주소 · 좌표 · 약속 · 거리 칸은 정거장에)
+    // 목록 콜 (SimplifiedOfficeOrder — 정거장 · 짐 묶음은 아래 줄)
     itemSize: 'shape', tagsText: 'shape', fare: 'shape', postTime: 'shape', vehicleType: 'shape', reserved: 'shape',
-    // 상세 콜 (DetailedOfficeOrder)
+    // 상세 콜 (DetailedOfficeOrder) · 정거장 묶음(SimplifiedOfficeOrder)
     itemDescription: 'shape', commissionRate: 'shape', tollFare: 'shape', paymentType: 'shape', billingType: 'shape',
     tripType: 'shape', orderForm: 'shape', detailMemo: 'shape', pickupDetails: 'shape', dropoffDetails: 'shape',
     // 돈 · 짐 묶음

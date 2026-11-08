@@ -25,7 +25,7 @@ const post = async (router: any, path: string, body: any) => {
     const res: any = { status: () => res, json: () => res };
     await handlerOf(router, path)({ app, body }, res);
 };
-const order = (id: string) => ({ id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 신둔면', fare: 38500, vehicleType: '다마스', rawText: '' });
+const order = (id: string) => ({ id, pickupDetails: [{ listText: '경기 광주시 곤지암읍' }], dropoffDetails: [{ listText: '경기 이천시 신둔면' }], fare: 38500, vehicleType: '다마스', rawText: '' });
 const confirm = (id: string, matchType = 'AUTO') => post(ordersRouter, '/confirm', { step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType, order: order(id) });
 const detail = (id: string, matchType = 'AUTO') => post(detailRouter, '/', { step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType, order: order(id) });
 const modeIs = (mode: string) => activeDevices.set(DEV, { deviceId: DEV, userId: U, lastSeen: Date.now(), status: 'ONLINE', mode, stats: { polled: 0, grabbed: 0, canceled: 0 } } as any);

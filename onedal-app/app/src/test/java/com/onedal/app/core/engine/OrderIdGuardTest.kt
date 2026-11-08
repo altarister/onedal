@@ -4,6 +4,7 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 🔢 **모든 콜은 번호가 있다** (기사님 «모든 콜에는 상차지 주소가 있는 것처럼 번호가 붙어야»).
@@ -13,7 +14,7 @@ import org.junit.Test
  */
 class OrderIdGuardTest {
 
-    private fun order(id: String) = SimplifiedOfficeOrder(id = id, pickup = "경기 성남시 수정구 신촌동", dropoff = "서울 광진구 자양2동", fare = 10830, timestamp = "t")
+    private fun order(id: String) = SimplifiedOfficeOrder(id = id, fare = 10830, timestamp = "t", pickupDetails = listOf(CallStop(listText = "경기 성남시 수정구 신촌동")), dropoffDetails = listOf(CallStop(listText = "서울 광진구 자양2동")))
 
     @Test
     fun `빈 번호 콜은 번호가 생긴다 — 잡은 방식-시각 모양`() {

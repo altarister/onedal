@@ -6,6 +6,10 @@ import com.onedal.app.core.AppLogger
 import com.onedal.app.core.engine.ScanContext
 import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
+import com.onedal.app.models.CallStop
 
 /**
  * 🔴 **인성 잡기 수순 — 여기가 그 집이다**.
@@ -85,12 +89,12 @@ fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOffic
          * 주소 꼴이 아니면 «배차값없음» 으로 둔다 — 뒤따르는 상세 수집이 진짜 주소를
          * 채운다. 모르면 모른다고 두는 것이 지어내는 것보다 낫다 (규칙 ④).
          */
-        pickup = tempOrder.pickup.takeIf {
+        pickupDetails = listOf(CallStop(listText = StopText.of(firstPickupStop(tempOrder)).takeIf {
             it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
-        } ?: "배차값없음",
-        dropoff = tempOrder.dropoff.takeIf {
+        } ?: "배차값없음")),
+        dropoffDetails = listOf(CallStop(listText = StopText.of(lastDropoffStop(tempOrder)).takeIf {
             it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
-        } ?: "배차값없음",
+        } ?: "배차값없음")),
         /* 💰 목록 규칙(차종 다음 칸)이 못 읽으면 내 콜 화면 정의(«요금 : N»)로 — InsungPages MY_CALL FARE 의 READ */
         fare = tempOrder.fare.takeIf { it > 0 }
             ?: (com.onedal.app.core.PageFieldRead.fareOf(InsungPages.pages, com.onedal.app.core.Page.MY_CALL, screenTexts) ?: 0),

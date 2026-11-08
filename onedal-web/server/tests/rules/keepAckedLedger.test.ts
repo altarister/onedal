@@ -88,7 +88,7 @@ describe('🧾 받았음이 없는 확정은 되살리지 않는다', () => {
         const layer = detailRouter.stack.find((l: any) => l.route?.path === '/' && l.route.methods.post);
         await layer.route.stack[layer.route.stack.length - 1].handle({ body: {
             step: 'DETAILED', deviceId: DEV, targetApp: 'insung',
-            order: { id, pickup: '경기 이천시 부발읍', dropoff: '경기 여주시 가남읍', fare: 30000, vehicleType: '다마스', rawText: '' },
+            order: { id, pickupDetails: [{ listText: '경기 이천시 부발읍' }], dropoffDetails: [{ listText: '경기 여주시 가남읍' }], fare: 30000, vehicleType: '다마스', rawText: '' },
         }, app }, res);
         const session = getUserSession(U);
         db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp)

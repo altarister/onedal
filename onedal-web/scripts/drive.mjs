@@ -172,11 +172,11 @@ const token = async () => (await (await fetch(`http://localhost:${PORT}/api/auth
  */
 async function appUploads(deviceId, id, pk, dp, label) {
     const order = {
-        id, pickup: `모의-${label}-상차`, dropoff: `모의-${label}-하차`,
-        fare: 50000, vehicleType: '다마스', paymentType: '신용',
+        id, fare: 50000, vehicleType: '다마스', paymentType: '신용',
         timestamp: new Date().toISOString(), itemDescription: '모의 주행 콜',
-        pickupX: pk.x, pickupY: pk.y, dropoffX: dp.x, dropoffY: dp.y,
-        deliveryDistance: 30,
+        pickupDetails: [{ listText: `모의-${label}-상차`, geo: { x: pk.x, y: pk.y } }],
+        dropoffDetails: [{ listText: `모의-${label}-하차`, geo: { x: dp.x, y: dp.y }, distanceKm: 30 }],
+        load: { vehicleText: '다마스', sizeText: null, itemText: '모의 주행 콜', lines: [] },
     };
     const base = { deviceId, capturedAt: new Date().toISOString(), matchType: 'AUTO' };
     const post = (path, body) => fetch(`http://localhost:${PORT}/api/orders${path}`, {

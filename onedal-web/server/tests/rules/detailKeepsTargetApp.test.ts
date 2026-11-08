@@ -21,7 +21,7 @@ const handlerOf = (router: any, path: string) => {
     const layer = router.stack.find((l: any) => l.route?.path === path && l.route.methods.post);
     return layer.route.stack[layer.route.stack.length - 1].handle;
 };
-const ORDER = (id: string) => ({ id, type: 'MANUAL_CLICK', pickup: '경기 성남시 수정구 신촌동', dropoff: '서울 광진구 자양2동', fare: 10830, rawText: '' });
+const ORDER = (id: string) => ({ id, type: 'MANUAL_CLICK', pickupDetails: [{ listText: '경기 성남시 수정구 신촌동' }], dropoffDetails: [{ listText: '서울 광진구 자양2동' }], fare: 10830, rawText: '' });
 const post = async (router: any, path: string, body: any) => {
     const res: any = { status: () => res, json: () => res };
     await handlerOf(router, path)({ app, body }, res);

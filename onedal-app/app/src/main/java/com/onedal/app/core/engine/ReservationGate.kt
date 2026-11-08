@@ -1,6 +1,7 @@
 package com.onedal.app.core.engine
 
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.core.firstPickupStop
 
 /**
  * 📅 **예약 필터 — 세 배차망 공통 한 벌** (예약콜 1단계 · 기사님 «가» · `ReservationGateTest`).
@@ -23,10 +24,10 @@ object ReservationGate {
     /** 예약 표시가 없다 — 보통 콜 */
     private fun unmarked(o: SimplifiedOfficeOrder) = o.reserved != true
     /** 예약인데 날을 모른다 */
-    private fun dayUnknown(o: SimplifiedOfficeOrder) = o.reserved == true && o.reservedDay == null
+    private fun dayUnknown(o: SimplifiedOfficeOrder) = o.reserved == true && firstPickupStop(o)?.requestedDay == null
 
     fun passesList(o: SimplifiedOfficeOrder, mode: String?): Boolean {
-        val day = o.reservedDay
+        val day = firstPickupStop(o)?.requestedDay
         return when (modeOf(mode)) {
             TOMORROW_TOO -> day == null || day <= 1
             TOMORROW_ONLY -> dayUnknown(o) || day == 1
@@ -35,7 +36,7 @@ object ReservationGate {
     }
 
     fun passesAfterFill(o: SimplifiedOfficeOrder, mode: String?): Boolean {
-        val day = o.reservedDay
+        val day = firstPickupStop(o)?.requestedDay
         return when (modeOf(mode)) {
             TOMORROW_TOO -> unmarked(o) || day == 0 || day == 1
             TOMORROW_ONLY -> day == 1
@@ -46,12 +47,12 @@ object ReservationGate {
     /** 📅 로그에 적는 예약 낱말 — 픽커 채점기(`pickerAlarmGrade.mjs`)가 이 낱말로 콜의 예약을 되살린다 */
     fun wordOf(o: SimplifiedOfficeOrder): String = when {
         unmarked(o) -> "없음"
-        o.reservedDay == null -> "날 모름"
-        o.reservedDay == 0 -> "오늘"
-        o.reservedDay == 1 -> "내일"
-        else -> "${o.reservedDay}일 뒤"
+        firstPickupStop(o)?.requestedDay == null -> "날 모름"
+        firstPickupStop(o)?.requestedDay == 0 -> "오늘"
+        firstPickupStop(o)?.requestedDay == 1 -> "내일"
+        else -> "${firstPickupStop(o)?.requestedDay}일 뒤"
     }
 
     /** 📅 오늘 콜인가 — 예약 표시가 없거나 오늘(0)일 때만. 앱이 확정을 누르는 조건이다 */
-    fun isToday(o: SimplifiedOfficeOrder): Boolean = unmarked(o) || o.reservedDay == 0
+    fun isToday(o: SimplifiedOfficeOrder): Boolean = unmarked(o) || firstPickupStop(o)?.requestedDay == 0
 }

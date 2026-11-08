@@ -17,6 +17,10 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.lastDropoffStop
+import com.onedal.app.core.StopText
+import com.onedal.app.core.withLastDropoff
 
 /**
  * 📄 **인성플렉스 파서 — 실물 기대값** (실물 ex_images/인성플렉스 02 · 07 목록 · 08~12 상세 · 03~06 콜이 없는 장).
@@ -38,16 +42,16 @@ class IsflexParserTest {
         }
 
     private fun assertOrder(label: String, w: Want, o: SimplifiedOfficeOrder) {
-        assertEquals("$label 상차", w.pickup, o.pickup)
-        assertEquals("$label 하차", w.dropoff, o.dropoff)
+        assertEquals("$label 상차", w.pickup, StopText.of(firstPickupStop(o)))
+        assertEquals("$label 하차", w.dropoff, StopText.of(lastDropoffStop(o)))
         assertEquals("$label 요금", w.fare, o.fare)
-        assertEquals("$label 출발지까지", w.pickupKm, o.pickupDistance)
-        assertEquals("$label 운행 거리", w.deliveryKm, o.deliveryDistance)
+        assertEquals("$label 출발지까지", w.pickupKm, firstPickupStop(o)?.distanceKm)
+        assertEquals("$label 운행 거리", w.deliveryKm, lastDropoffStop(o)?.distanceKm)
         assertEquals("$label 차종", w.vehicle, o.vehicleType)
-        assertEquals("$label 예약 글자", w.schedule, o.scheduleText)
+        assertEquals("$label 예약 글자", w.schedule, firstPickupStop(o)?.promiseText)
         assertEquals("$label 예약", w.reserved != null, o.reserved == true)
-        assertEquals("$label 예약 날", w.reserved?.first, o.reservedDay)
-        assertEquals("$label 예약 시각", w.reserved?.second, o.reservedAt)
+        assertEquals("$label 예약 날", w.reserved?.first, firstPickupStop(o)?.requestedDay)
+        assertEquals("$label 예약 시각", w.reserved?.second, firstPickupStop(o)?.requestedTime)
         assertEquals("$label 꼬리표", w.tags, o.tagsText)
     }
 
@@ -116,8 +120,8 @@ class IsflexParserTest {
             assertEquals("$label 꼬리표 칸", fields.first, com.onedal.app.core.PageFieldRead.fieldOf(pages, page, com.onedal.app.core.PageField.TAGS, detail))
             assertEquals("$label 적요 칸", fields.second, com.onedal.app.core.PageFieldRead.fieldOf(pages, page, com.onedal.app.core.PageField.MEMO, detail))
             assertEquals("$label 결제 칸", fields.third, com.onedal.app.core.PageFieldRead.fieldOf(pages, page, com.onedal.app.core.PageField.PAYMENT, detail))
-            assertTrue("$label 상차 전체 주소", AddressForm.isFull(o.pickup))
-            assertTrue("$label 하차 전체 주소", AddressForm.isFull(o.dropoff))
+            assertTrue("$label 상차 전체 주소", AddressForm.isFull(StopText.of(firstPickupStop(o))))
+            assertTrue("$label 하차 전체 주소", AddressForm.isFull(StopText.of(lastDropoffStop(o))))
         }
     }
 
@@ -129,7 +133,7 @@ class IsflexParserTest {
             val detail = IsflexParser.detailTextsOf(texts)
             val w = wantDetail.first { it.first === texts }.second
             val filled = IsflexParser.fillFromDetail(list[row].copy(rawText = detail.joinToString(" ")), now)
-            assertOrder("채움 07-${row + 1}", w.copy(pickupKm = list[row].pickupDistance, deliveryKm = list[row].deliveryDistance), filled)
+            assertOrder("채움 07-${row + 1}", w.copy(pickupKm = firstPickupStop(list[row])?.distanceKm, deliveryKm = lastDropoffStop(list[row])?.distanceKm), filled)
         }
     }
 
@@ -173,7 +177,7 @@ class IsflexParserTest {
     /** 💰 단가 바닥은 기사님 차종 — 🔴 기사님 차종을 못 받았으면(null) 콜 화면 차종 단가로 선다(단가 판정이 꺼지지 않는다) */
     @Test fun `단가 — 기사님 차종이 없으면 화면 차종 «오토»의 오토바이 단가로 선다`() {
         // 20km · 16,000원 = km 당 800원 — 오토바이 700 은 넘고 1t 1000 은 못 넘는다 · 승용차 900 도 못 넘는다
-        val o = row07[1].copy(fare = 16000, deliveryDistance = 20.0)
+        val o = withLastDropoff(row07[1].copy(fare = 16000)) { it.copy(distanceKm = 20.0) }
         val rates = on.copy(ratePerKm = mapOf("오토바이" to 700, "승용차" to 900, "1t" to 1000))
         assertEquals("기사님 차종 1t", "fare", IsflexParser.judge(o, rates.copy(driverVehicleType = "1t")).axis)
         assertEquals("기사님 차종 없음 → 오토바이 700", "pass", IsflexParser.judge(o, rates.copy(driverVehicleType = null)).axis)

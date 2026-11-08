@@ -10,6 +10,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import com.onedal.app.models.CallStop
 
 /**
  * 📄 **화면 칸은 플러그인 정의(FieldSpec.read)대로 읽는다** (기사님 «가» — «그건 플러그인에서 정의해야 하는 거야» · onedal-69).
@@ -46,7 +47,7 @@ class PageFieldReadTest {
     }
 
     @Test fun `요금이 비었을 때만 채운다 - 앱이 연 콜의 목록 값은 그대로`() {
-        val empty = SimplifiedOfficeOrder(id = "o", pickup = "배차값없음", dropoff = "배차값없음", fare = 0, timestamp = "t")
+        val empty = SimplifiedOfficeOrder(id = "o", fare = 0, timestamp = "t", pickupDetails = listOf(CallStop(listText = "배차값없음")), dropoffDetails = listOf(CallStop(listText = "배차값없음")))
         assertEquals(50000, PageFieldRead.withFare(empty, InsungPages.pages, Page.NEW_CALL, insungDetail).fare)
         assertEquals(30000, PageFieldRead.withFare(empty.copy(fare = 30000), InsungPages.pages, Page.NEW_CALL, insungDetail).fare)
         assertEquals(0, PageFieldRead.withFare(empty, KakaoPickerPages.pages, Page.NEW_CALL, listOf("최종 수익 2,387")).fare)

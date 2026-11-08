@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { scrapReleaseCodes } from "../core/releases";
-import { isTargetApp, DEFAULT_TARGET_APP, callFromAppReport, firstPickupStop, lastDropoffStop, firstStopKm, deliveryKmOf, screenReportOf } from "@onedal/shared";
+import { isTargetApp, DEFAULT_TARGET_APP, firstPickupStop, lastDropoffStop, firstStopKm, deliveryKmOf, screenReportOf } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, TargetAppType } from "@onedal/shared";
 import db from "../db";
 import { reportSourceOf } from "../core/helpers";
@@ -81,8 +81,8 @@ router.post("/", (req, res) => {
         // logRoadmapEvent("서버", "방대한 스크랩 배열값을 intel 테이블 DB 저장");
         // 2. 비동기 Write Queue를 통해 밀려들어오는 데이터를 오류 없이 INSERT
         data.forEach(item => {
-            /* 📱→🚏 보고의 맨 위 칸을 정거장으로 — 글자 · 좌표 · 거리 · 상차 약속은 첫 상차 · 마지막 하차 정거장에서 읽는다(잡은 콜 장부와 같은 규칙) */
-            const call = callFromAppReport(item);
+            /* 📱🚏 보고가 곧 콜이다 — 글자 · 좌표 · 거리 · 상차 약속은 첫 상차 · 마지막 하차 정거장에서 읽는다(잡은 콜 장부와 같은 규칙) */
+            const call = item;
             const pickupStop = firstPickupStop(call);
             const dropoffStop = lastDropoffStop(call);
             dbQueue.runAsync(

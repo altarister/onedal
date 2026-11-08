@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import com.onedal.app.models.CallStop
 
 /**
  * 🔍 **onedal-ab 교차 리뷰의 앱 몫** (1f «가» · 라이브).
@@ -18,7 +19,7 @@ class ReviewFixesTest {
 
     @Test fun `D 열기 함을 지우면 다시 연다`() {
         val r = AlarmedRoutes()
-        val c = SimplifiedOfficeOrder(id = "c", pickup = "분당 구미1", dropoff = "분당 구미", fare = 6622, timestamp = "t", pickupDistance = 3.0)
+        val c = SimplifiedOfficeOrder(id = "c", fare = 6622, timestamp = "t", pickupDetails = listOf(CallStop(listText = "분당 구미1", distanceKm = 3.0)), dropoffDetails = listOf(CallStop(listText = "분당 구미")))
         r.markOpened(c, 0)
         assertTrue(r.opened(c))
         r.clearOpened(c)

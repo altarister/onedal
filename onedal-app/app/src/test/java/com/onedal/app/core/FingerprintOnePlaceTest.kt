@@ -20,7 +20,7 @@ class FingerprintOnePlaceTest {
         .replace(Regex("/\\*[\\s\\S]*?\\*/"), "").replace(Regex("//.*"), "")
 
     private val root = File("src/main/java/com/onedal/app")
-    private val formula = Regex("""pickup\s*\+\s*\S*dropoff\s*\+\s*\S*fare\.toString\(\)\)\.hashCode\(\)""")
+    private val formula = Regex("""(?i)pickup\S*\s*\+\s*\S*dropoff\S*\s*\+\s*\S*fare\.toString\(\)\)\.hashCode\(\)""")
 
     @Test
     fun `지문 식은 CallMemory 한 곳에만 있다`() {

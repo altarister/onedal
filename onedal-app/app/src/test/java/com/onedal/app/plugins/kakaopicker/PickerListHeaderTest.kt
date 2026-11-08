@@ -8,6 +8,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 📜 **목록이 내려가도 목록인지 안다 — «머리줄 안 보임»을 사실 한 칸으로** (기사님 «그런 상태인지 인지 못하는 것이 더 치명적이다»).
@@ -31,7 +32,7 @@ class PickerListHeaderTest {
     @Test fun `카드 0장 틀은 경로 기억을 지우지 않는다`() {
         // 경로 기억은 AlarmedRoutes «셈함» 한 곳 — 목록 스캔은 카드 0장 틀에서 seen 을 부르지 않는다(HijackService)
         val r = com.onedal.app.core.AlarmedRoutes()
-        val c = com.onedal.app.models.SimplifiedOfficeOrder(id = "c", pickup = "광주 경안", dropoff = "용산 한남", fare = 1, timestamp = "t", pickupDistance = 1.0)
+        val c = com.onedal.app.models.SimplifiedOfficeOrder(id = "c", fare = 1, timestamp = "t", pickupDetails = listOf(CallStop(listText = "광주 경안", distanceKm = 1.0)), dropoffDetails = listOf(CallStop(listText = "용산 한남")))
         assertTrue(r.notePassing(c, 0))
         assertFalse("못 읽은 틀 뒤에 또 셌다", r.notePassing(c, 1_000))
         r.seen(emptyList(), 11 * 60_000L)

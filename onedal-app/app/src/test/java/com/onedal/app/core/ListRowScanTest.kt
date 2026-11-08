@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 📋 **목록 한 줄 처리 — 건너뛰기 · 판정 · 기억 · 보고** (`ListRowScan.scanRow`).
@@ -20,7 +21,7 @@ class ListRowScanTest {
         var locked = false
         var verdict: String? = null
         var radius: Double? = null
-        override fun parse(texts: List<String>) = orders[texts.firstOrNull()] ?: SimplifiedOfficeOrder(id = "x", pickup = "", dropoff = "", fare = 0, timestamp = "t")
+        override fun parse(texts: List<String>) = orders[texts.firstOrNull()] ?: SimplifiedOfficeOrder(id = "x", fare = 0, timestamp = "t", pickupDetails = listOf(CallStop(listText = "")), dropoffDetails = listOf(CallStop(listText = "")))
         override fun todayPickupRadiusKm() = radius
         /** 실물 파서처럼 — 잠겨 있으면 성적표를 안 올리고 막는다 */
         override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
@@ -44,7 +45,7 @@ class ListRowScanTest {
     private fun scan(accountBlocked: Boolean = false) = ListRowScan(parser, memory, routes, tally, accountBlocked, nowMs = 1_000L, listScanNo = 1L,
         currentTargetApp = "hwamul24", allowsEmptyDropoff = { false }, report = { reported += it })
 
-    private val call = SimplifiedOfficeOrder(id = "c1", pickup = "경기 광주 초월읍", dropoff = "경기 이천 신둔면", fare = 50000, timestamp = "t", pickupDistance = 3.0)
+    private val call = SimplifiedOfficeOrder(id = "c1", fare = 50000, timestamp = "t", pickupDetails = listOf(CallStop(listText = "경기 광주 초월읍", distanceKm = 3.0)), dropoffDetails = listOf(CallStop(listText = "경기 이천 신둔면")))
     private fun row(o: SimplifiedOfficeOrder = call): List<String> { parser.orders["row"] = o; return listOf("row") }
 
     @Test fun `요금을 못 읽은 줄은 그 자리에서 뺀다 — 판정 · 보고 · 기억 없음`() {
@@ -54,7 +55,7 @@ class ListRowScanTest {
     }
 
     @Test fun `덜 읽힌 줄(상차 거리 없음)은 그 스캔에서 뺀다 — 판정 · 보고 · 기억 없음`() {
-        val o = call.copy(pickupDistance = null)
+        val o = withFirstPickup(call) { it.copy(distanceKm = null) }
         val out = scan().scanRow(row(o))
         assertEquals(ListRowScan.Kind.UNREAD, out.kind)
         assertEquals(0, tally.seen); assertTrue(reported.isEmpty())
@@ -106,27 +107,27 @@ class ListRowScanTest {
 
     @Test fun `상차 반경으로 막았던 콜이 가까워지면 다시 판정한다`() {
         parser.pass = false; parser.verdict = "pickup"
-        val far = call.copy(pickupDistance = 10.0)
+        val far = withFirstPickup(call) { it.copy(distanceKm = 10.0) }
         scan().scanRow(row(far))
         assertTrue(memory.alreadyEvaluated(CallMemory.fingerprintOf(far)))
         parser.pass = true; parser.radius = 5.0
-        val near = scan().scanRow(row(far.copy(pickupDistance = 3.0)))
+        val near = scan().scanRow(row(withFirstPickup(far) { it.copy(distanceKm = 3.0) }))
         assertEquals(ListRowScan.Kind.SCANNED, near.kind); assertTrue(near.addHit)
     }
 
     @Test fun `내일 이후 콜은 가까워져도 폰 km 로 풀지 않는다`() {
         parser.pass = false; parser.verdict = "pickup"
-        val tomorrow = call.copy(pickupDistance = 10.0, reservedDay = 1)
+        val tomorrow = withFirstPickup(call) { it.copy(distanceKm = 10.0, requestedDay = 1) }
         scan().scanRow(row(tomorrow))
         parser.pass = true; parser.radius = 5.0
-        assertEquals(ListRowScan.Kind.SEEN, scan().scanRow(row(tomorrow.copy(pickupDistance = 3.0))).kind)
+        assertEquals(ListRowScan.Kind.SEEN, scan().scanRow(row(withFirstPickup(tomorrow) { it.copy(distanceKm = 3.0) })).kind)
     }
 
     @Test fun `상차 탓이 아닌 막음(요금 · 도착)은 km 를 안 적어 가까워져도 안 푼다`() {
         parser.pass = false; parser.verdict = "fare"
-        val far = call.copy(pickupDistance = 10.0)
+        val far = withFirstPickup(call) { it.copy(distanceKm = 10.0) }
         scan().scanRow(row(far))
         parser.pass = true; parser.radius = 5.0
-        assertEquals(ListRowScan.Kind.SEEN, scan().scanRow(row(far.copy(pickupDistance = 3.0))).kind)
+        assertEquals(ListRowScan.Kind.SEEN, scan().scanRow(row(withFirstPickup(far) { it.copy(distanceKm = 3.0) })).kind)
     }
 }

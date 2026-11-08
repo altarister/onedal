@@ -43,7 +43,7 @@ class CallMemory private constructor(
          *    목록에서 기억한 지문과 달라져, 기억을 내리거나 찾는 일이 헛돈다.
          */
         fun fingerprintOf(order: com.onedal.app.models.SimplifiedOfficeOrder): Int =
-            (order.pickup + order.dropoff + order.fare.toString()).hashCode()
+            (StopText.of(firstPickupStop(order)) + StopText.of(lastDropoffStop(order)) + order.fare.toString()).hashCode()
     }
 
     /** ①-가 막았다 — 이 필터 버전으로 판정해 통과 못 했다. 필터 버전이 바뀌면 비운다 (#135) */

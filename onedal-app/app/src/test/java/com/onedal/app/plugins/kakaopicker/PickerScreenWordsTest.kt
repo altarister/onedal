@@ -6,6 +6,8 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.StopText
 
 /**
  * 📰 **픽커 목록 줄에서 뺀 글자가 모인다** — 맨 아래 카드 띠에 걸친 메뉴 «카드설정»(잡음) · 경로 조립에서 남은 지역 토막(남는 토막).
@@ -19,7 +21,7 @@ class PickerScreenWordsTest {
     @Test fun `잡음과 남는 토막이 모이고 쓴 칸은 안 모인다`() {
         ScreenWords.onScreen(Page.NEW_LIST)
         val o = KakaoPickerParser(null).parse(listOf("퀵", "소형", "강남", "6.8km", "광주", "송정", "역삼1", "역삼2", "19,404", "카드설정"))
-        assertEquals("광주 송정", o.pickup)
+        assertEquals("광주 송정", StopText.of(firstPickupStop(o)))
         val words = ScreenWords.drain()!!.words.map { it.kind to it.word }
         assertEquals(listOf("noise" to "카드설정", "extra" to "<지역>"), words)
     }

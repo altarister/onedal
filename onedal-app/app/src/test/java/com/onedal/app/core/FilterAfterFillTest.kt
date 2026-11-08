@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import com.onedal.app.models.CallStop
 
 /**
  * 🧭 **운행 중 픽커가 하차 목록 밖 하차를 거른다 · 채운 뒤 필터는 두 길이 같은 한 번** (기사님 «하차를 모르면 통과 싹 지워버려»)
@@ -25,11 +26,15 @@ class FilterAfterFillTest {
     fun `운행 중 픽커 - 하차 목록 밖 하차는 떨어진다`() {
         val dest = listOf("초월읍", "곤지암읍")
         val o = SimplifiedOfficeOrder(
-            id = "p", type = "NEW_ORDER", pickup = "경기 광주시 곤지암읍", dropoff = "경기 파주시 금촌동",
-            fare = 20000, timestamp = "2026-09-28T12:00:00", pickupDistance = 2.0,
+            id = "p",
+            type = "NEW_ORDER",
+            fare = 20000,
+            timestamp = "2026-09-28T12:00:00",
+            pickupDetails = listOf(CallStop(listText = "경기 광주시 곤지암읍", distanceKm = 2.0)),
+            dropoffDetails = listOf(CallStop(listText = "경기 파주시 금촌동")),
         )
         assertFalse(KakaoPickerParser.decide(o, minFare = 0, pickupRadiusKm = 10.0, destKeywords = dest))
-        assertTrue(KakaoPickerParser.decide(o.copy(dropoff = "경기 광주시 초월읍"), minFare = 0, pickupRadiusKm = 10.0, destKeywords = dest))
+        assertTrue(KakaoPickerParser.decide(withLastDropoff(o) { it.copy(listText = "경기 광주시 초월읍") }, minFare = 0, pickupRadiusKm = 10.0, destKeywords = dest))
     }
 
     @Test

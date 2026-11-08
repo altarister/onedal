@@ -4,6 +4,8 @@ import com.onedal.app.core.OcrLine
 import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import com.onedal.app.models.CallStop
+import com.onedal.app.core.firstPickupStop
 
 /**
  * 📅 **예약 날은 «픽업예약» 띠 줄이 먼저** — 픽업 줄은 «17:00까지 픽업»(날 없음)이라 픽업 줄만 보면 «날 모름»으로 오늘 콜을 막았다.
@@ -11,7 +13,7 @@ import org.junit.Test
 class PickerReservedBandTest {
     private fun reservationOf(lines: List<OcrLine>, card: SimplifiedOfficeOrder) =
         (PickerDetailOcrParser().verify(PickerScreenOcr.parseDetail(lines)!!, card, null, emptyList(), "") as PickerDetailOcrParser.VerifyResult.Success)
-            .order.let { Triple(it.reserved, it.reservedDay, it.reservedAt) }
+            .order.let { Triple(it.reserved, firstPickupStop(it)?.requestedDay, firstPickupStop(it)?.requestedTime) }
 
     /**
      * 실물 사진 ok_1790745697317.jpg — «오늘» 띠가 든 이상 기록이 없어 줄의 y 는 사진 픽셀 자리를 옮겨 적었다.
@@ -24,7 +26,7 @@ class PickerReservedBandTest {
             OcrLine(364, "물품 정보"), OcrLine(366, "중형 세 변의 합 140cm · 20kg 이하"), OcrLine(442, "유의사항"), OcrLine(443, "대박스 1개"),
             OcrLine(581, "넘기기"), OcrLine(581, "수락하기"),
         )
-        val card = SimplifiedOfficeOrder(id = "c", pickup = "분당 이매2", dropoff = "강남 논현2", fare = 15246, timestamp = "t")
+        val card = SimplifiedOfficeOrder(id = "c", fare = 15246, timestamp = "t", pickupDetails = listOf(CallStop(listText = "분당 이매2")), dropoffDetails = listOf(CallStop(listText = "강남 논현2")))
         assertEquals(Triple(true, 0, "17:00"), reservationOf(lines, card))
     }
 
@@ -37,7 +39,7 @@ class PickerReservedBandTest {
             OcrLine(285, "배송 4.5km"), OcrLine(312, "내일 14:56"), OcrLine(429, "중형 세 변의 합 140cm. 20kg 이하"),
             OcrLine(510, "와인 12병 입니다. 부피가 크니 가능한"), OcrLine(567, "수락하기"),
         )
-        val card = SimplifiedOfficeOrder(id = "c", pickup = "송파 문정2", dropoff = "하남 감북", fare = 7238, timestamp = "t")
+        val card = SimplifiedOfficeOrder(id = "c", fare = 7238, timestamp = "t", pickupDetails = listOf(CallStop(listText = "송파 문정2")), dropoffDetails = listOf(CallStop(listText = "하남 감북")))
         assertEquals(Triple(true, 1, "12:20"), reservationOf(lines, card))
     }
 }

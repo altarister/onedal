@@ -10,6 +10,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.onedal.app.models.CallStop
 
 /**
  * 🍷 **같은 가게·같은 경로 쌍둥이 콜 — 최종 수익이 화면 밖이면 낮은 요금** (기사님 «가» · onedal-1f).
@@ -28,7 +29,7 @@ class PickerTwinCallTest {
         OcrLine(510, "와인 12병 입니다. 부피가 크니 가능한"), OcrLine(567, "수락하기"),
     )
     private fun card(fare: Int, tags: String = "퀵 반나절 승 예약 내일") =
-        SimplifiedOfficeOrder(id = "c$fare", pickup = "송파 문정2", dropoff = "하남 감북", fare = fare, timestamp = "t", pickupDistance = 19.6, tagsText = tags)
+        SimplifiedOfficeOrder(id = "c$fare", fare = fare, timestamp = "t", tagsText = tags, pickupDetails = listOf(CallStop(listText = "송파 문정2", distanceKm = 19.6)), dropoffDetails = listOf(CallStop(listText = "하남 감북")))
     private fun saw(o: SimplifiedOfficeOrder, vararg scans: Long) = scans.forEach { ListSightings.saw(CallMemory.fingerprintOf(o), it) }
     private fun verify(recent: List<SimplifiedOfficeOrder>, finalIncome: Int? = null) =
         (PickerDetailOcrParser().verify(PickerScreenOcr.parseDetail(lines)!!.copy(finalIncome = finalIncome), null, null, emptyList(), "", recent)

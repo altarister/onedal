@@ -51,13 +51,11 @@ describe('손으로 만든 콜', () => {
         const at = new Date('2026-09-13T08:22:15.056Z');
         const o = handmadeOrderFrom(step, at, 0)!;
 
-        expect(o.pickup).toBe('양촌읍');
-        expect(o.dropoff).toBe('가산동');
+        expect(o.pickupDetails[0].listText).toBe('양촌읍');
+        expect(o.dropoffDetails[0].listText).toBe('가산동');
         expect(o.fare).toBe(34650);
-        expect(o.pickupX).toBe(step.from.lng);
-        expect(o.pickupY).toBe(step.from.lat);
-        expect(o.dropoffX).toBe(step.to.lng);
-        expect(o.dropoffY).toBe(step.to.lat);
+        expect(o.pickupDetails[0].geo).toEqual({ x: step.from.lng, y: step.from.lat });
+        expect(o.dropoffDetails[0].geo).toEqual({ x: step.to.lng, y: step.to.lat });
         expect(o.timestamp).toBe('2026-09-13T08:22:15.056Z');
         expect(o.id).toBe(`HAND-${at.getTime()}-0`);
     });
