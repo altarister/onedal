@@ -92,6 +92,8 @@ data class SimplifiedOfficeOrder(
     val id: String,
     val type: String = "NEW_ORDER",
     val fare: Int = 0,
+    /** 💰 돈 묶음 — 화면에 보인 돈 줄(shared `CallMoney`) · 인성 목록 요금 칸 → 기사님 몫 줄 · 못 읽었거나 아직 안 싣는 배차망은 null */
+    val money: CallMoney? = null,
     val timestamp: String,
     val postTime: String? = null,
     val vehicleType: String? = null,
@@ -167,6 +169,24 @@ data class CallLoad(
 
 /** 📦 짐 줄 한 줄 — shared `LoadLine` (갈래 · 화면 글자) */
 data class LoadLine(val kind: String, val shown: String)
+
+/** 💰 돈 묶음 — shared `CallMoney` 와 같은 칸 이름 · 화면에 보인 돈 줄만 */
+data class CallMoney(
+    val lines: List<MoneyLine>,
+    val feeRateText: String? = null,
+    val paymentType: String? = null,
+    val paymentShown: String? = null,
+    val billingType: String? = null,
+    val billingShown: String? = null,
+)
+
+/** 💰 돈 줄 한 줄 — shared `MoneyLine` (갈래 · 원 · 화면 글자) · 갈래 이름은 shared `MONEY_KINDS` 의 글자 */
+data class MoneyLine(val kind: String, val won: Int, val shown: String) {
+    companion object {
+        /** 기사님 몫 */
+        const val INCOME = "income"
+    }
+}
 
 // ────────────────────────────────────────────────
 // 2. 상세 콜 데이터 (웹의 DetailedOfficeOrder 대응)

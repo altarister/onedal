@@ -48,6 +48,7 @@ function serverFields(): string[] {
         postTime: '12:23', vehicleType: '1t', rawText: '',
         isSimulated: false, fromOtherOffice: null, reserved: null,
         pickupDetails: [{ listText: '경기 광주 오포' }], dropoffDetails: [{ listText: '이천시 신둔면' }], load: { vehicleText: '1t', sizeText: null, itemText: null, lines: [] },
+        money: { lines: [{ kind: 'income', won: 45000, shown: '45.0' }], feeRateText: null, paymentType: null, paymentShown: null, billingType: null, billingShown: null },
     };
     return Object.keys(sample);
 }

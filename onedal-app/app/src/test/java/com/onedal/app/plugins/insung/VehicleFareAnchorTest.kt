@@ -2,6 +2,9 @@ package com.onedal.app.plugins.insung
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import com.onedal.app.models.CallMoney
+import com.onedal.app.models.MoneyLine
+import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
  * 📏 **상차 거리 «1.4» 를 차종(1.4t)으로 읽지 않는다** (시뮬레이터 «7지점 한 바퀴» 폰 판)
@@ -72,5 +75,55 @@ class VehicleFareAnchorTest {
     fun `소수 곱셈 오차로 1원 모자라지 않는다 - 32점3 은 32300원`() {
         assertEquals("1t" to 32_300, read("3.2, 10.1, 초월읍, 중리동, 1t, 32.3"))
         assertEquals("1t" to 64_100, read("3.2, 10.1, 초월읍, 중리동, 1t, 64.1"))
+    }
+
+    /*
+     * 📏 거리 칸 — 줄 맨 앞 «N.N» 만인 노드 둘(윗줄 첫 상차 · 아랫줄 마지막 하차). 요금 · 차종 노드는 거리가 아니다.
+     * 실물 스플릿 화면은 거리 칸이 한 줄인 줄이 있고 · 아랫줄 «0.0» 은 배송 거리 모름이다.
+     */
+    private fun km(row: String) = InsungParser.listDistancesOf(row.split(", "))
+
+    @Test
+    fun `거리 한 줄 콜 - 요금 26점9 는 하차 거리가 아니다`() {
+        assertEquals(18.5 to null, km("18.5, 초월읍, 중리동, 다, 26.9"))
+    }
+
+    @Test
+    fun `아랫줄 0점0 은 배송 거리 모름 - 빈 값`() {
+        assertEquals(20.4 to null, km("20.4, 0.0, 초월읍, 중리동, 다, 26.9"))
+    }
+
+    @Test
+    fun `거리 한 줄 콜 - 숫자 꼴 차종 1점4 도 하차 거리가 아니다`() {
+        assertEquals(18.5 to null, km("18.5, 초월읍, 중리동, 1.4, 26.9"))
+    }
+
+    @Test
+    fun `거리 두 줄 콜은 그대로 - 윗줄 상차 · 아랫줄 하차`() {
+        assertEquals(2.2 to 11.1, km("2.2, 11.1, 급송/초월읍, 신둔면, 오, 42.0"))
+        assertEquals(1.4 to 2.5, km("1.4, 2.5, 오후5시6/초월읍, 중리동, 1.4, 5.0"))
+        assertEquals(3.2 to 10.1, km("3.2, 10.1, 초월읍, 중리동, 라2.2"))
+    }
+
+    /* 💰 요금 칸 → 돈 묶음 기사님 몫 줄(화면 글자 그대로) · 🚚 차종 칸 → 짐 묶음 차종 글자(맨 위 `vehicleType` 과 같은 글자) */
+    private fun cells(row: String) = InsungParser.vehicleFareCellsOf(row.split(", "))
+
+    @Test
+    fun `요금 26점9 는 기사님 몫 2만 6천9백 원 줄 - 화면 글자 26점9`() {
+        assertEquals(CallMoney(lines = listOf(MoneyLine("income", 26_900, "26.9"))), InsungParser.listMoneyOf(cells("18.5, 초월읍, 중리동, 다, 26.9")))
+        assertEquals(CallMoney(lines = listOf(MoneyLine("income", 2_200, "2.2"))), InsungParser.listMoneyOf(cells("3.2, 10.1, 초월읍, 중리동, 라2.2")))
+    }
+
+    @Test
+    fun `요금을 못 읽으면 돈 묶음 없음`() {
+        assertEquals(null, InsungParser.listMoneyOf(cells("18.5, 초월읍, 중리동, 다")))
+    }
+
+    @Test
+    fun `차종 칸은 짐 묶음 차종 글자 - 맨 위 차종과 같은 글자`() {
+        val c = cells("18.5, 초월읍, 중리동, 1.4, 26.9")
+        val order = SimplifiedOfficeOrder(id = "c1", timestamp = "t", vehicleType = c.vehicle, money = InsungParser.listMoneyOf(c))
+        assertEquals("1.4", order.load?.vehicleText)
+        assertEquals(order.vehicleType, order.load?.vehicleText)
     }
 }

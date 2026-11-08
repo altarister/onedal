@@ -31,6 +31,8 @@ import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.models.CallStop
 import com.onedal.app.models.LoadLine
+import com.onedal.app.models.CallMoney
+import com.onedal.app.models.MoneyLine
 
 /**
  * 화면에서 추출된 원시 문자열 데이터를 파싱하여
@@ -153,12 +155,19 @@ class InsungParser(private val context: Context) : IScrapParser {
          *    - 후보가 전부 숫자처럼 생겼으면 **마지막** 것을 쓴다 — 차종·요금 칸은 줄의 오른쪽 끝이다
          *    - 후보가 하나면 그것을 쓴다 (상세 화면의 요금 대조가 기대는 동작)
          */
-        internal fun readVehicleAndFare(texts: List<String>): Pair<String?, Int> {
-            data class Anchor(val vehicle: String, val fare: Int)
+        internal fun readVehicleAndFare(texts: List<String>): Pair<String?, Int> =
+            vehicleFareCellsOf(texts).let { it.vehicle to it.fare }
+
+        /** 🚚 고른 차종 · 요금 칸 — 요금 화면 글자(«26.9») · 두 칸의 노드 자리(거리 칸에서 뺀다 · 붙은 «라2.2» 는 한 자리) */
+        internal data class VehicleFareCells(val vehicle: String?, val fare: Int, val fareShown: String?, val cellIndices: Set<Int>)
+
+        /** 🚚 `readVehicleAndFare` 의 본체 — 고른 칸의 자리까지 돌려준다 */
+        internal fun vehicleFareCellsOf(texts: List<String>): VehicleFareCells {
+            data class Anchor(val vehicle: String, val fare: Int, val fareShown: String, val at: Set<Int>)
 
             val anchors = mutableListOf<Anchor>()
-            // 요금을 못 찾은 차종 토큰 — 후보가 하나도 없을 때 차종만이라도 남긴다
-            var lastVehicleWithoutFare: String? = null
+            // 요금을 못 찾은 차종 토큰과 그 자리 — 후보가 하나도 없을 때 차종만이라도 남긴다
+            var lastVehicleWithoutFare: Pair<String, Int>? = null
 
             for (i in texts.indices) {
                 val text = texts[i].trim().replace(",", "")
@@ -166,24 +175,46 @@ class InsungParser(private val context: Context) : IScrapParser {
                 // 만약 현재 텍스트(예: "라")가 차종이라면
                 if (VEHICLE_ONLY.matches(text)) {
                     // 바로 다음 텍스트 노드가 오더 창 우측 끝의 요금(예: "2.2" -> 2,200원)
-                    val nextVal = texts.getOrNull(i + 1)?.trim()?.replace(",", "")?.toDoubleOrNull()
+                    val nextText = texts.getOrNull(i + 1)?.trim()
+                    val nextVal = nextText?.replace(",", "")?.toDoubleOrNull()
                     // 요금이 0 보다 크면 채택 (천 원 단위 소수 — 곱한 뒤 반올림해야 32.3 이 32,299 로 모자라지 않는다)
-                    if (nextVal != null && nextVal > 0) anchors += Anchor(text, fareOfThousands(nextVal))
-                    else lastVehicleWithoutFare = text
+                    if (nextVal != null && nextVal > 0) anchors += Anchor(text, fareOfThousands(nextVal), nextText, setOf(i, i + 1))
+                    else lastVehicleWithoutFare = text to i
                 } else {
                     // 예외 fallback: 텍스트 노드가 하나로 뭉쳐진 경우 ("라2.2" 등)
                     val clumpedMatch = VEHICLE_WITH_FARE.find(text)
                     if (clumpedMatch != null) {
                         val nextVal = clumpedMatch.groupValues[2].toDoubleOrNull()
-                        if (nextVal != null && nextVal > 0) anchors += Anchor(clumpedMatch.groupValues[1], fareOfThousands(nextVal))
-                        else lastVehicleWithoutFare = clumpedMatch.groupValues[1]
+                        if (nextVal != null && nextVal > 0) anchors += Anchor(clumpedMatch.groupValues[1], fareOfThousands(nextVal), clumpedMatch.groupValues[2], setOf(i))
+                        else lastVehicleWithoutFare = clumpedMatch.groupValues[1] to i
                     }
                 }
             }
 
             val chosen = anchors.firstOrNull { !NUMBER_LIKE_VEHICLE.matches(it.vehicle) } ?: anchors.lastOrNull()
-            return if (chosen != null) chosen.vehicle to chosen.fare else lastVehicleWithoutFare to 0
+            return if (chosen != null) VehicleFareCells(chosen.vehicle, chosen.fare, chosen.fareShown, chosen.at)
+            else VehicleFareCells(lastVehicleWithoutFare?.first, 0, null, setOfNotNull(lastVehicleWithoutFare?.second))
         }
+
+        /** 📏 거리 칸 노드 — 통째로 «N.N» 인 노드(쉼표는 뗀다) */
+        private val DISTANCE_CELL = Regex("^\\d+\\.\\d+$")
+
+        /**
+         * 📏 **목록 줄 거리 칸 → (첫 상차, 마지막 하차)** — 줄 맨 앞 거리 칸은 윗줄 · 아랫줄 둘이다(먼저 오는 값이 상차 거리 · 다음이 배송 거리 · 정렬하지 않는다).
+         *    거리 칸은 통째로 «N.N» 인 노드뿐이고, 고른 요금 · 차종 노드(`vehicleFareCellsOf`)는 뺀다 —
+         *    거리 칸이 한 줄뿐인 콜에서 요금 «26.9» · 숫자 꼴 차종 «1.4» 가 배송 거리가 되지 않게(`VehicleFareAnchorTest`).
+         *    아랫줄 «0.0» 은 배송 거리 모름이라 빈 값이다.
+         */
+        internal fun listDistancesOf(texts: List<String>, cells: VehicleFareCells = vehicleFareCellsOf(texts)): Pair<Double?, Double?> {
+            val distances = texts.withIndex()
+                .filter { (i, t) -> i !in cells.cellIndices && DISTANCE_CELL.matches(t.trim().replace(",", "")) }
+                .map { it.value.trim().replace(",", "").toDouble() }
+            return distances.getOrNull(0) to distances.getOrNull(1)?.takeIf { it > 0.0 }
+        }
+
+        /** 💰 요금 칸 → 돈 묶음 — 기사님 몫 한 줄(요금 화면 글자 그대로) · 요금을 못 읽었으면 null */
+        internal fun listMoneyOf(cells: VehicleFareCells): CallMoney? =
+            cells.fareShown?.takeIf { cells.fare > 0 }?.let { CallMoney(lines = listOf(MoneyLine(MoneyLine.INCOME, cells.fare, it))) }
 
         /** 노드 하나가 통째로 「차종+요금」일 때 — 「라2.2」. 앞뒤에 딴 글자가 붙으면 아니다 */
         private val VEHICLE_FARE_ONLY = Regex("^($VEHICLE_TOKENS)\\s*\\d+(?:\\.\\d+)?$")
@@ -490,7 +521,9 @@ class InsungParser(private val context: Context) : IScrapParser {
 
         // ── 1. 차종 앵커링을 통한 요금(Fare) 및 차종(VehicleType) 파싱 ──
         // 목록의 원천은 companion 의 VEHICLE_TOKENS 하나다 (세 벌로 갈라져 사고가 났다)
-        val (vehicleType, fare) = readVehicleAndFare(texts)
+        val vehicleFare = vehicleFareCellsOf(texts)
+        val vehicleType = vehicleFare.vehicle
+        val fare = vehicleFare.fare
 
         // ── 2. 지역명 파싱 (동/읍/면/리 로 끝나는 텍스트) ──
         // 서버에서 다운받은 동적 키워드 사전에서 uiNoiseWords 로드, 없으면 기본값
@@ -514,22 +547,7 @@ class InsungParser(private val context: Context) : IScrapParser {
         val cells = listCellsOf(texts, uiNoiseWords, vehicleType, rawJoined)
 
         // ── 3. 거리 파싱 ──
-        // 소수점 있는 숫자들이 거리 (예: "9.6", "38.5")
-        // 화면 최좌측에 상, 하로 두 개가 뜸. 먼저 오는 값이 [접근거리], 다음 오는 값이 [배송거리]
-        val distances = mutableListOf<Double>()
-        val distanceRegex = Regex("""(\d+\.\d+)""")
-        texts.forEach { textNode ->
-            val clean = textNode.replace(",", "")
-            if (clean.toDoubleOrNull() != null && clean.contains(".")) {
-                distances.add(clean.toDouble())
-            } else if (clean.contains(".")) {
-                distanceRegex.findAll(clean).forEach { match ->
-                    match.groupValues[1].toDoubleOrNull()?.let { distances.add(it) }
-                }
-            }
-        }
-        
-        // 첫 번째 값 = 상차지 직선거리 / 두 번째 값 = 배송거리 (의도적으로 sort() 제외)
+        val (pickupKm, dropoffKm) = listDistancesOf(texts, vehicleFare)
 
         val now = // 🔴 `'Z'` 는 **글자 Z 를 붙일 뿐**이다 — 한국 시각에 UTC 표식이 달려 서버가 9시간 밀려 읽었다
         //    (실측: "대기 572분"). `XXX` 를 쓰면 `+09:00` 이 붙는다
@@ -548,6 +566,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             id = UUID.randomUUID().toString(),
             type = "NEW_ORDER",
             fare = fare,
+            money = listMoneyOf(vehicleFare),
             timestamp = now,
             postTime = postTime,
             vehicleType = vehicleType,
@@ -555,11 +574,11 @@ class InsungParser(private val context: Context) : IScrapParser {
             fromOtherOffice = cells.fromOtherOffice,
             tagsText = cells.conditions.joinToString(" ").ifEmpty { null },
             loadLines = cells.loadLines,
-            pickupDetails = listOf(cells.pickup.copy(distanceKm = distances.getOrNull(0))),
+            pickupDetails = listOf(cells.pickup.copy(distanceKm = pickupKm)),
             // 🔴 두 번째 값(배송거리)을 마지막 하차 정거장 거리로 **보존**한다.
             //    단가 판정(fare ≥ 배송거리 × 단가)의 입력이다. 없으면 null →
             //    판정을 건너뛰고 통과시킨다 (앱은 일단 잡아와라, 서버가 정확히 잰다).
-            dropoffDetails = listOf(cells.dropoff.copy(distanceKm = distances.getOrNull(1))),
+            dropoffDetails = listOf(cells.dropoff.copy(distanceKm = dropoffKm)),
         ).withReservation(reservationOf(cells.pickup.promiseText, java.time.LocalDateTime.now()))
     }
 

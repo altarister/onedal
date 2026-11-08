@@ -79,6 +79,8 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     dropoffDetails?: CallStop[];
     /** 📦 짐 묶음 — 짐 줄 · 차종 맞춤 재료(`cargo/callLoad.ts`). 원달앱이 맨 위 차종 · 크기 글자를 그대로 싣고 서버 `/detail` 이 상세 원문 조각 줄을 얹는다 · 읽는 곳은 아직 없다 — 그동안 `vehicleType` · `itemSize` · `itemDescription` 을 읽는다 */
     load?: CallLoad;
+    /** 💰 돈 묶음 — 돈 줄 · 결제 · 증빙(`money.ts`). 원달앱이 인성 목록 요금 칸을 기사님 몫 줄로 싣고(다른 배차망은 돈 9) 서버 상세 원문 조각 줄이 채운다(`detailRecordOf`) · 읽는 곳은 아직 없다 — 그동안 `fare` · 요금 칸 넷을 읽는다 */
+    money?: CallMoney;
 }
 export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보내고 서버가 상세 원문에서 뽑거나 계산해 채우는 칸 · 배차사 · 의뢰인 · 진행 글자는 번호 묶음(CallIdentity)
     // 1. 물품
@@ -97,10 +99,7 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
 }
 
 /** 배차망에서 온 콜 한 건 — 번호 묶음(이 콜이 무엇인가) + 출처 묶음(이 보고가 어디서 어떻게 왔나) + 목록 콜(정거장 · 짐 묶음 포함) + 상세 콜 + 돈 묶음. 아래 콜 모양 셋의 부모 */
-export interface OfficeOrder extends CallIdentity, CallProvenance, SimplifiedOfficeOrder, DetailedOfficeOrder {
-    /** 💰 돈 묶음 — 돈 줄 · 결제 · 증빙(`money.ts`). 서버 상세 원문 조각 줄이 채운다(`detailRecordOf` · 원달앱 보고는 돈 9) · 읽는 곳은 아직 없다 — 그동안 `fare` · 요금 칸 넷을 읽는다 */
-    money?: CallMoney;
-}
+export interface OfficeOrder extends CallIdentity, CallProvenance, SimplifiedOfficeOrder, DetailedOfficeOrder {}
 
 /** 📱 원달앱 보고 한 건 — 콜 모양 그대로(정거장 · 짐 묶음을 싣는다). 서버 입구 셋(/api/scrap · /confirm · /detail)이 그대로 콜로 쓴다 */
 export type AppCallReport = OfficeOrder;

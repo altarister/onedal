@@ -138,9 +138,9 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "itemSize", "where": "출발지 · 도착지 칸 앞 낱말", "sample": "2분동승", "seen": "UNKNOWN", "handling": "READ", "usedAt": "원달앱 칸 앞 토막 함수(LocationTextAnalyzer.split) → 조건 토막 · 화면 기록(tagsText) · 짐 줄(InsungParser.listCellsOf → load.lines)", "part": "passenger", "note": "짐 줄 «동승» — 화주 2명 동승(캡처 없음) · 출발지 · 도착지 칸 앞 토막"},
       {"field": "clock", "where": "도착지 칸 앞글자 (도착 약속)", "sample": "낼8/ · 8시/ · 낼10시/", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.listCellsOf — 하차 정거장 약속 원문(promiseText)"},
       {"field": "vehicleType", "where": "차종 칸", "sample": "1t · 다 · 라 · 1t화물", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.readVehicleAndFare"},
-      {"field": "fare", "where": "요금 칸 (천 원 단위)", "sample": "40.0 · 270.0", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.readVehicleAndFare"},
-      {"field": "pickupDistance", "where": "거리 칸 윗줄", "sample": "17.8", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse", "note": "첫 상차 정거장 거리(내 자리 → 상차지) · 직선으로 읽음(상세 «(직선)»과 같은 뜻 — 목록엔 표시 없음)"},
-      {"field": "deliveryDistance", "where": "거리 칸 아랫줄", "sample": "0.0 · 341.3", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse", "note": "하차 정거장 거리(상차지 → 하차지) · 직선으로 읽음 · «0.0» 은 배송 거리 모름"},
+      {"field": "fare", "where": "요금 칸 (천 원 단위)", "sample": "40.0 · 270.0", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.readVehicleAndFare → 돈 묶음 기사님 몫 줄(listMoneyOf · 화면 글자 그대로)"},
+      {"field": "pickupDistance", "where": "거리 칸 윗줄", "sample": "17.8", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.listDistancesOf — 거리 칸 노드만(요금 · 차종 노드 뺌)", "note": "첫 상차 정거장 거리(내 자리 → 상차지) · 직선으로 읽음(상세 «(직선)»과 같은 뜻 — 목록엔 표시 없음)"},
+      {"field": "deliveryDistance", "where": "거리 칸 아랫줄", "sample": "0.0 · 341.3", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.listDistancesOf — 거리 칸 노드만(요금 · 차종 노드 뺌) · «0.0» 은 빈 값", "note": "하차 정거장 거리(상차지 → 하차지) · 직선으로 읽음 · «0.0» 은 배송 거리 모름"},
       {"field": "otherOffice", "where": "출발지 칸 앞 «@»", "sample": "@초이동 · @낼8:30/가산동", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.listCellsOf — 공유콜(fromOtherOffice) · 출발지 칸 맨 앞이거나 바로 앞 노드가 «@»", "note": "공유콜 — 다른 사무실 콜 · «@» 가 없으면 자사콜(인성 설명 영상 2249)"}
     ],
     "newCall": [

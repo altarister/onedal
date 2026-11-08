@@ -38,8 +38,9 @@ const COLUMN_OF: Record<string, string> = {};
  *    · `pickupDetails` · `dropoffDetails` 정거장 묶음 — 정거장으로 옮겨 적음: 서버가 첫 상차 · 마지막 하차 정거장의
  *      글자 · 거리 · 약속 · 좌표를 `pickup` · `dropoff` · `pickupDistanceKm` · `deliveryDistanceKm` · `scheduleText` · `reservedDay` · `reservedAt` · 좌표 넷 칸에 적는다
  *    · `fromOtherOffice` 공유콜 — 번호 · 출처 묶음 칸이라 콜 한 칸(`orders.callShape`)에 담기고 수집 기록 칸은 없다
+ *    · `money` 돈 묶음 — 콜 한 칸(`orders.callShape`)에 담긴다 · 수집 기록은 같은 목록 금액을 `fare` 칸에 적는다
  */
-const NOT_STORED = new Set(['id', 'isSimulated', 'pickupDetails', 'dropoffDetails', 'fromOtherOffice']);
+const NOT_STORED = new Set(['id', 'isSimulated', 'pickupDetails', 'dropoffDetails', 'fromOtherOffice', 'money']);
 
 /** 📱 앱 그릇(`SimplifiedOfficeOrder`)이 나르는 칸 */
 function appOrderFields(): string[] {

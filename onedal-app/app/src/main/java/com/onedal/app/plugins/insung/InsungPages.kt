@@ -37,11 +37,11 @@ object InsungPages {
                 part = "passenger"),
             FieldSpec(PageField.CLOCK, "도착지 칸 앞글자 (도착 약속)", "낼8/ · 8시/ · 낼10시/", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 하차 정거장 약속 원문(promiseText)"),
             FieldSpec(PageField.VEHICLE_TYPE, "차종 칸", "1t · 다 · 라 · 1t화물", Seen.REAL, Handling.READ, "InsungParser.readVehicleAndFare"),
-            FieldSpec(PageField.FARE, "요금 칸 (천 원 단위)", "40.0 · 270.0", Seen.REAL, Handling.READ, "InsungParser.readVehicleAndFare"),
+            FieldSpec(PageField.FARE, "요금 칸 (천 원 단위)", "40.0 · 270.0", Seen.REAL, Handling.READ, "InsungParser.readVehicleAndFare → 돈 묶음 기사님 몫 줄(listMoneyOf · 화면 글자 그대로)"),
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선으로 읽음(상세 «(직선)»과 같은 뜻 — 목록엔 표시 없음) */
-            FieldSpec(PageField.PICKUP_DISTANCE, "거리 칸 윗줄", "17.8", Seen.REAL, Handling.READ, "InsungParser.parse"),
+            FieldSpec(PageField.PICKUP_DISTANCE, "거리 칸 윗줄", "17.8", Seen.REAL, Handling.READ, "InsungParser.listDistancesOf — 거리 칸 노드만(요금 · 차종 노드 뺌)"),
             /* 하차 정거장 거리(상차지 → 하차지) · 직선으로 읽음 · «0.0» 은 배송 거리 모름 */
-            FieldSpec(PageField.DELIVERY_DISTANCE, "거리 칸 아랫줄", "0.0 · 341.3", Seen.REAL, Handling.READ, "InsungParser.parse"),
+            FieldSpec(PageField.DELIVERY_DISTANCE, "거리 칸 아랫줄", "0.0 · 341.3", Seen.REAL, Handling.READ, "InsungParser.listDistancesOf — 거리 칸 노드만(요금 · 차종 노드 뺌) · «0.0» 은 빈 값"),
             /* 공유콜 — 다른 사무실 콜 · «@» 가 없으면 자사콜(인성 설명 영상 2249) */
             FieldSpec(PageField.OTHER_OFFICE, "출발지 칸 앞 «@»", "@초이동 · @낼8:30/가산동", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 공유콜(fromOtherOffice) · 출발지 칸 맨 앞이거나 바로 앞 노드가 «@»"),
         ),
