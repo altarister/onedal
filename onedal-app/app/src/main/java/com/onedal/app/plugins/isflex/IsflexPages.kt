@@ -162,14 +162,15 @@ object IsflexPages {
         ScreenSpec(
             "목록(신규)",
             StandardScreen.LIST,
-            listOf(ScreenMatch(all = listOf("출발지까지", "수입", "퇴근하기"), none = listOf("수행하기"))),
+            listOf(ScreenMatch(all = listOf("출발지까지", "수입", "퇴근하기"), none = listOf("수행하기")), ScreenMatch(all = listOf("퇴근하기", "목록", "지도", "신규"), none = listOf("출발지까지", "진행중"))),
             false,
             listOf(
                 OverlaySpec("오더 목록 거리 설정 시트", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("오더 목록 거리 설정"))), "목록 거리를 고르는 시트 — 떠 있는 동안 뒤 목록 글자가 안 온다 · 원달앱은 아무것도 안 누른다", Seen.REAL, listOf("ex_images/인성플렉스/05_필터.png")),
                 OverlaySpec("오더 사이즈 설정 시트", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("오더 사이즈 설정"))), "목록 글자 크기 · 여백을 고르는 시트 — 안의 견본 줄은 콜이 아니다 · 떠 있는 동안 뒤 목록 글자가 안 온다 · 원달앱은 아무것도 안 누른다", Seen.REAL, listOf("ex_images/인성플렉스/06_넓히기.png")),
+                OverlaySpec("퇴근 확인 팝업", OverlayKind.POPUP, listOf(ScreenMatch(all = listOf("오더 수행을 종료하고", "퇴근하시겠어요"))), "목록 «퇴근하기» 뒤 퇴근할지 묻는다 — «퇴근»이면 콜을 안 받는다 · 원달앱은 아무것도 안 누른다", Seen.REAL, listOf("실물 이상 기록 11-02 · 11-03 · 11-05 · 11-06 «오더 수행을 종료하고 퇴근하시겠어요? 취소 퇴근» — 직전 화면 목록(신규)")),
             ),
             Seen.REAL,
-            listOf("ex_images/인성플렉스/02_목록.png", "ex_images/인성플렉스/07_목록_스크롤.png"),
+            listOf("ex_images/인성플렉스/02_목록.png", "ex_images/인성플렉스/07_목록_스크롤.png", "실물 이상 기록 11-03 «퇴근하기 목록 지도 신규» — 목록 머리만 읽힌 틀(진행중 탭 글이 없는 틀만 — 진행중 화면을 빼앗지 않는다)"),
             toCollect = "AI 추천 콜이 실제로 뜬 목록(칸 자리 · «수락» 단추 글자) · 꼬리표 배지(«급» · «왕» · «빈» · «경») · «계산서» 배지 · 차종 «오토» 말고 다른 글자 · 오늘 예약 앞글자 꼴 — 칩 «개인이동장치»(실물은 «개인이동수단»)가 보이면 리뉴얼",
             base = "newList",
         ),

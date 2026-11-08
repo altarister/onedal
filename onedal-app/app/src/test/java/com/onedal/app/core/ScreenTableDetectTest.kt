@@ -112,5 +112,18 @@ class ScreenTableDetectTest {
         assertEquals(2, overlays.size)
         assertTrue(overlays.all { it.action == null })
     }
+
+    /**
+     * 📭 **«빈 목록 안내»는 목록(LIST) 페이지지만 콜 줄이 없다** — 원달앱이 목록에서 하는 일(목록 줄 읽기 · 거르기 · 누르기)이 돌아도 할 일이 0 이다.
+     * 누름은 목록 줄 묶음마다 하므로 묶음 0 = 누름 0. 구인 광고 «월급 290만원»은 요금 꼴이 아니고 «Ad» 아래라 줄이 안 된다.
+     */
+    @Test fun `픽커 빈 목록 안내는 목록 페이지 · 읽은 콜 0`() {
+        val nodes = listOf("수행 할 수 있는\n카테고리가 없습니다", "픽커에서 알바도 만나보세요", "Ad", "프로필 등록하고, 다양한 일을 만나보세요",
+            "정기배송·운전", "주식회사 해농", "월급 290만원", "기타", "앱내 확인", "월급 216만원", "정기배송·운전", "신규", "내 오더")
+        val read = ScreenDetector().detect(nodes.joinToString(" "), plugins.getValue("kakaopicker").screens, lastPage = "신규 리스트")
+        assertEquals("LIST · 빈 목록 안내", "${read.wire} · ${read.page}")
+        val rows = com.onedal.app.plugins.kakaopicker.KakaoPickerParser.groupByFare(nodes.mapIndexed { i, t -> Triple(t, 400 + i * 80, 540) })
+        assertEquals(0, rows.size)
+    }
 }
 

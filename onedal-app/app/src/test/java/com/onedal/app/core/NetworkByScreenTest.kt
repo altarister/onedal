@@ -155,6 +155,23 @@ class NetworkByScreenTest {
         }
     }
 
+    /** 인성 칸으로 적힌 실물 «알 수 없는 화면» 기록(10-07 · 10-18) — 플렉스 마이플렉스 메뉴 화면 글이다 · 이름 · 전화는 가렸다 */
+    private val isflexMyFlexMenu = listOf(
+        "마이플렉스", "○○○", "0**-****-****", "더 많은 혜택!\n프리미엄 기사로 전환하기", "적립금내역", "0원", "수행내역",
+        "미션", "이벤트 내역", "보험안내 및 접수", "내 정보 관리", "내 배송 수단 관리", "이용안내", "공지사항", "이벤트",
+        "자주 묻는 질문", "고객센터 연결", "다크 모드 설정", "약관 및 정책", "버전정보", "V.1.4.5",
+    )
+
+    /**
+     * 지금은 어느 배차망 표식에도 안 걸려 모른다(null) — 갈아타지 않는다.
+     * 플렉스 표식 `["마이플렉스", "적립금내역"]` 을 더하면 배차망 갈아타기가 바뀌어 운행 변화 — 원달앱 걸음(걸음 5)에서.
+     */
+    @Test
+    fun `인성 칸으로 적힌 플렉스 마이플렉스 화면 글은 지금 모른다`() {
+        assertNull(TargetApp.networkOfScreen(isflexMyFlexMenu))
+        assertNull(NetworkSwitchGate.switchTargetFor(TargetApp.networkOfScreen(isflexMyFlexMenu), TargetApp.INSUNG))
+    }
+
     @Test
     fun `🔴 적요에 요금이 든 인성플렉스 상세는 두 배차망 표식에 다 걸려 갈아타지 않는다`() {
         assertEquals(setOf(TargetApp.INSUNG, TargetApp.ISFLEX), TargetApp.networksOnScreen(isflexDetailMemoFare))
