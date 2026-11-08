@@ -2,6 +2,7 @@ import type { CallMoney } from './money';
 import type { OrderForm, TripType } from './badges';
 import type { CallLoad } from '../cargo/callLoad';
 import type { CallIdentity, CallProvenance } from './callIdentity';
+import type { OfficeOrder } from './orderShapes';
 
 export const OFFICE_ORDER_SAMPLE = {
     // ── 목록 칸 (SimplifiedOfficeOrder) ──
@@ -68,7 +69,7 @@ export const OFFICE_ORDER_SAMPLE = {
  */
 
 /**
- * 🔍 **옛 콜 견본 — 바꿀 목록 1번(정거장 약속)을 적용한 모양** (`설계/바꿀목록_02.md` · 아직 코드에 없음)
+ * 🔍 **옛 콜 견본 — 바꿀 목록 1번(정거장 약속)을 적용한 모양** (`설계/바꿀목록_02.md` · 정거장 약속 칸은 `CallStop` 에 있고 맨 위 칸은 아직 콜 모양에 남아 있다)
  *
  * 위 `OFFICE_ORDER_SAMPLE` 과 다른 것만:
  * - 뺌: `reserved` · `reservedDay` · `reservedAt` · `pickupTime` — 상차 약속은 `pickupDetails[0]` 의 날 · 시각 하나로
@@ -135,7 +136,7 @@ const OFFICE_ORDER_SAMPLE_02 = {
     capturedVia: "수집 길",
     capturedMode: "수집 모드",
     openedBy: "APP",
-};
+} satisfies Partial<OfficeOrder>;
 
 /**
  * 🔍 **옛 콜 견본 — 돈을 한 묶음(`money`)으로 모은 모양** (`설계/shared/돈_정의_계획_04.md` · 아직 코드에 없음 · 아무 곳도 읽지 않는다)

@@ -153,19 +153,33 @@ function unglueCity(dong: string, head: readonly string[]): string {
     return dong;
 }
 
+/** 약속 원문 떼기 — «@낼8:30/가산동» − «@낼8:30» → « 가산동» · «내곡동/7시까지» − «7시까지» → «내곡동 ». 원문 앞 «/» 와 뒤 «/» · «)» 하나도 함께 뗀다 */
+function withoutPromise(text: string, promise: string): string {
+    const parts = text.split(promise);
+    return parts.map((p, i) => {
+        const tail = i < parts.length - 1 ? p.replace(/\/$/, '') : p;
+        return i > 0 ? tail.replace(/^[/)]/, '') : tail;
+    }).join(' ');
+}
+
 /**
  * 📍 **판정 글자** — 지오코딩 · 필터 · 상세 요건이 읽는 다듬은 글자와, 좌표를 다시 찍을지(`geocodeTargetOf` 와 같은 규칙).
- *    ① `stopTextOf` ② 토막마다 앞 «@» 를 떼고, 마지막 토막에 약속 글자가 «/» · «)»(글자에 «(» 가 없을 때만) 로 붙어 있으면
- *       지역 끝말 토막을 · 없으면 동 꼴 토막을 남긴다(원달앱 `LocationTextAnalyzer` 의 1차 · 2차 순서)
+ *    ① `stopTextOf` ② 약속 원문 떼기 — 정거장에 `promiseText` 가 있으면 그 글자(와 붙은 «/» · «)» 하나)를 뗀다.
+ *       없을 때만 글자 규칙: 마지막 토막에 약속 글자가 «/» · «)»(글자에 «(» 가 없을 때만) 로 붙어 있으면
+ *       지역 끝말 토막(`REGION_PIECE`)을 · 없으면 동 꼴 토막(`PLACE_PIECE`)을 남긴다.
+ *       끝말 목록은 원달앱 `LocationTextAnalyzer` 1차와 같다. 원달앱은 토막을 나누지 않아 «가산동/오늘중»을 «오늘중»으로 읽는다.
+ *       어느 쪽이든 토막마다 앞 «@» 는 뗀다
  *    ③ 정의 표 `addressCut` ④ 붙은 «…시…구» · «시 이름 + 동»을 명부에 있을 때만 띄운다(원달앱 `IsflexAddress.clean` 과 같은 규칙)
  *    ⑤ 번지가 없고 상호가 있으면(그 상호가 아직 글자에 없을 때) 뒤에 잇는다.
  *    정거장에는 화면 원문이 남고, 이 글자는 저장하지 않는다.
  */
 export function stopQueryOf(app: TargetAppType, stop: (CallStop & { geoText?: string }) | null | undefined): { text: string; need: boolean } {
-    const tokens = stopTextOf(stop).trim().split(SPACES).map(t => t.replace(/^@+/, '')).filter(Boolean);
-    const promiseCut = tokens.some(t => t.includes('(')) ? PROMISE_CUT_NO_PAREN : PROMISE_CUT;
-    const last = tokens.pop();
+    const promise = stop?.promiseText?.trim();
+    const raw = promise ? withoutPromise(stopTextOf(stop), promise) : stopTextOf(stop);
+    const tokens = raw.trim().split(SPACES).map(t => t.replace(/^@+/, '')).filter(Boolean);
+    const last = promise ? undefined : tokens.pop();
     if (last !== undefined) {
+        const promiseCut = tokens.some(t => t.includes('(')) || last.includes('(') ? PROMISE_CUT_NO_PAREN : PROMISE_CUT;
         const pieces = promiseCut.test(last) ? last.split(promiseCut) : [];
         const place = pieces.filter(p => REGION_PIECE.test(p)).pop() ?? pieces.filter(p => PLACE_PIECE.test(p)).pop();
         tokens.push(place ?? last);

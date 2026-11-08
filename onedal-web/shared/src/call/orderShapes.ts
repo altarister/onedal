@@ -35,7 +35,12 @@ export interface CallStop {
     contactName?: string | null;    // 담당 (예: "정종혁차장")
     phone1?: string | null;         // 전화1 (예: "010-2228-4991")
     phone2?: string | null;         // 전화2 (예: "031-267-1224", 빈 값일 경우 "*")
-    requestedTime?: string;         // 상차/하차 예약 시간 (내 콜 화면에서 파싱, 예: "13:53")
+    /** 📝 약속 원문 — 화면 글자 그대로(인성 «@낼8:30» · 화물24시 «당상» · 픽커 «17:04까지 픽업» · 하차 «14시전») · 화면 기록 */
+    promiseText?: string | null;
+    /** 📅 날 — 콜을 본 날부터 며칠 뒤. 화면 표시 + 정한 규칙(날짜 없는 예약 = 오늘 · 날짜 없는 하차 = 상차와 같은 날) · null = 약속 없음 */
+    requestedDay?: number | null;
+    /** 🕒 시각 «HH:MM» — 화면 표시 + 정한 규칙(첫 시각 · 구간 = 끝 시각) · null = 약속 없음 */
+    requestedTime?: string | null;
     memo?: string | null;           // 그 정거장 안내 글
     geo?: { x: number; y: number } | null;   // 서버가 붙이는 좌표 — 원달앱은 비운다
 }

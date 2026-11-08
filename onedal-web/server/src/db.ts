@@ -486,8 +486,8 @@ db.exec(`
         orderId         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
         placeId         INTEGER NOT NULL REFERENCES places(id),
         stopType        TEXT NOT NULL,
-        -- 🪦 stopOrder INTEGER DEFAULT 0,  경유 순서·요청시각을 여기 두려던 계획 —
-        -- requestedTime TEXT,              실제 담당은 세션·step_* 행 (전수조사 2026-08-21)
+        -- 🪦 stopOrder INTEGER DEFAULT 0,  경유 순서는 세션·step_* 행이 맡는다
+        -- requestedTime TEXT,              정거장 약속 칸(promiseText · requestedDay · requestedTime)은 이 표가 아니라 콜 한 칸 안(걸음 3)
         customerNameSnapshot TEXT,
         phoneSnapshot        TEXT,
         memo            TEXT

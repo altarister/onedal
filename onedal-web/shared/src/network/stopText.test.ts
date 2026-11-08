@@ -60,6 +60,13 @@ describe('📍 stopQueryOf — 지금 판정 글자와 같다', () => {
         expect(stopQueryOf('insung', { listText: '초월읍', geo: { x: 127.2879, y: 37.3852 }, geoText: '초월읍' }).need).toBe(false);
         expect(stopQueryOf('insung', { listText: '초월읍', addressDetail: '경기 광주시 초월읍 경충대로 907', geo: { x: 127.2879, y: 37.3852 }, geoText: '초월읍' }).need).toBe(true);
     });
+    it('promiseText 가 있으면 그 원문을 뗀다 — 글자 규칙이 못 가르는 붙은 약속도 · 원문이 글자에 없으면(픽커) 그대로', () => {
+        expect(stopQueryOf('insung', { listText: '@낼8:30/가산동', promiseText: '@낼8:30' }).text).toBe('가산동');
+        expect(stopQueryOf('insung', { listText: '내곡동/7시까지', promiseText: '7시까지' }).text).toBe('내곡동');
+        expect(stopQueryOf('isflex', { addressDetail: '@경기 수원시영통구 @낼08:20/수원이의동', promiseText: '낼08:20' }).text).toBe('경기 수원시 영통구 이의동');
+        expect(stopQueryOf('insung', { listText: '14시전쌍림동', promiseText: '14시전' }).text).toBe('쌍림동');
+        expect(stopQueryOf('kakaopicker', { listText: '광주 송정', promiseText: '17:04까지 픽업' }).text).toBe('광주 송정');
+    });
     it('빈 정거장은 빈 글자', () => {
         expect(stopQueryOf('insung', null)).toEqual({ text: '', need: true });
     });

@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { firstPickupStop, lastDropoffStop } from './timing';
+import { firstPickupStop, lastDropoffStop, isReservedCall } from './timing';
 
 /**
  * 🚏 **첫 상차 · 마지막 하차 정거장** — 맨 위 칸만 있는 콜과 정거장 칸도 있는 콜에서 같은 칸을 낸다.
+ *    **예약 콜** — 첫 상차 정거장의 «예약» 글자 · 날로 가른다.
  * 못 잡는 것: 관제웹 · 서버가 이 함수를 읽는지(읽는 걸음에서).
  */
 describe('🚏 firstPickupStop · lastDropoffStop', () => {
@@ -31,5 +32,20 @@ describe('🚏 firstPickupStop · lastDropoffStop', () => {
         const stop = firstPickupStop(o)!;
         stop.customerName = '바뀜';
         expect(o.pickupDetails[0].customerName).toBe('모다아울렛');
+    });
+});
+
+describe('📅 isReservedCall — «예약» 글자가 보이거나 첫 상차 날 ≥ 1', () => {
+    it('«당상» · «17:04까지 픽업» 은 날 0 오늘 콜 → 예약 아님', () => {
+        expect(isReservedCall({ pickupDetails: [{ promiseText: '당상', requestedDay: 0, requestedTime: null }] })).toBe(false);
+        expect(isReservedCall({ pickupDetails: [{ promiseText: '17:04까지 픽업', requestedDay: 0, requestedTime: '17:04' }] })).toBe(false);
+    });
+    it('«예약» 글자 · «낼8:30»(날 1) → 예약', () => {
+        expect(isReservedCall({ pickupDetails: [{ promiseText: '예약', requestedDay: 0, requestedTime: null }] })).toBe(true);
+        expect(isReservedCall({ pickupDetails: [{ promiseText: '@낼8:30', requestedDay: 1, requestedTime: '08:30' }] })).toBe(true);
+    });
+    it('약속이 없는 콜 · 하차 날만 1 인 콜은 예약 아님', () => {
+        expect(isReservedCall({})).toBe(false);
+        expect(isReservedCall({ dropoffDetails: [{ promiseText: '내착', requestedDay: 1 }] })).toBe(false);
     });
 });
