@@ -4,10 +4,10 @@
  * 언제: 콜 값을 주고받을 때
  * 어디서: 콜 타입을 쓰는 모든 자리
  * 무엇을: 목록 콜 · 상세 콜 · 대기 콜 · 내 콜 · 판정 기록 타입 · 원달앱 보고를 콜로 옮겨 담는 함수
- * 어떻게: 대부분 타입만 두고 값은 원달앱 보고를 정거장으로 옮기는 함수 둘(callFromAppReport · withStopLists)이다 · 번호 · 출처 묶음은 callIdentity 가 정의한다
+ * 어떻게: 대부분 타입만 두고 값은 원달앱 보고를 정거장으로 옮기는 함수 둘(callFromAppReport · withStopLists)이다 · 번호 · 출처 묶음은 callIdentity 가, 돈 묶음은 money 가 정의한다
  * 왜: 같은 콜을 앱마다 다른 모양으로 적지 않기 위해서다
  */
-import type { PaymentType, BillingType } from './money';
+import type { PaymentType, BillingType, CallMoney } from './money';
 import type { OrderStatus, MyOrderStatus } from './callStatus';
 import type { CallIdentity, CallProvenance, ReportKind } from './callIdentity';
 
@@ -95,7 +95,7 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
     // 1. 물품
     itemDescription?: string;         // 물품 요약 (예: "소형 가전", "박스 2개")
     
-    // 2. 요금 상세 스펙
+    // 2. 요금 상세 스펙 — 돈 묶음 `money` 로 옮기는 중(돈 7 · 8)
     commissionRate?: string;          // 수수료율 (예: "23%", "10%", "*%")
     tollFare?: string;                // 탁송료/통행료 별도 기재 항목
     paymentType?: PaymentType;        // 신용, 착불 등 결제수단
@@ -114,8 +114,11 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
 /** 원달앱 양식에만 있는 맨 위 칸 — 콜 모양은 정거장 칸(`pickupDetails` · `dropoffDetails`)으로 담는다 (`reserved` 는 원달앱 몫이라 콜 모양에도 남는다) */
 type StopFlatKey = 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | 'dropoffY' | 'scheduleText' | 'reservedDay' | 'reservedAt' | 'pickupDistance' | 'deliveryDistance';
 
-/** 배차망에서 온 콜 한 건 — 번호 묶음(이 콜이 무엇인가) + 출처 묶음(이 보고가 어디서 어떻게 왔나) + 목록 콜 + 상세 콜. 아래 콜 모양 셋의 부모 */
-export interface OfficeOrder extends CallIdentity, CallProvenance, Omit<SimplifiedOfficeOrder, StopFlatKey>, DetailedOfficeOrder {}
+/** 배차망에서 온 콜 한 건 — 번호 묶음(이 콜이 무엇인가) + 출처 묶음(이 보고가 어디서 어떻게 왔나) + 목록 콜 + 상세 콜 + 돈 묶음. 아래 콜 모양 셋의 부모 */
+export interface OfficeOrder extends CallIdentity, CallProvenance, Omit<SimplifiedOfficeOrder, StopFlatKey>, DetailedOfficeOrder {
+    /** 💰 돈 묶음 — 돈 줄 · 결제 · 증빙(`money.ts`). 채우는 곳은 아직 없다(서버 돈 7 · 원달앱 돈 9) · 그동안 `fare` · 요금 칸 넷을 읽는다 */
+    money?: CallMoney;
+}
 
 /** 📱 원달앱 보고 한 건 — 원달앱 양식(맨 위 칸 포함) + 상세 칸 + 배차망 칸. 서버 입구 두 곳(/confirm · /detail)이 받는다 */
 export type AppCallReport = SimplifiedOfficeOrder & Omit<OfficeOrder, keyof SimplifiedOfficeOrder>;
