@@ -1,6 +1,6 @@
 const { createDefaultPreset } = require("ts-jest");
 
-// 🕐 검사도 실서버와 같은 한국 시간으로 돈다 — 서버 입구(src/config/timezone.ts)와 같은 값. GitHub 검사 기계는 UTC 라 17시 일과 종료 · 영업일 날짜 검사가 갈린다 (일꾼은 이 값을 물려받는다)
+// 🕐 검사도 실서버와 같은 한국 시간으로 돈다 — 서버 입구(src/config/timezone.ts)와 같은 값. GitHub 검사 기계는 UTC 다 — 날 자르기는 기계 시간대와 무관하지만 기계 시간대를 재는 검사(serverTimeZone)가 이 값을 본다 (일꾼은 이 값을 물려받는다)
 process.env.TZ = "Asia/Seoul";
 
 const tsJestTransformCfg = createDefaultPreset().transform;
