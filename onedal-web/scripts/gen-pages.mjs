@@ -228,6 +228,9 @@ ${pages.join('\n')}
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
     val vehicleAbsentMeansAny: Boolean = ${spec.vehicleAbsentMeansAny === true}
 
+    /** 🏠 판정 글자 다듬기(shared addressCut${spec.addressCutWhy ? ` — ${spec.addressCutWhy}` : ''}) · 맞는 첫 부분을 지운다 · null 이면 자르기만 (\`StopText.query\`) */
+    val addressCut: Regex? = ${spec.addressCut ? kregex(spec.addressCut) : 'null'}
+
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — ${spec.networkMarkersWhy ?? ''}) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(
 ${(spec.networkMarkers ?? fail(`표에 ${net} networkMarkers 가 없다`)).map((g) => `        ${klist(g)},`).join('\n')}

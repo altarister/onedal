@@ -66,6 +66,36 @@ describe('📊 같은 콜 — 상차 + 하차 + 30분 창', () => {
     });
 });
 
+describe('📊 묶기 열쇠 · 시군구는 판정 글자로 — 수집 기록은 칸 원문', () => {
+    const t = (min: number) => new Date(Date.parse('2020-01-02T10:00:00+09:00') + min * 60_000).toISOString();
+    const flex = (min: number, pickup: string, dropoff: string) => ({
+        user_id: 'u1', targetApp: 'isflex', pickup, dropoff, fare: 10000, timestamp: t(min),
+    }) as any;
+    it('🔴 플렉스 원문 «@구미동 → 내곡동/7시까지» 와 다듬은 글자 «구미동 → 내곡동» 은 한 콜', () => {
+        expect(groupSameCalls([flex(0, '@구미동', '내곡동/7시까지'), flex(10, '구미동', '내곡동')]).length).toBe(1);
+    });
+    const DAY = '2020-01-03';
+    const U = 'test-stats-flex';
+    const cleanup = () => {
+        db.prepare(`DELETE FROM intel WHERE user_id = ?`).run(U);
+        db.prepare(`DELETE FROM stats_flows WHERE day = ?`).run(DAY);
+        db.prepare(`DELETE FROM stats_rollup_days WHERE day = ?`).run(DAY);
+        db.prepare(`DELETE FROM users WHERE id = ?`).run(U);
+    };
+    beforeAll(() => {
+        cleanup();
+        db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`).run(U, `g-${U}`, `${U}@test`, '통계검사');
+        db.prepare(`INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, source)
+            VALUES (?, 'd', 'INTEL_BULK', '@구미동', '개신동/최대한바로', 10000, ?, 'isflex', 'real')`).run(U, new Date(Date.parse(`${DAY}T10:00:00+09:00`)).toISOString());
+    });
+    afterAll(cleanup);
+    it('🔴 플렉스 원문 «@구미동» · «개신동/최대한바로» 의 시군구', () => {
+        rollupDay(DAY);
+        expect(db.prepare(`SELECT from_sigungu, to_sigungu FROM stats_flows WHERE day = ?`).get(DAY))
+            .toEqual({ from_sigungu: '성남시 분당구', to_sigungu: '청주시 서원구' });
+    });
+});
+
 describe('📊 하루 묶기 · 90일 합치기', () => {
     const DAY = '2020-01-02';
     const OLD = '2020-01-01';

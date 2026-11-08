@@ -26,16 +26,16 @@ import com.onedal.app.core.StandardScreen
 object InsungPages {
     val pages: PageSpecs = mapOf(
         Page.NEW_LIST to listOf(
-            FieldSpec(PageField.PICKUP, "출발지 칸", "@초이동 · @남양주(오남", Seen.REAL, Handling.READ, "InsungParser.parse"),
-            FieldSpec(PageField.DROPOFF, "도착지 칸", "이태원동 · 김포(대곶면", Seen.REAL, Handling.READ, "InsungParser.parse"),
+            FieldSpec(PageField.PICKUP, "출발지 칸", "@초이동 · @남양주(오남", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 칸 원문 그대로 정거장 listText · 판정 글자는 StopText.query"),
+            FieldSpec(PageField.DROPOFF, "도착지 칸", "이태원동 · 김포(대곶면", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 칸 원문 그대로 정거장 listText · 판정 글자는 StopText.query"),
             FieldSpec(PageField.RESERVATION, "출발지 칸 앞글자", "낼7시/ · 낼6시30/ · 21시/(시각만 · 오늘) · 오후7시30/(시각만 · 오늘) · 10일/", Seen.REAL, Handling.READ, "InsungParser.reservationOf"),
-            /* 짐 줄 «품목» — 물건이 핸드폰 · 출발지 · 도착지 칸 앞 토막 — 원달앱 칸 앞 토막 함수(걸음 5)가 읽는다 */
-            FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "폰)", Seen.REAL, Handling.UNUSED, "",
+            /* 짐 줄 «품목» — 물건이 핸드폰 · 출발지 · 도착지 칸 앞 토막 · 짐 줄로 싣는 것은 짐 계획 몫 */
+            FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "폰)", Seen.REAL, Handling.READ, "원달앱 칸 앞 토막 함수(LocationTextAnalyzer.split) → 조건 토막 · 화면 기록(tagsText)",
                 part = "goods"),
-            /* 짐 줄 «동승» — 화주 2명 동승(캡처 없음) · 출발지 · 도착지 칸 앞 토막 — 원달앱 칸 앞 토막 함수(걸음 5)가 읽는다 */
-            FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "2분동승", Seen.UNKNOWN, Handling.UNUSED, "",
+            /* 짐 줄 «동승» — 화주 2명 동승(캡처 없음) · 출발지 · 도착지 칸 앞 토막 · 짐 줄로 싣는 것은 짐 계획 몫 */
+            FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "2분동승", Seen.UNKNOWN, Handling.READ, "원달앱 칸 앞 토막 함수(LocationTextAnalyzer.split) → 조건 토막 · 화면 기록(tagsText)",
                 part = "passenger"),
-            FieldSpec(PageField.CLOCK, "도착지 칸 앞글자 (도착 약속)", "낼8/ · 8시/ · 낼10시/", Seen.REAL, Handling.DROPPED, "InsungParser.parse — 출발지 쪽이 있으면 버림"),
+            FieldSpec(PageField.CLOCK, "도착지 칸 앞글자 (도착 약속)", "낼8/ · 8시/ · 낼10시/", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 하차 정거장 약속 원문(promiseText)"),
             FieldSpec(PageField.VEHICLE_TYPE, "차종 칸", "1t · 다 · 라 · 1t화물", Seen.REAL, Handling.READ, "InsungParser.readVehicleAndFare"),
             FieldSpec(PageField.FARE, "요금 칸 (천 원 단위)", "40.0 · 270.0", Seen.REAL, Handling.READ, "InsungParser.readVehicleAndFare"),
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선으로 읽음(상세 «(직선)»과 같은 뜻 — 목록엔 표시 없음) */
@@ -43,7 +43,7 @@ object InsungPages {
             /* 하차 정거장 거리(상차지 → 하차지) · 직선으로 읽음 · «0.0» 은 배송 거리 모름 */
             FieldSpec(PageField.DELIVERY_DISTANCE, "거리 칸 아랫줄", "0.0 · 341.3", Seen.REAL, Handling.READ, "InsungParser.parse"),
             /* 공유콜 — 다른 사무실 콜 · «@» 가 없으면 자사콜(인성 설명 영상 2249) */
-            FieldSpec(PageField.OTHER_OFFICE, "출발지 칸 앞 «@»", "@초이동 · @낼8:30/가산동", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 번호 9 · 걸음 5 — 공유콜)"),
+            FieldSpec(PageField.OTHER_OFFICE, "출발지 칸 앞 «@»", "@초이동 · @낼8:30/가산동", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 공유콜(fromOtherOffice) · 출발지 칸 맨 앞이거나 바로 앞 노드가 «@»"),
         ),
         Page.NEW_CALL to listOf(
             FieldSpec(PageField.STAGE, "상태 줄", "상태 : 배송", Seen.REAL, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다",
@@ -205,6 +205,9 @@ object InsungPages {
 
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
     val vehicleAbsentMeansAny: Boolean = false
+
+    /** 🏠 판정 글자 다듬기(shared addressCut — 끝에 붙는 «(건물명)»을 지운다 — 첫 «(»부터 끝까지) · 맞는 첫 부분을 지운다 · null 이면 자르기만 (`StopText.query`) */
+    val addressCut: Regex? = Regex("""\(.*?\)${'$'}""")
 
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금») · 첫 화면(«인성퀵화면분할» — 홈에서 바로 알아보기)) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(

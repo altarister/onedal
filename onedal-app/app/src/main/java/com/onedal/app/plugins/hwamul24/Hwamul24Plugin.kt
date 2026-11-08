@@ -32,6 +32,7 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
 
     /** 📄 페이지 정의 — `Hwamul24Pages` */
     override val pages get() = Hwamul24Pages.pages
+    override val addressCut get() = Hwamul24Pages.addressCut
     override val screens get() = Hwamul24Pages.screens
 
     /** 🧹 상세 글은 «상차지»부터 — 머리(제목 · ID · 잔액 · 화물번호 · 등록시간)를 뗀다(목록 파서가 제목을 상차지로 · 잔액을 요금으로 읽었다 · 29 X12) */

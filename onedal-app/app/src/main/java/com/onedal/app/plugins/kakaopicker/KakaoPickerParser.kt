@@ -1,6 +1,7 @@
 package com.onedal.app.plugins.kakaopicker
 
 import com.onedal.app.core.Prefs
+import com.onedal.app.core.TargetApp
 import android.content.Context
 import com.onedal.app.core.LogTag
 import com.onedal.app.core.OpenBlocked
@@ -729,7 +730,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
         /** 📅 상차에서 떨어진 까닭 — «상차 20.0km > 내일 콜 반경 25km» (판정 줄 끝) */
         fun pickupMissWord(order: SimplifiedOfficeOrder, pickupRadiusKm: Double, reservedPickupRadiusKm: Double?, reservedPickupKeywords: List<String>? = null): String {
-            if (laterDay(order) && !reservedPickupKeywords.isNullOrEmpty()) return "상차 ${StopText.of(firstPickupStop(order))} > 내일 콜 집 둘레 목록 밖"
+            if (laterDay(order) && !reservedPickupKeywords.isNullOrEmpty()) return "상차 ${StopText.query(TargetApp.KAKAOPICKER, firstPickupStop(order))} > 내일 콜 집 둘레 목록 밖"
             val day = firstPickupStop(order)?.requestedDay ?: 0
             val kind = when { !laterDay(order) -> "오늘 콜"; day == 1 -> "내일 콜"; else -> "${day}일 뒤 콜" }
             val r = "%.2f".format(java.util.Locale.US, pickupRadiusFor(order, pickupRadiusKm, reservedPickupRadiusKm)).trimEnd('0').trimEnd('.')
@@ -775,13 +776,13 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             //    빈 목록([])은 없는 것처럼 — 지도 자료를 못 읽어 빈 목록이 내일 콜을 전부 떨어뜨렸다(리뷰)
             val homeList = reservedPickupKeywords?.takeIf { it.isNotEmpty() }
             val pickupOk = if (laterDay(order) && homeList != null)
-                StopText.of(firstPickupStop(order)).isBlank() || pickupListOk(StopText.of(firstPickupStop(order)), homeList, keywordTraps, reservedPickupGroups)
+                StopText.of(firstPickupStop(order)).isBlank() || pickupListOk(StopText.query(TargetApp.KAKAOPICKER, firstPickupStop(order)), homeList, keywordTraps, reservedPickupGroups)
             else firstPickupStop(order)?.distanceKm?.let { it <= pickupRadiusFor(order, pickupRadiusKm, reservedPickupRadiusKm) } == true
             val destOk = when {
                 destKeywords.isEmpty() -> true      // 도착 목표가 없다(관내·목표 미설정) — 제한 없음
                 // 하차를 아직 모른다(도보 목록) — 판정을 채운 뒤로 미룬다: 상세 사진으로 채운 하차로 `passesFilterAfterFill` 이 다시 본다
                 StopText.of(lastDropoffStop(order)).isBlank() -> true
-                else -> destinationOk(StopText.of(lastDropoffStop(order)), destKeywords, keywordTraps, cityAliases, dongSigungu)
+                else -> destinationOk(StopText.query(TargetApp.KAKAOPICKER, lastDropoffStop(order)), destKeywords, keywordTraps, cityAliases, dongSigungu)
             }
             return AlarmAxes(fareOk, pickupOk, destOk, reservationOk)
         }

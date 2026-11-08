@@ -42,6 +42,10 @@ object ReservationText {
     /** «낼8» — 인성이 «시»를 빼고 적는 꼴 */
     private val BARE_HOUR_AFTER_TOMORROW = Regex("""낼\s*(\d{1,2})(?![\d시:])""")
 
+    /** 📅 이 글자에 약속 표시(날 · 시각 · «예약»)가 있나 — 칸 앞 토막이 약속 토막을 고를 때. 날 계산이 아니라 표시만 보므로 «31일» · «2/29» 가 다 있는 날을 기준으로 읽는다 */
+    fun hasMark(text: String): Boolean = read(text, MARK_PROBE).marked
+    private val MARK_PROBE: LocalDateTime = LocalDateTime.of(2000, 1, 1, 0, 0)
+
     fun read(text: String?, now: LocalDateTime): Reservation {
         val t = text?.trim().orEmpty()
         if (t.isEmpty()) return Reservation.NONE

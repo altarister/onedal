@@ -30,9 +30,9 @@ class OrderRequirementTest {
     }
 
     @Test
-    fun `«배차값없음»은 빈 값이다`() {
-        assertFalse(OrderRequirement.meets(order("배차값없음", "광주 탄벌", 4000), allowsEmptyDropoff = false))
-        assertFalse(OrderRequirement.meets(order("광주 경안", "배차값없음", 4000), allowsEmptyDropoff = false))
+    fun `못 읽은 칸(빈 값)은 요건을 못 채운다`() {
+        assertFalse(OrderRequirement.meets(order("   ", "광주 탄벌", 4000), allowsEmptyDropoff = false))
+        assertFalse(OrderRequirement.meets(order("광주 경안", "   ", 4000), allowsEmptyDropoff = false))
     }
 
     @Test

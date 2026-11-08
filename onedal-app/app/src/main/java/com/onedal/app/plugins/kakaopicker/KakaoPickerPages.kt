@@ -147,6 +147,9 @@ object KakaoPickerPages {
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
     val vehicleAbsentMeansAny: Boolean = true
 
+    /** 🏠 판정 글자 다듬기(shared addressCut — 지우지 않는다 — 원달앱이 이미 «구 동»으로 정리해 보낸다(앞뒤 공백만)) · 맞는 첫 부분을 지운다 · null 이면 자르기만 (`StopText.query`) */
+    val addressCut: Regex? = null
+
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 목록 머리 · 수락 전 상세 버튼 둘 · 홈과 수락 뒤 단계 글자 하나씩 · 퀵 흰 페이지 칸 이름 하나씩(퀵 머리 글자는 원달앱이 못 읽는다)) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(
         listOf("리스트 설정"),

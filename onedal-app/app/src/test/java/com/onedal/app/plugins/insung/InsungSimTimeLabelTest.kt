@@ -17,7 +17,7 @@ import com.onedal.app.models.CallStop
  */
 class InsungSimTimeLabelTest {
     private fun read(cell: String, now: LocalDateTime): Reservation =
-        InsungParser.reservationOf(LocationTextAnalyzer.analyze(cell), now)
+        InsungParser.reservationOf(LocationTextAnalyzer.split(cell, InsungPages.badgeWords).promise, now)
 
     private fun isToday(r: Reservation): Boolean = ReservationGate.isToday(
         SimplifiedOfficeOrder(

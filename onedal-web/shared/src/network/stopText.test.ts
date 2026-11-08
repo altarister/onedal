@@ -6,8 +6,8 @@ import type { CallStop, TargetAppType } from '../index';
 
 /**
  * 🏠 **이 정거장 글자 · 판정 글자** — `stopTextOf` 는 상세 주소가 먼저 · 없으면 목록 원문,
- * `stopQueryOf` 는 그 글자를 다듬은 판정 글자다. 원달앱이 다듬어 보낸 글자를 정의 표 `addressCut` 로 다듬은 글자와 같아야 한다.
- * 못 잡는 것: 원달앱 짝 함수와 같은 답인지(공통 문제지는 원달앱 걸음 몫) · 실제 카카오 좌표.
+ * `stopQueryOf` 는 그 글자를 다듬은 판정 글자다 — 원달앱은 칸 원문을 보내고 서버 · 원달앱 짝(`StopText.query`)이 같은 규칙으로 다듬는다.
+ * 못 잡는 것: 실제 카카오 좌표 (원달앱 짝이 같은 답인지는 원달앱 `StopTextTest` 가 같은 문제지로 문다).
  */
 describe('🏠 stopTextOf', () => {
     it('상세만 · 목록만 · 둘 다 · 둘 다 없음', () => {
@@ -20,7 +20,7 @@ describe('🏠 stopTextOf', () => {
     });
 });
 
-describe('📍 stopQueryOf — 원달앱이 다듬어 보낸 글자와 같은 답', () => {
+describe('📍 stopQueryOf — 칸 원문 · 상세 주소를 다듬은 판정 글자', () => {
     it('인성 팝업 — 끝 괄호를 다듬는다', () => {
         const detail = '경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)';
         expect(stopQueryOf('insung', { listText: '안녕동', addressDetail: detail, customerName: '*레드캠프' }).text)
@@ -70,6 +70,15 @@ describe('📍 stopQueryOf — 원달앱이 다듬어 보낸 글자와 같은 �
         expect(stopQueryOf('insung', { listText: '14시전쌍림동', promiseText: '14시전' }).text).toBe('쌍림동');
         expect(stopQueryOf('kakaopicker', { listText: '광주 송정', promiseText: '17:04까지 픽업' }).text).toBe('광주 송정');
     });
+    it('promiseText 원문이 글자에 없으면 마지막 토막 약속 떼기를 한다 — «예약» 처럼 꼴이 다른 원문', () => {
+        expect(stopQueryOf('isflex', { listText: '@낼08:20/수원이의동', promiseText: '예약' }).text).toBe('수원 이의동');
+        expect(stopQueryOf('insung', { listText: '내곡동/7시까지', promiseText: '낼' }).text).toBe('내곡동');
+    });
+    it('promiseText 뒤에 «(» · «,» · «>» 가 붙어도 그 글자와 함께 뗀다 — 원달앱 칸 앞 토막이 낸 약속', () => {
+        expect(stopQueryOf('insung', { listText: '@낼6시(구래동', promiseText: '낼6시' }).text).toBe('구래동');
+        expect(stopQueryOf('insung', { listText: '@18:30구로동', promiseText: '18:30' }).text).toBe('구로동');
+        expect(stopQueryOf('insung', { listText: '카고,문래동6가', promiseText: '카고' }).text).toBe('문래동6가');
+    });
     it('promiseText 원문은 하나만 뗀다 — 붙은 글자가 있는 자리 먼저 · 상호 안의 같은 글자는 남긴다', () => {
         expect(stopQueryOf('insung', { listText: '예약/예약물류', promiseText: '예약' }).text).toBe('예약물류');
         expect(stopQueryOf('isflex', { addressDetail: '경기 광주시 예약물류센터 @예약/초월읍', promiseText: '예약' }).text).toBe('경기 광주시 예약물류센터 초월읍');
@@ -82,13 +91,13 @@ describe('📍 stopQueryOf — 원달앱이 다듬어 보낸 글자와 같은 �
 });
 
 /**
- * 📍 **플렉스 판정 글자 문제지** — 공통 문제지 `pageReadCases.json` `stopQueryCases`(실물 수집 원문 · 상세 xml 칸)를 `stopQueryOf` 로 푼다.
- *    `expect` 는 맞는 답 · `appNow` 는 지금 원달앱 `IsflexAddress.clean` 답(견주기 기록 · 만든 꼴은 null) · `expect` 가 null 이면 원문이 잘려 모름이라 풀지 않는다.
- *    못 잡는 것: 원달앱 짝 함수가 같은 답인지(원달앱 걸음 몫) · 실제 카카오 좌표.
+ * 📍 **판정 글자 문제지** — 공통 문제지 `pageReadCases.json` `stopQueryCases`(플렉스 실물 수집 원문 · 상세 xml 칸 · 인성 화면 칸)를 `stopQueryOf` 로 푼다.
+ *    `expect` 는 맞는 답 · `expect` 가 null 이면 원문이 잘려 모름이라 풀지 않는다. 원달앱 `StopTextTest` 가 같은 줄을 원달앱 짝으로 푼다.
+ *    못 잡는 것: 실제 카카오 좌표.
  */
-describe('📍 stopQueryOf — 플렉스 판정 글자 문제지 (stopQueryCases)', () => {
+describe('📍 stopQueryOf — 판정 글자 문제지 (stopQueryCases)', () => {
     const sheet = JSON.parse(readFileSync(join(__dirname, 'pageReadCases.json'), 'utf8')) as
-        { stopQueryCases: Array<{ network: TargetAppType; side: 'pickup' | 'dropoff'; stop: CallStop; expect: string | null; appNow: string | null; rule: 'stopQueryOf' | 'promise' | 'addressCut'; why: string }> };
+        { stopQueryCases: Array<{ network: TargetAppType; side: 'pickup' | 'dropoff'; stop: CallStop; expect: string | null; rule: 'stopQueryOf' | 'promise' | 'addressCut'; why: string }> };
     const known = sheet.stopQueryCases.filter(c => c.expect !== null);
     it.each(known.map(c => [c.side, JSON.stringify(c.stop), c] as const))('%s %s', (_side, _stop, c) => {
         expect(stopQueryOf(c.network, c.stop).text).toBe(c.expect);

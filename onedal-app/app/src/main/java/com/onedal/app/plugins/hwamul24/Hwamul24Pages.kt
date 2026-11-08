@@ -184,6 +184,9 @@ object Hwamul24Pages {
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
     val vehicleAbsentMeansAny: Boolean = false
 
+    /** 🏠 판정 글자 다듬기(shared addressCut — 첫 쉼표부터 끝(뒤 상세 주소)을 지운다 · 하차 주소 끝 «왕복»(조건 낱말 — 뜻은 badgeWords)을 뗀다) · 맞는 첫 부분을 지운다 · null 이면 자르기만 (`StopText.query`) */
+    val addressCut: Regex? = Regex(""",[\s\S]*${'$'}|왕복${'$'}""")
+
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료») · 첫 화면(«전국24시콜화물» — 홈에서 바로 알아보기)) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(
         listOf("화물정보", "자동새로고침"),

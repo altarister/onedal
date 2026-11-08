@@ -9,6 +9,7 @@ import com.onedal.app.plugins.RegionMatch
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.engine.FareFloor
 import com.onedal.app.core.LocationTextAnalyzer
+import com.onedal.app.core.TargetApp
 import com.onedal.app.core.ScreenTextNode
 import com.google.gson.Gson
 import com.onedal.app.models.FilterConfig
@@ -94,6 +95,43 @@ class InsungParser(private val context: Context) : IScrapParser {
         /** 목록 요금 칸(천 원 단위 소수) → 원. 곱한 뒤 반올림한다 — 잘라 내면 32.3 × 1000 = 32299.999… 가 32,299 원이 된다 */
         private fun fareOfThousands(shown: Double): Int = Math.round(shown * 1000.0).toInt()
 
+        /** 🚏 목록 줄에서 읽은 정거장 둘 · 공유콜 · 조건 토막 */
+        data class ListCells(val pickup: CallStop, val dropoff: CallStop, val fromOtherOffice: Boolean?, val conditions: List<String>)
+
+        /**
+         * 🚏 **목록 줄 노드 → 상차 · 하차 정거장** — 지역 칸은 1차 · 2차 규칙(`LocationTextAnalyzer.regionCell`)으로 고르고(첫째 = 상차 · 둘째 = 하차),
+         *    정거장 글자는 칸 원문 · 약속 토막은 제 정거장(하차 «14시전»은 하차에) · 출발지 «@»는 공유콜 · 조건 토막(«급송» · «왕복» · «폰»)은 따로.
+         *    지역 칸이 하나뿐이면 하차도 그 칸이다(약속은 상차에만). 못 읽은 쪽은 글자 null.
+         */
+        internal fun listCellsOf(texts: List<String>, uiNoiseWords: Set<String>, vehicleType: String?, rawJoined: String): ListCells {
+            val trimmed = texts.map { it.trim() }
+            val isNoise = { text: String -> uiNoiseWords.any { text.equals(it, ignoreCase = true) } }
+            // 📰 뺀 글자를 버리지 않고 모은다 — 잡음 낱말 · 지역으로 못 알아본 글자 (값·차종은 정의된 칸이라 빠진다 · `ScreenWords`)
+            trimmed.filter(isNoise).forEach { ScreenWords.add(it, WordKind.NOISE, rawJoined) }
+            val analyzed = trimmed.filter { !isNoise(it) && it.length >= 2 }.map { it to LocationTextAnalyzer.regionCell(it) }
+            analyzed.filter { (t, cell) -> cell == null && t != vehicleType }.forEach { ScreenWords.add(it.first, WordKind.UNKNOWN, rawJoined) }
+            val regionCells = analyzed.filter { it.second != null }.distinctBy { it.second }
+            regionCells.drop(2).forEach { ScreenWords.add(it.second!!, WordKind.EXTRA, rawJoined) }   // 셋째 지역부터 — 남는 토막
+
+            // 첫 번째 지역 칸 = 상차지, 두 번째 지역 칸 = 하차지 (인성앱 리스트 순서) · 정거장 글자는 칸 원문, 약속 토막은 제 정거장에
+            val pickupCell = regionCells.getOrNull(0)?.first
+            val dropoffCell = (regionCells.getOrNull(1) ?: regionCells.getOrNull(0))?.first
+            val pickupPieces = pickupCell?.let { LocationTextAnalyzer.split(it, InsungPages.badgeWords) }
+            val dropoffPieces = dropoffCell?.let { LocationTextAnalyzer.split(it, InsungPages.badgeWords) }
+            // 🏢 공유콜 «@» — 출발지 칸 맨 앞이거나 바로 앞 노드가 «@» 하나(시뮬레이터는 따로 그린다) · 출발지를 못 읽으면 모름
+            val pickupAt = pickupCell?.let { trimmed.indexOf(it) } ?: -1
+            val fromOtherOffice = pickupPieces?.let { it.mark || (pickupAt > 0 && trimmed[pickupAt - 1] == "@") }
+            // 🏷️ 조건 토막(«급송» · «왕복» · «폰») — 화면 기록에 남긴다
+            val conditions = (pickupPieces?.conditions.orEmpty() + dropoffPieces?.conditions.orEmpty().takeIf { dropoffCell != pickupCell }.orEmpty())
+            return ListCells(
+                pickup = CallStop(listText = pickupCell, region = StopText.regionOf(TargetApp.INSUNG, pickupCell), promiseText = pickupPieces?.promise),
+                dropoff = CallStop(listText = dropoffCell, region = StopText.regionOf(TargetApp.INSUNG, dropoffCell),
+                    promiseText = dropoffPieces?.promise.takeIf { dropoffCell != pickupCell }),
+                fromOtherOffice = fromOtherOffice,
+                conditions = conditions,
+            )
+        }
+
         /**
          * 🚚 **차종 닻 → (차종, 요금)** — 차종 토큰을 찾고 바로 다음 숫자를 요금(천 원 단위 — «30.8» = 30,800원)으로 읽는다.
          * JVM 검사(`VehicleFareAnchorTest`)가 부르려고 `parse` 에서 떼어냈다.
@@ -173,13 +211,13 @@ class InsungParser(private val context: Context) : IScrapParser {
          *
          * 🔴 뿌리는 *"첫 번째 유효 지역 = 상차지, 두 번째 = 하차지"* 다. 그건 **리스트에서만
          *    참인 규칙**인데, 상세 화면은 글자 배치가 달라 엉뚱한 낱말이 1·2번째로 잡혔다.
-         *    값이 비어 있지 않으니 «배차값없음» 폴백도 안 걸렸다.
+         *    값이 비어 있지 않으니 «못 읽음» 빈 값도 안 걸렸다.
          *
          * 직접콜(MANUAL)은 서버가 심사하지 않으므로(규칙 ①) 그 깨진 주소가 그대로 남아
          * **경로의 기점이 된다** — 여유·색·지도가 통째로 틀어진다.
          *
          * → 행정구역·도로명 꼬리가 없으면 주소로 쓰지 않는다. **모르면 모른다고 둔다**
-         *   (규칙 ④). 서버는 «배차값없음» 을 «못 읽음» 으로 다루고, 뒤이어 오는
+         *   (규칙 ④). 서버는 빈 정거장 글자를 «못 읽음» 으로 다루고, 뒤이어 오는
          *   상세 수집(`[출발지상세]`·`[도착지상세]`)이 진짜 주소를 채운다.
          */
         fun looksLikeAddress(text: String): Boolean {
@@ -224,11 +262,11 @@ class InsungParser(private val context: Context) : IScrapParser {
         data class Verdict(val passed: Boolean, val axis: String)
 
         /**
-         * 📅 예약은 **출발지 칸 앞글자**로만 읽는다 — 도착지 칸 «낼8/중구봉래동»은 도착 약속이다 (`InsungReservationTest`).
+         * 📅 예약은 **출발지 칸의 약속 토막**으로만 읽는다 — 도착지 칸 «낼8/중구봉래동»은 도착 약속이다 (`InsungReservationTest`).
          *    실물 인성은 내일에 «낼»을 적는다(한 화면에 «낼7시/»와 «21시/»가 나란히) — 시각만 있으면 오늘(`ReservationText`).
          */
-        fun reservationOf(pickupInfo: com.onedal.app.core.LocationInfo?, now: java.time.LocalDateTime): com.onedal.app.core.Reservation =
-            com.onedal.app.core.ReservationText.read(pickupInfo?.scheduleText, now)
+        fun reservationOf(pickupPromise: String?, now: java.time.LocalDateTime): com.onedal.app.core.Reservation =
+            com.onedal.app.core.ReservationText.read(pickupPromise, now)
 
         /** 판정하고 **어느 축에서 걸렸는지**까지 돌려준다 — `decide` 는 이것을 감싼 것이다 */
         fun decide(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Boolean =
@@ -282,9 +320,9 @@ class InsungParser(private val context: Context) : IScrapParser {
                     false
                 } else {
                     // 🗺️ RegionMatch(④) — 부분 문자열 오탐을 트랩으로 거른다
-                    RegionMatch.anyHit(StopText.of(lastDropoffStop(order)), filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
+                    RegionMatch.anyHit(StopText.query(TargetApp.INSUNG, lastDropoffStop(order)), filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
                 }
-                if (!isDetailPreConfirmStage && order.fare > 0 && com.onedal.app.core.LogOnce.changed("list1:"+"${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", "$matchResult")) AppLogger.d(TAG, LogTag.FILTER, "🔍 [1차 리스트 필터] 도착지=${StopText.of(lastDropoffStop(order))}, 결과=$matchResult")
+                if (!isDetailPreConfirmStage && order.fare > 0 && com.onedal.app.core.LogOnce.changed("list1:"+"${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", "$matchResult")) AppLogger.d(TAG, LogTag.FILTER, "🔍 [1차 리스트 필터] 도착지=${StopText.query(TargetApp.INSUNG, lastDropoffStop(order))}, 결과=$matchResult")
                 matchResult
             }
 
@@ -335,7 +373,7 @@ class InsungParser(private val context: Context) : IScrapParser {
              */
             val pickupListCheck = filter.pickupKeywords?.let { keys ->
                 val pickupText = (if (isDetailPreConfirmStage) PickupListFilter.insungDetailPickupText(rawText) else null)
-                    ?: StopText.of(firstPickupStop(order))
+                    ?: StopText.query(TargetApp.INSUNG, firstPickupStop(order))
                 PickupListFilter.check(pickupText, keys, filter.keywordTraps)
             }
             val pickupListMatch = pickupListCheck?.passed ?: true
@@ -359,21 +397,21 @@ class InsungParser(private val context: Context) : IScrapParser {
             }
 
             // ── 로그 출력 (디버깅용) ──
-            val isValidOrder = order.fare > 0 || StopText.of(firstPickupStop(order)) != "배차값없음" || StopText.of(lastDropoffStop(order)) != "배차값없음"
+            val isValidOrder = order.fare > 0 || firstPickupStop(order)?.listText != null || lastDropoffStop(order)?.listText != null
             // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다)
             if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:"+"${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear$isDetailPreConfirmStage")) {
                 val screenCtxLog = if (isDetailPreConfirmStage) "DETAIL" else "LIST"
             
-                AppLogger.roadmap(LogTag.FILTER, "🔍 [타겟 콜 필터 결과] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
-                            "도착지(${filter.destinationKeywords.size}중 ${StopText.of(lastDropoffStop(order))})=${if(regionMatch) "✅" else "❌"} " +
+                AppLogger.roadmap(LogTag.FILTER, "🔍 [타겟 콜 필터 결과] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "?"})=${if(vehicleMatch) "✅" else "❌"} " +
+                            "도착지(${filter.destinationKeywords.size}중 ${StopText.query(TargetApp.INSUNG, lastDropoffStop(order))})=${if(regionMatch) "✅" else "❌"} " +
                             (if (useRateModel)
                                 "요금/단가(${lastDropoffStop(order)?.distanceKm}km × ${rateFloor}원 = ${((lastDropoffStop(order)?.distanceKm ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "
                              else
                                 "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} ") +
                             (if (pickupListCheck != null)
-                                "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${StopText.of(firstPickupStop(order))})=${if(pickupListMatch) "✅" else "❌"} "
+                                "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${StopText.query(TargetApp.INSUNG, firstPickupStop(order))})=${if(pickupListMatch) "✅" else "❌"} "
                              else
-                                "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${firstPickupStop(order)?.distanceKm ?: "배차값없음"}km)=${if(distanceMatch) "✅" else "❌"} ") +
+                                "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${firstPickupStop(order)?.distanceKm ?: "?"}km)=${if(distanceMatch) "✅" else "❌"} ") +
                             "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
             }
 
@@ -462,23 +500,8 @@ class InsungParser(private val context: Context) : IScrapParser {
             FALLBACK_NOISE_WORDS
         }
 
-        // ── 2. 지역명 및 예약일정 파싱 (LocationTextAnalyzer 활용) ──
-        val trimmed = texts.map { it.trim() }
-        val isNoise = { text: String -> uiNoiseWords.any { text.equals(it, ignoreCase = true) } }
-        // 📰 뺀 글자를 버리지 않고 모은다 — 잡음 낱말 · 지역으로 못 알아본 글자 (값·차종은 정의된 칸이라 빠진다 · `ScreenWords`)
-        trimmed.filter(isNoise).forEach { ScreenWords.add(it, WordKind.NOISE, rawJoined) }
-        val analyzed = trimmed.filter { !isNoise(it) && it.length >= 2 }.map { it to LocationTextAnalyzer.analyze(it) }
-        analyzed.filter { (t, info) -> info == null && t != vehicleType }.forEach { ScreenWords.add(it.first, WordKind.UNKNOWN, rawJoined) }
-        val locationInfos = analyzed.mapNotNull { it.second }.distinctBy { it.cleanRegion }
-        locationInfos.drop(2).forEach { ScreenWords.add(it.cleanRegion, WordKind.EXTRA, rawJoined) }   // 셋째 지역부터 — 남는 토막
-
-        // 첫 번째 유효 지역 = 상차지, 두 번째 유효 지역 = 하차지 (인성앱 리스트 순서)
-        val pickupInfo = locationInfos.getOrNull(0)
-        val dropoffInfo = locationInfos.getOrNull(1) ?: pickupInfo
-        
-        val pickup = pickupInfo?.cleanRegion ?: "배차값없음"
-        val dropoff = dropoffInfo?.cleanRegion ?: "배차값없음"
-        val scheduleText = pickupInfo?.scheduleText ?: dropoffInfo?.scheduleText
+        // ── 2. 지역 칸 고르기 · 칸 앞 토막 ──
+        val cells = listCellsOf(texts, uiNoiseWords, vehicleType, rawJoined)
 
         // ── 3. 거리 파싱 ──
         // 소수점 있는 숫자들이 거리 (예: "9.6", "38.5")
@@ -510,8 +533,6 @@ class InsungParser(private val context: Context) : IScrapParser {
             postTime = timeMatch.groupValues[1]
         }
 
-        // 의미 없는 화면(오더 목록이 아닌 화면 등)에서 무의미한 로그 도배 방지
-        val isValidOrder = fare > 0 || pickup != "배차값없음" || dropoff != "배차값없음"
 
         return SimplifiedOfficeOrder(
             id = UUID.randomUUID().toString(),
@@ -521,12 +542,14 @@ class InsungParser(private val context: Context) : IScrapParser {
             postTime = postTime,
             vehicleType = vehicleType,
             rawText = rawJoined,
-            pickupDetails = listOf(CallStop(listText = pickup, promiseText = scheduleText, distanceKm = distances.getOrNull(0))),
+            fromOtherOffice = cells.fromOtherOffice,
+            tagsText = cells.conditions.joinToString(" ").ifEmpty { null },
+            pickupDetails = listOf(cells.pickup.copy(distanceKm = distances.getOrNull(0))),
             // 🔴 두 번째 값(배송거리)을 마지막 하차 정거장 거리로 **보존**한다.
             //    단가 판정(fare ≥ 배송거리 × 단가)의 입력이다. 없으면 null →
             //    판정을 건너뛰고 통과시킨다 (앱은 일단 잡아와라, 서버가 정확히 잰다).
-            dropoffDetails = listOf(CallStop(listText = dropoff, distanceKm = distances.getOrNull(1))),
-        ).withReservation(reservationOf(pickupInfo, java.time.LocalDateTime.now()))
+            dropoffDetails = listOf(cells.dropoff.copy(distanceKm = distances.getOrNull(1))),
+        ).withReservation(reservationOf(cells.pickup.promiseText, java.time.LocalDateTime.now()))
     }
 
     /**

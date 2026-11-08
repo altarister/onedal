@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import db from "../db";
-import { businessDayKey, isReservedCall, sigunguOfShort, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO, TARGET_APPS } from "@onedal/shared";
+import { businessDayKey, isReservedCall, isTargetApp, sigunguOfShort, stopQueryOf, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO, TARGET_APPS } from "@onedal/shared";
 import type { FlowCell, OpsStats, WatchedHour } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 
@@ -12,6 +12,7 @@ import { slog } from "../utils/fileLogger";
  * 🔴 **재료는 intel 의 목록 줄(INTEL_BULK) 가운데 실물 앱(source='real')뿐** — 상세까지 간 콜만 세면 «기사님 필터를 통과한 흐름»만 쌓인다.
  *    시뮬·옛 앱(NULL)은 원문에는 남되 여기서 빠진다. 시각은 ISO 칸(`timestamp` — Z 붙은 UTC)만 읽는다 — `localtime` 칸은 안 읽는다.
  * 🔴 **같은 콜 = 상차 + 하차 + 30분 창**(미끄러진다) — 픽커는 시간이 지나면 요금을 올려 요금이 든 지문으로는 두 콜이 된다.
+ *    상차 · 하차 묶기 열쇠와 시군구는 판정 글자(`stopQueryOf`)로 읽는다 — 수집 기록은 칸 원문(플렉스 «@낼08:20/수원이의동»)이라 그대로 읽으면 «@» · 약속 토막 때문에 «모름»이 된다.
  *    앱 `CallMemory`(상차+하차+요금)와 **일부러 둘**이다 — 앱은 «이 줄을 다시 판정할까», 통계는 «같은 일감인가»를 묻는다.
  * 🔴 **묶기는 그날 지우고 다시 넣기 한 트랜잭션** — 되풀이해도 같다. 서버가 뜰 때 + 1시간마다 «어제까지 안 묶은 날»을 묶는다
  *    (영업일 전환에 넣지 않는다 — 한 기사의 보고를 붙잡고, 기사가 안 온 날은 안 돈다).
@@ -39,14 +40,17 @@ export interface SameCall {
     lastVerdict: string | null;
 }
 
-/** 같은 콜로 묶는다 — (기사 · 배차망 · 상차 · 하차)가 같고 직전에 본 때로부터 30분 안이면 같은 콜. 줄은 시각 순으로 온다 */
+/** 🏠 수집 기록 글자 → 판정 글자 · 모르는 배차망이면 글자 그대로 */
+const queryOf = (app: string | null, text: string): string => (isTargetApp(app) ? stopQueryOf(app, { listText: text }).text : text);
+
+/** 같은 콜로 묶는다 — (기사 · 배차망 · 상차 · 하차 판정 글자)가 같고 직전에 본 때로부터 30분 안이면 같은 콜. 줄은 시각 순으로 온다 · 콜 글자는 처음 본 원문 */
 export function groupSameCalls(rows: IntelRow[]): SameCall[] {
     const open = new Map<string, { call: SameCall; lastMs: number }>();
     const calls: SameCall[] = [];
     for (const r of rows) {
         const ms = Date.parse(r.timestamp);
         if (!Number.isFinite(ms)) continue;
-        const key = `${r.user_id ?? ''}|${r.targetApp ?? ''}|${r.pickup}|${r.dropoff}`;
+        const key = `${r.user_id ?? ''}|${r.targetApp ?? ''}|${queryOf(r.targetApp, r.pickup)}|${queryOf(r.targetApp, r.dropoff)}`;
         const hit = open.get(key);
         const fare = r.fare != null && r.fare > 0 ? r.fare : null;
         const reserved = isReservedCall({ pickupDetails: [{ promiseText: r.scheduleText ?? null, requestedDay: r.reservedDay ?? null }] });
@@ -110,7 +114,7 @@ export function rollupDay(day: string): { calls: number; resolvedCalls: number }
     }>();
     let resolvedCalls = 0;
     for (const c of calls) {
-        const fromS = sigunguOfShort(c.pickup), toS = sigunguOfShort(c.dropoff);
+        const fromS = sigunguOfShort(queryOf(c.targetApp, c.pickup)), toS = sigunguOfShort(queryOf(c.targetApp, c.dropoff));
         if (resolved(fromS) && resolved(toS)) resolvedCalls++;
         const hour = kstHourOf(c.firstMs);
         const key = [hour, c.targetApp, fromS, toS, c.vehicleType, c.userId].join('|');

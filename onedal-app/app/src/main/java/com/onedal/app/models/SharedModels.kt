@@ -116,6 +116,8 @@ data class SimplifiedOfficeOrder(
      */
     val verdict: String? = null,
     val isSimulated: Boolean? = null,
+    /** 🏢 공유콜 — 인성 목록 출발지 «@»(다른 사무실 콜) · 표시가 없으면 거짓 · 뜻을 모르는 배차망은 null (shared `CallIdentity.fromOtherOffice`) */
+    val fromOtherOffice: Boolean? = null,
     /**
      * 📅 **예약 표시가 있나** (`ReservationText`) — 상차 쪽 글자로 읽는다.
      * 표시 없음 = 거짓 · 날 모름 = 참 + 첫 상차 정거장 `requestedDay` null (`withReservation`).

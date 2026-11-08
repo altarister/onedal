@@ -1,5 +1,6 @@
 package com.onedal.app.core.engine
 
+import com.onedal.app.core.TargetApp
 import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -14,13 +15,13 @@ class OrderRequirementNamesTest {
     private fun o(p: String, d: String, fare: Int) = SimplifiedOfficeOrder(id = "c", fare = fare, timestamp = "t", pickupDetails = listOf(CallStop(listText = p)), dropoffDetails = listOf(CallStop(listText = d)))
 
     @Test fun `요금 · 상차 · 하차를 이름으로`() {
-        assertEquals(listOf("요금 없음"), OrderRequirement.missingDetail(o("경기 이천시 중리동 올영", "경기 이천시 증포동", 0)))
-        assertEquals(listOf("상차 주소 짧음(이천 중리)", "하차 주소 짧음()"), OrderRequirement.missingDetail(o("이천 중리", "", 3364)))
+        assertEquals(listOf("요금 없음"), OrderRequirement.missingDetail(TargetApp.KAKAOPICKER, o("경기 이천시 중리동 올영", "경기 이천시 증포동", 0)))
+        assertEquals(listOf("상차 주소 짧음(이천 중리)", "하차 주소 짧음()"), OrderRequirement.missingDetail(TargetApp.KAKAOPICKER, o("이천 중리", "", 3364)))
     }
 
     @Test fun `모두 있으면 빈 목록이고 meetsDetail 은 참`() {
         val ok = o("경기 이천시 중리동 올영 이천터미널점", "경기 이천시 증포동", 3364)
-        assertTrue(OrderRequirement.missingDetail(ok).isEmpty())
-        assertTrue(OrderRequirement.meetsDetail(ok))
+        assertTrue(OrderRequirement.missingDetail(TargetApp.KAKAOPICKER, ok).isEmpty())
+        assertTrue(OrderRequirement.meetsDetail(TargetApp.KAKAOPICKER, ok))
     }
 }

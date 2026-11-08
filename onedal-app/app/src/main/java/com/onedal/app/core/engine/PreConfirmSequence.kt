@@ -120,13 +120,13 @@ fun ScanContext.handlePreConfirmScreen(
     if (session.accumulatedDetailText.isEmpty()) session.accumulatedDetailText = rawScreenStr
 
     // 📸 그래도 필수 요소(전체 주소·요금)가 모자라면 사진 — 사진 판독기가 있는 배차망만. 배차망 이름이 아니라 «모자란가»가 방아쇠다
-    if (!OrderRequirement.meetsDetail(order) && plugin.ocrParser != null) {
+    if (!OrderRequirement.meetsDetail(currentTargetApp, order) && plugin.ocrParser != null) {
         handlePreConfirmSnapshot(plugin, rootNode, screenTexts, rawScreenStr)
         return
     }
 
     // 📋 필수 요소 최종 대조 — 세 배차망 같다. 못 채웠으면 서버에 보내지 않고 버린다
-    val missing = OrderRequirement.missingDetail(order)
+    val missing = OrderRequirement.missingDetail(currentTargetApp, order)
     if (missing.isNotEmpty()) {
         apiClient.sendAnomalyReport(
             targetApp = currentTargetApp,
@@ -316,7 +316,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                     return@post
                 }
                 // 📋 필수 요소 최종 대조 — 사진으로 채운 값으로 (세 배차망 같다)
-                val missing = OrderRequirement.missingDetail(verifiedOrder)
+                val missing = OrderRequirement.missingDetail(currentTargetApp, verifiedOrder)
                 clock.mark("요건")
                 if (missing.isNotEmpty()) {
                     apiClient.sendAnomalyReport(
@@ -340,7 +340,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                 if (notTapped) return@post
                 if (tappedCard != null && !session.openedByApp) {
                     verifiedOrder = asHand()
-                    val stillMissing = OrderRequirement.missingDetail(verifiedOrder)
+                    val stillMissing = OrderRequirement.missingDetail(currentTargetApp, verifiedOrder)
                     if (stillMissing.isNotEmpty()) {
                         dropUnfilledCall("손 상세로 다시 대조 — 요건 미달 ${stillMissing.joinToString(" · ")}")
                         return@post
@@ -419,7 +419,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
 fun ScanContext.dropIfNotTappedCall(order: SimplifiedOfficeOrder, rawScreenStr: String): Boolean {
     settleOpener()
     val tapped = session.alarmTappedCard?.takeIf { session.openedByApp } ?: return false
-    val reason = TappedCall.mismatch(tapped, order) ?: return false
+    val reason = TappedCall.mismatch(currentTargetApp, tapped, order) ?: return false
     if (DetailOwner.onMismatch(session.contractedByApp) == DetailOwner.OnMismatch.KEEP_AS_HAND) {
         // 👆 앱이 판정만 할 상세 — 닫으면 기사님 손과 부딪힌다. 손 상세로 보고 판정만 보낸다(이상 징후는 남긴다)
         AppLogger.w(TAG, LogTag.CALL_STAGE, "🎯 [누른 콜 아님] $reason — 판정만 할 상세라 닫지 않는다 · 손 상세로 판정만")

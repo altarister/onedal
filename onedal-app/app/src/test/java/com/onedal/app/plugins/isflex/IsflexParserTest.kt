@@ -20,6 +20,7 @@ import java.time.LocalDateTime
 import com.onedal.app.core.firstPickupStop
 import com.onedal.app.core.lastDropoffStop
 import com.onedal.app.core.StopText
+import com.onedal.app.core.TargetApp
 import com.onedal.app.core.withLastDropoff
 
 /**
@@ -42,8 +43,8 @@ class IsflexParserTest {
         }
 
     private fun assertOrder(label: String, w: Want, o: SimplifiedOfficeOrder) {
-        assertEquals("$label 상차", w.pickup, StopText.of(firstPickupStop(o)))
-        assertEquals("$label 하차", w.dropoff, StopText.of(lastDropoffStop(o)))
+        assertEquals("$label 상차", w.pickup, StopText.query(TargetApp.ISFLEX, firstPickupStop(o)))
+        assertEquals("$label 하차", w.dropoff, StopText.query(TargetApp.ISFLEX, lastDropoffStop(o)))
         assertEquals("$label 요금", w.fare, o.fare)
         assertEquals("$label 출발지까지", w.pickupKm, firstPickupStop(o)?.distanceKm)
         assertEquals("$label 운행 거리", w.deliveryKm, lastDropoffStop(o)?.distanceKm)
@@ -120,8 +121,8 @@ class IsflexParserTest {
             assertEquals("$label 꼬리표 칸", fields.first, com.onedal.app.core.PageFieldRead.fieldOf(pages, page, com.onedal.app.core.PageField.TAGS, detail))
             assertEquals("$label 적요 칸", fields.second, com.onedal.app.core.PageFieldRead.fieldOf(pages, page, com.onedal.app.core.PageField.MEMO, detail))
             assertEquals("$label 결제 칸", fields.third, com.onedal.app.core.PageFieldRead.fieldOf(pages, page, com.onedal.app.core.PageField.PAYMENT, detail))
-            assertTrue("$label 상차 전체 주소", AddressForm.isFull(StopText.of(firstPickupStop(o))))
-            assertTrue("$label 하차 전체 주소", AddressForm.isFull(StopText.of(lastDropoffStop(o))))
+            assertTrue("$label 상차 전체 주소", AddressForm.isFull(StopText.query(TargetApp.ISFLEX, firstPickupStop(o))))
+            assertTrue("$label 하차 전체 주소", AddressForm.isFull(StopText.query(TargetApp.ISFLEX, lastDropoffStop(o))))
         }
     }
 

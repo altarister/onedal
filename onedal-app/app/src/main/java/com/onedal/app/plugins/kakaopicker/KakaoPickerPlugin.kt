@@ -39,6 +39,7 @@ class KakaoPickerPlugin(private val context: Context? = null) : IDispatchAppPlug
      */
     /** 📄 페이지 정의 — `KakaoPickerPages` */
     override val pages get() = KakaoPickerPages.pages
+    override val addressCut get() = KakaoPickerPages.addressCut
 
     override val acceptButtons: List<String>? = null
 

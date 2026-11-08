@@ -49,6 +49,9 @@ interface IDispatchAppPlugin {
      */
     val pages: com.onedal.app.core.PageSpecs
 
+    /** 🏠 **판정 글자 다듬기** — 정의 표 `addressCut`(생성 파일 `…Pages.addressCut`) · 원달앱 짝 `StopText.query` 가 읽는다 */
+    val addressCut: Regex?
+
     /** 🖥️ **페이지 목록 — 화면 판별이 이 차례대로 읽는다** (생성 파일 `…Pages.screens`) */
     val screens: List<com.onedal.app.core.ScreenSpec>
 

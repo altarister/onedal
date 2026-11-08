@@ -26,10 +26,12 @@ class Hwamul24ParseRegionTest {
         assertEquals(listOf("경기 군포 부곡동", "서울 중구 을지로6가", "1톤/전체", "60000"), listOf(StopText.of(firstPickupStop(o)), StopText.of(lastDropoffStop(o)), o.vehicleType, o.fare.toString()))
     }
 
-    @Test fun `실물 목록 - 답이 고치기 전과 같다`() {
+    /** 지역 칸은 칸 원문 통째 — 2차 규칙(한글 2~4자)이 «인천 미추홀»을 «미추홀»로 자르지 않는다 */
+    @Test fun `실물 목록 - 지역 칸은 칸 원문 통째`() {
         val o = parse("인천 미추홀", "경기 안성 일죽면", "당상", "지", "17Km", "06:33", "당착",
             "3.5톤/윙", "당일상 당착 공파렛", "독차", "인수증", "120,000원", "홈", "마이페이지")
-        assertEquals(listOf("미추홀", "경기 안성 일죽면", "3.5톤/윙", "120000"), listOf(StopText.of(firstPickupStop(o)), StopText.of(lastDropoffStop(o)), o.vehicleType, o.fare.toString()))
+        assertEquals(listOf("인천 미추홀", "경기 안성 일죽면", "3.5톤/윙", "120000"), listOf(StopText.of(firstPickupStop(o)), StopText.of(lastDropoffStop(o)), o.vehicleType, o.fare.toString()))
+        assertEquals("일죽면", lastDropoffStop(o)?.region)
     }
 
     @Test fun `하차 «○○N동» 도 하차로 읽는다 - 상차로 채우지 않는다`() {

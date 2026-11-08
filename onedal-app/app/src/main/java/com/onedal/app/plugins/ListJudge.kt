@@ -78,7 +78,7 @@ object ListJudge {
             false
         } else {
             // 🗺️ RegionMatch(④) — "남동"⊂"인천 남동구" 부분 문자열 오탐을 트랩으로 거른다
-            RegionMatch.anyHit(StopText.of(lastDropoffStop(order)), filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
+            RegionMatch.anyHit(StopText.query(rules.netCode, lastDropoffStop(order)), filter.destinationKeywords, filter.keywordTraps, filter.destinationDongSigungu)
         }
 
         // ── 조건 3: 요금 하한선 + 상한선 ──
@@ -116,7 +116,7 @@ object ListJudge {
         // 📋 상차 목록이 오면 그것으로 거른다 — 인성 파서와 같은 규칙 (`PickupListFilter` · 하차 목록»).
         //    그 배차망 상차지 글자(화물24시는 `cleanRegion`)에 동이 실리는지는 실물 캡처로 확인할 것 (규격 표 ⬜)
         //    🔴 칸이 안 오면(옛 서버) 아래 옛 판정 — 3단계(옛 칸 걷는 날)에 함께 지운다
-        val pickupListCheck = filter.pickupKeywords?.let { PickupListFilter.check(StopText.of(firstPickupStop(order)), it, filter.keywordTraps) }
+        val pickupListCheck = filter.pickupKeywords?.let { PickupListFilter.check(StopText.query(rules.netCode, firstPickupStop(order)), it, filter.keywordTraps) }
         val pickupListMatch = pickupListCheck?.passed ?: true
         val distanceMatch = if (pickupListCheck != null) {
             true
@@ -138,16 +138,16 @@ object ListJudge {
         }
 
         // ── 로그 출력 ──
-        val isValidOrder = order.fare > 0 || StopText.of(firstPickupStop(order)) != "배차값없음" || StopText.of(lastDropoffStop(order)) != "배차값없음"
+        val isValidOrder = order.fare > 0 || firstPickupStop(order)?.listText != null || lastDropoffStop(order)?.listText != null
         // 🔕 같은 콜의 판정이 바뀔 때만 (스캔마다 되풀이하지 않는다)
         if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:${rules.netCode}|"+"${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear")) {
-            AppLogger.roadmap(LogTag.FILTER, "🔍 [${rules.logHead} 필터] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
-                    "도착지(${StopText.of(lastDropoffStop(order))})=${if(regionMatch) "✅" else "❌"} " +
+            AppLogger.roadmap(LogTag.FILTER, "🔍 [${rules.logHead} 필터] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "?"})=${if(vehicleMatch) "✅" else "❌"} " +
+                    "도착지(${StopText.query(rules.netCode, lastDropoffStop(order))})=${if(regionMatch) "✅" else "❌"} " +
                     "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
                     (if (pickupListCheck != null)
-                        "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${StopText.of(firstPickupStop(order))})=${if(pickupListMatch) "✅" else "❌"} "
+                        "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${StopText.query(rules.netCode, firstPickupStop(order))})=${if(pickupListMatch) "✅" else "❌"} "
                      else
-                        "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${firstPickupStop(order)?.distanceKm ?: "배차값없음"})=${if(distanceMatch) "✅" else "❌"} ") +
+                        "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${firstPickupStop(order)?.distanceKm ?: "?"})=${if(distanceMatch) "✅" else "❌"} ") +
                     "블랙=${if(blacklistClear) "✅" else "❌"}", "LIST")
         }
 

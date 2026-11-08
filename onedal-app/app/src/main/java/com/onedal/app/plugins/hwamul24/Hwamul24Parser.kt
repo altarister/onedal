@@ -7,6 +7,8 @@ import com.onedal.app.core.AppLogger
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.plugins.ListJudge
 import com.onedal.app.core.LocationTextAnalyzer
+import com.onedal.app.core.StopText
+import com.onedal.app.core.TargetApp
 import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
@@ -107,10 +109,10 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
          * 📅 **예약은 상차 배지 + 화물 글의 상차 쪽 + 상차지 앞글자로 읽는다** (`Hwamul24ReservationTest` · `Hwamul24MemoTimesTest`).
          * 하차 배지(내착)와 화물 글의 하차 쪽(«10시전하차»)은 상차 날이 아니다 — `Hwamul24MemoTimes` 가 가른다.
          */
-        fun reservationOf(texts: List<String>, pickupInfo: com.onedal.app.core.LocationInfo?, now: java.time.LocalDateTime, memo: String? = null): com.onedal.app.core.Reservation {
+        fun reservationOf(texts: List<String>, pickupPromise: String?, now: java.time.LocalDateTime, memo: String? = null): com.onedal.app.core.Reservation {
             val badge = texts.map { it.trim() }.firstOrNull { it in PICKUP_DAY_BADGES }
             val memoPickup = Hwamul24MemoTimes.split(memo).pickup.ifEmpty { null }
-            val source = listOfNotNull(badge, memoPickup, pickupInfo?.scheduleText).joinToString(" ")
+            val source = listOfNotNull(badge, memoPickup, pickupPromise).joinToString(" ")
             return com.onedal.app.core.ReservationText.read(source, now)
         }
     }
@@ -151,7 +153,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
          */
         val fare = Hwamul24CardGrouping.fareOf(texts)
 
-        // ── 3. 지역명 파싱 (LocationTextAnalyzer 활용) ──
+        // ── 3. 지역 칸 고르기 · 칸 앞 토막 (LocationTextAnalyzer) — 아래 ──
 
         /**
          * ── 2. 차종(VehicleType): 차종 줄 «낱말/…»(«2.5톤/윙» · «1톤/카/윙» · «다마스/전체마대»)의 첫 «/» 앞 낱말 ──
@@ -184,17 +186,16 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 !text.contains("/") && // 🔴 «/» 가 든 글은 주소가 아니다 — 차종 줄(«오토바이/전체서류봉투»)·화물 글(«당착/쿠팡반품건»)
                 text != ">" // 화살표 구분자 제외
             }
-            .map { it to LocationTextAnalyzer.analyze(it) }
+            .map { it to LocationTextAnalyzer.regionCell(it) }
         analyzed.filter { it.second == null }.forEach { ScreenWords.add(it.first, WordKind.UNKNOWN, rawJoined) }
-        val locationInfos = analyzed.mapNotNull { it.second }.distinctBy { it.cleanRegion }
-        locationInfos.drop(2).forEach { ScreenWords.add(it.cleanRegion, WordKind.EXTRA, rawJoined) }
+        val regionCells = analyzed.filter { it.second != null }.distinctBy { it.second }
+        regionCells.drop(2).forEach { ScreenWords.add(it.second!!, WordKind.EXTRA, rawJoined) }
 
-        val pickupInfo = locationInfos.getOrNull(0)
-        val dropoffInfo = locationInfos.getOrNull(1) ?: pickupInfo
-
-        val pickup = pickupInfo?.cleanRegion ?: "배차값없음"
-        val dropoff = dropoffInfo?.cleanRegion ?: "배차값없음"
-        val scheduleText = pickupInfo?.scheduleText ?: dropoffInfo?.scheduleText
+        // 첫 지역 칸 = 상차지 · 둘째 = 하차지 — 정거장 글자는 칸 원문, 약속 토막은 제 정거장에
+        val pickupCell = regionCells.getOrNull(0)?.first
+        val dropoffCell = (regionCells.getOrNull(1) ?: regionCells.getOrNull(0))?.first
+        val pickupPieces = pickupCell?.let { LocationTextAnalyzer.split(it, Hwamul24Pages.badgeWords) }
+        val dropoffPieces = dropoffCell?.takeIf { it != pickupCell }?.let { LocationTextAnalyzer.split(it, Hwamul24Pages.badgeWords) }
 
         /**
          * ── 4. 거리(pickupDistance) 파싱 ──
@@ -241,12 +242,12 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         //    (실측: "대기 572분"). `XXX` 를 쓰면 `+09:00` 이 붙는다
         SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date())
 
-        val isValidOrder = fare > 0 || pickup != "배차값없음" || dropoff != "배차값없음"
+        val isValidOrder = fare > 0 || pickupCell != null || dropoffCell != null
         if (isValidOrder) {
             /* 🔕 목록을 읽을 때마다 돈다 — 같은 콜(상차 · 하차 · 요금)은 글자가 바뀔 때만 (`ParseLogOnceTest`) */
-            val line = "📦 [24시 파싱] 상차=$pickup, 하차=$dropoff, 요금=$fare, " +
+            val line = "📦 [24시 파싱] 상차=${pickupCell ?: "?"}, 하차=${dropoffCell ?: "?"}, 요금=$fare, " +
                     "차종=$vehicleType, 거리=${pickupDistance}km, 적요=${detailMemo?.take(30)}"
-            if (com.onedal.app.core.LogOnce.changed("24시 파싱:$pickup|$dropoff|$fare", line))
+            if (com.onedal.app.core.LogOnce.changed("24시 파싱:$pickupCell|$dropoffCell|$fare", line))
                 AppLogger.d(TAG, LogTag.FILTER, line)
         }
 
@@ -259,9 +260,11 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             vehicleType = vehicleType,
             rawText = rawJoined,
             tagsText = badgesOf(texts),
-            pickupDetails = listOf(CallStop(listText = pickup, promiseText = scheduleText, distanceKm = pickupDistance)),
-            dropoffDetails = listOf(CallStop(listText = dropoff)),
-        ).withReservation(reservationOf(texts, pickupInfo, java.time.LocalDateTime.now(), memo = detailMemo))
+            pickupDetails = listOf(CallStop(listText = pickupCell, region = StopText.regionOf(TargetApp.HWAMUL24, pickupCell),
+                promiseText = pickupPieces?.promise, distanceKm = pickupDistance)),
+            dropoffDetails = listOf(CallStop(listText = dropoffCell, region = StopText.regionOf(TargetApp.HWAMUL24, dropoffCell),
+                promiseText = dropoffPieces?.promise)),
+        ).withReservation(reservationOf(texts, pickupPieces?.promise, java.time.LocalDateTime.now(), memo = detailMemo))
     }
 
     // ════════════════════════════════════════════════════════════════

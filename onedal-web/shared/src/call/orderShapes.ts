@@ -69,6 +69,8 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     rawText?: string;                 // 안드로이드 스캐너에서 긁어온 원본 텍스트         
     /** 🐥 가상 체험 모드로 잡은 가상 주문 (실서버 미수락) */
     isSimulated?: boolean;
+    /** 🏢 공유콜 — 원달앱이 인성 목록 출발지 «@»에서 읽는다 · 번호 묶음 `CallIdentity.fromOtherOffice` 와 같은 칸 */
+    fromOtherOffice?: boolean | null;
     /** 📅 예약 표시가 있나 — 참인데 첫 상차 정거장 `requestedDay` 가 비면 «날 모름» (원달앱 `ReservationText`) */
     reserved?: boolean | null;
     /** 🚏 상차 정거장 — 원달앱은 목록 글자 · 정거장 거리 · 약속을 싣고, 좌표 · 찍은 글은 서버가 붙인다 */

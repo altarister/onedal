@@ -153,6 +153,9 @@ object IsflexPages {
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
     val vehicleAbsentMeansAny: Boolean = false
 
+    /** 🏠 판정 글자 다듬기(shared addressCut — 글 맨 앞 «@» 뒤에 붙은 영문 대문자 한 글자 · 점(«@A한남동» · «@.대치동» — 실물 목록 원문)을 지운다 · 예약 · 마감 앞글자는 판정 글자 함수(stopQueryOf)의 약속 원문 떼기 몫) · 맞는 첫 부분을 지운다 · null 이면 자르기만 (`StopText.query`) */
+    val addressCut: Regex? = Regex("""^@?[A-Z.](?=[가-힣])""")
+
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 목록(«출발지까지» + «수입») · 상세(«총 수입» + «수행하기») · 홈(«현재 선택된 배송 수단») · 진행중 빈 화면(«진행중인 오더가 없습니다») — 실물 02 · 08 · 01 · 04 에 있고 인성 화면에는 없는 글자 묶음. 공지 띠 · «AI 배차 대기중»은 글이 바뀌거나 사라져 쓰지 않는다) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(
         listOf("출발지까지", "수입"),

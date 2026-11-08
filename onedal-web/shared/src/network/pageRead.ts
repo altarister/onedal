@@ -94,7 +94,7 @@ export function missingAlwaysOf(app: TargetAppType, page: ScreenPage, text: stri
 const addressCutRes = new Map<TargetAppType, RegExp | null>();
 /**
  * 🏠 **카카오에 묻기 전 콜 주소 다듬기** — 정의 표의 배차망 단위 칸 `addressCut` 에 맞는 부분을 지우고 앞뒤 공백을 자른다.
- *    인성 끝의 «(건물명)» · 화물24시 쉼표 뒤 상세 주소 · 픽커는 자르기만. 원달앱은 안 읽는다(원달앱은 주소를 꺼내고, 서버는 묻기 전에 다듬는다).
+ *    인성 끝의 «(건물명)» · 화물24시 쉼표 뒤 상세 주소 · 픽커는 자르기만. 원달앱 짝 `StopText.query` 는 생성 파일 `…Pages.addressCut` 으로 같은 표를 읽는다.
  */
 export function addressOf(app: TargetAppType, raw: string): string {
     if (!addressCutRes.has(app)) {
@@ -111,14 +111,16 @@ export function stopTextOf(stop: CallStop | null | undefined): string {
 }
 
 const SPACES = /\s+/;
-/** 약속 앞글자 · 뒷글자와 동을 가르는 표 — «낼8:30/가산동» · «@낼8:30)방배동» · «내곡동/7시까지» · 글자에 «(» 가 있으면 «)» 는 인성 끝 괄호라 «/» 만 */
-const PROMISE_CUT = /[/)]/;
-const PROMISE_CUT_NO_PAREN = /\//;
-/** 지역 끝말이 붙은 토막 — 원달앱 `LocationTextAnalyzer` 1차와 같은 끝말(숫자+동 · 가 · 동 · 읍 · 면 · 리 · 시 · 구 · 군) · «오늘중»은 아니다 */
+/** 마지막 토막에서 약속 · 조건 토막과 동을 가르는 표 — «낼8:30/가산동» · «@낼8:30)방배동» · «내곡동/7시까지» · «카고,문래동6가» · «풍납동>논현동»(두 곳 하차) · 글자에 «(» 가 있으면 «)» 는 인성 끝 괄호라 뺀다 */
+const PROMISE_CUT = /[/),>]/;
+const PROMISE_CUT_NO_PAREN = /[/,>]/;
+/** 지역 끝말이 붙은 토막 — 숫자+동 · 가 · 동 · 읍 · 면 · 리 · 시 · 구 · 군 · «오늘중»은 아니다 */
 const REGION_PIECE = /^[가-힣]{2,}(?:\d{1,2}[동가]|[동읍면리시구군])$/;
 /** 동 꼴 토막 — 끝말 토막이 없을 때 · 한글 둘 이상으로 시작하고 숫자는 동 번호 둘까지(«역삼1동» · «을지로6가») · «낼8:30» · «7시까지»는 아니다 */
 const PLACE_PIECE = /^[가-힣]{2,}\d{0,2}[가-힣]*$/;
 const JOINED_CITY_GU = /^([가-힣]+[시군])([가-힣]+구)$/;
+/** 기호 없이 붙은 시각 — «18:30구로동» · «19;30여의» (뒤가 지역 끝말 토막일 때만 뗀다) */
+const GLUED_CLOCK = /^\d[\d:;.]*([가-힣].*)$/;
 /** 번지 — 숫자만 · 숫자-숫자 토막(«907» · «158-95») · «은행2동» 같은 동 번호는 아니다 */
 const LOT_NUMBER = /(?:^|\s)\d+(?:-\d+)?(?=\s|$)/;
 
@@ -169,6 +171,7 @@ const ROAD_NOTE = /^[가-힣\d]+[로길]\d+(?:-\d+)?$/;
  * 괄호 · 꺾쇠 덧글 가르기 — 마지막 토막의 «동(덧글)» · 잘린 «동(덧글» · «덧글]동».
  *    덧글이 명부의 시 · 군 · 구 짧은 이름과 똑같고 한 곳만 가리키면(`isSigunguShortName` — «하남» · «종로» · «평택») `city` 로 돌려준다(«시 동»으로 잇는다).
  *    닫힌 괄호는 그 밖이면 토막을 그대로 둔다(«잠원동(논현역)») · 잘린 덧글은 도로명 꼴이면 `road` 로 뒤에 잇고(«화도읍(폭포로412-18» → «화도읍 폭포로412-18»), 아니면 버린다(«상대원동(1박스» → «상대원동»).
+ *    잘린 «(» 뒤가 지역 끝말 토막이면 그쪽이 동이다 — 앞이 시 · 군 · 구 짧은 이름이면 «시 면»(«김포(대곶면» → «김포 대곶면»), 동 꼴이 아니면(약속 «낼6시») 뒤만(«낼6시(구래동» → «구래동»).
  */
 function noteOf(token: string): { base: string; city?: string; road?: string } {
     const closed = CLOSED_PAREN.exec(token);
@@ -178,16 +181,20 @@ function noteOf(token: string): { base: string; city?: string; road?: string } {
     const [base, extra] = paren ? [paren[1], paren[2]] : bracket ? [bracket[2], bracket[1]] : [token, ''];
     if (!base || !extra) return { base: token };
     if (isSigunguShortName(extra)) return { base, city: extra };
+    if (paren && REGION_PIECE.test(extra)) {
+        if (isSigunguShortName(base)) return { base: extra, city: base };
+        if (!PLACE_PIECE.test(base)) return { base: extra };
+    }
     return ROAD_NOTE.test(extra) ? { base, road: extra } : { base };
 }
 
-const PROMISE_GLUE_FRONT = new Set(['/', '@', '(']);
-const PROMISE_GLUE_BACK = new Set(['/', ')']);
+const PROMISE_GLUE_FRONT = new Set(['/', '@', '(', ',', '>']);
+const PROMISE_GLUE_BACK = new Set(['/', ')', '(', ',', '>']);
 
 /**
  * 약속 원문 떼기 — 하나만 뗀다(상호 안의 같은 글자는 남긴다). 뗀 자리는 빈칸이 된다.
- *    ① 원문 앞에 «/» · «@» · «(» 가 붙었거나 뒤에 «/» · «)» 가 붙은 첫 자리를 붙은 글자와 함께 —
- *       «@낼8:30/가산동» − «@낼8:30» → « 가산동» · «오포읍(14시전)» − «14시전» → «오포읍 »
+ *    ① 원문 앞에 «/» · «@» · «(» · «,» · «>» 가 붙었거나 뒤에 «/» · «)» · «(» · «,» · «>» 가 붙은 첫 자리를 붙은 글자와 함께 —
+ *       «@낼8:30/가산동» − «@낼8:30» → « 가산동» · «오포읍(14시전)» − «14시전» → «오포읍 » · «@낼6시(구래동» − «낼6시» → « 구래동»
  *    ② 그런 자리가 없으면 낱말 머리(글 시작이나 빈칸 뒤)의 첫 자리 — «14시전쌍림동» − «14시전» → « 쌍림동»
  *    ③ 그것도 없으면 낱말 끝(뒤가 글 끝이나 빈칸)의 첫 자리 — «쌍림동14시전» − «14시전» → «쌍림동 »
  *    셋 다 없으면 그대로.
@@ -211,29 +218,32 @@ function withoutPromise(text: string, promise: string): string {
 /**
  * 📍 **판정 글자** — 지오코딩 · 필터 · 상세 요건이 읽는 다듬은 글자와, 좌표를 다시 찍을지(`geocodeTarget.test`).
  *    좌표는 «고른 글»을 따라가는 값이라, 좌표가 없거나 찍은 글(`geoText`)이 지금 판정 글자와 다르면 다시 찍는다(짧은 목록 글로 먼저 찍힌 콜에 상세 주소가 오면).
- *    ① `stopTextOf` ② 약속 원문 떼기 — 정거장에 `promiseText` 가 있으면 그 글자 한 자리(와 붙은 «/» · «@» · «(» · «)»)를 뗀다.
- *       없을 때만 글자 규칙: 마지막 토막에 약속 글자가 «/» · «)»(글자에 «(» 가 없을 때만) 로 붙어 있으면
- *       지역 끝말 토막(`REGION_PIECE`)을 · 없으면 동 꼴 토막(`PLACE_PIECE`)을 남긴다.
- *       끝말 목록은 원달앱 `LocationTextAnalyzer` 1차와 같다. 원달앱은 토막을 나누지 않아 «가산동/오늘중»을 «오늘중»으로 읽는다.
+ *    ① `stopTextOf` ② 약속 원문 떼기 — 정거장에 `promiseText` 가 있으면 그 글자 한 자리(와 붙은 기호)를 뗀다.
+ *       그 원문을 글자에서 찾아 뗐을 때만 아래 글자 규칙을 건너뛴다(«예약» 처럼 글자에 없는 원문이면 글자 규칙을 한다).
+ *       글자 규칙: 마지막 토막에 약속 · 조건 글자가 «/» · «)»(글자에 «(» 가 없을 때만) · «,» · «>» 로 붙어 있으면
+ *       지역 끝말 토막(`REGION_PIECE`)을 · 없으면 동 꼴 토막(`PLACE_PIECE`)을 남긴다 · 기호 없이 붙은 시각은 뗀다(«18:30구로동» → «구로동»).
+ *       원달앱 짝(`StopText.query`)이 같은 규칙이다(문제지 `stopQueryCases`).
  *       어느 쪽이든 토막마다 앞 «@» 는 뗀다
  *       마지막 토막의 괄호 · 꺾쇠 덧글은 먼저 가른다 — 시 · 군 · 구 짧은 이름이면 «시 동»으로 잇고(«신장동(하남)» → «하남 신장동» · «고덕동(평택» → «평택 고덕동»),
  *       아니면 닫힌 괄호는 그대로 · 잘린 덧글은 도로명 꼴만 뒤에 잇고 나머지는 버린다(«상대원동(1박스» → «상대원동»)
- *    ③ 정의 표 `addressCut` ④ 붙은 «…시…구» · «시 이름 + 동»을 명부에 있을 때만 띄운다(원달앱 `IsflexAddress.clean` 과 같은 규칙)
+ *    ③ 정의 표 `addressCut` ④ 붙은 «…시…구» · «시 이름 + 동»을 명부에 있을 때만 띄운다
  *    ⑤ 번지가 없고 상호가 있으면(그 상호가 아직 글자에 없을 때) 뒤에 잇는다.
  *    정거장에는 화면 원문이 남고, 이 글자는 저장하지 않는다.
  */
 export function stopQueryOf(app: TargetAppType, stop: CallStop | null | undefined): { text: string; need: boolean } {
     const promise = stop?.promiseText?.trim();
-    const raw = promise ? withoutPromise(stopTextOf(stop), promise) : stopTextOf(stop);
+    const shown = stopTextOf(stop);
+    const raw = promise ? withoutPromise(shown, promise) : shown;
     const tokens = raw.trim().split(SPACES).map(t => t.replace(/^@+/, '')).filter(Boolean);
     const note = tokens.length ? noteOf(tokens.pop()!) : undefined;
     if (note) tokens.push(note.base);
-    const last = promise ? undefined : tokens.pop();
+    const last = raw !== shown ? undefined : tokens.pop();
     if (last !== undefined) {
         const promiseCut = tokens.some(t => t.includes('(')) || last.includes('(') ? PROMISE_CUT_NO_PAREN : PROMISE_CUT;
         const pieces = promiseCut.test(last) ? last.split(promiseCut) : [];
-        const place = pieces.filter(p => REGION_PIECE.test(p)).pop() ?? pieces.filter(p => PLACE_PIECE.test(p)).pop();
-        tokens.push(place ?? last);
+        const place = pieces.filter(p => REGION_PIECE.test(p)).pop() ?? pieces.filter(p => PLACE_PIECE.test(p)).pop() ?? last;
+        const clock = GLUED_CLOCK.exec(place);
+        tokens.push(clock && REGION_PIECE.test(clock[1]) ? clock[1] : place);
     }
     if (note?.city) tokens.splice(tokens.length - 1, 0, note.city);
     if (note?.road) tokens.push(note.road);

@@ -46,7 +46,7 @@ function serverFields(): string[] {
         itemSize: null, tagsText: null, verdict: null,
         id: 'c1', type: 'NEW_ORDER', fare: 45000, timestamp: '2026-01-01T00:00:00.000Z',
         postTime: '12:23', vehicleType: '1t', rawText: '',
-        isSimulated: false, reserved: null,
+        isSimulated: false, fromOtherOffice: null, reserved: null,
         pickupDetails: [{ listText: '경기 광주 오포' }], dropoffDetails: [{ listText: '이천시 신둔면' }], load: { vehicleText: '1t', sizeText: null, itemText: null, lines: [] },
     };
     return Object.keys(sample);

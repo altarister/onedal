@@ -61,7 +61,7 @@ class Hwamul24DetailReadTest {
     /** 실물 꼴(«경기 군포» — 시를 뺌 · 39 X12) 그대로 요건을 넘어 서버로 간다 */
     @Test fun `🔴 실물 꼴 상세는 요건을 넘는다 — 요금 없음 · 주소 짧음이 없다`() {
         val o = readHandDetail(real18)
-        assertEquals(o.toString(), emptyList<String>(), OrderRequirement.missingDetail(o))
+        assertEquals(o.toString(), emptyList<String>(), OrderRequirement.missingDetail(com.onedal.app.core.TargetApp.HWAMUL24, o))
     }
 
     @Test fun `🔴 목록 줄 대조는 운송료로 — 잔액(50,000)에 속지 않는다`() {

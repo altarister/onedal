@@ -37,6 +37,7 @@ class InsungPlugin(private val context: Context? = null) : IDispatchAppPlugin {
 
     /** 📄 페이지 정의 — `InsungPages` */
     override val pages get() = InsungPages.pages
+    override val addressCut get() = InsungPages.addressCut
     override val screens get() = InsungPages.screens
 
     /** ✋ 출발지 · 도착지 팝업이 닫히는 애니메이션 동안 글자가 남는다 */

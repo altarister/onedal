@@ -37,8 +37,9 @@ const COLUMN_OF: Record<string, string> = {};
  *    · `id` 앱이 만든 UUID. 원장은 제 `AUTOINCREMENT` 를 쓴다 (두 계보를 안 섞는다)
  *    · `pickupDetails` · `dropoffDetails` 정거장 묶음 — 정거장으로 옮겨 적음: 서버가 첫 상차 · 마지막 하차 정거장의
  *      글자 · 거리 · 약속 · 좌표를 `pickup` · `dropoff` · `pickupDistanceKm` · `deliveryDistanceKm` · `scheduleText` · `reservedDay` · `reservedAt` · 좌표 넷 칸에 적는다
+ *    · `fromOtherOffice` 공유콜 — 번호 · 출처 묶음 칸이라 콜 한 칸(`orders.callShape`)에 담기고 수집 기록 칸은 없다
  */
-const NOT_STORED = new Set(['id', 'isSimulated', 'pickupDetails', 'dropoffDetails']);
+const NOT_STORED = new Set(['id', 'isSimulated', 'pickupDetails', 'dropoffDetails', 'fromOtherOffice']);
 
 /** 📱 앱 그릇(`SimplifiedOfficeOrder`)이 나르는 칸 */
 function appOrderFields(): string[] {

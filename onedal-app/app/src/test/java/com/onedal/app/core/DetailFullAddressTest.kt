@@ -45,10 +45,10 @@ class DetailFullAddressTest {
 
     @Test
     fun `짧은 주소는 상세 필수 요소를 못 채운다 · 도보도 하차가 필수다`() {
-        assertTrue(OrderRequirement.meetsDetail(order(full, full)))
-        assertFalse("목록 줄임 이름", OrderRequirement.meetsDetail(order("강남 역삼", full)))
-        assertFalse("하차 없는 도보", OrderRequirement.meetsDetail(order(full, "")))
-        assertFalse("요금 없음", OrderRequirement.meetsDetail(order(full, full, fare = 0)))
+        assertTrue(OrderRequirement.meetsDetail(TargetApp.KAKAOPICKER, order(full, full)))
+        assertFalse("목록 줄임 이름", OrderRequirement.meetsDetail(TargetApp.KAKAOPICKER, order("강남 역삼", full)))
+        assertFalse("하차 없는 도보", OrderRequirement.meetsDetail(TargetApp.KAKAOPICKER, order(full, "")))
+        assertFalse("요금 없음", OrderRequirement.meetsDetail(TargetApp.KAKAOPICKER, order(full, full, fare = 0)))
     }
 
     @Test
@@ -70,16 +70,28 @@ class DetailFullAddressTest {
     @Test
     fun `누른 그 콜인가 - 목록 줄 동 토막이 상세 전체 주소에 있어야 한다`() {
         val tapped = order("다라 마바1", "카타 파하")
-        assertNull(TappedCall.mismatch(tapped, order("가나 다라구 마바1동 라마빌딩", "자차시 카타구 파하동")))
-        assertNotNull(TappedCall.mismatch(tapped, order("가나 다라구 사아동", "자차시 카타구 파하동")))
-        assertNull("도보(목록 하차 없음)는 하차를 대조하지 않는다", TappedCall.mismatch(order("다라 마바1", ""), order("가나 다라구 마바1동", "자차시 카타구 파하동")))
+        assertNull(TappedCall.mismatch(TargetApp.KAKAOPICKER, tapped, order("가나 다라구 마바1동 라마빌딩", "자차시 카타구 파하동")))
+        assertNotNull(TappedCall.mismatch(TargetApp.KAKAOPICKER, tapped, order("가나 다라구 사아동", "자차시 카타구 파하동")))
+        assertNull("도보(목록 하차 없음)는 하차를 대조하지 않는다", TappedCall.mismatch(TargetApp.KAKAOPICKER, order("다라 마바1", ""), order("가나 다라구 마바1동", "자차시 카타구 파하동")))
+    }
+
+    /** 🔴 인성 목록 줄은 칸 원문(«급송/초월읍» · «오전1시41/곤지암읍»)으로 온다 — 목록 쪽은 판정 글자로 대조해야 팝업 «위치»와 같은 콜이다 */
+    @Test
+    fun `누른 그 콜인가 - 인성 칸 원문은 판정 글자로 대조한다`() {
+        val popup = order("경기 광주시 초월읍 경충대로 907 모다아울렛", "경기 광주시 곤지암읍 곤지암로 1")
+        val express = order("급송/초월읍", "곤지암읍")
+        assertNull(TappedCall.mismatch(TargetApp.INSUNG, express, popup))
+        val reserved = express.copy(pickupDetails = listOf(CallStop(listText = "초월읍")),
+            dropoffDetails = listOf(CallStop(listText = "오전1시41/곤지암읍", promiseText = "오전1시41")))
+        assertNull(TappedCall.mismatch(TargetApp.INSUNG, reserved, popup))
+        assertNotNull("다른 장소 팝업은 불일치", TappedCall.mismatch(TargetApp.INSUNG, express, order("경기 광주시 오포읍 문형리 1", "경기 광주시 곤지암읍 곤지암로 1")))
     }
 
     @Test
     fun `사진은 필수 요소가 모자랄 때만 · 무조건 사진 갈래가 없다`() {
         assertFalse("배차망에 사진 판독기가 있다는 것만으로 사진을 찍는다",
             Regex("""if\s*\(\s*plugin\.ocrParser\s*!=\s*null\s*\)""").containsMatchIn(seq))
-        assertTrue(Regex("""!OrderRequirement\.meetsDetail\(order\)\s*&&\s*plugin\.ocrParser\s*!=\s*null""").containsMatchIn(seq))
+        assertTrue(Regex("""!OrderRequirement\.meetsDetail\(currentTargetApp, order\)\s*&&\s*plugin\.ocrParser\s*!=\s*null""").containsMatchIn(seq))
     }
 
     @Test

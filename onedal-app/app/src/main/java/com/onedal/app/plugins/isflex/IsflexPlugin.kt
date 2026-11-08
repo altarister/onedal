@@ -39,6 +39,7 @@ class IsflexPlugin(private val context: Context? = null) : IDispatchAppPlugin {
 
     /** 📄 페이지 정의 — `IsflexPages` */
     override val pages get() = IsflexPages.pages
+    override val addressCut get() = IsflexPages.addressCut
     override val screens get() = IsflexPages.screens
 
     override val acceptButtons: List<String>? = null

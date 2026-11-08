@@ -86,15 +86,15 @@ fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOffic
          * 상차지 **«다마스»** · 하차지 **«계산서필»** 이 장부에 남았다.
          *
          * 직접콜은 서버가 심사하지 않으므로(규칙 ①) 그 값이 **경로의 기점**이 된다.
-         * 주소 꼴이 아니면 «배차값없음» 으로 둔다 — 뒤따르는 상세 수집이 진짜 주소를
+         * 주소 꼴이 아니면 빈 값(못 읽음)으로 둔다 — 뒤따르는 상세 수집이 진짜 주소를
          * 채운다. 모르면 모른다고 두는 것이 지어내는 것보다 낫다 (규칙 ④).
          */
         pickupDetails = listOf(CallStop(listText = StopText.of(firstPickupStop(tempOrder)).takeIf {
-            it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
-        } ?: "배차값없음")),
+            it.isNotBlank() && InsungParser.looksLikeAddress(it)
+        })),
         dropoffDetails = listOf(CallStop(listText = StopText.of(lastDropoffStop(tempOrder)).takeIf {
-            it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
-        } ?: "배차값없음")),
+            it.isNotBlank() && InsungParser.looksLikeAddress(it)
+        })),
         /* 💰 목록 규칙(차종 다음 칸)이 못 읽으면 내 콜 화면 정의(«요금 : N»)로 — InsungPages MY_CALL FARE 의 READ */
         fare = tempOrder.fare.takeIf { it > 0 }
             ?: (com.onedal.app.core.PageFieldRead.fareOf(InsungPages.pages, com.onedal.app.core.Page.MY_CALL, screenTexts) ?: 0),
