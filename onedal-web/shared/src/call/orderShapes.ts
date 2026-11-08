@@ -11,6 +11,7 @@ import type { PaymentType, BillingType, CallMoney } from './money';
 import type { OrderStatus, MyOrderStatus } from './callStatus';
 import type { CallIdentity, CallProvenance, ReportKind } from './callIdentity';
 import type { CallLoad } from '../cargo/callLoad';
+import type { TripType, OrderForm } from './badges';
 
 /**
  * 🚏 정거장 한 곳 — 상차지 · 하차지. 화면이 보인 것만 담고 못 읽은 칸은 비운다.
@@ -103,8 +104,8 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
     billingType?: BillingType;        // 세금계산서, 인수증 발급 형태
     
     // 3. 운행 조건 스펙
-    tripType?: string;                // 배송 구분 — 값 목록 `TRIP_TYPES`(badges.ts) · 표시 6 에서 좁힌다
-    orderForm?: string;               // 배송 형태 — 값 목록 `ORDER_FORMS`(badges.ts) · 표시 6 에서 좁힌다
+    tripType?: TripType | null;       // 배송 구분 — 값 목록 `TRIP_TYPES`(badges.ts)
+    orderForm?: OrderForm | null;     // 배송 형태 — 값 목록 `ORDER_FORMS`(badges.ts)
     detailMemo?: string;              // 적요 상세 (원문 전체)
     
     // 4. 위치 정보

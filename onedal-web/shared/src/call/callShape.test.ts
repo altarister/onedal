@@ -93,6 +93,12 @@ describe('🧾 돈 줄 · 짐 줄 — 틀린 줄은 버리고 나머지는 남�
         expect(back.load!.vehicleText).toBe('다마스');
     });
 
+    it('구분 · 형태는 값 목록 밖이면 null — 이 걸음 전에 적힌 «예약»', () => {
+        const back = callFromShape(shapeText({ tripType: '왕복', orderForm: '예약' }), CALL_SHAPE_VERSION)!;
+        expect(back.tripType).toBe('왕복');
+        expect(back.orderForm).toBeNull();
+    });
+
     it('묶음이 없던 콜은 되살려도 칸이 없다', () => {
         const back = callFromShape(shapeText({ money: undefined, load: undefined }), CALL_SHAPE_VERSION)!;
         expect(back).not.toHaveProperty('money');

@@ -38,6 +38,18 @@ describe('📄 상세 콜 자료 — 정의 표', () => {
             money: { lines: [], feeRateText: '20%', paymentType: '신용', paymentShown: '신용', billingType: null, billingShown: null },
         });
     });
+    it('🔴 구분 · 형태는 표시 글자 표(badgeWords)로 정한다 — 그 갈래 값 · 다른 뜻 낱말은 칸 없음 · 표에 없는 낱말은 «모름»', () => {
+        const reserved = detailRecordOf('insung', BODY.replace('형태 : 급송', '형태 : 예약'));
+        expect(reserved.tripType).toBe('왕복');
+        expect(reserved).not.toHaveProperty('orderForm');
+        expect(detailRecordOf('insung', BODY.replace('형태 : 급송', '형태 : 특송')).orderForm).toBe('모름');
+        const overload = detailRecordOf('isflex', sheetOf('isflex', 'tags', '과적'));
+        expect(overload).not.toHaveProperty('tripType');
+        expect(overload).not.toHaveProperty('orderForm');
+        const urgent = detailRecordOf('isflex', sheetOf('isflex', 'tags', '과적').replace('오토 과적', '오토 과적 급'));
+        expect(urgent.orderForm).toBe('급송');
+        expect(urgent).not.toHaveProperty('tripType');
+    });
     it('🔴 적요는 팝업 글이 먼저 — 본문 «03:57 상차»가 상차 약속 시각이 되지 않는다(지금과 같음)', () => {
         const captured = Date.parse('2030-01-01T02:00:00+09:00');
         expect(pickupClockMsOf(detailRecordOf('insung', FULL), captured, 30)).toBe(captured + 30 * 60_000);

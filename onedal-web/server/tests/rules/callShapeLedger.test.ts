@@ -137,6 +137,17 @@ describe('🧾 저장 → 되살리기 왕복 — 콜 한 칸', () => {
         }
     });
 
+    it('🔴 옛 길 · 콜 한 칸 모두 구분 · 형태를 값 목록으로 좁힌다 — 장부 «예약» 형태는 null · «편도»는 그대로', () => {
+        const call = fullCall('old-form', { orderForm: '예약' });
+        OrderRepository.upsertOrder(call, U, 0);
+        const row = rowOf(call.id);
+        for (const r of [row, { ...row, callShapeVersion: null }]) {
+            const back = restore(r);
+            expect(back.orderForm).toBeNull();
+            expect(back.tripType).toBe('편도');
+        }
+    });
+
     it('🔴 정거장 좌표 — 정거장에 찍힌 좌표가 먼저 · 없으면 장소 장부 좌표', () => {
         const call = fullCall('geo');
         call.dropoffDetails[0].geo = null;

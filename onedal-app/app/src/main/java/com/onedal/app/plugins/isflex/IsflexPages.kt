@@ -52,7 +52,7 @@ object IsflexPages {
                 read = Regex("""출발지까지\s+([\d.]+)km""")),
             FieldSpec(PageField.VEHICLE_TYPE, "거리 다음", "오토", Seen.REAL, Handling.READ, "서버 칸 읽기(pageFieldOf) · 원달앱 IsflexParser",
                 read = Regex("""출발지까지\s+[\d.]+km\s+(\S+)""")),
-            FieldSpec(PageField.TAGS, "차종 뒤 세로 구분선 다음", "과적", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) · 상세 자료 구분 칸(detailRecordOf)",
+            FieldSpec(PageField.TAGS, "차종 뒤 세로 구분선 다음", "과적", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) · 서버 상세 자료 구분 · 형태(detailRecordOf → badgeWords)",
                 read = Regex("""출발지까지\s+[\d.]+km\s+\S+\s+(\S+(?:\s+\S+)*?)\s+출발\s+(?:@|약\s)""")),
             FieldSpec(PageField.RESERVATION, "출발 주소 둘째 «@» 뒤 앞글자", "낼8:30)", Seen.REAL, Handling.READ, "IsflexParser"),
             /* 주소가 두 줄이면 «약 N km»가 주소 앞에 온다(실물 10) */
@@ -103,10 +103,10 @@ object IsflexPages {
             FieldSpec(PageField.MEMO, "적요(안내 그림 제목 «오더메모» — 실물 상세는 «적요상세»)", "주차장으로 들어와주세요", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.BILLING, "적요 아래 테두리 글(안내 그림)", "세금계산서", Seen.UNKNOWN, Handling.UNUSED),
             /* 받을 돈 — 실물 원문 0 건(안내 그림에만) */
-            FieldSpec(PageField.FARE, "받으실 현금(안내 그림 — 현금 콜만)", "받으실 현금 123,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 줄을 안 읽는다",
+            FieldSpec(PageField.FARE, "받으실 현금(안내 그림 — 현금 콜만)", "받으실 현금 123,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱 돈 9(걸음 5)",
                 read = Regex("""받으실 현금\s+([\d,]+)원"""), part = "collect"),
             /* 뜻 모름 — 고객이 내는 운임인지 톨비인지 실전 한 건으로 가른다 */
-            FieldSpec(PageField.FARE, "탁송 금액(안내 그림)", "탁송 금액 25,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 줄을 안 읽는다",
+            FieldSpec(PageField.FARE, "탁송 금액(안내 그림)", "탁송 금액 25,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱 돈 9(걸음 5)",
                 read = Regex("""탁송 금액\s+([\d,]+)원"""), part = "unknown"),
             /* 뜻 모름 — «탁송 금액»과 함께 실전 한 건으로 가른다 */
             FieldSpec(PageField.FARE, "배송비(안내 그림)", "배송비 5,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 서버 상세는 확정 전 화면만(확정 뒤 보고는 원달앱 걸음 5 뒤)",

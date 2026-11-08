@@ -21,7 +21,7 @@ import { getActiveCalls } from "../core/activeCalls";
 import { buildOrderSync, filterVersionOf } from "../core/helpers";
 import { stepRecordsOf } from "../services/stepSeeder";
 import { slog } from "../utils/fileLogger";
-import { clockText } from "@onedal/shared";
+import { clockText, tripTypeOfLedger, orderFormOfLedger } from "@onedal/shared";
 import { applyRouteAndSave, applySoloRouteAndSave, lastSyncLogSig, promiseOrderOpts, rebuildDestinationKeywords } from "../services/dispatchEngine";
 
 /**
@@ -221,7 +221,7 @@ export function restoredOrderFrom(row: any, got: {
         // 🧭 어떻게 잡았나(그때 도는 모드 · 연 주체) — 안 되살리면 재부팅마다 갈래 배지가 사라진다
         capturedMode: row.capturedMode ?? null,
         openedBy: row.openedBy ?? null,
-        orderForm: row.orderForm,
+        orderForm: orderFormOfLedger(row.orderForm),
         detailMemo: row.detailMemo,
         /**
          * 🧾 **카드가 그리는 장부 칸도 되살린다** — 🏢 배차사 · 📦 물품 · 수수료 · 예약 시각 · 구분 · 계산서 · 탁송료 ·
@@ -231,7 +231,7 @@ export function restoredOrderFrom(row: any, got: {
         dispatcherPhone: row.dispatcherPhone ?? undefined,
         itemDescription: row.itemDescription ?? undefined,
         commissionRate: row.commissionRate ?? undefined,
-        tripType: row.tripType ?? undefined,
+        tripType: tripTypeOfLedger(row.tripType),
         billingType: row.billingType ?? undefined,
         tollFare: row.tollFare ?? undefined,
         postTime: row.postTime ?? undefined,

@@ -3,7 +3,7 @@
  * 누가: 콜 모양 · 배차망 정의 표 · 서버 급송 저장 · 관제웹 «급송» 표시
  * 언제: 배차망 화면의 표시 글자(배지 · 꼬리표)에 뜻을 붙이거나 구분 · 형태 값을 다룰 때
  * 어디서: 콜 한 건의 구분 · 형태 값 칸과 정의 표의 «글자 → 뜻» 줄
- * 무엇을: TRIP_TYPES · ORDER_FORMS · BADGE_PLACES · BADGE_MEANINGS · BadgeWord · isExpressForm
+ * 무엇을: TRIP_TYPES · ORDER_FORMS · BADGE_PLACES · BADGE_MEANINGS · BadgeWord · isExpressForm · tripTypeOfLedger · orderFormOfLedger
  * 어떻게: 값 목록을 원천으로 두고 타입은 거기서 파생한다 · 글자의 자리 · 뜻은 콜이 아니라 정의 표 줄이 준다
  * 왜: 네 배차망의 같은 뜻 글자가 한 값 칸으로 모이고, 급송을 가르는 곳이 같은 답을 보게 하기 위해서다
  */
@@ -40,7 +40,17 @@ export interface BadgeWord {
     value?: TripType | OrderForm;   // 구분 · 형태 갈래만 — «왕» → '왕복'
 }
 
-/** 급송 콜인가 — 서버 isExpress · 관제웹 «급송» 표시가 같이 부른다 · 콜 모양의 형태 칸이 아직 `string` 이라 인자도 글자로 받는다(표시 6 에서 `OrderForm` 으로 좁힌다) */
-export function isExpressForm(orderForm: string | null | undefined): boolean {
+/** 급송 콜인가 — 서버 isExpress · 관제웹 «급송» 표시가 같이 부른다 */
+export function isExpressForm(orderForm: OrderForm | null | undefined): boolean {
     return orderForm === '급송';
+}
+
+/** 장부 · 콜 한 칸에 적힌 구분 글자 → 값 — 값 목록 안이면 그 값 · 밖이면 null(장부에는 배차망 낱말이 아니라 칸 값만 있다) */
+export function tripTypeOfLedger(text: string | null | undefined): TripType | null {
+    return (TRIP_TYPES as readonly string[]).includes(text ?? '') ? text as TripType : null;
+}
+
+/** 장부 · 콜 한 칸에 적힌 형태 글자 → 값 — 값 목록 안이면 그 값 · 밖이면 null(옛 줄의 «예약» → null) */
+export function orderFormOfLedger(text: string | null | undefined): OrderForm | null {
+    return (ORDER_FORMS as readonly string[]).includes(text ?? '') ? text as OrderForm : null;
 }

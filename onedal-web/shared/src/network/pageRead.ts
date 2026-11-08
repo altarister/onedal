@@ -3,14 +3,14 @@
  * 누가: 서버 판정 · 상세 · 스캔 · 시뮬레이션
  * 언제: 배차망 화면 글자에서 칸 값을 꺼낼 때
  * 어디서: 서버가 원달앱 보고를 받는 자리
- * 무엇을: pageFieldOf · pageFareOf · badgeOf · addressOf · stopTextOf · stopQueryOf · detailRecordOf(칸 · 정거장 · 돈 · 짐 묶음)
+ * 무엇을: pageFieldOf · pageFareOf · badgeOf · badgeValueOf · addressOf · stopTextOf · stopQueryOf · detailRecordOf(칸 · 정거장 · 돈 · 짐 묶음)
  * 어떻게: 정의 표의 읽는 법으로 글자를 잘라 낸다
  * 왜: 정의에 없거나 원문에 없는 값을 지어내지 않기 위해서다
  */
 import type { TargetAppType, CallStop, DetailedOfficeOrder, CallIdentity } from '../index';
 import { PAYMENT_TYPES, BILLING_TYPES, MONEY_KINDS, paymentOf, type PaymentType, type BillingType, type CallMoney, type MoneyLine, type MoneyKind } from '../call/money';
 import { LOAD_KINDS, type CallLoad, type LoadLine, type LoadKind } from '../cargo/callLoad';
-import type { BadgePlace, BadgeWord } from '../call/badges';
+import type { BadgePlace, BadgeWord, TripType, OrderForm } from '../call/badges';
 import type { PageField, ScreenPage } from './pageFields';
 import { NETWORK_PAGES, fieldsOf } from './networkPages';
 import { dongsBySigungu } from '../filter/adminDongMatch';
@@ -66,6 +66,18 @@ export function excludeScanTextOf(app: TargetAppType, text: string | readonly st
  */
 export function badgeOf(app: TargetAppType, at: BadgePlace, text: string): BadgeWord | null {
     return NETWORK_PAGES[app].badgeWords?.find(w => w.at === at && w.text === text) ?? null;
+}
+
+/**
+ * 🏷️ **구분 · 형태 값** — 글자를 빈칸으로 나눠 낱말마다 줄 자리(`row`)의 `badgeOf` 로 찾는다.
+ *    그 갈래 값이 있는 낱말이 있으면 그 값 · 표에 없는 낱말이 있으면 «모름» · 표에 다른 뜻으로만 있으면(«과적» · 인성 «예약») null · 글자가 없으면 null.
+ */
+export function badgeValueOf<M extends 'tripType' | 'orderForm'>(app: TargetAppType, meaning: M, text: string | null | undefined): (M extends 'tripType' ? TripType : OrderForm) | null {
+    type Value = M extends 'tripType' ? TripType : OrderForm;
+    const words = (text ?? '').split(/\s+/).filter(Boolean).map(t => badgeOf(app, 'row', t));
+    const hit = words.find(w => w?.meaning === meaning && w.value !== undefined);
+    if (hit) return hit.value as Value;
+    return words.includes(null) ? '모름' as Value : null;
 }
 
 /**
@@ -236,13 +248,13 @@ export function stopQueryOf(app: TargetAppType, stop: CallStop | null | undefine
 }
 
 /** 📄 상세 콜 자료 — 상세 화면 정의 칸(· 조각)이 콜의 어느 자료가 되나. 배차망마다 다른 것은 표의 읽는 법뿐이다 */
-type DetailRecordText = 'stageText' | 'itemDescription' | 'commissionRate' | 'tollFare' | 'tripType' | 'orderForm' | 'dispatcherName' | 'dispatcherPhone'
+type DetailRecordText = 'stageText' | 'itemDescription' | 'commissionRate' | 'tollFare' | 'dispatcherName' | 'dispatcherPhone'
     | 'orderNo' | 'clientOrderNo' | 'requesterName';
 /** 상세 원문에서 읽는 콜 칸 — 상세 칸 + 번호 묶음의 배차사 · 진행 글자 · 화물번호 · 가게 주문 번호 · 의뢰인 */
-type DetailFields = Partial<Pick<DetailedOfficeOrder & CallIdentity, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>>;
+type DetailFields = Partial<Pick<DetailedOfficeOrder & CallIdentity, DetailRecordText | 'tripType' | 'orderForm' | 'paymentType' | 'billingType' | 'detailMemo'>>;
 const DETAIL_RECORD: ReadonlyArray<readonly [key: DetailRecordText, field: PageField, part?: string]> = [
     ['stageText', 'stage'], ['itemDescription', 'itemSize'], ['commissionRate', 'commission'],
-    ['tollFare', 'toll'], ['tripType', 'tags'], ['orderForm', 'reservation'],
+    ['tollFare', 'toll'],
     ['dispatcherName', 'contact', 'dispatcher'], ['dispatcherPhone', 'contact', 'dispatcherPhone'],
     ['orderNo', 'orderNo'], ['clientOrderNo', 'orderNo', 'client'], ['requesterName', 'contact', 'requester'],
 ];
@@ -255,6 +267,7 @@ const STOP_CONTACT: ReadonlyArray<readonly [key: keyof CallStop, field: PageFiel
 /**
  * 📄 **상세 원문의 콜 자료** — 상태 · 물품 · 결제 · 계산서 · 수수료 · 탁송료 · 구분 · 형태 · 배차사 · 화물번호 · 가게 주문 번호 · 의뢰인 · 적요 · 출발 · 도착 연락처 · 돈 · 짐 묶음(서버 `/detail` · 기사님 «1~5 모두 가»).
  *    칸마다 상세 화면 정의 줄의 읽는 법으로 읽는다. 🔴 못 찾은 칸은 싣지 않는다 — `/detail` 이 이 결과를 앞 기억 위에 펼치므로 빈 칸이 아는 값을 지우면 안 된다.
+ *    구분 · 형태는 두 칸 글자를 이어 표시 글자 표로 정한다(`badgeValueOf` · 플렉스 «급»은 구분 칸에 온다) — 못 정하면 칸 없음.
  *    결제 · 계산서는 알려진 값(결제 · 증빙 값 목록 `money.ts` — «모름» 은 빼고)일 때만 · 적요는 팝업 글(줄바꿈 → 공백)이 먼저, 없으면 본문 «적요상세» 줄(상차 약속 시각이 본문 시각으로 바뀌지 않게).
  *    출발 · 도착 정거장은 인성 팝업 머리표가 원문에 있거나 그 정거장 조각(`pickup.` · `dropoff.`) 줄을 하나라도 읽었을 때만 한 덩어리(없으면 빈 목록) —
  *    조각 없는 출발 · 도착 줄만 읽힌 원문(플렉스 상세)은 덩어리를 만들지 않는다.
@@ -266,6 +279,11 @@ export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecor
     const read = (field: PageField, part = '') => pageFieldOf(app, 'newCall', field, rawText, part) ?? undefined;
     const out: DetailFields = {};
     for (const [key, field, part] of DETAIL_RECORD) { const v = read(field, part); if (v !== undefined) out[key] = v; }
+    const badgeText = [read('tags'), read('reservation')].filter(Boolean).join(' ');
+    const tripType = badgeValueOf(app, 'tripType', badgeText);
+    if (tripType) out.tripType = tripType;
+    const orderForm = badgeValueOf(app, 'orderForm', badgeText);
+    if (orderForm) out.orderForm = orderForm;
     const pay = read('payment');
     if (pay && pay !== '모름' && (PAYMENT_TYPES as readonly string[]).includes(pay)) out.paymentType = pay as PaymentType;
     const bill = read('billing');

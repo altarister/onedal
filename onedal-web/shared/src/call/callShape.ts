@@ -10,7 +10,7 @@
 import type { MyOrder, OfficeOrder, PendingOrder, SecuredOrder } from './orderShapes';
 import type { BillingType, PaymentType } from './money';
 import { incomeOf, moneyFrom } from './money';
-import { isExpressForm } from './badges';
+import { isExpressForm, tripTypeOfLedger, orderFormOfLedger, type TripType, type OrderForm } from './badges';
 import { loadFrom } from '../cargo/callLoad';
 import { firstPickupStop, lastDropoffStop } from '../time/timing';
 
@@ -84,7 +84,7 @@ const isFilledList = (v: unknown): boolean => Array.isArray(v) && v.length > 0;
 /**
  * 🧾 **콜 한 칸 글 → 콜 모양** — 분류 'shape' 칸만 돌려준다(글에 다른 칸이 있어도 버린다).
  *    판 번호가 다르거나 · 글이 안 풀리거나 · 객체가 아니거나 · `id` 가 글자가 아니거나 · 상차 · 하차 목록이 배열이 아니거나 비었으면 null(= 옛 길).
- *    빈 목록으로 되살리면 경로 · 주소가 사라지므로 옛 길로 보낸다. 돈 · 짐 묶음은 틀린 줄을 버리고 · 묶음이 없던 콜은 칸이 없다.
+ *    빈 목록으로 되살리면 경로 · 주소가 사라지므로 옛 길로 보낸다. 돈 · 짐 묶음은 틀린 줄을 버리고 · 묶음이 없던 콜은 칸이 없다 · 구분 · 형태는 값 목록 밖이면 null.
  */
 export function callFromShape(text: string | null | undefined, version: number | null | undefined): OfficeOrder | null {
     if (version !== CALL_SHAPE_VERSION || !text) return null;
@@ -105,6 +105,10 @@ export function callFromShape(text: string | null | undefined, version: number |
         } else if (k === 'load') {
             const load = loadFrom(o.load);
             if (load) out.load = load;
+        } else if (k === 'tripType') {
+            out.tripType = tripTypeOfLedger(typeof o.tripType === 'string' ? o.tripType : null);
+        } else if (k === 'orderForm') {
+            out.orderForm = orderFormOfLedger(typeof o.orderForm === 'string' ? o.orderForm : null);
         } else {
             out[k] = o[k];
         }
@@ -123,8 +127,8 @@ export interface LedgerCopies {
     billingType: BillingType | null;
     vehicleType: string | null;
     itemDescription: string | null;
-    tripType: string | null;
-    orderForm: string | null;
+    tripType: TripType | null;
+    orderForm: OrderForm | null;
     commissionRate: string | null;
     tollFare: string | null;
     detailMemo: string | null;
