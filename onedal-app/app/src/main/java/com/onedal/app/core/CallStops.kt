@@ -33,6 +33,9 @@ object StopText {
     /** 마지막 토막에서 약속 · 조건 토막과 동을 가르는 표 — 글자에 «(» 가 있으면 «)» 는 인성 끝 괄호라 뺀다 */
     internal val PROMISE_CUT = Regex("""[/),>]""")
     internal val PROMISE_CUT_NO_PAREN = Regex("""[/,>]""")
+    /** 상세 주소(`addressDetail`)를 가르는 표 — «,» · «>» 는 목록 원문에만 쓴다(«성남대로 12,상가동» 의 번지를 지우지 않게 · 쉼표 뒤는 정의 표 `addressCut` 몫) */
+    private val DETAIL_CUT = Regex("""[/)]""")
+    private val DETAIL_CUT_NO_PAREN = Regex("""/""")
     /** 지역 끝말이 붙은 토막 — 숫자+동 · 가 · 동 · 읍 · 면 · 리 · 시 · 구 · 군 */
     internal val REGION_PIECE = Regex("""^[가-힣]{2,}(?:\d{1,2}[동가]|[동읍면리시구군])$""")
     /** 동 꼴 토막 — 한글 둘 이상으로 시작하고 숫자는 동 번호 둘까지 */
@@ -152,7 +155,9 @@ object StopText {
         if (note != null) tokens += note.base
         if (raw == shown && tokens.isNotEmpty()) {
             val last = tokens.removeAt(tokens.lastIndex)
-            val cut = if (tokens.any { it.contains('(') } || last.contains('(')) PROMISE_CUT_NO_PAREN else PROMISE_CUT
+            val paren = tokens.any { it.contains('(') } || last.contains('(')
+            val cut = if (stop?.addressDetail?.trim().isNullOrEmpty()) (if (paren) PROMISE_CUT_NO_PAREN else PROMISE_CUT)
+                else (if (paren) DETAIL_CUT_NO_PAREN else DETAIL_CUT)
             val pieces = if (cut.containsMatchIn(last)) last.split(cut) else emptyList()
             val place = pieces.lastOrNull { REGION_PIECE.matches(it) } ?: pieces.lastOrNull { PLACE_PIECE.matches(it) } ?: last
             val clock = GLUED_CLOCK.matchEntire(place)

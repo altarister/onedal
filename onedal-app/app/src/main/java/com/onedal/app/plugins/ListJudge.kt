@@ -114,7 +114,7 @@ object ListJudge {
 
         // ── 조건 4: 상차지 ──
         // 📋 상차 목록이 오면 그것으로 거른다 — 인성 파서와 같은 규칙 (`PickupListFilter` · 하차 목록»).
-        //    그 배차망 상차지 글자(화물24시는 `cleanRegion`)에 동이 실리는지는 실물 캡처로 확인할 것 (규격 표 ⬜)
+        //    그 배차망 상차지 글자(판정 글자 `StopText.query`)에 동이 실리는지는 실물 캡처로 확인할 것 (규격 표 ⬜)
         //    🔴 칸이 안 오면(옛 서버) 아래 옛 판정 — 3단계(옛 칸 걷는 날)에 함께 지운다
         val pickupListCheck = filter.pickupKeywords?.let { PickupListFilter.check(StopText.query(rules.netCode, firstPickupStop(order)), it, filter.keywordTraps) }
         val pickupListMatch = pickupListCheck?.passed ?: true

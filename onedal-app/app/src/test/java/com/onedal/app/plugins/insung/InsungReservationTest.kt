@@ -2,7 +2,10 @@ package com.onedal.app.plugins.insung
 
 import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.core.Reservation
+import com.onedal.app.models.LoadLine
+import com.onedal.app.models.SimplifiedOfficeOrder
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
 
@@ -50,5 +53,15 @@ class InsungReservationTest {
         assertEquals(false, express.fromOtherOffice)
         assertEquals(null, express.pickup.promiseText)
         assertEquals(listOf("급송"), express.conditions)
+    }
+
+    /** 📦 칸 앞 «폰)» 은 짐 줄 «품목» — 출발 · 도착 칸에 둘 다 붙어도 한 줄(견본 `LOAD_EXAMPLE_INSUNG`) · 짐 묶음 `load.lines` 로 간다 */
+    @Test fun `목록 줄 - 폰) 은 짐 줄 품목 한 줄`() {
+        val cells = InsungParser.listCellsOf(listOf("1.7", "2.1", "@폰)철산동", "폰)개봉동", "오", "8.4"), emptySet(), "오", "")
+        assertEquals(listOf(LoadLine("goods", "폰)")), cells.loadLines)
+        val order = SimplifiedOfficeOrder(id = "c", timestamp = "", loadLines = cells.loadLines)
+        assertEquals(listOf(LoadLine("goods", "폰)")), order.load?.lines)
+        // 보고에는 짐 묶음 칸으로만 — 따로 «loadLines» 칸이 가지 않는다
+        com.google.gson.Gson().toJson(order).let { assertTrue(it, !it.contains("loadLines") && it.contains("\"lines\":[{\"kind\":\"goods\"")) }
     }
 }

@@ -114,6 +114,9 @@ const SPACES = /\s+/;
 /** 마지막 토막에서 약속 · 조건 토막과 동을 가르는 표 — «낼8:30/가산동» · «@낼8:30)방배동» · «내곡동/7시까지» · «카고,문래동6가» · «풍납동>논현동»(두 곳 하차) · 글자에 «(» 가 있으면 «)» 는 인성 끝 괄호라 뺀다 */
 const PROMISE_CUT = /[/),>]/;
 const PROMISE_CUT_NO_PAREN = /[/,>]/;
+/** 상세 주소(`addressDetail`)를 가르는 표 — «,» · «>» 는 목록 원문에만 쓴다(«성남대로 12,상가동» 의 번지를 지우지 않게 · 쉼표 뒤는 정의 표 `addressCut` 몫) */
+const DETAIL_CUT = /[/)]/;
+const DETAIL_CUT_NO_PAREN = /\//;
 /** 지역 끝말이 붙은 토막 — 숫자+동 · 가 · 동 · 읍 · 면 · 리 · 시 · 구 · 군 · «오늘중»은 아니다 */
 const REGION_PIECE = /^[가-힣]{2,}(?:\d{1,2}[동가]|[동읍면리시구군])$/;
 /** 동 꼴 토막 — 끝말 토막이 없을 때 · 한글 둘 이상으로 시작하고 숫자는 동 번호 둘까지(«역삼1동» · «을지로6가») · «낼8:30» · «7시까지»는 아니다 */
@@ -220,7 +223,7 @@ function withoutPromise(text: string, promise: string): string {
  *    좌표는 «고른 글»을 따라가는 값이라, 좌표가 없거나 찍은 글(`geoText`)이 지금 판정 글자와 다르면 다시 찍는다(짧은 목록 글로 먼저 찍힌 콜에 상세 주소가 오면).
  *    ① `stopTextOf` ② 약속 원문 떼기 — 정거장에 `promiseText` 가 있으면 그 글자 한 자리(와 붙은 기호)를 뗀다.
  *       그 원문을 글자에서 찾아 뗐을 때만 아래 글자 규칙을 건너뛴다(«예약» 처럼 글자에 없는 원문이면 글자 규칙을 한다).
- *       글자 규칙: 마지막 토막에 약속 · 조건 글자가 «/» · «)»(글자에 «(» 가 없을 때만) · «,» · «>» 로 붙어 있으면
+ *       글자 규칙: 마지막 토막에 약속 · 조건 글자가 «/» · «)»(글자에 «(» 가 없을 때만) · «,» · «>»(목록 원문만 — 상세 주소가 없을 때) 로 붙어 있으면
  *       지역 끝말 토막(`REGION_PIECE`)을 · 없으면 동 꼴 토막(`PLACE_PIECE`)을 남긴다 · 기호 없이 붙은 시각은 뗀다(«18:30구로동» → «구로동»).
  *       원달앱 짝(`StopText.query`)이 같은 규칙이다(문제지 `stopQueryCases`).
  *       어느 쪽이든 토막마다 앞 «@» 는 뗀다
@@ -239,7 +242,10 @@ export function stopQueryOf(app: TargetAppType, stop: CallStop | null | undefine
     if (note) tokens.push(note.base);
     const last = raw !== shown ? undefined : tokens.pop();
     if (last !== undefined) {
-        const promiseCut = tokens.some(t => t.includes('(')) || last.includes('(') ? PROMISE_CUT_NO_PAREN : PROMISE_CUT;
+        const paren = tokens.some(t => t.includes('(')) || last.includes('(');
+        const promiseCut = stop?.addressDetail?.trim()
+            ? (paren ? DETAIL_CUT_NO_PAREN : DETAIL_CUT)
+            : (paren ? PROMISE_CUT_NO_PAREN : PROMISE_CUT);
         const pieces = promiseCut.test(last) ? last.split(promiseCut) : [];
         const place = pieces.filter(p => REGION_PIECE.test(p)).pop() ?? pieces.filter(p => PLACE_PIECE.test(p)).pop() ?? last;
         const clock = GLUED_CLOCK.exec(place);

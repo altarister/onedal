@@ -47,7 +47,7 @@ function appOrderFields(): string[] {
     const start = src.indexOf('data class SimplifiedOfficeOrder');
     expect(start).toBeGreaterThan(-1);
     const body = src.slice(start, src.indexOf('\n)', start));
-    return [...body.matchAll(/val (\w+):/g)].map(m => m[1]);
+    return [...body.matchAll(/(?<!@Transient )val (\w+):/g)].map(m => m[1]);   // `@Transient` 칸은 Gson 이 안 싣는다
 }
 
 /** 🗄️ 서버가 `intel` 에 담는 칸 (INSERT 문이 원천 — 표에 칸만 있고 안 담으면 그대로 버려진다) */

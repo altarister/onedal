@@ -130,9 +130,11 @@ data class SimplifiedOfficeOrder(
      */
     val pickupDetails: List<CallStop> = listOf(CallStop()),
     val dropoffDetails: List<CallStop> = listOf(CallStop()),
+    /** 📦 짐 줄 — 칸 앞 토막이 정의 표 짐 줄 갈래로 읽은 것(인성 «폰)» 품목 · «2분동승» 동승) · 보고에는 `load.lines` 로만 간다(Gson 은 `@Transient` 칸을 안 싣는다) */
+    @Transient val loadLines: List<LoadLine> = emptyList(),
 ) {
-    /** 📦 **짐 묶음** — 맨 위 차종 · 크기 글자 그대로(짐 줄 없음) · 둘 다 없으면 null. 생성자 칸에서 만들어 `copy` 해도 따라간다 */
-    val load: CallLoad? = if (vehicleType != null || itemSize != null) CallLoad(vehicleType, itemSize, null, emptyList()) else null
+    /** 📦 **짐 묶음** — 맨 위 차종 · 크기 글자 그대로 + 짐 줄 · 셋 다 없으면 null. 생성자 칸에서 만들어 `copy` 해도 따라간다 */
+    val load: CallLoad? = if (vehicleType != null || itemSize != null || loadLines.isNotEmpty()) CallLoad(vehicleType, itemSize, null, loadLines) else null
 }
 
 /**

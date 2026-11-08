@@ -29,11 +29,11 @@ object InsungPages {
             FieldSpec(PageField.PICKUP, "출발지 칸", "@초이동 · @남양주(오남", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 칸 원문 그대로 정거장 listText · 판정 글자는 StopText.query"),
             FieldSpec(PageField.DROPOFF, "도착지 칸", "이태원동 · 김포(대곶면", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 칸 원문 그대로 정거장 listText · 판정 글자는 StopText.query"),
             FieldSpec(PageField.RESERVATION, "출발지 칸 앞글자", "낼7시/ · 낼6시30/ · 21시/(시각만 · 오늘) · 오후7시30/(시각만 · 오늘) · 10일/", Seen.REAL, Handling.READ, "InsungParser.reservationOf"),
-            /* 짐 줄 «품목» — 물건이 핸드폰 · 출발지 · 도착지 칸 앞 토막 · 짐 줄로 싣는 것은 짐 계획 몫 */
-            FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "폰)", Seen.REAL, Handling.READ, "원달앱 칸 앞 토막 함수(LocationTextAnalyzer.split) → 조건 토막 · 화면 기록(tagsText)",
+            /* 짐 줄 «품목» — 물건이 핸드폰 · 출발지 · 도착지 칸 앞 토막 */
+            FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "폰)", Seen.REAL, Handling.READ, "원달앱 칸 앞 토막 함수(LocationTextAnalyzer.split) → 조건 토막 · 화면 기록(tagsText) · 짐 줄(InsungParser.listCellsOf → load.lines)",
                 part = "goods"),
-            /* 짐 줄 «동승» — 화주 2명 동승(캡처 없음) · 출발지 · 도착지 칸 앞 토막 · 짐 줄로 싣는 것은 짐 계획 몫 */
-            FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "2분동승", Seen.UNKNOWN, Handling.READ, "원달앱 칸 앞 토막 함수(LocationTextAnalyzer.split) → 조건 토막 · 화면 기록(tagsText)",
+            /* 짐 줄 «동승» — 화주 2명 동승(캡처 없음) · 출발지 · 도착지 칸 앞 토막 */
+            FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "2분동승", Seen.UNKNOWN, Handling.READ, "원달앱 칸 앞 토막 함수(LocationTextAnalyzer.split) → 조건 토막 · 화면 기록(tagsText) · 짐 줄(InsungParser.listCellsOf → load.lines)",
                 part = "passenger"),
             FieldSpec(PageField.CLOCK, "도착지 칸 앞글자 (도착 약속)", "낼8/ · 8시/ · 낼10시/", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 하차 정거장 약속 원문(promiseText)"),
             FieldSpec(PageField.VEHICLE_TYPE, "차종 칸", "1t · 다 · 라 · 1t화물", Seen.REAL, Handling.READ, "InsungParser.readVehicleAndFare"),

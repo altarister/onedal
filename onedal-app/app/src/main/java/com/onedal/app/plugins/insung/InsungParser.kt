@@ -27,7 +27,10 @@ import java.util.UUID
 import com.onedal.app.core.firstPickupStop
 import com.onedal.app.core.lastDropoffStop
 import com.onedal.app.core.StopText
+import com.onedal.app.core.Page
+import com.onedal.app.core.PageField
 import com.onedal.app.models.CallStop
+import com.onedal.app.models.LoadLine
 
 /**
  * 화면에서 추출된 원시 문자열 데이터를 파싱하여
@@ -95,12 +98,18 @@ class InsungParser(private val context: Context) : IScrapParser {
         /** 목록 요금 칸(천 원 단위 소수) → 원. 곱한 뒤 반올림한다 — 잘라 내면 32.3 × 1000 = 32299.999… 가 32,299 원이 된다 */
         private fun fareOfThousands(shown: Double): Int = Math.round(shown * 1000.0).toInt()
 
-        /** 🚏 목록 줄에서 읽은 정거장 둘 · 공유콜 · 조건 토막 */
-        data class ListCells(val pickup: CallStop, val dropoff: CallStop, val fromOtherOffice: Boolean?, val conditions: List<String>)
+        /** 🚏 목록 줄에서 읽은 정거장 둘 · 공유콜 · 조건 토막 · 짐 줄 */
+        data class ListCells(val pickup: CallStop, val dropoff: CallStop, val fromOtherOffice: Boolean?, val conditions: List<String>, val loadLines: List<LoadLine>)
+
+        /** 📦 조건 토막 → 짐 줄 — 정의 표 목록 페이지의 짐 칸 줄 가운데 조각 이름(짐 줄 갈래)이 있는 줄(«폰)» 품목 · «2분동승» 동승)과 같은 글자 · 화면 글자는 표의 글자 · 같은 줄은 한 번 */
+        private fun loadLinesOf(conditions: List<String>): List<LoadLine> {
+            val rows = InsungPages.pages[Page.NEW_LIST].orEmpty().filter { it.field == PageField.ITEM_SIZE && it.part.isNotEmpty() }
+            return conditions.mapNotNull { c -> rows.firstOrNull { it.sample == c || it.sample.trimEnd('/', ')') == c }?.let { LoadLine(it.part, it.sample) } }.distinct()
+        }
 
         /**
          * 🚏 **목록 줄 노드 → 상차 · 하차 정거장** — 지역 칸은 1차 · 2차 규칙(`LocationTextAnalyzer.regionCell`)으로 고르고(첫째 = 상차 · 둘째 = 하차),
-         *    정거장 글자는 칸 원문 · 약속 토막은 제 정거장(하차 «14시전»은 하차에) · 출발지 «@»는 공유콜 · 조건 토막(«급송» · «왕복» · «폰»)은 따로.
+         *    정거장 글자는 칸 원문 · 약속 토막은 제 정거장(하차 «14시전»은 하차에) · 출발지 «@»는 공유콜 · 조건 토막(«급송» · «왕복» · «폰»)은 따로 · 그 가운데 짐 글자(«폰)» · «2분동승»)는 짐 줄로도.
          *    지역 칸이 하나뿐이면 하차도 그 칸이다(약속은 상차에만). 못 읽은 쪽은 글자 null.
          */
         internal fun listCellsOf(texts: List<String>, uiNoiseWords: Set<String>, vehicleType: String?, rawJoined: String): ListCells {
@@ -121,7 +130,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             // 🏢 공유콜 «@» — 출발지 칸 맨 앞이거나 바로 앞 노드가 «@» 하나(시뮬레이터는 따로 그린다) · 출발지를 못 읽으면 모름
             val pickupAt = pickupCell?.let { trimmed.indexOf(it) } ?: -1
             val fromOtherOffice = pickupPieces?.let { it.mark || (pickupAt > 0 && trimmed[pickupAt - 1] == "@") }
-            // 🏷️ 조건 토막(«급송» · «왕복» · «폰») — 화면 기록에 남긴다
+            // 🏷️ 조건 토막(«급송» · «왕복» · «폰») — 화면 기록에 남기고, 짐 글자는 짐 줄로도
             val conditions = (pickupPieces?.conditions.orEmpty() + dropoffPieces?.conditions.orEmpty().takeIf { dropoffCell != pickupCell }.orEmpty())
             return ListCells(
                 pickup = CallStop(listText = pickupCell, region = StopText.regionOf(TargetApp.INSUNG, pickupCell), promiseText = pickupPieces?.promise),
@@ -129,6 +138,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                     promiseText = dropoffPieces?.promise.takeIf { dropoffCell != pickupCell }),
                 fromOtherOffice = fromOtherOffice,
                 conditions = conditions,
+                loadLines = loadLinesOf(conditions),
             )
         }
 
@@ -544,6 +554,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             rawText = rawJoined,
             fromOtherOffice = cells.fromOtherOffice,
             tagsText = cells.conditions.joinToString(" ").ifEmpty { null },
+            loadLines = cells.loadLines,
             pickupDetails = listOf(cells.pickup.copy(distanceKm = distances.getOrNull(0))),
             // 🔴 두 번째 값(배송거리)을 마지막 하차 정거장 거리로 **보존**한다.
             //    단가 판정(fare ≥ 배송거리 × 단가)의 입력이다. 없으면 null →

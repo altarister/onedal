@@ -29,12 +29,12 @@ function appFields(): string[] {
     const src = readFileSync(APP_MODELS, 'utf8');
     const start = src.indexOf('data class SimplifiedOfficeOrder(');
     expect(start).toBeGreaterThan(-1);
-    /* 생성자 칸 + 본문 칸(`{ … }` — 생성자 칸에서 만들어 함께 보내는 칸 · Gson 은 둘 다 싣는다) */
+    /* 생성자 칸 + 본문 칸(`{ … }` — 생성자 칸에서 만들어 함께 보내는 칸 · Gson 은 둘 다 싣고 `@Transient` 칸은 안 싣는다) */
     const ctorEnd = src.indexOf('\n)', start);
     const body = src.slice(start, src.startsWith(' {', ctorEnd + 2) ? src.indexOf('\n}', ctorEnd) : ctorEnd)
         .replace(/\/\*[\s\S]*?\*\//g, ' ')
         .replace(/\/\/.*$/gm, '');
-    return [...body.matchAll(/\bva[lr]\s+(\w+)\s*:/g)].map(m => m[1]);
+    return [...body.matchAll(/(?<!@Transient\s+)\bva[lr]\s+(\w+)\s*:/g)].map(m => m[1]);
 }
 
 /**
