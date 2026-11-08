@@ -106,7 +106,7 @@ export interface HotspotPlace {
     id: number;
     addressDetail: string;
     customerName: string;
-    region: string;
+    region: string | null;
     visitCount: number;
     lastVisitedAt: string | null;
 }
