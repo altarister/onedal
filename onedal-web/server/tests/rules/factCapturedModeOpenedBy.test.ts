@@ -50,7 +50,7 @@ describe('🖱️ 잡은 방식 — 그때 도는 모드 + 진입 주체', () =>
         report('ALARM');
         const a = await confirm('mode-a', true);
         expect([a.capturedMode, a.openedBy]).toEqual(['ALARM', 'APP']);
-        OrderRepository.upsertOrder(a, U, 0, 0);
+        OrderRepository.upsertOrder(a, U, 0);
         expect(ledger('mode-a')).toEqual({ capturedMode: 'ALARM', openedBy: 'APP' });
 
         report('SIMULATION');   // 자동 + 계약 안 함의 명령 값 — 화면 이름은 표(«자동(계약 안 함)»)가 낸다
@@ -69,15 +69,15 @@ describe('🖱️ 잡은 방식 — 그때 도는 모드 + 진입 주체', () =>
     });
 
     it('🔴 서버가 다시 떠도 장부 줄에서 두 칸을 되살린다', () => {
-        const o = restoredOrderFrom({ id: 'mode-f', capturedMode: 'SIMULATION', openedBy: 'DRIVER' }, { visited: {}, judgment: null, contacts: {} }) as any;
+        const o = restoredOrderFrom({ id: 'mode-f', capturedMode: 'SIMULATION', openedBy: 'DRIVER' }, { visited: {}, judgment: null, contacts: () => ({}) }) as any;
         expect([o.capturedMode, o.openedBy]).toEqual(['SIMULATION', 'DRIVER']);
     });
 
     it('🔴 장부에 다시 쓸 때 빈 값은 앞 값을 덮지 않는다', async () => {
         report('ALARM');
         const o = await confirm('mode-d', true);
-        OrderRepository.upsertOrder(o, U, 0, 0);
-        OrderRepository.upsertOrder({ ...o, capturedMode: null, openedBy: null }, U, 0, 0);
+        OrderRepository.upsertOrder(o, U, 0);
+        OrderRepository.upsertOrder({ ...o, capturedMode: null, openedBy: null }, U, 0);
         expect(ledger('mode-d')).toEqual({ capturedMode: 'ALARM', openedBy: 'APP' });
     });
 });

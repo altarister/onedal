@@ -1,12 +1,15 @@
 import db from "../db";
-import { MyOrder, PendingOrder, SecuredOrder, LET_GO_STATUSES, firstPickupStop, lastDropoffStop } from "@onedal/shared";
-import type { CargoReport, CallStop } from "@onedal/shared";
+import { MyOrder, PendingOrder, SecuredOrder, LET_GO_STATUSES, CALL_SHAPE_VERSION, callShapeOf, callFromShape, ledgerCopiesOf } from "@onedal/shared";
+import type { CallStop, OfficeOrder } from "@onedal/shared";
+import { slog } from "../utils/fileLogger";
 
 export class OrderRepository {
     /**
      * 오더 메인 정보를 DB에 기록합니다 (UPSERT).
+     * 🧾 콜 한 칸(`callShape` · 판 번호)은 콜 모양 칸(분류 'shape') 전부를 통째로 · 사본 칸은 그 콜에서 `ledgerCopiesOf` 한 번으로 — 같은 콜을 다시 적으면 둘 다 새 값이다.
+     *    지금 칸(상태 · 시각 · 기기 · 배차망 · 경로 · 카카오 · 판 · 예약 보관 날 · 잡은 방식)은 콜에서 직접 적는다.
      */
-    public static upsertOrder(cachedOrder: PendingOrder | SecuredOrder | MyOrder, userId: string, isShared: number, isExpress: number) {
+    public static upsertOrder(cachedOrder: PendingOrder | SecuredOrder | MyOrder, userId: string, isShared: number) {
         const stmtOrder = db.prepare(`
             INSERT INTO orders (
                 id, type, pickup, dropoff, fare, timestamp, status, userId, capturedAt, capturedDeviceId,
@@ -17,9 +20,10 @@ export class OrderRepository {
                 -- 16건 전부 저장되지 않고 있었다. scheduleText 는 "낼09시/급송" 같은
                 -- 예약 표기의 원문이라, 이게 없으면 시간창 경로 최적화의 입력 자체가 없다.
                 scheduleText, postTime, targetApp, capturedVia, goalCity, reserved, reservedDay, reservedAt, reserved_for,
-                capturedMode, openedBy
+                capturedMode, openedBy,
+                callShape, callShapeVersion, incomeWon
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET 
                 status = 'ORDER_CONFIRMED', 
                 userId = excluded.userId, 
@@ -40,18 +44,35 @@ export class OrderRepository {
                 -- 🗺️ 재확정 때 궤적이 비어 오면 기존 것을 지우지 않는다 (위 규약과 같다)
                 routePolyline = COALESCE(excluded.routePolyline, routePolyline),
                 sectionEnds  = COALESCE(excluded.sectionEnds, sectionEnds),
-                sectionStops = COALESCE(excluded.sectionStops, sectionStops)
+                sectionStops = COALESCE(excluded.sectionStops, sectionStops),
+                -- 🧾 콜 한 칸은 통째로 새 값 — 글로 못 바꾼 콜(NULL)이면 앞 콜 한 칸 · 판 번호를 지킨다
+                callShape = COALESCE(excluded.callShape, callShape),
+                callShapeVersion = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.callShapeVersion ELSE callShapeVersion END,
+                -- 🧾 사본 칸 = 콜 한 칸 값 그대로(빈 값도) — 콜 한 칸이 NULL 일 때만 빈 값이 앞 값을 안 덮는다
+                pickup = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.pickup ELSE COALESCE(excluded.pickup, pickup) END,
+                dropoff = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.dropoff ELSE COALESCE(excluded.dropoff, dropoff) END,
+                vehicleType = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.vehicleType ELSE COALESCE(excluded.vehicleType, vehicleType) END,
+                paymentType = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.paymentType ELSE COALESCE(excluded.paymentType, paymentType) END,
+                billingType = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.billingType ELSE COALESCE(excluded.billingType, billingType) END,
+                tripType = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.tripType ELSE COALESCE(excluded.tripType, tripType) END,
+                orderForm = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.orderForm ELSE COALESCE(excluded.orderForm, orderForm) END,
+                itemDescription = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.itemDescription ELSE COALESCE(excluded.itemDescription, itemDescription) END,
+                isExpress = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.isExpress ELSE COALESCE(excluded.isExpress, isExpress) END,
+                incomeWon = CASE WHEN excluded.callShape IS NOT NULL THEN excluded.incomeWon ELSE COALESCE(excluded.incomeWon, incomeWon) END,
+                -- 💰 모르는 요금(0)이 아는 요금을 덮지 않는다 — 착불 미수금(milestones)이 이 칸을 읽는다
+                fare = COALESCE(NULLIF(excluded.fare, 0), fare)
         `);
         
-        /* 🚏 장부의 주소 · 약속 · 거리 칸은 첫 상차 · 마지막 하차 정거장에서 — 칸 이름은 장부 그대로 */
-        const pickupStop = firstPickupStop(cachedOrder);
-        const dropoffStop = lastDropoffStop(cachedOrder);
+        /* 🧾 사본 칸(주소 · 약속 · 거리 · 요금 · 차종 · 결제 …)은 콜 하나에서 한 번에 — 칸 이름은 장부 그대로 */
+        const copies = ledgerCopiesOf(cachedOrder);
+        const callShape = callShapeOf(cachedOrder);
+        if (callShape == null) slog('콜단계', `🧾 [콜 한 칸 비움] ${cachedOrder.id} — 콜 모양을 글로 못 바꿨다 · 줄은 적는다(앞 콜 한 칸이 없으면 옛 칸으로 되살린다)`);
         stmtOrder.run(
             cachedOrder.id,
             cachedOrder.type || "NEW_ORDER",
-            pickupStop?.listText ?? '',
-            dropoffStop?.listText ?? '',
-            cachedOrder.fare || 0,
+            copies.pickup,
+            copies.dropoff,
+            copies.fare,
             cachedOrder.timestamp || new Date().toISOString(),
             // 레거시 소문자 'confirmed'로 저장되어 GET /api/orders 와
             // restoreAndRecalculateSession 의 status IN ('ORDER_CONFIRMED',...) 조회에서
@@ -60,10 +81,10 @@ export class OrderRepository {
             userId,
             cachedOrder.capturedAt || new Date().toISOString(),
             cachedOrder.capturedDeviceId || null,
-            cachedOrder.vehicleType || null,
+            copies.vehicleType,
             cachedOrder.distanceKm || null,
-            // 🚚 앱이 화면에서 읽은 배송거리(마지막 하차 정거장 거리 — 오늘 콜은 하차가 하나다) — 카카오 거리가 없을 때 단독 주행 추정 입력 (soloMinutesOf ← deliveryKmOf)
-            dropoffStop?.distanceKm || null,
+            // 🚚 앱이 화면에서 읽은 배송거리(마지막 하차 정거장 거리) — 카카오 거리가 없을 때 단독 주행 추정 입력 (soloMinutesOf ← deliveryKmOf)
+            copies.deliveryDistance,
             cachedOrder.totalDistanceKm || null,
             cachedOrder.totalDurationMin || null,
             cachedOrder.kakaoSoloDistanceKm || null,
@@ -83,29 +104,32 @@ export class OrderRepository {
             /** 🧭 구간 주인도 함께 — 셋(궤적·경계·주인)이 갈라지면 지도가 색을 잃는다 */
             (cachedOrder as any).sectionStops?.length
                 ? JSON.stringify((cachedOrder as any).sectionStops) : null,
-            cachedOrder.paymentType || null,
-            cachedOrder.billingType || null,
-            cachedOrder.commissionRate || null,
-            cachedOrder.tollFare || null,
-            cachedOrder.tripType || null,
-            cachedOrder.orderForm || null,
-            cachedOrder.itemDescription || null,
-            cachedOrder.detailMemo || null,
-            cachedOrder.dispatcherName || null,
-            cachedOrder.dispatcherPhone || null,
+            copies.paymentType,
+            copies.billingType,
+            copies.commissionRate,
+            copies.tollFare,
+            copies.tripType,
+            copies.orderForm,
+            copies.itemDescription,
+            copies.detailMemo,
+            copies.dispatcherName,
+            copies.dispatcherPhone,
             isShared,
-            isExpress,
-            pickupStop?.promiseText || null,
+            copies.isExpress,
+            copies.scheduleText,
             cachedOrder.postTime || null,
             (cachedOrder as any).targetApp || null,
             null,                                   // capturedVia — 옛 칸 · 콜 모양에 없다(잡은 방식은 capturedMode · openedBy) · 빈 값은 앞 값을 덮지 않는다
             (cachedOrder as any).goalCity ?? null,
             typeof (cachedOrder as any).reserved === 'boolean' ? ((cachedOrder as any).reserved ? 1 : 0) : null,
-            pickupStop?.requestedDay ?? null,
-            pickupStop?.requestedTime ?? null,
+            copies.reservedDay,
+            copies.reservedAt,
             (cachedOrder as any).reservedFor ?? null,
             (cachedOrder as any).capturedMode ?? null,
-            (cachedOrder as any).openedBy ?? null
+            (cachedOrder as any).openedBy ?? null,
+            callShape,
+            callShape == null ? null : CALL_SHAPE_VERSION,
+            copies.incomeWon,
         );
     }
 
@@ -303,7 +327,7 @@ export class OrderRepository {
 
     /**
      * 🚏 장부의 콜 한 줄 → 첫 상차 · 마지막 하차 정거장 — 값만 받는 셈 (orders 줄 · `stopContactsOf` 연락처).
-     *    되살린 세션 콜(`restoredOrderFrom`)과 관제웹 이력(GET /orders)이 같이 쓴다. 장부에 없는 상차 거리는 null.
+     *    판 번호 없는 옛 줄만 — 콜 한 칸이 있으면 `ledgerCallOf` 가 `callFromShape` 로 되살린다. 장부에 없는 상차 거리는 null.
      */
     public static ledgerStopsOf(row: any, contacts: { pickupDetails?: CallStop[]; dropoffDetails?: CallStop[] }): { pickupDetails: CallStop[]; dropoffDetails: CallStop[] } {
         const pickup = contacts.pickupDetails?.[0];
@@ -325,6 +349,28 @@ export class OrderRepository {
                 geo: geoOf(row.dropoffX, row.dropoffY),
                 distanceKm: row.deliveryDistance ?? null,
             }],
+        };
+    }
+
+    /**
+     * ♻️ **장부의 콜 한 줄 → 콜 모양 칸** — 서버 되살리기(`restoredOrderFrom`) · 관제웹 콜 목록 문(GET /orders) · 단계 씨앗이 같이 쓴다.
+     *    콜 한 칸에서 분류 'shape' 칸만 꺼내 돌려준다(정거장 · 돈 · 짐 · 번호 · 표시 기록 · 원문 · 사본 값).
+     *    서버 칸(상태 · 하차 시각 · 끝난 시각 · 예약 보관 날 · 판 …)은 콜 한 칸에 없으므로 돌려주지 않는다 — 부르는 쪽이 줄 값을 그대로 둔다.
+     *    정거장 좌표는 그 콜이 찍은 좌표가 먼저 · 없으면 장소 장부 좌표(`pickupX` … — 되살리기 SQL 이 잇는 첫 상차 · 마지막 하차만).
+     *    판 번호가 다르거나 글이 깨졌거나 정거장 목록이 비면 옛 길(`ledgerStopsOf`) — 연락처는 그때만 읽는다.
+     */
+    public static ledgerCallOf(row: any, contacts: () => ReturnType<typeof OrderRepository.stopContactsOf>): Partial<OfficeOrder> {
+        const shape = callFromShape(row.callShape, row.callShapeVersion);
+        if (!shape) return OrderRepository.ledgerStopsOf(row, contacts());
+        const ledgerGeo = (x: number | null | undefined, y: number | null | undefined) => (x != null && y != null ? { x, y } : null);
+        const withGeo = (stops: CallStop[], at: number, geo: { x: number; y: number } | null): CallStop[] =>
+            stops.map((s, i) => (i === at && !s.geo && geo ? { ...s, geo } : s));
+        const pickups = shape.pickupDetails ?? [];     // callFromShape 가 빈 목록이면 null 을 내므로 늘 채워져 있다
+        const dropoffs = shape.dropoffDetails ?? [];
+        return {
+            ...shape,
+            pickupDetails: withGeo(pickups, 0, ledgerGeo(row.pickupX, row.pickupY)),
+            dropoffDetails: withGeo(dropoffs, dropoffs.length - 1, ledgerGeo(row.dropoffX, row.dropoffY)),
         };
     }
 

@@ -76,22 +76,26 @@ router.get("/", requireAuth, (req, res) => {
          * 되돌리는 규칙은 `parsePolyline` 한 곳에만 있다 (규칙 ③).
          */
         res.json({
-            orders: (rows as any[]).map(r => ({
-                ...r,
-                routePolyline: parsePolyline(r.routePolyline),
-                /** 🎨 구간 경계도 함께 편다 — 궤적과 같은 운명이라야 지도가 색을 잃지 않는다 */
-                sectionEnds: parseSectionEnds(r.sectionEnds),
-                /** 🧭 구간 주인도 함께 편다 — 셋이 같이 살아야 지도가 색을 낸다 */
-                sectionStops: parseSectionStops(r.sectionStops),
-                /**
-                 * ⏱️ **구간 주행분** — 이것이 없으면 화면이
-                 *    경로 홀더를 못 골라 **지도가 직선으로 물러난다** (주석).
-                 *    넷은 한 운명이라 **같이** 편다.
-                 */
-                sectionDriveMin: parseSectionDriveMin(r.sectionDriveMin),
-                /** 🚏 정거장 — 장부의 주소 · 약속 · 배송거리 칸 + 상하차지 연락처(단계 시트의 📞) · 되살린 세션 콜과 같은 함수(`ledgerStopsOf`) */
-                ...OrderRepository.ledgerStopsOf(r, OrderRepository.stopContactsOf(r.id)),
-            })),
+            /* 🧾 콜 한 칸 글 · 판 번호는 싣지 않는다 — 콜 칸은 아래 `ledgerCallOf` 가 원래 줄에서 펴서 얹는다 */
+            orders: (rows as any[]).map(row => {
+                const { callShape: _shape, callShapeVersion: _version, ...r } = row;
+                return {
+                    ...r,
+                    routePolyline: parsePolyline(r.routePolyline),
+                    /** 🎨 구간 경계도 함께 편다 — 궤적과 같은 운명이라야 지도가 색을 잃지 않는다 */
+                    sectionEnds: parseSectionEnds(r.sectionEnds),
+                    /** 🧭 구간 주인도 함께 편다 — 셋이 같이 살아야 지도가 색을 낸다 */
+                    sectionStops: parseSectionStops(r.sectionStops),
+                    /**
+                     * ⏱️ **구간 주행분** — 이것이 없으면 화면이
+                     *    경로 홀더를 못 골라 **지도가 직선으로 물러난다** (주석).
+                     *    넷은 한 운명이라 **같이** 편다.
+                     */
+                    sectionDriveMin: parseSectionDriveMin(r.sectionDriveMin),
+                    /** 🚏 정거장 · 콜 칸 — 콜 한 칸의 'shape' 칸만 얹는다(줄의 상태 · 하차 시각 · 끝난 시각은 그대로) · 옛 줄은 장부 칸 + 연락처 · 되살린 세션 콜과 같은 함수(`ledgerCallOf`) */
+                    ...OrderRepository.ledgerCallOf(row, () => OrderRepository.stopContactsOf(r.id)),
+                };
+            }),
         });
     } catch (error) {
         console.error("Orders GET 에러:", error);

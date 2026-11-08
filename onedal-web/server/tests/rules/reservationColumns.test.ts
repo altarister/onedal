@@ -30,6 +30,6 @@ describe('📅 예약 셋', () => {
         expect(repo).toMatch(/goalCity, reserved, reservedDay, reservedAt[,\s)]/);
         expect(repo).toContain('reserved = COALESCE(excluded.reserved, reserved)');
         expect(repo).toContain('reservedDay = COALESCE(excluded.reservedDay, reservedDay)');
-        expect(repo).toContain('pickupStop?.requestedDay ?? null');   // 장부 예약 날 칸 ← 첫 상차 정거장 날
+        // 장부 예약 날 칸 ← 첫 상차 정거장 날 — 저장 → 되살리기 왕복 검사(callShapeLedger)가 동작으로 문다
     });
 });

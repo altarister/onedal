@@ -170,13 +170,14 @@ export function visitedStopsFrom(rows: { milestone: string; occurredAt?: string 
 }
 
 /**
- * ♻️ 장부의 콜 한 줄 → 세션 콜 — 값만 받는 셈 (orders 줄 · 그 콜의 다녀온 정거장 · 판정 스냅샷 · 상하차지 연락처).
- * 장부의 칸을 하나씩 옮겨 담는다 — 새 칸을 만들면 여기도 실어야 재시작 뒤 살아난다.
+ * ♻️ 장부의 콜 한 줄 → 세션 콜 — 값만 받는 셈 (orders 줄 · 그 콜의 다녀온 정거장 · 판정 스냅샷 · 상하차지 연락처를 내는 함수 — 옛 줄일 때만 부른다).
+ * 차례: ① 장부 칸 옮겨 담기(서버 칸 · 사본 칸) ② 콜 칸은 콜 한 칸이 싣는다(`ledgerCallOf` — 'shape' 칸만 덮는다) ③ 다녀온 정거장 · 판정 스냅샷.
+ * 새 칸을 더하면 'server' 칸만 ① 에 싣는다(콜 칸은 ② 가 싣는다) — 분류는 shared `SHAPE_KEYS` 가 컴파일로 강제한다.
  */
 export function restoredOrderFrom(row: any, got: {
     visited: ReturnType<typeof visitedStopsFrom>;
     judgment: ReturnType<typeof OrderRepository.getJudgmentVerdict>;
-    contacts: ReturnType<typeof OrderRepository.stopContactsOf>;
+    contacts: () => ReturnType<typeof OrderRepository.stopContactsOf>;
 }): MyOrder {
     return {
         id: row.id,
@@ -236,6 +237,12 @@ export function restoredOrderFrom(row: any, got: {
         postTime: row.postTime ?? undefined,
         targetApp: row.targetApp ?? undefined,
         /**
+         * 🚏 **정거장 · 콜 칸을 되살린다** — 콜 한 칸이 있으면 그 'shape' 칸(정거장 · 돈 · 짐 · 번호 · 표시 기록 · 원문)으로,
+         *    없는 옛 줄은 장부의 주소 · 좌표 · 약속 · 배송거리 칸 + 상하차지 연락처(단계 시트의 📞 이 읽는다)로.
+         *    안 되살리면 재시작 뒤 예약 콜이 오늘 첫짐이 되고 상차 약속이 오늘로 돌아가며, 진행 중 콜의 전화 버튼이 사라진다.
+         */
+        ...OrderRepository.ledgerCallOf(row, got.contacts),
+        /**
          * 🚏 **도착 시각을 되살린다**.
          * 안 되살리면 재시작 직후 `hasVisitedStop` 이 false 가 되어
          * **이미 다녀온 정거장으로 되돌아가는 경로**가 다시 그려진다.
@@ -248,11 +255,6 @@ export function restoredOrderFrom(row: any, got: {
          *    새로 재는 게 아니라 **그때 그 값**이다 — 색은 심사 1회 고정 (v2 ③④).
          */
         judgment: got.judgment ?? undefined,
-        /**
-         * 🚏 **정거장도 되살린다** — 장부의 주소 · 좌표 · 약속 · 배송거리 칸 + 상하차지 연락처(단계 시트의 📞 이 읽는다).
-         *    안 되살리면 재시작 뒤 예약 콜이 오늘 첫짐이 되고 상차 약속이 오늘로 돌아가며, 진행 중 콜의 전화 버튼이 사라진다.
-         */
-        ...OrderRepository.ledgerStopsOf(row, got.contacts),
     };
 }
 
@@ -331,7 +333,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             const order: MyOrder = restoredOrderFrom(row, {
                 visited: hydrateVisitedStops(row.id),
                 judgment: OrderRepository.getJudgmentVerdict(row.id),
-                contacts: OrderRepository.stopContactsOf(row.id),
+                contacts: () => OrderRepository.stopContactsOf(row.id),
             });
             rememberOrder(session, order as any);
         }

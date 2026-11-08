@@ -856,11 +856,13 @@ migrateAckedAtColumn();
 /**
  * 🧾 **콜 한 칸 · 판 번호 · 기사님 몫 사본** (여덟계획_맞춤 «저장 — 콜 한 칸» · 기사님 «나»).
  *    ① 스키마: orders.callShape TEXT · orders.callShapeVersion INTEGER · orders.incomeWon INTEGER — 셋 다 기본값 없음(NULL) · NULL 허용 · CHECK 없음.
- *    ② 값: callShape = 콜 모양(OfficeOrder) 전체 JSON · callShapeVersion = 그 모양의 판 번호(shared CALL_SHAPE_VERSION) ·
- *          incomeWon = incomeOf(money) 원 — 모르면 NULL(0 은 «0원»이라 기본값을 두지 않는다).
- *    ③ 시점: 장부에 콜을 적을 때마다 통째로(OrderRepository.upsertOrder 한 곳).
+ *    ② 값: callShape = 콜 모양(OfficeOrder)의 분류 'shape' 칸 JSON(shared callShapeOf — 서버 칸은 안 담는다) · callShapeVersion = 그 모양의 판 번호(shared CALL_SHAPE_VERSION) ·
+ *          incomeWon = incomeOf(money) 원 — 돈 묶음에 기사님 몫 줄이 없으면 NULL(0 은 «0원»이라 기본값을 두지 않는다).
+ *          글로 못 바꾼 콜은 callShape · callShapeVersion 이 NULL 이고 줄은 적힌다.
+ *    ③ 시점: 장부에 콜을 적을 때마다 통째로(OrderRepository.upsertOrder 한 곳 — 사본 칸도 같은 자리에서 ledgerCopiesOf 로).
  *    ④ 화면: 안 보임.
- *    ⑤ 읽는 곳: 서버 되살리기 · 관제웹 콜 목록 문 · 단계 씨앗 — 판 번호를 모르거나 글이 깨졌으면 옛 칸으로 · incomeWon 은 SQL 통계 · 운영센터.
+ *    ⑤ 읽는 곳: 서버 되살리기 · 관제웹 콜 목록 문 · 단계 씨앗이 OrderRepository.ledgerCallOf 하나로 — 판 번호를 모르거나 글이 깨졌거나 정거장 목록이 비면 옛 칸으로.
+ *          incomeWon 을 읽는 곳은 아직 없다.
  */
 ensureColumns('orders', { callShape: 'TEXT', callShapeVersion: 'INTEGER', incomeWon: 'INTEGER' });
 // ⚠️ intel 의 ensureColumns 는 여기 있으면 안 된다 — 그 표는 아래 [7] 에서 만들어진다.

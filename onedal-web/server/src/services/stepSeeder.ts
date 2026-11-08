@@ -229,15 +229,15 @@ export function firmPromiseMsOf(orderId: string, stopType: 'pickup' | 'dropoff')
     return Number.isFinite(ms) ? ms : null;
 }
 
-/** 📒 장부의 콜 한 줄 — 주소 · 약속 · 배송거리 칸을 정거장으로 옮겨 담는다(시간 셈 `pickupClockMsOf` · `soloMinutesOf` 가 정거장을 읽는다) · 줄이 없으면 null */
-function ledgerCallOf(orderId: string): any | null {
+/** 📒 장부의 콜 한 줄 — 콜 칸(정거장 · 약속 · 거리)을 되살린 세션 콜과 같은 함수로 얹는다(시간 셈 `pickupClockMsOf` · `soloMinutesOf` 가 정거장을 읽는다) · 줄이 없으면 null */
+function seedCallOf(orderId: string): any | null {
     const row = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
-    return row ? { ...row, ...OrderRepository.ledgerStopsOf(row, {}) } : null;
+    return row ? { ...row, ...OrderRepository.ledgerCallOf(row, () => ({})) } : null;
 }
 
 /** KEEP 의 일: 첫 행(상차지 통화)만 태어난다 */
 export function birthFirstStep(userId: string, orderId: string, judgment?: JudgmentConfig, routeTl?: RouteTl) {
-    const o = ledgerCallOf(orderId);
+    const o = seedCallOf(orderId);
     if (!o) throw new Error(`콜을 찾을 수 없습니다: ${orderId}`);
     const born = bornRows(orderId);
     if (born.CALL_PICKUP) return;                        // 이미 태어났다 (재KEEP 등)
@@ -251,7 +251,7 @@ function birthNext(userId: string, orderId: string, after: StepId, judgment?: Ju
     if (!next) return;
     const born = bornRows(orderId);
     if (born[next]) return;
-    const o = ledgerCallOf(orderId);
+    const o = seedCallOf(orderId);
     if (!o) return;
     insertStep(userId, orderId, next, computeChain(o, born, judgment, routeTl)[next]);
     slog('콜단계', `🌱 [출생] ${orderId.slice(-6)} · ${tableOf(next).label} ← ${tableOf(after).label} 끝`);
@@ -269,7 +269,7 @@ function finalizeStep(userId: string, orderId: string, step: StepId,
     patch: Record<string, any>, judgment?: JudgmentConfig, routeTl?: RouteTl) {
     let born = bornRows(orderId);
     if (!born[step]) {
-        const o = ledgerCallOf(orderId);
+        const o = seedCallOf(orderId);
         if (!o) return;
         for (const st of ORDER.slice(0, ORDER.indexOf(step) + 1)) {
             if (born[st]) continue;
@@ -359,7 +359,7 @@ export function bridgeCargoReport(userId: string, orderId: string,
          * 🔴 «굳은 행은 불변» 의 예외가 아니다. 이건 **그 단계 자신의 사건**(통화)이라
          *    마감하며 채우는 값이다 (`refreshPlannedSteps` 의 경로 변경과는 다르다).
          */
-        const o = ledgerCallOf(orderId);
+        const o = seedCallOf(orderId);
         if (o) {
             const want = computeChain(o, bornRows(orderId), judgment, routeTl)[step];
             const d = want?.planned_dwell_min;
@@ -455,7 +455,7 @@ export function saveStepDwell(orderId: string, step: StepId, minutes: number): b
  */
 export function refreshPlannedSteps(userId: string, orderId: string,
     judgment?: JudgmentConfig, routeTl?: RouteTl) {
-    const o = ledgerCallOf(orderId);
+    const o = seedCallOf(orderId);
     if (!o) return;
     const born = bornRows(orderId);
     const chain = computeChain(o, born, judgment, routeTl);
@@ -599,7 +599,7 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig,
      *    그때는 **메모리의 콜 객체**를 넘긴다 — 사슬은 하나 그대로다 (규칙 ③).
      */
     fallbackOrder?: any): StepView[] {
-    const o = ledgerCallOf(orderId) ?? fallbackOrder;
+    const o = seedCallOf(orderId) ?? fallbackOrder;
     if (!o) return [];
     const born = bornRows(orderId);
     const chain = computeChain(o, born, judgment);

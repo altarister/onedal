@@ -42,15 +42,15 @@ describe('🖱️ 옛 잡은 방식 칸 — 콜에 안 싣는다', () => {
     it('🔴 보고에 그 칸이 있어도 콜에 없고 장부 칸은 빈 값', async () => {
         const o = await confirm('via-a', 'ALARM');
         expect(o).not.toHaveProperty('capturedVia');
-        OrderRepository.upsertOrder(o, U, 0, 0);
+        OrderRepository.upsertOrder(o, U, 0);
         expect(ledgerVia('via-a')).toBeNull();
     });
 
     it('🔴 장부에 다시 쓸 때 옛 줄의 값을 덮지 않는다', async () => {
         const o = await confirm('via-d', undefined);
-        OrderRepository.upsertOrder(o, U, 0, 0);
+        OrderRepository.upsertOrder(o, U, 0);
         db.prepare(`UPDATE orders SET capturedVia = 'MANUAL' WHERE id = ?`).run('via-d');
-        OrderRepository.upsertOrder(o, U, 0, 0);
+        OrderRepository.upsertOrder(o, U, 0);
         expect(ledgerVia('via-d')).toBe('MANUAL');
     });
 });
