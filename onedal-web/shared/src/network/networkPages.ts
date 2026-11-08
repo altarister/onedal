@@ -11,6 +11,7 @@ import type { TargetAppType } from '../index';
 import type { PageField, ScreenPage, BaseSlot } from './pageFields';
 import { basePageOf, CALL_OVERLAY_LABEL } from './pageFields';
 import type { VehicleType } from '../cargo/vehicles';
+import type { BadgeWord } from '../call/badges';
 import { INSUNG_PAGES } from './networkPages.insung';
 import { HWAMUL24_PAGES } from './networkPages.hwamul24';
 import { KAKAO_PICKER_PAGES } from './networkPages.kakaopicker';
@@ -112,6 +113,13 @@ export interface NetworkPageSpec {
     sizeWords?: Array<{ word: string; boxes: number | null; seen: 'REAL' | 'SIM' | 'UNKNOWN' }>;
     /** 🚚 차종 글자가 없으면 수단 상관없음인가 — 참이면 shared `vehicleMatchOf` 가 빈 차종을 «모름» 대신 «수단 상관없음»으로 낸다 */
     vehicleAbsentMeansAny?: boolean;
+    /**
+     * 🏷️ **표시 글자 → 자리 · 뜻** — 콜 줄 · 상세의 배지 · 꼬리표 · 앞글자가 어느 자리(`BADGE_PLACES`)에서 무슨 뜻 갈래(`BADGE_MEANINGS`)인가 · 구분 · 형태 갈래는 값까지.
+     * shared `badgeOf` 가 찾는다 · 원달앱은 gen:pages 로 받는다(…Pages.badgeWords). 제외어가 읽는 `tags` 칸 줄과는 따로다(그 칸 이름 · 읽는 법은 그대로).
+     */
+    badgeWords?: BadgeWord[];
+    /** 표시 글자를 화면 어디서 보나 한 줄 */
+    badgeWordsWhy?: string;
     /** 🖥️ 이 배차망의 페이지 전부 — 차례가 판별 차례 · 표에 없는 화면은 리뉴얼이거나 못 모은 화면이다 */
     screens: NetworkScreenSpec[];
     /**

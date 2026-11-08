@@ -94,6 +94,30 @@ class NetworkPagesPairTest {
     @Test fun `카카오 픽커 크기 낱말은 표와 같다`() = assertEquals(sizesOf("kakaopicker"), KakaoPickerPages.sizeWords.toList())
     @Test fun `인성플렉스 크기 낱말은 표와 같다`() = assertEquals(sizesOf("isflex"), IsflexPages.sizeWords.toList())
 
+    /** 🏷️ 표시 글자 → 자리 · 뜻 — 표의 badgeWords 와 생성 파일이 차례까지 같다(없으면 둘 다 빈 목록) */
+    private fun badgesOf(network: String): List<List<String?>> =
+        table[network].asJsonObject["badgeWords"]?.asJsonArray?.map { it.asJsonObject }?.map { b ->
+            listOf(b["text"].asString, b["at"].asString, b["meaning"].asString, b["value"]?.asString)
+        } ?: emptyList()
+
+    private fun badgesOf(words: List<BadgeWord>): List<List<String?>> = words.map { listOf(it.text, it.at.word, it.meaning.word, it.value) }
+
+    @Test fun `표시 글자 줄은 표와 같다`() {
+        assertEquals(badgesOf("insung"), badgesOf(InsungPages.badgeWords))
+        assertEquals(badgesOf("hwamul24"), badgesOf(Hwamul24Pages.badgeWords))
+        assertEquals(badgesOf("kakaopicker"), badgesOf(KakaoPickerPages.badgeWords))
+        assertEquals(badgesOf("isflex"), badgesOf(IsflexPages.badgeWords))
+    }
+
+    /** 🏷️ 표시 글자 자리 · 뜻 갈래 낱말 — shared `call/badges.ts` 의 BADGE_PLACES · BADGE_MEANINGS 와 core/PageSpec.kt 가 낱말 · 차례까지 같다 */
+    @Test fun `표시 글자 자리 · 뜻 갈래 낱말은 shared 와 같다`() {
+        val ts = File("../../onedal-web/shared/src/call/badges.ts").readText()
+        fun words(name: String) = Regex("""$name = \[([\s\S]*?)\] as const""").find(ts)?.groupValues?.get(1)
+            ?.let { block -> Regex("""'(\w+)'""").findAll(block).map { it.groupValues[1] }.toList() } ?: error("badges.ts 에서 $name 을 못 찾았다")
+        assertEquals(words("BADGE_PLACES"), BadgePlace.values().map { it.word })
+        assertEquals(words("BADGE_MEANINGS"), BadgeMeaning.values().map { it.word })
+    }
+
     /** 🚚 차종 글자가 없으면 수단 상관없음인가 — 표의 vehicleAbsentMeansAny 와 생성 파일이 같다(표에 없으면 false) */
     private fun absentMeansAnyOf(network: String): Boolean =
         table[network].asJsonObject["vehicleAbsentMeansAny"]?.asBoolean ?: false

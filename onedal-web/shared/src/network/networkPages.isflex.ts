@@ -36,6 +36,25 @@ export const ISFLEX_PAGES: NetworkPageSpec = /*JSON*/{
     {"word": "대박스", "boxes": null, "seen": "UNKNOWN"},
     {"word": "중박스", "boxes": null, "seen": "UNKNOWN"}
   ],
+  "badgeWords": [
+    {"text": "급", "at": "row", "meaning": "orderForm", "value": "급송"},
+    {"text": "급송", "at": "row", "meaning": "orderForm", "value": "급송"},
+    {"text": "급송/", "at": "pickup", "meaning": "orderForm", "value": "급송"},
+    {"text": "급송/", "at": "dropoff", "meaning": "orderForm", "value": "급송"},
+    {"text": "왕", "at": "row", "meaning": "tripType", "value": "왕복"},
+    {"text": "왕복", "at": "row", "meaning": "tripType", "value": "왕복"},
+    {"text": "왕복", "at": "pickup", "meaning": "tripType", "value": "왕복"},
+    {"text": "경", "at": "row", "meaning": "tripType", "value": "경유"},
+    {"text": "과적", "at": "row", "meaning": "unknown"},
+    {"text": "빈/반", "at": "row", "meaning": "unknown"},
+    {"text": "빈나감", "at": "row", "meaning": "unknown"},
+    {"text": "고정기사/", "at": "pickup", "meaning": "unknown"},
+    {"text": "@", "at": "pickup", "meaning": "unknown"},
+    {"text": "선불", "at": "row", "meaning": "payment"},
+    {"text": "착불", "at": "row", "meaning": "payment"},
+    {"text": "계산서", "at": "row", "meaning": "billing"}
+  ],
+  "badgeWordsWhy": "목록 · 상세 차종 뒤 꼬리표(«과적» · «급» · «왕») · 출발지 · 도착지 칸 앞글자(«@» · «급송/» · «고정기사/») · 결제 글 — 근거는 안내 그림 img_guide3 · 로컬 실물 원문",
   "networkMarkers": [["출발지까지", "수입"], ["총 수입", "수행하기"], ["현재 선택된 배송 수단"], ["진행중인 오더가 없습니다"]],
   "networkMarkersWhy": "목록(«출발지까지» + «수입») · 상세(«총 수입» + «수행하기») · 홈(«현재 선택된 배송 수단») · 진행중 빈 화면(«진행중인 오더가 없습니다») — 실물 02 · 08 · 01 · 04 에 있고 인성 화면에는 없는 글자 묶음. 공지 띠 · «AI 배차 대기중»은 글이 바뀌거나 사라져 쓰지 않는다",
   "slotNotes": {

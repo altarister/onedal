@@ -55,6 +55,28 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
   "sizeWords": [
     {"word": "다마", "boxes": null, "seen": "REAL"}
   ],
+  "badgeWords": [
+    {"text": "편도", "at": "row", "meaning": "tripType", "value": "편도"},
+    {"text": "왕복", "at": "row", "meaning": "tripType", "value": "왕복"},
+    {"text": "경유", "at": "row", "meaning": "tripType", "value": "경유"},
+    {"text": "보통", "at": "row", "meaning": "orderForm", "value": "보통"},
+    {"text": "급송", "at": "row", "meaning": "orderForm", "value": "급송"},
+    {"text": "예약", "at": "row", "meaning": "reserved"},
+    {"text": "왕복/", "at": "dropoff", "meaning": "tripType", "value": "왕복"},
+    {"text": ">", "at": "dropoff", "meaning": "tripType", "value": "경유"},
+    {"text": "@", "at": "pickup", "meaning": "postedBy"},
+    {"text": "[착]", "at": "dropoff", "meaning": "unknown"},
+    {"text": "X@", "at": "pickup", "meaning": "unknown"},
+    {"text": "짐/", "at": "pickup", "meaning": "unknown"},
+    {"text": "짐)", "at": "pickup", "meaning": "unknown"},
+    {"text": "금천)", "at": "pickup", "meaning": "unknown"},
+    {"text": "1톤카:", "at": "dropoff", "meaning": "unknown"},
+    {"text": "윙", "at": "pickup", "meaning": "unknown"},
+    {"text": "폰)", "at": "pickup", "meaning": "itemSize"},
+    {"text": "폰)", "at": "dropoff", "meaning": "itemSize"},
+    {"text": "2분동승", "at": "pickup", "meaning": "itemSize"}
+  ],
+  "badgeWordsWhy": "상세 «구분 :» · «형태 :» 줄의 값 · 목록 출발지 · 도착지 칸 앞 낱말(«@» · «짐/» · «폰)» · «왕복/» · «>») · 확정 전 상세 정거장 줄 앞(«X@» · «[착]» · «1톤카:») — 근거는 06 표 · 인성 설명 영상 · 기사님 말",
   "networkMarkers": [["신규", "빠른설정"], ["적요상세", "요금"], ["인성퀵화면분할"]],
   "networkMarkersWhy": "목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금») · 첫 화면(«인성퀵화면분할» — 홈에서 바로 알아보기)",
   "callOverlays": [

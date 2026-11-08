@@ -1,5 +1,8 @@
 package com.onedal.app.plugins.isflex
 
+import com.onedal.app.core.BadgeMeaning
+import com.onedal.app.core.BadgePlace
+import com.onedal.app.core.BadgeWord
 import com.onedal.app.core.FieldSpec
 import com.onedal.app.core.Handling
 import com.onedal.app.core.OverlayKind
@@ -122,6 +125,26 @@ object IsflexPages {
     val sizeWords: Map<String, Int?> = mapOf(
         "대박스" to null,
         "중박스" to null,
+    )
+
+    /** 🏷️ 표시 글자 → 자리 · 뜻(shared badgeWords — 목록 · 상세 차종 뒤 꼬리표(«과적» · «급» · «왕») · 출발지 · 도착지 칸 앞글자(«@» · «급송/» · «고정기사/») · 결제 글 — 근거는 안내 그림 img_guide3 · 로컬 실물 원문) · 표에 없는 글자는 뜻 모름이 아니라 «표에 없음» */
+    val badgeWords: List<BadgeWord> = listOf(
+        BadgeWord("급", BadgePlace.ROW, BadgeMeaning.ORDER_FORM, "급송"),
+        BadgeWord("급송", BadgePlace.ROW, BadgeMeaning.ORDER_FORM, "급송"),
+        BadgeWord("급송/", BadgePlace.PICKUP, BadgeMeaning.ORDER_FORM, "급송"),
+        BadgeWord("급송/", BadgePlace.DROPOFF, BadgeMeaning.ORDER_FORM, "급송"),
+        BadgeWord("왕", BadgePlace.ROW, BadgeMeaning.TRIP_TYPE, "왕복"),
+        BadgeWord("왕복", BadgePlace.ROW, BadgeMeaning.TRIP_TYPE, "왕복"),
+        BadgeWord("왕복", BadgePlace.PICKUP, BadgeMeaning.TRIP_TYPE, "왕복"),
+        BadgeWord("경", BadgePlace.ROW, BadgeMeaning.TRIP_TYPE, "경유"),
+        BadgeWord("과적", BadgePlace.ROW, BadgeMeaning.UNKNOWN),
+        BadgeWord("빈/반", BadgePlace.ROW, BadgeMeaning.UNKNOWN),
+        BadgeWord("빈나감", BadgePlace.ROW, BadgeMeaning.UNKNOWN),
+        BadgeWord("고정기사/", BadgePlace.PICKUP, BadgeMeaning.UNKNOWN),
+        BadgeWord("@", BadgePlace.PICKUP, BadgeMeaning.UNKNOWN),
+        BadgeWord("선불", BadgePlace.ROW, BadgeMeaning.PAYMENT),
+        BadgeWord("착불", BadgePlace.ROW, BadgeMeaning.PAYMENT),
+        BadgeWord("계산서", BadgePlace.ROW, BadgeMeaning.BILLING),
     )
 
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */

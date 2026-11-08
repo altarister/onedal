@@ -146,6 +146,7 @@ const KEEP = {
 
 /** 🧪 검사만 부르는데 알고 남기는 export — 사유 없이는 못 넣는다 (①-2) */
 const TEST_ONLY_KEEP = {
+    badgeOf: '표시 글자 «글자 → 자리 · 뜻»을 정의 표 `badgeWords` 에서 찾는 함수 — 정의 표 줄 · 문제지(표시 계획 5)를 먼저 세웠고 서버 `detailRecordOf` 가 구분 · 형태를 이 줄로 읽는 걸음(표시 계획 6)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
     isSkipped: 'shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 milestones.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로.',
     ARRIVAL_REASONS: 'shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 arrivalReasons.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로.',
     getEffectiveDetourRadius: 'shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 dispatchFilter.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로.',

@@ -2,7 +2,7 @@
  * 누가: onedal-f5 (기사님 «플러그인스에 있는 값을 서버가 같이 써야» · onedal-69 «가»)
  * 언제: shared/src/network/networkPages.<배차망>.ts(배차망 화면 정의 표의 배차망 몫 — 칸 · 페이지 목록 · 자리 기록)나 pageFields.ts(기준 페이지 사전)를 고친 뒤
  * 어디서: onedal-web — `pnpm gen:pages`(원달앱 생성 파일) · `pnpm gen:pages doc`(설계/기준페이지_사전표.md 만 뽑음) · `pnpm gen:pages doc --check`(뽑은 글이 그 파일과 같은지만 봄)
- * 무엇을: 표의 배차망마다(칸 정의 · 페이지 목록 · 차종 낱말)를 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt · isflex/IsflexPages.kt)으로 굳힌다 · doc 이면 사전 + 정의 표에서 «자리 × 배차망» 사전표 글을 뽑는다
+ * 무엇을: 표의 배차망마다(칸 정의 · 페이지 목록 · 차종 낱말 · 표시 글자)를 원달앱 화면 정의 코틀린(plugins/insung/InsungPages.kt · hwamul24/Hwamul24Pages.kt · kakaopicker/KakaoPickerPages.kt · isflex/IsflexPages.kt)으로 굳힌다 · doc 이면 사전 + 정의 표에서 «자리 × 배차망» 사전표 글을 뽑는다
  * 왜: 배차망마다 다른 것을 shared 한 곳에만 둔다 — 서버는 표를 바로 읽고 원달앱은 뽑은 코드를 읽는다 · 같은지는 원달앱 NetworkPagesPairTest 가 문다
  */
 import { readFileSync, writeFileSync, readdirSync } from 'fs';
@@ -67,6 +67,13 @@ const FIELD = enumOf('PageField');
 const pageSpecKt = readFileSync(join(app, 'core/PageSpec.kt'), 'utf8');
 const namesOf = (name) => (pageSpecKt.split(`enum class ${name} {`)[1]?.split('}')[0] ?? '').split(',').map((w) => w.trim()).filter(Boolean);
 const STANDARD = namesOf('StandardScreen');
+/* 낱말이 붙은 enum — 표시 글자 자리 · 뜻 갈래(shared badges.ts 목록과 짝은 NetworkPagesPairTest) · 낱말 → 코틀린 이름 */
+const wordEnumOf = (name) => {
+    const block = pageSpecKt.split(`enum class ${name}(`)[1]?.split('}')[0] ?? '';
+    return Object.fromEntries([...block.matchAll(/(\w+)\("(\w+)"\)/g)].map(([, e, w]) => [w, e]));
+};
+const BADGE_PLACE = wordEnumOf('BadgePlace');
+const BADGE_MEANING = wordEnumOf('BadgeMeaning');
 const OVERLAY_KIND = namesOf('OverlayKind');
 const OVERLAY_ACTION = namesOf('OverlayAction');
 const SEEN = ['REAL', 'SIM', 'UNKNOWN'];
@@ -173,8 +180,18 @@ for (const [net, file, pkg, obj] of TARGETS) {
     const sizeWords = sizes.length
         ? `mapOf(\n${sizes.map((w) => `        ${kstr(w.word)} to ${w.boxes === null ? 'null' : w.boxes},`).join('\n')}\n    )`
         : 'emptyMap()';
+    /* 🏷️ 표시 글자 → 자리 · 뜻 — 없으면 빈 목록 · 값은 구분 · 형태 갈래만 */
+    const badges = (spec.badgeWords ?? []).map((b) => {
+        const at = BADGE_PLACE[b.at] ?? fail(`${net} badgeWords «${b.text}» — 모르는 자리 «${b.at}» (core/PageSpec.kt BadgePlace 에 없다)`);
+        const meaning = BADGE_MEANING[b.meaning] ?? fail(`${net} badgeWords «${b.text}» — 모르는 뜻 갈래 «${b.meaning}» (core/PageSpec.kt BadgeMeaning 에 없다)`);
+        return `        BadgeWord(${[kstr(b.text), `BadgePlace.${at}`, `BadgeMeaning.${meaning}`, ...(b.value !== undefined ? [kstr(b.value)] : [])].join(', ')}),`;
+    });
+    const badgeWords = badges.length ? `listOf(\n${badges.join('\n')}\n    )` : 'emptyList()';
     writeFileSync(join(app, file), `package ${pkg}
 
+import com.onedal.app.core.BadgeMeaning
+import com.onedal.app.core.BadgePlace
+import com.onedal.app.core.BadgeWord
 import com.onedal.app.core.FieldSpec
 import com.onedal.app.core.Handling
 import com.onedal.app.core.OverlayKind
@@ -204,6 +221,9 @@ ${pages.join('\n')}
 
     /** 📦 크기 낱말 → 라면박스 수(shared sizeWords) · null 은 박스 수 모름 */
     val sizeWords: Map<String, Int?> = ${sizeWords}
+
+    /** 🏷️ 표시 글자 → 자리 · 뜻(shared badgeWords${spec.badgeWordsWhy ? ` — ${spec.badgeWordsWhy}` : ''}) · 표에 없는 글자는 뜻 모름이 아니라 «표에 없음» */
+    val badgeWords: List<BadgeWord> = ${badgeWords}
 
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
     val vehicleAbsentMeansAny: Boolean = ${spec.vehicleAbsentMeansAny === true}

@@ -113,6 +113,19 @@ describe('차종 낱말 (vehicleWords)', () => {
 });
 
 /**
+ * 🏷️ **표시 글자 뜻 ↔ 원달앱 꼬리표 낱말 목록** — 원달앱이 «지역 이름이 아니다»로 알아보는 픽커 꼬리표 낱말(서버 사전 `keywords_picker.json` `tagWords` — 원달앱 `TAG_WORDS` 짝)은
+ * 모두 정의 표 `badgeWords` 에 뜻이 있다. 낱말 목록에 하나를 더하고 뜻을 안 적으면 여기서 빨갛다(뜻은 badgeWords 한 곳).
+ */
+describe('표시 글자 (badgeWords)', () => {
+    it('픽커 꼬리표 낱말은 모두 badgeWords 줄의 글자다', () => {
+        const dict = JSON.parse(readFileSync(join(__dirname, '../../../server/config/keywords_picker.json'), 'utf8')) as { tagWords: string[] };
+        const texts = new Set((NETWORK_PAGES.kakaopicker.badgeWords ?? []).map(w => w.text));
+        expect(dict.tagWords.length).toBeGreaterThan(0);
+        expect(dict.tagWords.filter(t => !texts.has(t))).toEqual([]);
+    });
+});
+
+/**
  * 🖥️ **배차망 페이지 목록** (기사님 «모든 페이지 모든 팝업을 인지»).
  * 기준 값 · 덧칸 갈래는 정해진 낱말만 · 본 것은 근거가 있다 · 못 정한 것은 «모을 것»이 붙는다 · 목록 복귀는 지금 동작 그대로.
  */

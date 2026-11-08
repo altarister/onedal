@@ -37,6 +37,25 @@ export const KAKAO_PICKER_PAGES: NetworkPageSpec = /*JSON*/{
     {"word": "대형", "boxes": null, "seen": "SIM"},
     {"word": "특대형", "boxes": null, "seen": "UNKNOWN"}
   ],
+  "badgeWords": [
+    {"text": "급송", "at": "row", "meaning": "orderForm", "value": "급송"},
+    {"text": "경유", "at": "row", "meaning": "tripType", "value": "경유"},
+    {"text": "퀵", "at": "row", "meaning": "product"},
+    {"text": "단거리", "at": "row", "meaning": "product"},
+    {"text": "반나절", "at": "row", "meaning": "product"},
+    {"text": "도보", "at": "row", "meaning": "product"},
+    {"text": "한차", "at": "row", "meaning": "product"},
+    {"text": "승", "at": "row", "meaning": "vehicle"},
+    {"text": "승용차", "at": "row", "meaning": "vehicle"},
+    {"text": "예약", "at": "row", "meaning": "reserved"},
+    {"text": "내일", "at": "row", "meaning": "reserved"},
+    {"text": "오늘", "at": "row", "meaning": "reserved"},
+    {"text": "준비 완료", "at": "row", "meaning": "reserved"},
+    {"text": "착불", "at": "row", "meaning": "payment"},
+    {"text": "비즈", "at": "row", "meaning": "unknown"},
+    {"text": "서포트모드", "at": "row", "meaning": "unknown"}
+  ],
+  "badgeWordsWhy": "목록 꼬리표 줄 · 상세 시트 맨 위 꼬리표 줄의 낱말 — 서버 사전 keywords_picker.json tagWords(원달앱 TAG_WORDS 짝)가 모두 여기 뜻을 가진다",
   "networkMarkers": [["리스트 설정"], ["넘기기", "수락하기"], ["시작하기"], ["물품이 안전하게 전달"], ["밀어서 픽업 완료"], ["밀어서 사진 촬영"], ["배송 시간"], ["물품 파손"], ["픽업 준비"], ["픽업지 근처에"], ["픽업지 정보"], ["도착지 정보"], ["픽업지 주소 복사하기"], ["픽업지에 전화하기"], ["도착지 주소 복사하기"], ["도착지에 전화하기"]],
   "networkMarkersWhy": "목록 머리 · 수락 전 상세 버튼 둘 · 홈과 수락 뒤 단계 글자 하나씩 · 퀵 흰 페이지 칸 이름 하나씩(퀵 머리 글자는 원달앱이 못 읽는다)",
   "slotNotes": {

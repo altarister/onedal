@@ -3,12 +3,13 @@
  * 누가: 서버 판정 · 상세 · 스캔 · 시뮬레이션
  * 언제: 배차망 화면 글자에서 칸 값을 꺼낼 때
  * 어디서: 서버가 원달앱 보고를 받는 자리
- * 무엇을: pageFieldOf · pageFareOf · addressOf · geocodeTargetOf · stopTextOf · stopQueryOf · detailRecordOf
+ * 무엇을: pageFieldOf · pageFareOf · badgeOf · addressOf · geocodeTargetOf · stopTextOf · stopQueryOf · detailRecordOf
  * 어떻게: 정의 표의 읽는 법으로 글자를 잘라 낸다
  * 왜: 정의에 없거나 원문에 없는 값을 지어내지 않기 위해서다
  */
 import type { TargetAppType, CallStop, DetailedOfficeOrder, CallIdentity } from '../index';
 import { PAYMENT_TYPES, BILLING_TYPES, type PaymentType, type BillingType } from '../call/money';
+import type { BadgePlace, BadgeWord } from '../call/badges';
 import type { PageField, ScreenPage } from './pageFields';
 import { NETWORK_PAGES, fieldsOf } from './networkPages';
 import { dongsBySigungu } from '../filter/adminDongMatch';
@@ -55,6 +56,14 @@ export function pageFareOf(app: TargetAppType, page: ScreenPage, text: string | 
  */
 export function excludeScanTextOf(app: TargetAppType, text: string | readonly string[]): string {
     return NETWORK_PAGES[app].excludeScan.map(f => pageFieldOf(app, 'newCall', f, text)).filter((t): t is string => !!t).join(' ');
+}
+
+/**
+ * 🏷️ **표시 글자 하나의 뜻** — 그 배차망 정의 표 `badgeWords` 에서 자리 · 글자가 같은 줄. 없으면 null(뜻을 지어내지 않는다 · 표시 글자가 아닐 수도 있다).
+ *    글자는 화면 글자 그대로 견준다 — «급송/» 과 «급송» 은 다른 줄이다. 공통 문제지 `pageReadCases.json` `badgeCases` 가 묻는다.
+ */
+export function badgeOf(app: TargetAppType, at: BadgePlace, text: string): BadgeWord | null {
+    return NETWORK_PAGES[app].badgeWords?.find(w => w.at === at && w.text === text) ?? null;
 }
 
 /**

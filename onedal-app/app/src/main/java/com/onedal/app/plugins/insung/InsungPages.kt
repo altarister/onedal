@@ -1,5 +1,8 @@
 package com.onedal.app.plugins.insung
 
+import com.onedal.app.core.BadgeMeaning
+import com.onedal.app.core.BadgePlace
+import com.onedal.app.core.BadgeWord
 import com.onedal.app.core.FieldSpec
 import com.onedal.app.core.Handling
 import com.onedal.app.core.OverlayKind
@@ -172,6 +175,29 @@ object InsungPages {
     /** 📦 크기 낱말 → 라면박스 수(shared sizeWords) · null 은 박스 수 모름 */
     val sizeWords: Map<String, Int?> = mapOf(
         "다마" to null,
+    )
+
+    /** 🏷️ 표시 글자 → 자리 · 뜻(shared badgeWords — 상세 «구분 :» · «형태 :» 줄의 값 · 목록 출발지 · 도착지 칸 앞 낱말(«@» · «짐/» · «폰)» · «왕복/» · «>») · 확정 전 상세 정거장 줄 앞(«X@» · «[착]» · «1톤카:») — 근거는 06 표 · 인성 설명 영상 · 기사님 말) · 표에 없는 글자는 뜻 모름이 아니라 «표에 없음» */
+    val badgeWords: List<BadgeWord> = listOf(
+        BadgeWord("편도", BadgePlace.ROW, BadgeMeaning.TRIP_TYPE, "편도"),
+        BadgeWord("왕복", BadgePlace.ROW, BadgeMeaning.TRIP_TYPE, "왕복"),
+        BadgeWord("경유", BadgePlace.ROW, BadgeMeaning.TRIP_TYPE, "경유"),
+        BadgeWord("보통", BadgePlace.ROW, BadgeMeaning.ORDER_FORM, "보통"),
+        BadgeWord("급송", BadgePlace.ROW, BadgeMeaning.ORDER_FORM, "급송"),
+        BadgeWord("예약", BadgePlace.ROW, BadgeMeaning.RESERVED),
+        BadgeWord("왕복/", BadgePlace.DROPOFF, BadgeMeaning.TRIP_TYPE, "왕복"),
+        BadgeWord(">", BadgePlace.DROPOFF, BadgeMeaning.TRIP_TYPE, "경유"),
+        BadgeWord("@", BadgePlace.PICKUP, BadgeMeaning.POSTED_BY),
+        BadgeWord("[착]", BadgePlace.DROPOFF, BadgeMeaning.UNKNOWN),
+        BadgeWord("X@", BadgePlace.PICKUP, BadgeMeaning.UNKNOWN),
+        BadgeWord("짐/", BadgePlace.PICKUP, BadgeMeaning.UNKNOWN),
+        BadgeWord("짐)", BadgePlace.PICKUP, BadgeMeaning.UNKNOWN),
+        BadgeWord("금천)", BadgePlace.PICKUP, BadgeMeaning.UNKNOWN),
+        BadgeWord("1톤카:", BadgePlace.DROPOFF, BadgeMeaning.UNKNOWN),
+        BadgeWord("윙", BadgePlace.PICKUP, BadgeMeaning.UNKNOWN),
+        BadgeWord("폰)", BadgePlace.PICKUP, BadgeMeaning.ITEM_SIZE),
+        BadgeWord("폰)", BadgePlace.DROPOFF, BadgeMeaning.ITEM_SIZE),
+        BadgeWord("2분동승", BadgePlace.PICKUP, BadgeMeaning.ITEM_SIZE),
     )
 
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */

@@ -1,5 +1,8 @@
 package com.onedal.app.plugins.kakaopicker
 
+import com.onedal.app.core.BadgeMeaning
+import com.onedal.app.core.BadgePlace
+import com.onedal.app.core.BadgeWord
 import com.onedal.app.core.FieldSpec
 import com.onedal.app.core.Handling
 import com.onedal.app.core.OverlayKind
@@ -119,6 +122,26 @@ object KakaoPickerPages {
         "중형" to 3,
         "대형" to null,
         "특대형" to null,
+    )
+
+    /** 🏷️ 표시 글자 → 자리 · 뜻(shared badgeWords — 목록 꼬리표 줄 · 상세 시트 맨 위 꼬리표 줄의 낱말 — 서버 사전 keywords_picker.json tagWords(원달앱 TAG_WORDS 짝)가 모두 여기 뜻을 가진다) · 표에 없는 글자는 뜻 모름이 아니라 «표에 없음» */
+    val badgeWords: List<BadgeWord> = listOf(
+        BadgeWord("급송", BadgePlace.ROW, BadgeMeaning.ORDER_FORM, "급송"),
+        BadgeWord("경유", BadgePlace.ROW, BadgeMeaning.TRIP_TYPE, "경유"),
+        BadgeWord("퀵", BadgePlace.ROW, BadgeMeaning.PRODUCT),
+        BadgeWord("단거리", BadgePlace.ROW, BadgeMeaning.PRODUCT),
+        BadgeWord("반나절", BadgePlace.ROW, BadgeMeaning.PRODUCT),
+        BadgeWord("도보", BadgePlace.ROW, BadgeMeaning.PRODUCT),
+        BadgeWord("한차", BadgePlace.ROW, BadgeMeaning.PRODUCT),
+        BadgeWord("승", BadgePlace.ROW, BadgeMeaning.VEHICLE),
+        BadgeWord("승용차", BadgePlace.ROW, BadgeMeaning.VEHICLE),
+        BadgeWord("예약", BadgePlace.ROW, BadgeMeaning.RESERVED),
+        BadgeWord("내일", BadgePlace.ROW, BadgeMeaning.RESERVED),
+        BadgeWord("오늘", BadgePlace.ROW, BadgeMeaning.RESERVED),
+        BadgeWord("준비 완료", BadgePlace.ROW, BadgeMeaning.RESERVED),
+        BadgeWord("착불", BadgePlace.ROW, BadgeMeaning.PAYMENT),
+        BadgeWord("비즈", BadgePlace.ROW, BadgeMeaning.UNKNOWN),
+        BadgeWord("서포트모드", BadgePlace.ROW, BadgeMeaning.UNKNOWN),
     )
 
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */

@@ -1,5 +1,8 @@
 package com.onedal.app.plugins.hwamul24
 
+import com.onedal.app.core.BadgeMeaning
+import com.onedal.app.core.BadgePlace
+import com.onedal.app.core.BadgeWord
 import com.onedal.app.core.FieldSpec
 import com.onedal.app.core.Handling
 import com.onedal.app.core.OverlayKind
@@ -142,6 +145,29 @@ object Hwamul24Pages {
 
     /** 📦 크기 낱말 → 라면박스 수(shared sizeWords) · null 은 박스 수 모름 */
     val sizeWords: Map<String, Int?> = emptyMap()
+
+    /** 🏷️ 표시 글자 → 자리 · 뜻(shared badgeWords — 목록 · 상세 상차지 · 하차지 칸 앞 배지(«당상» · «수» · «지») · 화물 글(«독차» · «-A» · «예약») · 줄 배지(«왕복» · «N» · «인수증» · «선/착불») · 상세 «운행방법» 값 · 하차지 주소 끝 «왕복» — 근거는 03 표 · 화물24시 설명 영상) · 표에 없는 글자는 뜻 모름이 아니라 «표에 없음» */
+    val badgeWords: List<BadgeWord> = listOf(
+        BadgeWord("당상", BadgePlace.PICKUP, BadgeMeaning.PROMISE_DAY),
+        BadgeWord("내상", BadgePlace.PICKUP, BadgeMeaning.PROMISE_DAY),
+        BadgeWord("당착", BadgePlace.DROPOFF, BadgeMeaning.PROMISE_DAY),
+        BadgeWord("내착", BadgePlace.DROPOFF, BadgeMeaning.PROMISE_DAY),
+        BadgeWord("당/내", BadgePlace.DROPOFF, BadgeMeaning.UNKNOWN),
+        BadgeWord("수", BadgePlace.PICKUP, BadgeMeaning.LOADING_METHOD),
+        BadgeWord("수", BadgePlace.DROPOFF, BadgeMeaning.LOADING_METHOD),
+        BadgeWord("지", BadgePlace.PICKUP, BadgeMeaning.LOADING_METHOD),
+        BadgeWord("지", BadgePlace.DROPOFF, BadgeMeaning.LOADING_METHOD),
+        BadgeWord("독차", BadgePlace.CARGO, BadgeMeaning.NO_MIXED_LOAD),
+        BadgeWord("왕복", BadgePlace.ROW, BadgeMeaning.TRIP_TYPE, "왕복"),
+        BadgeWord("편도", BadgePlace.ROW, BadgeMeaning.TRIP_TYPE, "편도"),
+        BadgeWord("왕복", BadgePlace.DROPOFF, BadgeMeaning.TRIP_TYPE, "왕복"),
+        BadgeWord("-A", BadgePlace.CARGO, BadgeMeaning.POSTED_BY),
+        BadgeWord("-D", BadgePlace.CARGO, BadgeMeaning.POSTED_BY),
+        BadgeWord("N", BadgePlace.ROW, BadgeMeaning.UNKNOWN),
+        BadgeWord("인수증", BadgePlace.ROW, BadgeMeaning.BILLING),
+        BadgeWord("선/착불", BadgePlace.ROW, BadgeMeaning.PAYMENT),
+        BadgeWord("예약", BadgePlace.CARGO, BadgeMeaning.RESERVED),
+    )
 
     /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
     val vehicleAbsentMeansAny: Boolean = false

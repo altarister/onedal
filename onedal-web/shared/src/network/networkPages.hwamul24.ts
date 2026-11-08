@@ -38,6 +38,28 @@ export const HWAMUL24_PAGES: NetworkPageSpec = /*JSON*/{
     {"word": "승용", "vehicle": "승용차", "seen": "SIM"}
   ],
   "vehicleWordsWhy": "목록 셋째 줄 «낱말/…»(«1톤/전체» · «2.5톤/윙» · «다마스/전체»)의 첫 «/» 앞 낱말 — REAL 은 실물 캡처 17 · 실물 목록, SIM 은 시뮬레이터 목록에서만 봤다",
+  "badgeWords": [
+    {"text": "당상", "at": "pickup", "meaning": "promiseDay"},
+    {"text": "내상", "at": "pickup", "meaning": "promiseDay"},
+    {"text": "당착", "at": "dropoff", "meaning": "promiseDay"},
+    {"text": "내착", "at": "dropoff", "meaning": "promiseDay"},
+    {"text": "당/내", "at": "dropoff", "meaning": "unknown"},
+    {"text": "수", "at": "pickup", "meaning": "loadingMethod"},
+    {"text": "수", "at": "dropoff", "meaning": "loadingMethod"},
+    {"text": "지", "at": "pickup", "meaning": "loadingMethod"},
+    {"text": "지", "at": "dropoff", "meaning": "loadingMethod"},
+    {"text": "독차", "at": "cargo", "meaning": "noMixedLoad"},
+    {"text": "왕복", "at": "row", "meaning": "tripType", "value": "왕복"},
+    {"text": "편도", "at": "row", "meaning": "tripType", "value": "편도"},
+    {"text": "왕복", "at": "dropoff", "meaning": "tripType", "value": "왕복"},
+    {"text": "-A", "at": "cargo", "meaning": "postedBy"},
+    {"text": "-D", "at": "cargo", "meaning": "postedBy"},
+    {"text": "N", "at": "row", "meaning": "unknown"},
+    {"text": "인수증", "at": "row", "meaning": "billing"},
+    {"text": "선/착불", "at": "row", "meaning": "payment"},
+    {"text": "예약", "at": "cargo", "meaning": "reserved"}
+  ],
+  "badgeWordsWhy": "목록 · 상세 상차지 · 하차지 칸 앞 배지(«당상» · «수» · «지») · 화물 글(«독차» · «-A» · «예약») · 줄 배지(«왕복» · «N» · «인수증» · «선/착불») · 상세 «운행방법» 값 · 하차지 주소 끝 «왕복» — 근거는 03 표 · 화물24시 설명 영상",
   "networkMarkers": [["화물정보", "자동새로고침"], ["화물상세정보", "운송료"], ["전국24시콜화물"]],
   "networkMarkersWhy": "실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료») · 첫 화면(«전국24시콜화물» — 홈에서 바로 알아보기)",
   "slotNotes": {

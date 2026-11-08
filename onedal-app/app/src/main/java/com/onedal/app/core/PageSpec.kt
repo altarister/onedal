@@ -118,3 +118,16 @@ data class ScreenButtons(val accept: String? = null, val filterOut: String? = nu
 /** 🔘 그 기준 페이지(`base` 낱말)의 단추 — 단추가 적힌 화면 줄 하나(shared 검사가 배차망마다 하나임을 문다) · 없으면 null */
 fun buttonsOn(screens: List<ScreenSpec>, base: String): ScreenButtons? =
     screens.firstOrNull { it.base == base && it.buttons != null }?.buttons
+
+/** 🏷️ 표시 글자가 붙은 자리 — shared `call/badges.ts` 의 `BADGE_PLACES` 와 낱말 · 차례가 같다(`NetworkPagesPairTest`) */
+enum class BadgePlace(val word: String) { ROW("row"), PICKUP("pickup"), DROPOFF("dropoff"), CARGO("cargo") }
+
+/** 🏷️ 표시 글자의 뜻 갈래 — shared `BADGE_MEANINGS` 와 낱말 · 차례가 같다(`NetworkPagesPairTest`) */
+enum class BadgeMeaning(val word: String) {
+    TRIP_TYPE("tripType"), ORDER_FORM("orderForm"), NO_MIXED_LOAD("noMixedLoad"), PRODUCT("product"), LOADING_METHOD("loadingMethod"),
+    PROMISE_DAY("promiseDay"), RESERVED("reserved"), PAYMENT("payment"), BILLING("billing"), VEHICLE("vehicle"), ITEM_SIZE("itemSize"),
+    POSTED_BY("postedBy"), UNKNOWN("unknown"),
+}
+
+/** 🏷️ **표시 글자 한 줄** — 화면 글자 · 자리 · 뜻 갈래 · 값(구분 · 형태 갈래만 — «왕» → «왕복»). shared `BadgeWord` 와 같은 꼴 · 플러그인 폴더 `…Pages.kt` 의 `badgeWords` 가 적는다 */
+data class BadgeWord(val text: String, val at: BadgePlace, val meaning: BadgeMeaning, val value: String? = null)
