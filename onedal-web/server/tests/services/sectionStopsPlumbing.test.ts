@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { composeMergedRoute, applyRoute } from '../../src/services/routeComposer';
 import * as kakao from '../../src/services/kakaoService';
 
@@ -22,10 +23,10 @@ jest.mock('../../src/services/kakaoService', () => ({
     calculateDetourRoute: jest.fn(),
 }));
 
-const call = (id: string, px: number, dx: number) => ({
+const call = (id: string, px: number, dx: number) => callFromAppReport({
     id, status: 'ORDER_CONFIRMED',
     pickupX: px, pickupY: 37.4, dropoffX: dx, dropoffY: 37.7,
-}) as any;
+} as any) as any;
 
 describe('경유 계획 = 도착 계획 — 같은 방문 규칙', () => {
     const { planMergedStops, planArrivalStops } = require('../../src/services/routeComposer');
@@ -43,9 +44,9 @@ describe('경유 계획 = 도착 계획 — 같은 방문 규칙', () => {
               pickupX: 127.0, pickupY: 37.4, dropoffX: 126.9, dropoffY: 37.5 },
             { id: 'RIDE', status: 'ORDER_PICKED_UP',            // 실은 콜 — 하차만 남음
               pickupX: 127.1, pickupY: 37.4, dropoffX: 126.8, dropoffY: 37.6 },
-        ] as any;
-        const extra = { id: 'NEW', status: 'ORDER_CONFIRMED',
-            pickupX: 127.05, pickupY: 37.45, dropoffX: 126.85, dropoffY: 37.55 } as any;
+        ].map(o => callFromAppReport(o as any)) as any;
+        const extra = callFromAppReport({ id: 'NEW', status: 'ORDER_CONFIRMED',
+            pickupX: 127.05, pickupY: 37.45, dropoffX: 126.85, dropoffY: 37.55 } as any) as any;
         const loc = { x: 127.02, y: 37.42 };
 
         const plan = planMergedStops(calls, extra, loc)!;

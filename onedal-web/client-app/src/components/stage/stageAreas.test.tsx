@@ -36,6 +36,7 @@ vi.mock('./StageSheet', () => ({ default: (p: any) => <div data-peek>{p.peekBar}
 
 import { ThemeProvider } from '@onedal/ui/theme';
 import StageView from './StageView';
+import { callFromAppReport } from '@onedal/shared';
 
 /** 내 위치 — 경기 광주 · 이천 사이. ~300m 눈금(1/300°) 위의 점이라 무대가 굳힌 값과 같다 */
 const ME = { x: 38178 / 300, y: 11223 / 300 };
@@ -45,10 +46,11 @@ const LINE = [
 ];
 const DROP = { x: 127.40, y: 37.30 };
 
-const call = (o: Record<string, unknown> = {}) => ({
+/** 서버가 보내는 콜 — 원달앱 보고의 맨 위 칸을 정거장으로 옮겨 담은 것 */
+const call = (o: Record<string, unknown> = {}) => callFromAppReport({
     id: 'c1', status: 'ORDER_CONFIRMED', type: 'AUTO', goalCity: '이천시', pickup: '경기 광주시 경안동', dropoff: '경기 이천시 부발읍',
     pickupX: 127.25, pickupY: 37.42, dropoffX: DROP.x, dropoffY: DROP.y, ...o,
-});
+} as any);
 
 function setUp(o: { filter?: Record<string, unknown>; calls?: any[]; me?: { x: number; y: number } | null } = {}) {
     const calls = o.calls ?? [call()];

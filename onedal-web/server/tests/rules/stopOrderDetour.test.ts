@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { planArrivalStops } from '../../src/services/routeComposer';
 
 /**
@@ -31,11 +32,11 @@ import { planArrivalStops } from '../../src/services/routeComposer';
  * ```
  * 그래서 «비율 안 **그리고** 절대 차이도 작을 때»만 편든다.
  */
-const call = (id: string, over: object = {}) => ({
+const call = (id: string, over: object = {}) => callFromAppReport({
     id, status: 'ORDER_CONFIRMED',
     pickupX: 127.31, pickupY: 37.36, dropoffX: 127.38, dropoffY: 37.29,
     ...over,
-}) as any;
+} as any) as any;
 
 const name = (sts: Array<{ orderId: string; stopType: string }>) =>
     sts.map(s => `${s.orderId}${s.stopType === 'pickup' ? '상' : '하'}`).join(' ');

@@ -82,20 +82,14 @@ export function addressOf(app: TargetAppType, raw: string): string {
     return (re ? raw.replace(re, '') : raw).trim();
 }
 
-type GeoSide = 'pickup' | 'dropoff';
-/** 지오코딩 재료 — 콜 글 · 상세 팝업 주소 · 지금 좌표 · 그 좌표를 찍은 글(메모리만 · 저장 칸 아님) */
-export type GeocodeSource = Partial<Record<GeoSide, string> & Record<`${GeoSide}X` | `${GeoSide}Y`, number>
-    & Record<`${GeoSide}GeoText`, string>
-    & Record<`${GeoSide}Details`, ReadonlyArray<{ addressDetail?: string }>>>;
 /**
- * 📍 **이 콜을 어느 글로 지오코딩하나 · 다시 찍나 — 한 곳** (90판 · 71 «가» · `geocodeTarget.test`).
- *    상세 팝업에서 읽은 주소(`…Details[0].addressDetail`)가 있으면 그것이 먼저 · 없으면 콜 글 — 둘 다 `addressOf` 로 다듬는다.
- *    좌표는 «고른 글»을 따라가는 값이라, 좌표가 없거나 찍은 글이 지금 고른 글과 다르면 다시 찍는다(짧은 목록 글로 먼저 찍힌 콜에 상세 주소가 오면).
+ * 📍 **이 정거장을 어느 글로 지오코딩하나 · 다시 찍나 — 한 곳** (90판 · 71 «가» · `geocodeTarget.test`).
+ *    상세 팝업에서 읽은 주소(`addressDetail`)가 있으면 그것이 먼저 · 없으면 목록 글(`listText`) — 둘 다 `addressOf` 로 다듬는다.
+ *    좌표는 «고른 글»을 따라가는 값이라, 좌표가 없거나 찍은 글(`geoText`)이 지금 고른 글과 다르면 다시 찍는다(짧은 목록 글로 먼저 찍힌 콜에 상세 주소가 오면).
  */
-export function geocodeTargetOf(app: TargetAppType, order: GeocodeSource, side: GeoSide): { text: string; need: boolean } {
-    const detail = order[`${side}Details`]?.[0]?.addressDetail?.trim();
-    const text = addressOf(app, detail || order[side] || '');
-    const need = !order[`${side}X`] || !order[`${side}Y`] || order[`${side}GeoText`] !== text;
+export function geocodeTargetOf(app: TargetAppType, stop: CallStop | null | undefined): { text: string; need: boolean } {
+    const text = addressOf(app, stopTextOf(stop));
+    const need = !stop?.geo?.x || !stop?.geo?.y || stop?.geoText !== text;
     return { text, need };
 }
 
@@ -191,7 +185,7 @@ function withoutPromise(text: string, promise: string): string {
  *    ⑤ 번지가 없고 상호가 있으면(그 상호가 아직 글자에 없을 때) 뒤에 잇는다.
  *    정거장에는 화면 원문이 남고, 이 글자는 저장하지 않는다.
  */
-export function stopQueryOf(app: TargetAppType, stop: (CallStop & { geoText?: string }) | null | undefined): { text: string; need: boolean } {
+export function stopQueryOf(app: TargetAppType, stop: CallStop | null | undefined): { text: string; need: boolean } {
     const promise = stop?.promiseText?.trim();
     const raw = promise ? withoutPromise(stopTextOf(stop), promise) : stopTextOf(stop);
     const tokens = raw.trim().split(SPACES).map(t => t.replace(/^@+/, '')).filter(Boolean);

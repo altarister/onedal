@@ -188,10 +188,10 @@ export default function PinnedRouteCard({
 
     /**
      * 🧾 **단계 시트 전화를 그리나 — 바뀔 때만 서버 로그에 한 줄** (기사님 «로그를 넣어서 너가 확인해»).
-     *    판단은 단계 시트에 넘기는 값과 같은 `stopPhoneOf`(shared) 하나 · 번호는 뒤 네 자리만 · 재료는 pickupDetails · dropoffDetails.
+     *    판단은 단계 시트에 넘기는 값과 같은 `stopPhoneOf`(shared) 하나 · 번호는 뒤 네 자리만 · 재료는 첫 상차 · 마지막 하차 정거장.
      *    결재 전(심사 중) 카드는 단계 시트가 없어 안 찍는다.
      */
-    const phoneLog = `${isTerminal(route.status) ? '끝남' : '진행 중'} · 상차 ${stopPhoneLogOf(route.pickupDetails?.[0])} · 하차 ${stopPhoneLogOf(route.dropoffDetails?.[0])}`;
+    const phoneLog = `${isTerminal(route.status) ? '끝남' : '진행 중'} · 상차 ${stopPhoneLogOf(firstPickupStop(route))} · 하차 ${stopPhoneLogOf(lastDropoffStop(route))}`;
     useEffect(() => {
         if (isEvaluating(route.status) || lastPhoneLog.get(route.id) === phoneLog) return;
         lastPhoneLog.set(route.id, phoneLog);

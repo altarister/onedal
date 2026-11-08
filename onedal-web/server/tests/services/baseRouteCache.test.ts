@@ -16,6 +16,7 @@ jest.mock('../../src/services/kakaoService', () => ({
     calculateDetourRoute: jest.fn(),
     calculateSoloRoute: jest.fn(),
 }));
+import { callFromAppReport } from '@onedal/shared';
 import { composeMergedRoute, clearBaseRouteCache } from '../../src/services/routeComposer';
 import { calculateDetourRoute } from '../../src/services/kakaoService';
 
@@ -32,7 +33,7 @@ const RESULT = {
 const calls = () => ([
     { id: 'A', status: 'ORDER_CONFIRMED', pickupX: 127.31, pickupY: 37.36, dropoffX: 127.38, dropoffY: 37.29 },
     { id: 'B', status: 'ORDER_CONFIRMED', pickupX: 127.33, pickupY: 37.34, dropoffX: 127.40, dropoffY: 37.27 },
-] as any);
+].map(o => callFromAppReport(o as any)) as any);
 
 const HERE = { x: 127.30, y: 37.37 };
 /** 같은 자리에서 아주 조금(≈90m) 움직인 지점 */
@@ -97,7 +98,7 @@ describe('base 캐시 — 같은 질문·같은 자리에서만 되쓴다', () =
 
     it('🔴 후보(extra)가 붙어도 base 는 같다 — 후보를 뺀 경로가 base 이기 때문', async () => {
         await compose(HERE);
-        const cand = { id: 'C', status: 'ORDER_EVALUATING', pickupX: 127.35, pickupY: 37.33, dropoffX: 127.42, dropoffY: 37.25 };
+        const cand = callFromAppReport({ id: 'C', status: 'ORDER_EVALUATING', pickupX: 127.35, pickupY: 37.33, dropoffX: 127.42, dropoffY: 37.25 } as any);
         await compose(NUDGED, cand);
         expect(usedCache(1)).toEqual(BASE);
     });

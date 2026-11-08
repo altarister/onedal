@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import { stopPlaceFrom, normalizePlaceName } from '../../src/services/dispatchEngine';
 import { arrivedFieldFrom } from '../../src/services/milestones';
 import { visitedStopsFrom, restoredFixFrom, restoredOrderFrom } from '../../src/state/sessionRestore';
@@ -54,12 +55,15 @@ describe('♻️ 되살리기', () => {
             goalCity: '여주시', reserved: 1, reservedDay: null, capturedVia: 'alarm', completedAt: null, isShared: 1, isExpress: 0,
             routePolyline: '[{"x":1,"y":2}]', pickupX: 1, pickupY: 2, dropoffX: 3, dropoffY: 4, paymentType: '착불', dispatcherName: null,
         };
-        const o = restoredOrderFrom(row, { visited: { arrivedPickupAt: 'T1' }, judgment: { color: '꿀', score: 80 }, contacts: { pickupPhone: '010' } });
+        const o = restoredOrderFrom(row, { visited: { arrivedPickupAt: 'T1' }, judgment: { color: '꿀', score: 80 }, contacts: { pickupDetails: [{ phone1: '010' }] } });
         expect(o).toMatchObject({
             id: 'c1', status: 'ORDER_PICKED_UP', goalCity: '여주시', reserved: true, capturedVia: 'alarm', isShared: true, isExpress: false,
-            routePolyline: [{ x: 1, y: 2 }], paymentType: '착불', arrivedPickupAt: 'T1', judgment: { color: '꿀', score: 80 }, pickupPhone: '010',
+            routePolyline: [{ x: 1, y: 2 }], paymentType: '착불', arrivedPickupAt: 'T1', judgment: { color: '꿀', score: 80 },
         });
-        expect(o.reservedDay).toBeUndefined();
+        /* 장부의 주소 · 좌표 · 약속 칸과 연락처는 정거장으로 */
+        expect(firstPickupStop(o)).toMatchObject({ phone1: '010', listText: '상', geo: { x: 1, y: 2 }, distanceKm: null });
+        expect(lastDropoffStop(o)).toMatchObject({ listText: '하', geo: { x: 3, y: 4 }, distanceKm: null });
+        expect(firstPickupStop(o)?.requestedDay).toBeUndefined();
         expect(o.dispatcherName).toBeUndefined();
         const broken = restoredOrderFrom({ ...row, routePolyline: '깨짐', goalCity: null, reserved: null }, { visited: {}, judgment: null, contacts: {} });
         expect(broken.routePolyline).toBeUndefined();

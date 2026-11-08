@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { buildOrderSync } from '../../src/core/helpers';
 
 /**
@@ -19,7 +20,7 @@ import { buildOrderSync } from '../../src/core/helpers';
  *   다녀온 정거장은 조회가 안 될 뿐이고, 남은 정거장은 제 주행분을 그대로 찾는다.
  */
 
-const CALL = {
+const CALL = callFromAppReport({
     id: 'CALL-A', status: 'ORDER_CONFIRMED',
     pickupX: 127.1, pickupY: 37.4, dropoffX: 126.7, dropoffY: 37.7,
     sectionDriveMin: [10, 84],
@@ -28,7 +29,7 @@ const CALL = {
         { orderId: 'CALL-A', stopType: 'dropoff' },
     ],
     routeComputedAt: '2026-08-21T04:29:24Z',
-};
+} as any);
 
 const session = (over: object = {}) => ({
     myOrders: [{ ...CALL, ...over }],
@@ -50,10 +51,10 @@ describe('경로 순서 — 지나간 정거장 뒤에도 주행분이 산다', 
 
     it('🔴 계산에 없던 새 정거장만 null — 전체를 비우지 않는다 (KEEP 직후 과도기)', () => {
         const s = session();
-        s.myOrders.push({
+        s.myOrders.push(callFromAppReport({
             id: 'CALL-B', status: 'ORDER_CONFIRMED',
             pickupX: 127.11, pickupY: 37.41, dropoffX: 126.8, dropoffY: 37.8,
-        });
+        } as any));
         const { routeStops } = buildOrderSync(s);
         const of = (id: string, st: string) => routeStops.find(x => x.orderId === id && x.stopType === st)!;
         expect(of('CALL-A', 'pickup').driveMinutes).toBe(10);    // 아는 것은 안다

@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode, firstPickupStop, lastDropoffStop } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode, firstPickupStop, lastDropoffStop, callFromAppReport } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -89,8 +89,8 @@ router.get("/", requireAuth, (req, res) => {
                  *    넷은 한 운명이라 **같이** 편다.
                  */
                 sectionDriveMin: parseSectionDriveMin(r.sectionDriveMin),
-                /** 📞 상하차지 연락처 — 되살린 세션 콜과 같은 함수(`stopContactsOf`) · 단계 시트의 📞 이 읽는다 */
-                ...OrderRepository.stopContactsOf(r.id),
+                /** 🚏 정거장 — 장부의 주소 · 약속 · 배송거리 칸 + 상하차지 연락처(단계 시트의 📞) · 되살린 세션 콜과 같은 함수(`ledgerStopsOf`) */
+                ...OrderRepository.ledgerStopsOf(r, OrderRepository.stopContactsOf(r.id)),
             })),
         });
     } catch (error) {
@@ -164,7 +164,9 @@ router.post("/confirm", (req, res) => {
         res.json({ success: true, message: "1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요." });
         /* 🏃 판정 재료(좌표 · 단독 길찾기)를 미리 출발 — /detail 판정이 같은 질문이면 받아 쓴다 · 세션은 읽기만 (OrderEvaluator.prefetch) */
         const prefetchApp = isTargetApp((payload as any).targetApp) ? (payload as any).targetApp : DEFAULT_TARGET_APP;
-        void new OrderEvaluator(prefetchApp).prefetch(userId, payload.order);
+        /* 📱→🚏 원달앱 보고의 맨 위 칸을 정거장으로 — 이 뒤로는 콜 모양만 쓴다 */
+        const reportedCall = callFromAppReport(payload.order);
+        void new OrderEvaluator(prefetchApp).prefetch(userId, reportedCall);
         const session = getUserSession(userId);
 
         const previousEvaluatingId = session.deviceEvaluatingMap.get(payload.deviceId);
@@ -184,7 +186,7 @@ router.post("/confirm", (req, res) => {
 
         const deviceMode = getDeviceMode(payload.deviceId, userId);
         const pendingOrder: PendingOrder = {
-            ...payload.order,
+            ...reportedCall,
             status: 'ORDER_PRE_SECURED' as OrderStatus,
             capturedDeviceId: payload.deviceId,
             capturedAt: payload.capturedAt || new Date().toISOString(),

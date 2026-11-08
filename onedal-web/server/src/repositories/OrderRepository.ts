@@ -1,5 +1,5 @@
 import db from "../db";
-import { MyOrder, PendingOrder, SecuredOrder, LET_GO_STATUSES } from "@onedal/shared";
+import { MyOrder, PendingOrder, SecuredOrder, LET_GO_STATUSES, firstPickupStop, lastDropoffStop } from "@onedal/shared";
 import type { CargoReport, CallStop } from "@onedal/shared";
 
 export class OrderRepository {
@@ -43,11 +43,14 @@ export class OrderRepository {
                 sectionStops = COALESCE(excluded.sectionStops, sectionStops)
         `);
         
+        /* 🚏 장부의 주소 · 약속 · 거리 칸은 첫 상차 · 마지막 하차 정거장에서 — 칸 이름은 장부 그대로 */
+        const pickupStop = firstPickupStop(cachedOrder);
+        const dropoffStop = lastDropoffStop(cachedOrder);
         stmtOrder.run(
             cachedOrder.id,
             cachedOrder.type || "NEW_ORDER",
-            cachedOrder.pickup,
-            cachedOrder.dropoff,
+            pickupStop?.listText ?? '',
+            dropoffStop?.listText ?? '',
             cachedOrder.fare || 0,
             cachedOrder.timestamp || new Date().toISOString(),
             // 레거시 소문자 'confirmed'로 저장되어 GET /api/orders 와
@@ -59,8 +62,8 @@ export class OrderRepository {
             cachedOrder.capturedDeviceId || null,
             cachedOrder.vehicleType || null,
             cachedOrder.distanceKm || null,
-            // 🚚 앱이 화면에서 읽은 배송거리 — 합짐 콜의 단독 주행 추정 입력 (soloMinutesOf)
-            (cachedOrder as any).deliveryDistance || null,
+            // 🚚 앱이 화면에서 읽은 배송거리(마지막 하차 정거장 거리 — 오늘 콜은 하차가 하나다) — 카카오 거리가 없을 때 단독 주행 추정 입력 (soloMinutesOf ← deliveryKmOf)
+            dropoffStop?.distanceKm || null,
             cachedOrder.totalDistanceKm || null,
             cachedOrder.totalDurationMin || null,
             cachedOrder.kakaoSoloDistanceKm || null,
@@ -92,14 +95,14 @@ export class OrderRepository {
             cachedOrder.dispatcherPhone || null,
             isShared,
             isExpress,
-            cachedOrder.scheduleText || null,
+            pickupStop?.promiseText || null,
             cachedOrder.postTime || null,
             (cachedOrder as any).targetApp || null,
             (cachedOrder as any).capturedVia || null,
             (cachedOrder as any).goalCity ?? null,
             typeof (cachedOrder as any).reserved === 'boolean' ? ((cachedOrder as any).reserved ? 1 : 0) : null,
-            (cachedOrder as any).reservedDay ?? null,
-            (cachedOrder as any).reservedAt ?? null,
+            pickupStop?.requestedDay ?? null,
+            pickupStop?.requestedTime ?? null,
             (cachedOrder as any).reservedFor ?? null,
             (cachedOrder as any).capturedMode ?? null,
             (cachedOrder as any).openedBy ?? null
@@ -296,6 +299,33 @@ export class OrderRepository {
             }];
         }
         return out;
+    }
+
+    /**
+     * 🚏 장부의 콜 한 줄 → 첫 상차 · 마지막 하차 정거장 — 값만 받는 셈 (orders 줄 · `stopContactsOf` 연락처).
+     *    되살린 세션 콜(`restoredOrderFrom`)과 관제웹 이력(GET /orders)이 같이 쓴다. 장부에 없는 상차 거리는 null.
+     */
+    public static ledgerStopsOf(row: any, contacts: { pickupDetails?: CallStop[]; dropoffDetails?: CallStop[] }): { pickupDetails: CallStop[]; dropoffDetails: CallStop[] } {
+        const pickup = contacts.pickupDetails?.[0];
+        const dropoff = contacts.dropoffDetails?.at(-1);
+        const geoOf = (x: number | null | undefined, y: number | null | undefined) => (x != null && y != null ? { x, y } : null);
+        return {
+            pickupDetails: [{
+                ...pickup,
+                listText: row.pickup ?? null,
+                geo: geoOf(row.pickupX, row.pickupY),
+                distanceKm: null,
+                promiseText: row.scheduleText ?? pickup?.promiseText,
+                requestedDay: row.reservedDay ?? pickup?.requestedDay,
+                requestedTime: row.reservedAt ?? pickup?.requestedTime,
+            }],
+            dropoffDetails: [{
+                ...dropoff,
+                listText: row.dropoff ?? null,
+                geo: geoOf(row.dropoffX, row.dropoffY),
+                distanceKm: row.deliveryDistance ?? null,
+            }],
+        };
     }
 
     public static insertOrderStop(orderId: string, placeId: number, stopType: 'pickup' | 'dropoff' | 'waypoint', customerNameSnapshot: string, phoneSnapshot: string | null) {

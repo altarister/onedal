@@ -107,9 +107,9 @@ describe('🎯 목적지 가까이 옴 — 현위치가 목적지 영역 안인�
 
 describe('목적지마다 경로의 확정콜의 마지막 하차지 — 경로 순서에서 그 목적지 콜의 마지막 하차지', () => {
     const calls = [
-        { id: 'a', goalCity: '이천시', dropoffX: 127.43, dropoffY: 37.28 },
-        { id: 'b', goalCity: '광주시', dropoffX: 127.30, dropoffY: 37.37 },
-        { id: 'c', goalCity: '이천시', dropoffX: 127.41, dropoffY: 37.29 },
+        { id: 'a', goalCity: '이천시', dropoffDetails: [{ geo: { x: 127.43, y: 37.28 } }] },
+        { id: 'b', goalCity: '광주시', dropoffDetails: [{ geo: { x: 127.30, y: 37.37 } }] },
+        { id: 'c', goalCity: '이천시', dropoffDetails: [{ geo: { x: 127.41, y: 37.29 } }] },
     ];
     const stops = [
         { orderId: 'a', stopType: 'pickup' as const }, { orderId: 'b', stopType: 'pickup' as const },
@@ -126,7 +126,7 @@ describe('목적지마다 경로의 확정콜의 마지막 하차지 — 경로 
     });
     it('그 목적지 하차 정거장이 없거나 좌표를 모르면 null — 지어내지 않는다', () => {
         expect(lastDropOf({ isHome: true, ...home, stops: stops.slice(0, 4), calls })).toBeNull();
-        expect(lastDropOf({ isHome: true, ...home, stops, calls: calls.map(c => ({ ...c, dropoffX: undefined })) })).toBeNull();
+        expect(lastDropOf({ isHome: true, ...home, stops, calls: calls.map(c => ({ ...c, dropoffDetails: [{ geo: null }] })) })).toBeNull();
     });
 });
 

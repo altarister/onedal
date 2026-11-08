@@ -54,7 +54,7 @@ export function stepPaneOf({ route, step: x, seededSteps, timeline }: {
     route: SecuredOrder; step: StepViewRow; seededSteps: StepViewRow[]; timeline?: RouteTimelineEntry[];
 }) {
     const xPickup = x.step === 'CALL_PICKUP' || x.step === 'ARRIVE_PICKUP' || x.step === 'LOADED';
-    const dd = xPickup ? route.pickupDetails?.[0] : route.dropoffDetails?.[0];
+    const dd = xPickup ? firstPickupStop(route) : lastDropoffStop(route);
     const xTl = timeline?.find(e => e.orderId === route.id
         && e.stopType === (xPickup ? 'pickup' : 'dropoff'));
     const callPRow = seededSteps.find(y => y.step === 'CALL_PICKUP')?.row;
@@ -63,10 +63,10 @@ export function stepPaneOf({ route, step: x, seededSteps, timeline }: {
         codAmount: route.paymentType === '착불' ? route.fare : null,
         place: {
             name: dd?.contactName || dd?.customerName || undefined,
-            address: stopTextOf(xPickup ? firstPickupStop(route) : lastDropoffStop(route)),
+            address: stopTextOf(dd),
             phone: stopPhoneOf(dd),
         },
-        prevName: route.pickupDetails?.[0]?.contactName || route.pickupDetails?.[0]?.customerName,
+        prevName: firstPickupStop(route)?.contactName || firstPickupStop(route)?.customerName,
         leadMinutes: callPRow?.planned_dwell_min ?? null,
         departPrevMs: xTl?.departPrevMs ?? null,
         segmentDriveMinutes: xTl?.segmentDriveMinutes ?? null,
@@ -256,7 +256,7 @@ export function stopBlocksOf({ route, timeline, visitOrder, timing, etas, seeded
 }): StopBlock[] {
     return stopDetailRowsOf({ route, timeline, visitOrder, timing, etas }).map(r => {
         const pickup = r.stopType === 'pickup';
-        const dd = pickup ? route.pickupDetails?.[0] : route.dropoffDetails?.[0];
+        const dd = pickup ? firstPickupStop(route) : lastDropoffStop(route);
         const callRow = seededSteps?.find(x => x.step === (pickup ? 'CALL_PICKUP' : 'CALL_DROPOFF'));
         const tl = timeline?.find(e => e.orderId === route.id && e.stopType === r.stopType);
         const promised = tl?.promisedUntil ?? (pickup ? timing.pickupPromisedArrivalAt : timing.dropoffPromisedArrivalAt);
@@ -266,7 +266,7 @@ export function stopBlocksOf({ route, timeline, visitOrder, timing, etas, seeded
         return {
             ...r,
             name: dd?.contactName || dd?.customerName || r.name,
-            address: stopTextOf(pickup ? firstPickupStop(route) : lastDropoffStop(route)),
+            address: stopTextOf(dd),
             phone: stopPhoneOf(dd) ?? null,
             promiseFirm: !!callRow && callRow.born !== false && callRow.row?.status !== 'PLANNED',
             etaText: r.real,

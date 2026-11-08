@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import db from '../../src/db';
 import { handleDecision } from '../../src/services/dispatchEngine';
 import * as steps from '../../src/services/stepSeeder';
@@ -14,8 +15,8 @@ const io = { to: () => ({ emit: () => {} }) } as any;
 
 function seed(id: string, isSimulated: boolean) {
     const s = getUserSession(U);
-    s.pendingOrdersData.set(id, { id, status: 'ORDER_AWAITING_DECISION', capturedDeviceId: DEV, isSimulated,
-        pickup: '경기 광주시 경안동', dropoff: '경기 파주시 금촌동', fare: 30000, vehicleType: '1t', timestamp: new Date().toISOString() } as any);
+    s.pendingOrdersData.set(id, callFromAppReport({ id, status: 'ORDER_AWAITING_DECISION', capturedDeviceId: DEV, isSimulated,
+        pickup: '경기 광주시 경안동', dropoff: '경기 파주시 금촌동', fare: 30000, vehicleType: '1t', timestamp: new Date().toISOString() } as any) as any);
     s.pendingDecisions.set(id, { action: null, evaluatedAt: Date.now() });
     return s;
 }
@@ -80,7 +81,9 @@ describe('체험 판정 — 콜에 적힌 값', () => {
         });
         it('🔴 예약 KEEP(내일 콜 · 예약 보관 갈래) — 결재만으로 한 번', async () => {
             const s = seed('resv-3', false);
-            Object.assign(s.pendingOrdersData.get('resv-3') as any, { reserved: true, reservedDay: 1, reservedAt: '09:00' });
+            const resv = s.pendingOrdersData.get('resv-3') as any;
+            Object.assign(resv, { reserved: true });
+            Object.assign(resv.pickupDetails[0], { requestedDay: 1, requestedTime: '09:00' });
             await handleDecision(U, 'resv-3', 'ORDER_CONFIRMED', io);
             expect(s.reservedOrders.some(o => o.id === 'resv-3')).toBe(true);
             expect(birth).toHaveBeenCalledTimes(1);

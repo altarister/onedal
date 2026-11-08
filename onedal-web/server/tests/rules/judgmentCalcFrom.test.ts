@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport } from '@onedal/shared';
 import { soloJudgmentFrom, mergedJudgmentFrom, fallbackJudgmentFrom } from '../../src/core/engine/OrderEvaluator';
 import { DEFAULT_JUDGMENT, derivationInputsOf } from '@onedal/shared';
 
@@ -14,8 +15,8 @@ const HD_SINDUN = { x: 127.40410, y: 37.30574 };         // 이천 신둔면
 const BUBAL = { x: 127.4867, y: 37.2602 };               // 이천 부발읍
 const cfg = DEFAULT_JUDGMENT;
 
-const soloOrder = (o = {}) => ({ id: 'c', fare: 45000, totalDurationMin: 30, approachDurationMin: 7, kakaoSoloDistanceKm: 15.5, kakaoSoloDurationMin: 23,
-    pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y, pickupApprox: null, dropoffApprox: null, ...o });
+const soloOrder = (o = {}) => callFromAppReport({ id: 'c', fare: 45000, totalDurationMin: 30, approachDurationMin: 7, kakaoSoloDistanceKm: 15.5, kakaoSoloDurationMin: 23,
+    pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y, pickupApprox: null, dropoffApprox: null, ...o } as any);
 const solo = (o = {}) => soloJudgmentFrom({
     order: soloOrder(), roadEvent: null, tollKrw: 1200, dwell: { dwell: 13, hasUnknown: false }, firstStop: { handMinutes: 8, protectionMin: null },
     rateForScore: null, rateForDisplay: null, fuelCostPerKm: 150, reservedLater: false,
@@ -83,8 +84,8 @@ describe('🎨 판정 불가 셈 — 값만', () => {
 
 describe('🧩 합짐 판정 셈 — 값만', () => {
     const NOW = Date.parse('2026-10-07T03:00:00.000Z');
-    const kept = { id: 'k1', status: 'ORDER_CONFIRMED', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y, goalCity: '이천시' };
-    const cand = { id: 'c1', fare: 30000, pickupX: HD_SINDUN.x, pickupY: HD_SINDUN.y, dropoffX: BUBAL.x, dropoffY: BUBAL.y, deliveryDistanceKm: 8, pickupApprox: null, dropoffApprox: null };
+    const kept = callFromAppReport({ id: 'k1', status: 'ORDER_CONFIRMED', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y, goalCity: '이천시' } as any);
+    const cand = callFromAppReport({ id: 'c1', fare: 30000, pickupX: HD_SINDUN.x, pickupY: HD_SINDUN.y, dropoffX: BUBAL.x, dropoffY: BUBAL.y, deliveryDistanceKm: 8, pickupApprox: null, dropoffApprox: null } as any);
     const entry = (orderId, stopType, etaMin, promisedMin, arrived = false) => ({
         orderId, stopType, etaMs: etaMin == null ? null : NOW + etaMin * 60_000, dwellMinutes: 5, driveMinutes: etaMin, leadMinutes: 0,
         promisedUntil: promisedMin == null ? null : new Date(NOW + promisedMin * 60_000).toISOString(), promiseConfirmed: false,

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport } from '@onedal/shared';
 import { describe, test, expect, jest, beforeEach } from '@jest/globals';
 import { OrderEvaluator } from '../../../src/core/engine/OrderEvaluator';
 import { SettingsRepository } from '../../../src/repositories/SettingsRepository';
@@ -60,14 +61,14 @@ describe('OrderEvaluator', () => {
     });
 
     test('조건이 모두 충족되는 꿀콜은 패널티 없이 통과해야 한다', async () => {
-        const order = {
+        const order = callFromAppReport({
             id: 'order-1',
             pickup: '서울 강남구 역삼동',
             dropoff: '경기 성남시 분당구',
             vehicleType: '1t',
             fare: 15000, // 10km 기준 적정가(8000원)보다 높으므로 꿀콜
             rawText: '안전하게 모십니다'
-        };
+        } as any);
 
         process.env.KAKAO_REST_API_KEY = "test-key"; // API Key 우회
         // 실제 흐름처럼 상세 보고 문(detail.ts)이 심사 중으로 세션에 올린 콜을 판정한다 — 아니면 판정 끝 확인(alive)이 버린다
@@ -85,14 +86,14 @@ describe('OrderEvaluator', () => {
     });
 
     test('하한가 미달 및 제외 키워드 포함 시 정확하게 똥콜로 걸러내야 한다', async () => {
-        const order = {
+        const order = callFromAppReport({
             id: 'order-2',
             pickup: '출발지',
             dropoff: '도착지',
             vehicleType: '1t',
             fare: 3000, // 5000원 절대 하한가 미달 및 10km 하한선(7200원) 미달
             rawText: '요금 : 3,000(착불)' // 블랙리스트 키워드 — 인성 결제 괄호(제외어 찾는 칸)
-        };
+        } as any);
 
         process.env.KAKAO_REST_API_KEY = "test-key";
 

@@ -181,8 +181,6 @@ export function restoredOrderFrom(row: any, got: {
     return {
         id: row.id,
         type: row.type,
-        pickup: row.pickup,
-        dropoff: row.dropoff,
         fare: row.fare,
         timestamp: row.timestamp,
         status: row.status,
@@ -191,8 +189,6 @@ export function restoredOrderFrom(row: any, got: {
         goalCity: row.goalCity ?? undefined,
         /** 📅 예약 — 안 읽으면 재기동 뒤 예약 콜이 오늘 첫짐이 되고 상차 약속이 오늘로 돌아간다 */
         reserved: row.reserved == null ? undefined : !!row.reserved,
-        reservedDay: row.reservedDay ?? undefined,
-        reservedAt: row.reservedAt ?? undefined,
         reservedFor: row.reserved_for ?? undefined,
         capturedDeviceId: row.capturedDeviceId,
         vehicleType: row.vehicleType,
@@ -211,10 +207,6 @@ export function restoredOrderFrom(row: any, got: {
         kakaoSoloDistanceKm: row.kakaoSoloDistanceKm,
         kakaoSoloDurationMin: row.kakaoSoloDurationMin,
         kakaoTimeExt: row.kakaoTimeExt,
-        pickupX: row.pickupX,
-        pickupY: row.pickupY,
-        dropoffX: row.dropoffX,
-        dropoffY: row.dropoffY,
         // [T8] 착불 여부가 복구에서 빠져 있었다 — 재접속 직후 착불 표시가 사라진다
         paymentType: row.paymentType,
         /**
@@ -239,12 +231,10 @@ export function restoredOrderFrom(row: any, got: {
         dispatcherPhone: row.dispatcherPhone ?? undefined,
         itemDescription: row.itemDescription ?? undefined,
         commissionRate: row.commissionRate ?? undefined,
-        scheduleText: row.scheduleText ?? undefined,
         tripType: row.tripType ?? undefined,
         billingType: row.billingType ?? undefined,
         tollFare: row.tollFare ?? undefined,
         postTime: row.postTime ?? undefined,
-        deliveryDistance: row.deliveryDistance ?? undefined,
         targetApp: row.targetApp ?? undefined,
         /**
          * 🚏 **도착 시각을 되살린다**.
@@ -259,10 +249,14 @@ export function restoredOrderFrom(row: any, got: {
          *    새로 재는 게 아니라 **그때 그 값**이다 — 색은 심사 1회 고정 (v2 ③④).
          */
         judgment: got.judgment ?? undefined,
-        /** 📞 **상하차지 연락처도 되살린다** — 단계 시트의 📞 이 이것을 읽는다. 안 되살리면 재시작 뒤 진행 중 콜의 전화 버튼이 사라진다 */
-        ...got.contacts,
+        /**
+         * 🚏 **정거장도 되살린다** — 장부의 주소 · 좌표 · 약속 · 배송거리 칸 + 상하차지 연락처(단계 시트의 📞 이 읽는다).
+         *    안 되살리면 재시작 뒤 예약 콜이 오늘 첫짐이 되고 상차 약속이 오늘로 돌아가며, 진행 중 콜의 전화 버튼이 사라진다.
+         */
+        ...OrderRepository.ledgerStopsOf(row, got.contacts),
     };
 }
+
 
 /**
  * [방안 1] 서버 재시작 시 DB에서 콜을 불러와 1회성 카카오 궤적 복구 연산

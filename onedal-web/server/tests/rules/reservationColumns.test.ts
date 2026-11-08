@@ -5,7 +5,7 @@ import { join } from 'path';
  * 📅 **예약 셋 — 받아 적기만**.
  *
  * 원달앱이 콜 줄마다 `reserved`(예약 표시가 있나 · true/false/null) · `reservedDay`(0 오늘 · 1 내일 · N 그 뒤 · null 모름) · `reservedAt`(«HH:MM» · null)을 싣는다.
- * 서버는 목록 원문(`intel`)과 장부(`orders`)에 그대로 적는다 — 1단계에서는 판정·경로·약속에 쓰지 않는다.
+ * 서버는 목록 원문(`intel`)에 그대로, 장부(`orders`)에는 서버 입구가 옮겨 담은 첫 상차 정거장 약속 칸(`requestedDay` · `requestedTime`)에서 적는다.
  * 🔴 서버 칸이 앱보다 먼저 선다 — 앱이 칸을 더했는데 서버에 없으면 `intelColumns` 짝이 빨간불이다.
  *    shared 콜 양식(`SimplifiedOfficeOrder`)의 세 칸은 원달앱 칸과 같은 때 든다 — `appOrderShape` 짝이 한쪽만 있으면 빨간불이다.
  */
@@ -30,6 +30,6 @@ describe('📅 예약 셋', () => {
         expect(repo).toMatch(/goalCity, reserved, reservedDay, reservedAt[,\s)]/);
         expect(repo).toContain('reserved = COALESCE(excluded.reserved, reserved)');
         expect(repo).toContain('reservedDay = COALESCE(excluded.reservedDay, reservedDay)');
-        expect(repo).toContain('(cachedOrder as any).reservedDay ?? null');
+        expect(repo).toContain('pickupStop?.requestedDay ?? null');   // 장부 예약 날 칸 ← 첫 상차 정거장 날
     });
 });

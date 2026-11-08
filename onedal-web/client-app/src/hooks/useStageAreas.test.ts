@@ -12,7 +12,7 @@ const ME = { x: 127.26, y: 37.41 };
 const LINE = [{ x: 127.20, y: 37.45 }, { x: 127.26, y: 37.41 }, { x: 127.33, y: 37.36 }, { x: 127.40, y: 37.30 }, { x: 127.47, y: 37.26 }];
 const RADII = { quadRadiusKm: 25, pickupRadiusKm: 10, destinationRadiusKm: 8, detourRadiusKm: 3 };
 const QUAD = { srcAngleDeg: 110, dstAngleDeg: 110 };
-const call = { id: 'c1', goalCity: '이천시', dropoffX: 127.40, dropoffY: 37.30 } as any;
+const call = { id: 'c1', goalCity: '이천시', dropoffDetails: [{ geo: { x: 127.40, y: 37.30 } }] } as any;
 const STOPS = [{ orderId: 'c1', stopType: 'pickup' }, { orderId: 'c1', stopType: 'dropoff' }] as any;
 const zone = (o: Record<string, unknown> = {}) => ({ city: '이천시', isHome: false, hasCalls: false, ...o });
 const parts = (o: Record<string, unknown> = {}) => dropoffPartsByGoal({

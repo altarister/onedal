@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { planArrivalStops } from '../../src/services/routeComposer';
 
 /**
@@ -17,11 +18,11 @@ import { planArrivalStops } from '../../src/services/routeComposer';
  *   차이에 뒤집히는 것»이다. 그래서 얼리지 않고 **버티게** 한다 —
  *   직전에 정한 순서(`sectionStops`)를 **동점 근처에서만** 편든다.
  */
-const call = (id: string, over: object = {}) => ({
+const call = (id: string, over: object = {}) => callFromAppReport({
     id, status: 'ORDER_CONFIRMED',
     pickupX: 127.31, pickupY: 37.36, dropoffX: 127.38, dropoffY: 37.29,
     ...over,
-}) as any;
+} as any) as any;
 
 const name = (sts: Array<{ orderId: string; stopType: string }>) =>
     sts.map(s => `${s.orderId}${s.stopType === 'pickup' ? '상' : '하'}`).join(' ');

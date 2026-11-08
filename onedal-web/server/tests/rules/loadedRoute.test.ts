@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { readFileSync } from "fs";
 import { join } from "path";
 import { buildSoloRouteUrl } from "../../src/services/kakaoService";
@@ -76,9 +77,9 @@ describe('이미 상차한 콜 — 다녀온 상차지를 다시 경유하지 �
 describe('합짐 판정 — 경유지 조립은 한 곳에서만', () => {
 
     const P = (n: number) => ({ x: 127 + n / 100, y: 37 + n / 100 });
-    const call = (id: string, status: string, p: number, d: number) => ({
+    const call = (id: string, status: string, p: number, d: number) => callFromAppReport({
         id, status, pickupX: P(p).x, pickupY: P(p).y, dropoffX: P(d).x, dropoffY: P(d).y,
-    }) as any;
+    } as any) as any;
 
     it('🔴 실은 콜의 상차지는 경유지에 없고, 후보 콜의 상차지는 있다', () => {
         const loaded = call('A', 'ORDER_PICKED_UP', 1, 2);     // 짐을 실었다 — 상차지는 다녀왔다

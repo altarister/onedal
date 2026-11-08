@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { deriveCallTiming, DEFAULT_DEADLINE_RULES } from '@onedal/shared';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -14,11 +15,12 @@ import { join } from 'path';
  * 위반이다.**"* 그래서 계산이 «추정»을 알고 있으면 화면까지 그 사실이 가야 한다.
  */
 const NOW = Date.parse('2026-09-01T09:00:00+09:00');
-const order = (over: object = {}) => ({
+/** 서버가 원달앱 보고를 옮겨 담은 콜 — 맨 위 칸은 정거장으로 */
+const order = (over: object = {}) => callFromAppReport({
     id: 'A', capturedAt: new Date(NOW).toISOString(),
     pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 신둔면',
     ...over,
-}) as any;
+} as any) as any;
 
 describe('soloEstimated — 계산이 «어림임»을 숨기지 않는다', () => {
     it('🔴 카카오 실측이 있으면 추정이 아니다 (A단계가 채우는 값)', () => {

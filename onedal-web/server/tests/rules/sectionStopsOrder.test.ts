@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { planArrivalStops, planMergedStops } from '../../src/services/routeComposer';
 
 /**
@@ -25,10 +26,10 @@ import { planArrivalStops, planMergedStops } from '../../src/services/routeCompo
  * ```
  */
 const here = { x: 127.30, y: 37.35 };
-const near = { id: 'A', status: 'ORDER_CONFIRMED',
-    pickupX: 127.31, pickupY: 37.35, dropoffX: 127.33, dropoffY: 37.36 } as any;
-const far = { id: 'B', status: 'ORDER_CONFIRMED',
-    pickupX: 127.60, pickupY: 37.30, dropoffX: 127.70, dropoffY: 37.28 } as any;
+const near = callFromAppReport({ id: 'A', status: 'ORDER_CONFIRMED',
+    pickupX: 127.31, pickupY: 37.35, dropoffX: 127.33, dropoffY: 37.36 } as any) as any;
+const far = callFromAppReport({ id: 'B', status: 'ORDER_CONFIRMED',
+    pickupX: 127.60, pickupY: 37.30, dropoffX: 127.70, dropoffY: 37.28 } as any) as any;
 
 /** 카카오가 실제로 받는 정거장 순서 — 현위치를 알면 origin 은 현위치이고 정거장은 waypoints + dest */
 const kakaoStopOrder = (calls: any[], driverLoc: any) => {

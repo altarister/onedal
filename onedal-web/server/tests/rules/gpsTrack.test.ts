@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import db from '../../src/db';
 import { shouldStoreGpsPoint, GPS_TRACK, pruneGpsTracks, flushGpsBuffer, bufferGpsPoint,
          summarizeTrack, trackOfOrder, trackSegmentsOf } from '../../src/services/gpsTrackStore';
@@ -141,11 +142,11 @@ describe('위치 점프 경고 — 표본이 작으면 속도를 믿지 않는�
  *    도착 감지가 보는 콜이 갈라진다.
  */
 describe('궤적에 콜을 붙인다 — 경로 대조의 열쇠', () => {
-    const order = (id: string, over: object = {}) => ({
+    const order = (id: string, over: object = {}) => callFromAppReport({
         id, status: 'ORDER_CONFIRMED', pickup: `${id}-상차`, dropoff: `${id}-하차`,
         pickupX: 127.20, pickupY: 37.40, dropoffX: 126.80, dropoffY: 37.70,
         fare: 50000, ...over,
-    }) as any;
+    } as any) as any;
     const sess = (calls: any[], fired: string[] = []) => ({
         myOrders: calls, arrivalFired: new Set(fired), origin: null,
     }) as any;

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport } from '@onedal/shared';
 import { calculateDetourRoute } from '../../src/services/kakaoService';
 import { composeMergedRoute } from '../../src/services/routeComposer';
 
@@ -27,8 +28,8 @@ describe('🛣️ ⑧ 비교 경로와 합짐 경로를 동시에', () => {
 
 describe('🛣️ ⑨ 후보 없이 부르면 base 를 따로 안 잰다', () => {
     const at = (dx: number) => ({ x: 127 + dx * 0.01, y: 37 });
-    const A = { id: 'A', status: 'ORDER_CONFIRMED', pickupX: at(15).x, pickupY: 37, dropoffX: at(30).x, dropoffY: 37 };
-    const B = { id: 'B', status: 'ORDER_CONFIRMED', pickupX: at(10).x, pickupY: 37, dropoffX: at(50).x, dropoffY: 37 };
+    const A = callFromAppReport({ id: 'A', status: 'ORDER_CONFIRMED', pickupX: at(15).x, pickupY: 37, dropoffX: at(30).x, dropoffY: 37 } as any);
+    const B = callFromAppReport({ id: 'B', status: 'ORDER_CONFIRMED', pickupX: at(10).x, pickupY: 37, dropoffX: at(50).x, dropoffY: 37 } as any);
 
     it('🔴 KEEP · 복구 · 취소 뒤 재계산 — 카카오 1번 · 결과 모양(merged · base) 그대로', async () => {
         global.fetch = fake(5);
@@ -40,7 +41,7 @@ describe('🛣️ ⑨ 후보 없이 부르면 base 를 따로 안 잰다', () =>
 
     it('후보가 있으면 지금처럼 둘 — 우회 비용은 base 와 merged 의 차이', async () => {
         global.fetch = fake(5);
-        const C = { id: 'C', status: 'ORDER_SECURED_EVALUATING', pickupX: at(20).x, pickupY: 37, dropoffX: at(40).x, dropoffY: 37 };
+        const C = callFromAppReport({ id: 'C', status: 'ORDER_SECURED_EVALUATING', pickupX: at(20).x, pickupY: 37, dropoffX: at(40).x, dropoffY: 37 } as any);
         await composeMergedRoute({ calls: [A, B], extra: C, origin: { x: 127.08, y: 37.08 }, priority: 'RECOMMEND', carType: 1 });
         expect(calls).toBe(2);
     });

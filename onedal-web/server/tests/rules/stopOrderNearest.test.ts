@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { planArrivalStops } from '../../src/services/routeComposer';
 
 /**
@@ -28,11 +29,11 @@ describe('정거장 순서 — 지나가는 길목부터', () => {
     const 가남 = { x: 127.5768, y: 37.2302 };
     const 세종대왕면 = { x: 127.5853, y: 37.2911 };
 
-    const call = (id: string, p: any, d: any, over: object = {}) => ({
+    const call = (id: string, p: any, d: any, over: object = {}) => callFromAppReport({
         id, status: 'ORDER_CONFIRMED',
         pickupX: p.x, pickupY: p.y, dropoffX: d.x, dropoffY: d.y,
         ...over,
-    }) as any;
+    } as any) as any;
 
     it('🔴 4km 앞 하차지를 두고 30km 동쪽 상차지로 먼저 가지 않는다', () => {
         // 현위치: 곤지암 4km 앞 (태전·곤지암 사이)

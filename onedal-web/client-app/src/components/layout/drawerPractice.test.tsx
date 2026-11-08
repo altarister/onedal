@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { callFromAppReport } from '@onedal/shared';
 
 /**
  * 🐥 **끝난 연습 콜은 서랍 «취소» 탭에서 «🐥 연습 끝»으로 보인다** (38 F10 · 기사님 «가»).
@@ -19,8 +20,9 @@ vi.mock('../../lib/socket', () => {
 });
 
 const BASE = { type: 'AUTO', fare: 30000, capturedAt: '2026-10-09T05:00:00.000Z', timestamp: '2026-10-09T05:00:00.000Z', terminatedAt: '2026-10-09T05:01:00.000Z' };
-const PRACTICE = { ...BASE, id: 'p1', status: 'SAFE_CANCEL', isSimulated: true, pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 대월면' };
-const REAL = { ...BASE, id: 'r1', status: 'SAFE_CANCEL', pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 갈산동' };
+/* 서버가 보내는 콜 — 원달앱 보고의 맨 위 칸을 정거장으로 옮겨 담은 것 */
+const PRACTICE = callFromAppReport({ ...BASE, id: 'p1', status: 'SAFE_CANCEL', isSimulated: true, pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 대월면' } as any);
+const REAL = callFromAppReport({ ...BASE, id: 'r1', status: 'SAFE_CANCEL', pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 갈산동' } as any);
 
 describe('서랍 «취소» 탭 — 연습 콜과 진짜 안전취소를 가른다', () => {
     let host: HTMLDivElement;

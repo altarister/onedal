@@ -29,9 +29,10 @@ import { visitedSequenceOf } from './visitedSequence';
  * ⚠️ 이력이 빈약한 것 자체는 **서버가 고칠 일**이다 (좌표·도착 시각을 함께 주면 원천이 하나가
  *    된다). 여기는 «이력만 남아도 번호가 안 무너지게» 하는 겹쳐 둔 장치다 (규칙 ②).
  */
-const call = (o: Partial<Parameters<typeof visitedSequenceOf>[0][number]> & { id: string }) => ({
-    pickup: `${o.id}상`, dropoff: `${o.id}하`,
-    pickupX: 127.1, pickupY: 37.1, dropoffX: 127.2, dropoffY: 37.2,
+/** `noGeo` — 좌표 없는 콜(이력만 남은 행) */
+const call = ({ noGeo, ...o }: Partial<Parameters<typeof visitedSequenceOf>[0][number]> & { id: string; noGeo?: boolean }) => ({
+    pickupDetails: [{ listText: `${o.id}상`, geo: noGeo ? null : { x: 127.1, y: 37.1 } }],
+    dropoffDetails: [{ listText: `${o.id}하`, geo: noGeo ? null : { x: 127.2, y: 37.2 } }],
     ...o,
 } as Parameters<typeof visitedSequenceOf>[0][number]);
 
@@ -47,7 +48,7 @@ describe('👣 다녀온 순서', () => {
     it('🔴 좌표를 몰라도 순서에 든다 (이력만 남은 행)', () => {
         const deck = [call({
             id: 'A', status: 'ORDER_PICKED_UP',
-            pickupX: undefined, pickupY: undefined, dropoffX: undefined, dropoffY: undefined,
+            noGeo: true,
             arrivedPickupAt: '2026-09-12T23:22:57+09:00',
         })];
         expect(seq(deck)).toEqual(['A상']);

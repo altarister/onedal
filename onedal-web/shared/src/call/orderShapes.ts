@@ -3,8 +3,8 @@
  * 누가: 서버 · 관제웹 · 운영센터
  * 언제: 콜 값을 주고받을 때
  * 어디서: 콜 타입을 쓰는 모든 자리
- * 무엇을: 목록 콜 · 상세 콜 · 대기 콜 · 내 콜 · 판정 기록 타입
- * 어떻게: 대부분 타입만 두고 값은 EVENT_TYPES 하나다
+ * 무엇을: 목록 콜 · 상세 콜 · 대기 콜 · 내 콜 · 판정 기록 타입 · 원달앱 보고를 콜로 옮겨 담는 함수
+ * 어떻게: 대부분 타입만 두고 값은 EVENT_TYPES 와 원달앱 보고를 정거장으로 옮기는 함수 둘(callFromAppReport · withStopLists)이다
  * 왜: 같은 콜을 앱마다 다른 모양으로 적지 않기 위해서다
  */
 import type { PaymentType, BillingType } from './money';
@@ -49,8 +49,13 @@ export interface CallStop {
     distanceKm?: number | null;
     memo?: string | null;           // 그 정거장 안내 글
     geo?: { x: number; y: number } | null;   // 서버가 붙이는 좌표 — 원달앱은 비운다
+    geoText?: string | null;        // 🧠 서버가 좌표를 찍은 글 — 서버 메모리만(저장 칸 아님) · 고른 글이 바뀌면 다시 찍는다 (`geocodeTargetOf`)
 }
 
+/**
+ * 📱 원달앱 양식 — 원달앱이 배차망 목록에서 읽어 서버로 보내는 칸. 원달앱 5단계에서 정거장 묶음으로 바뀐다.
+ *    맨 위 주소 · 좌표 · 약속 · 거리 칸은 이 양식에만 있다 — 서버 입구가 `callFromAppReport` 로 정거장 칸에 옮겨 담는다.
+ */
 export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차망 목록에서 읽어 서버로 보내는 칸
     /** 🌐 짐 크기 — 물품 크기 원문(초소형/소형…). 차종 칸에 섞지 않는다 (규칙 ⑤-4 ⑤) */
     itemSize?: string | null;
@@ -74,7 +79,7 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     scheduleText?: string;            // 예약 앞글자 원문 (예: "낼09시", "11일)09시", "@")
     vehicleType?: string;             // 콜 차종 — 목록 줄임말("라", "다", "1t") 또는 상세의 차량 이름("다마스")
     rawText?: string;                 // 안드로이드 스캐너에서 긁어온 원본 텍스트         
-    // 좌표 — 원달앱 명부 또는 서버 지오코딩
+    // 좌표 — 원달앱 명부 (서버 지오코딩은 정거장 `geo` 에 적는다)
     pickupX?: number;                 // 상차지 좌표 X
     pickupY?: number;                 // 상차지 좌표 Y
     dropoffX?: number;                // 하차지 좌표 X
@@ -83,8 +88,8 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     /**
      * 배송거리 (상차지 → 하차지, km). 리스트 최좌측 두 숫자 중 **두 번째** 값.
      * 앱의 단가 판정(`fare ≥ deliveryDistance × ratePerKm[차종]`) 입력이다.
-     * 원달앱이 목록에서 읽어 보낸다. 서버는 채우지 않고 저장 · 복원하며(`orders.deliveryDistance`),
-     * 카카오 거리가 없을 때 소요 시간 추정(`soloMinutesOf`)에 읽는다. 실제 판정은 카카오 도로거리로 다시 잰다.
+     * 원달앱이 목록에서 읽어 보낸다. 서버 입구가 마지막 하차 정거장 `distanceKm` 로 옮겨 담고 저장 · 복원하며(`orders.deliveryDistance`),
+     * 카카오 거리가 없을 때 소요 시간 추정(`soloMinutesOf` ← `deliveryKmOf`)이 그 정거장 거리를 읽는다. 실제 판정은 카카오 도로거리로 다시 잰다.
      * 🔍 이 값이 직선거리인지 도로거리인지는 실콜 대조 대기 중
      */
     deliveryDistance?: number;
@@ -125,7 +130,10 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
     companyName?: string;             // 화주 상호/이름 (과거 호환 유지 목적)
 }
 
-export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder {  // 배차망에서 온 콜 한 건 — 목록 콜 + 상세 콜 + 어느 배차망에서 어떻게 잡았나. 아래 콜 모양 셋의 부모
+/** 원달앱 양식에만 있는 맨 위 칸 — 콜 모양은 정거장 칸(`pickupDetails` · `dropoffDetails`)으로 담는다 (`reserved` 는 원달앱 몫이라 콜 모양에도 남는다) */
+type StopFlatKey = 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | 'dropoffY' | 'scheduleText' | 'reservedDay' | 'reservedAt' | 'pickupDistance' | 'deliveryDistance';
+
+export interface OfficeOrder extends Omit<SimplifiedOfficeOrder, StopFlatKey>, DetailedOfficeOrder {  // 배차망에서 온 콜 한 건 — 목록 콜 + 상세 콜 + 어느 배차망에서 어떻게 잡았나. 아래 콜 모양 셋의 부모
     /** 어느 배차망에서 온 콜인가 — TARGET_APPS 표준값 (앱 confirm 페이로드가 싣는다).
      *  🔴 원장(orders.targetApp)에 저장 — 배차망별 콜 검색·분석의 근거 (기사님) */
     targetApp?: string;
@@ -135,6 +143,73 @@ export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder 
     /** 🖱️ 잡은 방식 — 그때 도는 모드(명령 값 · 화면 이름은 네 모드 표 name) · 상세페이지로 진입시킨 주체 (29 P5-1 · 기록 전용 · 모르면 null) */
     capturedMode?: string | null;
     openedBy?: 'APP' | 'DRIVER' | null;  // 상세 화면을 연 주체 — 원달앱 / 기사님
+}
+
+/** 📱 원달앱 보고 한 건 — 원달앱 양식(맨 위 칸 포함) + 상세 칸 + 배차망 칸. 서버 입구 두 곳(/confirm · /detail)이 받는다 */
+export type AppCallReport = SimplifiedOfficeOrder & Omit<OfficeOrder, keyof SimplifiedOfficeOrder>;
+
+/** 🚏 상차 · 하차 정거장 목록 — 콜에서 정거장만 */
+type StopLists = Pick<DetailedOfficeOrder, 'pickupDetails' | 'dropoffDetails'>;
+const geoOf = (x: number | null | undefined, y: number | null | undefined) => (x != null && y != null ? { x, y } : null);
+/** 보고에 그 칸이 없으면(undefined) 앞 기억 값 — 앞 기억 위에 보고를 펼치던 것과 같다 */
+const reportedOr = <T,>(v: T | undefined, before: T | undefined) => (v !== undefined ? v : before);
+
+/**
+ * 📱→🚏 **원달앱 보고를 콜로** — 맨 위 칸을 첫 상차 · 마지막 하차 정거장으로 옮겨 담고 나머지 칸은 그대로 둔다.
+ *    글자 → `listText` · 좌표 → `geo` · 상차 거리 → 첫 상차 `distanceKm` · 배송 거리 → 마지막 하차 `distanceKm` ·
+ *    약속 원문 · 날 · 시각 → 첫 상차 `promiseText` · `requestedDay` · `requestedTime`(맨 위 칸이 비면 정거장 칸 그대로).
+ *    `before`(앞 기억 · /detail) — 보고에 없는 맨 위 칸 · 정거장 목록은 앞 기억 값을 잇는다(찍은 글 `geoText` 도).
+ *    정거장 목록이 비어 있으면 한 곳을 만든다. 원달앱이 정거장 묶음을 보내게 되면(원달앱 5단계) 이 함수는 없어진다.
+ */
+export function callFromAppReport(r: AppCallReport, before?: StopLists): OfficeOrder {
+    const { pickup, dropoff, pickupX, pickupY, dropoffX, dropoffY, scheduleText, reservedDay, reservedAt, pickupDistance, deliveryDistance, ...rest } = r;
+    const bp = before?.pickupDetails?.[0];
+    const bd = before?.dropoffDetails?.at(-1);
+    const pickups = [...(r.pickupDetails ?? before?.pickupDetails ?? [])];
+    const drops = [...(r.dropoffDetails ?? before?.dropoffDetails ?? [])];
+    const first = pickups[0];
+    pickups[0] = {
+        ...first,
+        ...(bp?.geoText !== undefined ? { geoText: bp.geoText } : {}),
+        listText: reportedOr(pickup, bp?.listText) ?? null,
+        geo: geoOf(reportedOr(pickupX, bp?.geo?.x), reportedOr(pickupY, bp?.geo?.y)),
+        distanceKm: reportedOr(pickupDistance, bp?.distanceKm) ?? null,
+        promiseText: reportedOr(scheduleText, bp?.promiseText) ?? first?.promiseText,
+        requestedDay: reportedOr(reservedDay, bp?.requestedDay) ?? first?.requestedDay,
+        requestedTime: reportedOr(reservedAt, bp?.requestedTime) ?? first?.requestedTime,
+    };
+    const lastAt = Math.max(drops.length - 1, 0);
+    drops[lastAt] = {
+        ...drops[lastAt],
+        ...(bd?.geoText !== undefined ? { geoText: bd.geoText } : {}),
+        listText: reportedOr(dropoff, bd?.listText) ?? null,
+        geo: geoOf(reportedOr(dropoffX, bd?.geo?.x), reportedOr(dropoffY, bd?.geo?.y)),
+        distanceKm: reportedOr(deliveryDistance, bd?.distanceKm) ?? null,
+    };
+    return { ...rest, pickupDetails: pickups, dropoffDetails: drops };
+}
+
+/** 첫 상차 · 마지막 하차에 맨 위 칸에서 옮겨 담은 칸 + 찍은 글 — 정거장 목록을 새로 받아도 남는다 */
+const CARRIED_PICKUP = ['listText', 'geo', 'distanceKm', 'promiseText', 'requestedDay', 'requestedTime', 'geoText'] as const;
+const CARRIED_DROPOFF = ['listText', 'geo', 'distanceKm', 'geoText'] as const;
+const carried = (next: CallStop | undefined, before: CallStop | undefined, keys: ReadonlyArray<keyof CallStop>): CallStop => {
+    const out: Record<string, unknown> = { ...next };
+    for (const k of keys) if (before?.[k] !== undefined) out[k] = before[k];
+    return out as CallStop;
+};
+
+/**
+ * 🚏 **정거장 목록을 새 목록으로** — 상세 연락처(`detailRecordOf`)를 앞 기억 위에 펼칠 때.
+ *    연락처 · 상세 주소는 새 목록이 이기고, 첫 상차 · 마지막 하차에 옮겨 담은 글자 · 좌표 · 거리 · 약속(`callFromAppReport`)은 콜의 값이 남는다.
+ *    `callFromAppReport` 와 함께 원달앱 5단계에서 없어진다.
+ */
+export function withStopLists(call: StopLists, lists: StopLists): Required<StopLists> {
+    const pickups = [...(lists.pickupDetails ?? [])];
+    const drops = [...(lists.dropoffDetails ?? [])];
+    pickups[0] = carried(pickups[0], call.pickupDetails?.[0], CARRIED_PICKUP);
+    const lastAt = Math.max(drops.length - 1, 0);
+    drops[lastAt] = carried(drops[lastAt], call.dropoffDetails?.at(-1), CARRIED_DROPOFF);
+    return { pickupDetails: pickups, dropoffDetails: drops };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

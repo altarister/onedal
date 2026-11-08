@@ -8,7 +8,7 @@
  * 왜: 보내는 쪽과 받는 쪽이 같은 모양을 봐야 하기 때문이다
  */
 import { isManualLineage } from './callStatus';
-import type { SimplifiedOfficeOrder, OfficeOrder } from './orderShapes';
+import type { SimplifiedOfficeOrder, AppCallReport } from './orderShapes';
 import type { AutoDispatchFilter } from '../filter/dispatchFilter';
 import type { DeviceModeType } from '../device/deviceModes';
 import type { ScreenContextType } from '../network/screenKinds';
@@ -94,7 +94,7 @@ export function timeoutActionOf(r: { keep: boolean; who: WhoConfirmed; simulated
 export interface DispatchDetailedRequest {
     step: 'DETAILED';
     deviceId: string;
-    order: OfficeOrder;
+    order: AppCallReport;   // 원달앱 양식(맨 위 칸) — 서버 입구가 `callFromAppReport` 로 콜에 옮겨 담는다
     capturedAt: string;
     matchType: 'AUTO' | 'MANUAL';
     listRanking?: number;

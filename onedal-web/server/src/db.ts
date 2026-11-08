@@ -827,8 +827,8 @@ ensureColumns('orders', { targetApp: 'TEXT',
     capturedMode: 'TEXT',
     openedBy: 'TEXT',
     /**
-     * 🚚 **배송거리** — 앱이 인성 화면에서 읽어 보내는 값 (리스트 두 번째 숫자).
-     *    합짐 콜의 단독 주행 추정 입력이다 (`soloMinutesOf`).
+     * 🚚 **배송거리** — 앱이 인성 화면에서 읽어 보내는 값 (리스트 두 번째 숫자) · 콜에서는 마지막 하차 정거장 `distanceKm`.
+     *    카카오 거리가 없을 때 단독 주행 추정 입력이다 (`soloMinutesOf` ← `deliveryKmOf`).
      *
      * 🔴 `CREATE TABLE IF NOT EXISTS` 에만 적으면 **기존 DB 에는 안 붙는다.**
      *    `tsc`·`jest` 는 통과하고 **실서버에서만** `no such column` 으로 터진다 — 그래서 `ensureColumns` 에도 적는다.

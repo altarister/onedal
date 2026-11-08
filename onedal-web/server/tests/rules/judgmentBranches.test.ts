@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport, firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import { OrderEvaluator } from '../../src/core/engine/OrderEvaluator';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
@@ -767,8 +768,8 @@ function make(u: string, f = {}) {
     s.myOrders = [];
     return s;
 }
-const order = (id: string, o = {}) => ({ id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 중리동', vehicleType: '1t', fare: 45000, rawText: '',
-    status: 'ORDER_SECURED_EVALUATING', capturedAt: new Date(T).toISOString(), ...o });
+const order = (id: string, o = {}) => callFromAppReport({ id, pickup: '경기 광주시 곤지암읍', dropoff: '경기 이천시 중리동', vehicleType: '1t', fare: 45000, rawText: '',
+    status: 'ORDER_SECURED_EVALUATING', capturedAt: new Date(T).toISOString(), ...o } as any);
 const seen = (o) => ({ j: o.judgment, t: o.kakaoTimeExt, r: o.rejectionReasons, p: o.approvalReasons, st: o.status,
     d: [o.totalDistanceKm, o.totalDurationMin, o.approachDurationMin, o.kakaoSoloDistanceKm] });
 async function run(u: string, o, s) {
@@ -782,7 +783,7 @@ const savedOnce = (o) => {
     const s = saved.find(x => x.id === o.id).j;
     expect(JSON.parse(JSON.stringify(s))).toMatchObject(JSON.parse(JSON.stringify(o.judgment)));
     /* 장부에는 판정 시작 때의 콜 · 필터 요약이 함께 간다 */
-    expect(s.call).toMatchObject({ pickup: o.pickup, dropoff: o.dropoff, fare: o.fare, kind: o.isPreview ? '미리보기' : '콜' });
+    expect(s.call).toMatchObject({ pickup: firstPickupStop(o).listText, dropoff: lastDropoffStop(o).listText, fare: o.fare, kind: o.isPreview ? '미리보기' : '콜' });
     expect(s.filter).toMatchObject({ destinationCity: '이천시', pickupRadiusKm: 10 });
     expect(emitted.filter(e => e[1] === o.id)).toEqual([['order-evaluated', o.id, o.judgment.color, o.kakaoTimeExt, o.rejectionReasons.length]]);
 };
@@ -820,8 +821,8 @@ describe('🎨 판정 갈래 — 같은 콜에 같은 판정', () => {
         });
         const full = async (u: string, capacityConfidence: string) => {
             const s = make(u, { dispatchPhase: 'GATHERING', isSharedMode: true, slotsUsed: 120, capacityConfidence });
-            s.myOrders = [{ id: `${u}-kept`, status: 'ORDER_CONFIRMED', pickup: 'A', dropoff: 'B', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y,
-                fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() }];
+            s.myOrders = [callFromAppReport({ id: `${u}-kept`, status: 'ORDER_CONFIRMED', pickup: 'A', dropoff: 'B', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y,
+                fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() } as any)];
             const o = order(`${u}-o`, { pickup: '경기 이천시 신둔면', dropoff: '경기 이천시 부발읍', fare: 30000 });
             await run(u, o, s);
             return o.judgment;
@@ -845,8 +846,8 @@ describe('🎨 판정 갈래 — 같은 콜에 같은 판정', () => {
             timeDiffMin: 15, distDiffKm: '6.0', tollDiffKrw: 500, roadEvent: null,
         });
         const s = make('ev-merge', { dispatchPhase: 'GATHERING', isSharedMode: true });
-        s.myOrders = [{ id: 'kept-1', status: 'ORDER_CONFIRMED', pickup: 'A', dropoff: 'B', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y,
-            fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() }];
+        s.myOrders = [callFromAppReport({ id: 'kept-1', status: 'ORDER_CONFIRMED', pickup: 'A', dropoff: 'B', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y,
+            fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() } as any)];
         const o = order('o-merge', { pickup: '경기 이천시 신둔면', dropoff: '경기 이천시 부발읍', fare: 30000 });
         expect(await run('ev-merge', o, s)).toEqual(GOLDEN.merged);
         expect(detour).toHaveBeenCalledTimes(1);
@@ -874,8 +875,8 @@ describe('🎨 판정 갈래 — 같은 콜에 같은 판정', () => {
             timeDiffMin: 120, distDiffKm: '35.0', tollDiffKrw: 0, roadEvent: null,
         });
         const s = make('ev-mlow', { dispatchPhase: 'GATHERING', isSharedMode: true });
-        s.myOrders = [{ id: 'kept-2', status: 'ORDER_CONFIRMED', pickup: 'A', dropoff: 'B', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y,
-            fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() }];
+        s.myOrders = [callFromAppReport({ id: 'kept-2', status: 'ORDER_CONFIRMED', pickup: 'A', dropoff: 'B', pickupX: GONJIAM.x, pickupY: GONJIAM.y, dropoffX: TERMINAL.x, dropoffY: TERMINAL.y,
+            fare: 40000, vehicleType: '1t', goalCity: '이천시', capturedAt: new Date(T - 600000).toISOString() } as any)];
         const o = order('o-mlow', { pickup: '경기 이천시 신둔면', dropoff: '경기 이천시 부발읍', fare: 16000 });
         expect(await run('ev-mlow', o, s)).toEqual(GOLDEN.mergedLow);
         savedOnce(o);

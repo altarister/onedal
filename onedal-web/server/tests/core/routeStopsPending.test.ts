@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { buildOrderSync } from '../../src/core/helpers';
 
 /**
@@ -25,11 +26,11 @@ import { buildOrderSync } from '../../src/core/helpers';
  * 다녀와서 빠진 정거장은 여전히 활성 콜의 것이므로 이 검사에 안 걸린다 — 둘이 구분된다.
  */
 
-const 콜 = (id: string, over: any = {}) => ({
+const 콜 = (id: string, over: any = {}) => callFromAppReport({
     id, status: 'ORDER_CONFIRMED',
     pickupX: 127.3, pickupY: 37.37, dropoffX: 127.4, dropoffY: 37.3,
     ...over,
-});
+} as any);
 
 /** 첫짐 하나 + 그 콜에 실린 «합짐 후보 포함» 4구간 경로 */
 const 후보섞인세션 = () => {

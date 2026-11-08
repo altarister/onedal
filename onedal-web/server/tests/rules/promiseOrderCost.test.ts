@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport } from '@onedal/shared';
 import Database from 'better-sqlite3';
 import db from '../../src/db';
 import { STEP_TABLES } from '@onedal/shared';
@@ -13,8 +14,8 @@ import { firmPromiseMsOf, bornRowsIn } from '../../src/services/stepSeeder';
  */
 const KM = 0.01;
 const here = { x: 127.00, y: 37.00 };
-const call = (id: string, p: number, d: number) => ({ id, status: 'ORDER_CONFIRMED',
-    pickupX: 127 + p * KM, pickupY: 37 + (p % 3) * KM, dropoffX: 127 + d * KM, dropoffY: 37 - (d % 4) * KM }) as any;
+const call = (id: string, p: number, d: number) => callFromAppReport({ id, status: 'ORDER_CONFIRMED',
+    pickupX: 127 + p * KM, pickupY: 37 + (p % 3) * KM, dropoffX: 127 + d * KM, dropoffY: 37 - (d % 4) * KM } as any) as any;
 
 describe('⚙️ 약속은 정거장마다 한 번', () => {
     it('🔴 콜 넷(정거장 8) · 약속 하나 — 약속 읽기가 정거장 수를 넘지 않는다', () => {

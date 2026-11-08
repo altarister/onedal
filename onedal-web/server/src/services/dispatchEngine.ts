@@ -582,7 +582,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
 
                 // 2. places UPSERT 및 orderStops 추가 (상차지)
                 const ps = firstPickupStop(cachedOrder);
-                const p = stopPlaceFrom(cachedOrder.pickupDetails?.[0], ps?.listText ?? '', ps?.geo?.x, ps?.geo?.y);
+                const p = stopPlaceFrom(ps ?? undefined, ps?.listText ?? '', ps?.geo?.x, ps?.geo?.y);
                 const pPlaceId = PlaceRepository.upsertPlace(userId, p.address, p.name, p.region, p.x, p.y, p.phone);
                 if (pPlaceId) {
                     OrderRepository.insertOrderStop(cachedOrder.id, pPlaceId, 'pickup', p.name, p.phone);
@@ -590,7 +590,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
 
                 // 3. places UPSERT 및 orderStops 추가 (하차지)
                 const ds = lastDropoffStop(cachedOrder);
-                const d = stopPlaceFrom(cachedOrder.dropoffDetails?.[0], ds?.listText ?? '', ds?.geo?.x, ds?.geo?.y);
+                const d = stopPlaceFrom(ds ?? undefined, ds?.listText ?? '', ds?.geo?.x, ds?.geo?.y);
                 const dPlaceId = PlaceRepository.upsertPlace(userId, d.address, d.name, d.region, d.x, d.y, d.phone);
                 if (dPlaceId) {
                     OrderRepository.insertOrderStop(cachedOrder.id, dPlaceId, 'dropoff', d.name, d.phone);

@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest';
+import { callFromAppReport } from '@onedal/shared';
 import { reservedLineOf, reservedDayLabel, reservedBadgeOf, reservedShortOf } from './reservedLine';
+
+/** 첫 상차 약속 날 · 시각만 있는 콜 — 서버가 보내는 정거장 모양 */
+const promised = (requestedDay: number | null | undefined, requestedTime?: string | null) => ({ pickupDetails: [{ requestedDay, requestedTime }] });
 
 /**
  * 📅 **서랍 «예약» 칸의 한 줄 — 먼발치에서 읽히게** (onedal-1f 조건).
  * 순서는 날 · 상차 시각 · 상차→하차 · 요금 · 색. 모르는 칸은 지어내지 않고 «—»·«--:--» 로 둔다.
  */
 describe('📅 예약 한 줄', () => {
-    const base = { id: 'r1', pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 관고동', fare: 30000 } as any;
+    const base = callFromAppReport({ id: 'r1', pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 관고동', fare: 30000 } as any) as any;
+    const at = (time: string) => ({ pickupDetails: [{ ...base.pickupDetails[0], requestedTime: time }] });
 
     it('날 · 상차 시각 · 상차→하차 · 요금 · 색 그 순서', () => {
-        const line = reservedLineOf({ ...base, reservedFor: '2026-10-01', reservedAt: '09:00', judgment: { color: '꿀', score: 80 } });
+        const line = reservedLineOf({ ...base, ...at('09:00'), reservedFor: '2026-10-01', judgment: { color: '꿀', score: 80 } });
         expect(line.day).toBe('10/1(목)');
         expect(line.at).toBe('09:00');
         expect(line.route).toContain('→');
@@ -38,17 +43,17 @@ describe('📅 판정석 예약 알약', () => {
         expect(reservedDayLabel(null)).toBe('—');
     });
     it('🔴 3일 뒤 · 11:00 → «📅 10/3(토) 11:00 예약»', () => {
-        expect(reservedBadgeOf({ reservedDay: 3, reservedAt: '11:00', capturedAt })).toBe('📅 10/3(토) 11:00 예약');
+        expect(reservedBadgeOf({ ...promised(3, '11:00'), capturedAt })).toBe('📅 10/3(토) 11:00 예약');
     });
     it('🔴 시각을 모르면 «시각 모름»', () => {
-        expect(reservedBadgeOf({ reservedDay: 1, reservedAt: null, capturedAt })).toBe('📅 10/1(목) 시각 모름 예약');
+        expect(reservedBadgeOf({ ...promised(1, null), capturedAt })).toBe('📅 10/1(목) 시각 모름 예약');
     });
     it('🔴 오늘 콜(0 · 없음)에는 없다', () => {
-        expect(reservedBadgeOf({ reservedDay: 0, reservedAt: '18:30', capturedAt })).toBeNull();
+        expect(reservedBadgeOf({ ...promised(0, '18:30'), capturedAt })).toBeNull();
         expect(reservedBadgeOf({ capturedAt })).toBeNull();
     });
     it('이미 보관 날이 적힌 콜은 그 날을 쓴다', () => {
-        expect(reservedBadgeOf({ reservedFor: '2026-10-06', reservedAt: '09:00', capturedAt })).toBe('📅 10/6(화) 09:00 예약');
+        expect(reservedBadgeOf({ ...promised(undefined, '09:00'), reservedFor: '2026-10-06', capturedAt })).toBe('📅 10/6(화) 09:00 예약');
     });
 });
 
@@ -56,10 +61,10 @@ describe('📅 판정석 예약 알약', () => {
 describe('📅 상태바 짧은 예약 날', () => {
     const capturedAt = new Date(2026, 8, 30, 16, 0).toISOString();
     it('🔴 3일 뒤 → «10/3» (시각 · 요일 없음)', () => {
-        expect(reservedShortOf({ reservedDay: 3, reservedAt: '11:00', capturedAt })).toBe('10/3');
+        expect(reservedShortOf({ ...promised(3, '11:00'), capturedAt })).toBe('10/3');
     });
     it('🔴 오늘 콜은 없다', () => {
-        expect(reservedShortOf({ reservedDay: 0, capturedAt })).toBeNull();
+        expect(reservedShortOf({ ...promised(0), capturedAt })).toBeNull();
         expect(reservedShortOf({ capturedAt })).toBeNull();
     });
 });

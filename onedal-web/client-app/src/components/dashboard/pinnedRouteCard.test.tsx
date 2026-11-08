@@ -22,13 +22,15 @@ vi.mock('../../lib/socket', () => {
 
 import { ThemeProvider } from '@onedal/ui/theme';
 import PinnedRouteCard from './PinnedRouteCard';
+import { callFromAppReport } from '@onedal/shared';
 
 const EMPTY = { reports: [], milestones: [], dwell: { pickup: { planned: null, actual: null }, dropoff: { planned: null, actual: null } } } as any;
-const ROUTE = {
+/** 서버가 보내는 콜 — 원달앱 보고의 맨 위 칸을 정거장으로 옮겨 담은 것 */
+const ROUTE = callFromAppReport({
     id: 'c1', status: 'ORDER_CONFIRMED', type: 'AUTO', pickup: '경기 광주시 초월읍 지월리', dropoff: '경기 이천시 신둔면 수광리',
     fare: 50000, paymentType: '신용', capturedAt: '2026-10-07T00:00:00.000Z', timestamp: '2026-10-07T00:00:00.000Z',
     detailMemo: '카톤 두 개', itemDescription: '박스', kakaoSoloDistanceKm: 14.7, kakaoSoloDurationMin: 22,
-} as any;
+} as any) as any;
 const tl = (stopType: 'pickup' | 'dropoff', o: Record<string, unknown> = {}) => ({
     orderId: 'c1', stopType, etaMs: null, dwellMinutes: 10, driveMinutes: 20, leadMinutes: 0, promisedUntil: null,
     promiseConfirmed: false, dwellShiftMinutes: 0, segmentDriveMinutes: null, lateMinutes: 0, arrived: false, ...o,
@@ -67,7 +69,7 @@ describe('📍 잡은 뒤 카드 — 머리 경로 · 상 · 하차 덩어리', 
         expect(insideDetails(html, '>1t<')).toBe(true);
     });
     it('🔴 번호가 있는 덩어리는 그곳에 거는 링크 · 없으면 «번호 없음»', () => {
-        const route = { ...ROUTE, pickupDetails: [{ phone1: '010-1234-5678', customerName: '모다아울렛', addressDetail: '경기 광주시 초월읍 경충대로 907' }] };
+        const route = { ...ROUTE, pickupDetails: [{ ...ROUTE.pickupDetails[0], phone1: '010-1234-5678', customerName: '모다아울렛', addressDetail: '경기 광주시 초월읍 경충대로 907' }] };
         const html = draw({ route });
         expect(html).toMatch(/<a[^>]*href="tel:01012345678"[^>]*aria-label="상차 모다아울렛 전화"/);
         expect(text(html)).toContain('경기 광주시 초월읍 경충대로 907');

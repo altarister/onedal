@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport } from '@onedal/shared';
 import db from '../../src/db';
 import opsRouter from '../../src/routes/ops';
 import simRouter from '../../src/routes/sim';
@@ -52,8 +53,8 @@ describe('🧑‍✈️ 회원 상세 — 관제웹 현황판 기사 몫', () =>
     });
     it('🔴 심사 중 — 판정 중인 콜과 그 판정(색 · 점수 · 막은 문 · 축)', async () => {
         const s = getUserSession(M);
-        s.pendingOrdersData.set('o-bm-1', { id: 'o-bm-1', status: 'ORDER_SECURED_EVALUATING', pickup: '광주 경안', dropoff: '용산 한남', fare: 50000,
-            judgment: { color: '꿀', score: 82, gates: [{ key: 'g', name: '문', pass: false, why: '막힘' }], axes: [{ key: 'a', name: '축', score: 70, raw: '7' }] } });
+        s.pendingOrdersData.set('o-bm-1', callFromAppReport({ id: 'o-bm-1', status: 'ORDER_SECURED_EVALUATING', pickup: '광주 경안', dropoff: '용산 한남', fare: 50000,
+            judgment: { color: '꿀', score: 82, gates: [{ key: 'g', name: '문', pass: false, why: '막힘' }], axes: [{ key: 'a', name: '축', score: 70, raw: '7' }] } } as any));
         const out = await get(opsRouter, '/board/member', { memberId: M });
         expect(out.judging).toMatchObject({ id: 'o-bm-1', pickup: '광주 경안', dropoff: '용산 한남', status: 'ORDER_SECURED_EVALUATING', isPreview: false, fare: 50000 });
         expect(out.judging.judgment).toMatchObject({ color: '꿀', score: 82, gates: [{ name: '문' }], axes: [{ name: '축' }] });

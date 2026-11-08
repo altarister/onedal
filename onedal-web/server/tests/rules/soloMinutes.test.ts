@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { soloMinutesOf, derivationInputsOf, DEFAULT_JUDGMENT, deriveRouteTimeline, type MyOrder, type PendingOrder, type SecuredOrder } from '@onedal/shared';
@@ -30,7 +31,8 @@ import { soloMinutesOf, derivationInputsOf, DEFAULT_JUDGMENT, deriveRouteTimelin
 describe('soloMinutesOf — 실측이 없으면 배송거리로 추정한다', () => {
     // 🔴 실제 호출부와 같은 경로로 만든다 — 판정 기준 → 파생 입력 (규칙 ③)
     const cfg = derivationInputsOf(DEFAULT_JUDGMENT).rules;
-    const order = (over: object) => ({ id: 'x', ...over }) as any;
+    /** 서버가 원달앱 보고를 옮겨 담은 콜 — 배송거리는 마지막 하차 정거장 거리 */
+    const order = (over: object) => callFromAppReport({ id: 'x', ...over } as any) as any;
 
     it('실측이 있으면 그대로 쓴다 — 추정이 실측을 덮지 않는다', () => {
         const r = soloMinutesOf(order({

@@ -21,7 +21,7 @@ describe('📍 stopQueryOf — 지금 판정 글자와 같다', () => {
     it('인성 팝업 — 끝 괄호를 다듬는다', () => {
         const detail = '경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)';
         expect(stopQueryOf('insung', { listText: '안녕동', addressDetail: detail, customerName: '*레드캠프' }).text)
-            .toBe(geocodeTargetOf('insung', { pickup: '안녕동', pickupDetails: [{ addressDetail: detail }] }, 'pickup').text);
+            .toBe(geocodeTargetOf('insung', { listText: '안녕동', addressDetail: detail }).text);
         expect(stopQueryOf('insung', { addressDetail: detail }).text).toBe('경기 화성시 안녕동 158-95');
         expect(stopQueryOf('insung', { addressDetail: '경기 화성시 안녕동 158-95(경기 화성시 안녕동)' }).text).toBe('경기 화성시 안녕동 158-95');
     });
@@ -33,15 +33,15 @@ describe('📍 stopQueryOf — 지금 판정 글자와 같다', () => {
     });
     it('픽커 목록 — 다듬을 것 없음', () => {
         expect(stopQueryOf('kakaopicker', { listText: '광주 송정' }).text)
-            .toBe(geocodeTargetOf('kakaopicker', { pickup: '광주 송정' }, 'pickup').text);
+            .toBe(geocodeTargetOf('kakaopicker', { listText: '광주 송정' }).text);
     });
     it('픽커 상세 — 번지 없는 주소에 상호를 잇는다(원달앱이 지금 이어 보내는 글자와 같다)', () => {
         expect(stopQueryOf('kakaopicker', { addressDetail: '경기 성남시 중원구 은행2동', customerName: '퓨전중화요리-궁' }).text)
-            .toBe(geocodeTargetOf('kakaopicker', { pickupDetails: [{ addressDetail: '경기 성남시 중원구 은행2동 퓨전중화요리-궁' }] }, 'pickup').text);
+            .toBe(geocodeTargetOf('kakaopicker', { addressDetail: '경기 성남시 중원구 은행2동 퓨전중화요리-궁' }).text);
     });
     it('플렉스 «@…/동» — 목록은 «수원 이의동» · 상세는 붙은 시 · 구를 띄우고 동만', () => {
         expect(stopQueryOf('isflex', { listText: '@낼08:20/수원이의동' }).text)
-            .toBe(geocodeTargetOf('isflex', { pickup: '수원 이의동' }, 'pickup').text);
+            .toBe(geocodeTargetOf('isflex', { listText: '수원 이의동' }).text);
         expect(stopQueryOf('isflex', { listText: '@낼08:20/수원이의동', addressDetail: '@경기 수원시영통구 @낼08:20/수원이의동' }).text)
             .toBe('경기 수원시 영통구 이의동');
         expect(stopQueryOf('isflex', { addressDetail: '서울 중구 10:20전/쌍림동' }).text).toBe('서울 중구 쌍림동');

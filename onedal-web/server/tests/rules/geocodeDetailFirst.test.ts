@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport, firstPickupStop } from '@onedal/shared';
 import db from '../../src/db';
 import { OrderEvaluator } from '../../src/core/engine/OrderEvaluator';
 
@@ -20,6 +21,12 @@ const kakao = ((url: string) => {
     if (q === SHORT) return reply({ documents: [{ x: '127.287960', y: '37.385248', address_name: SHORT, road_address: null }] });
     return reply({ documents: [] });
 }) as any;
+/** 서버가 옮겨 담은 콜 — 하차지는 이미 찍혀(좌표 · 찍은 글) 다시 안 찍는다 */
+const call = (report: any) => {
+    const o: any = callFromAppReport({ dropoff: '', dropoffX: 1, dropoffY: 1, ...report });
+    o.dropoffDetails[0].geoText = '';
+    return o;
+};
 const stage = (order: any) => (OrderEvaluator.prototype as any).geocodeStage.call(new OrderEvaluator('insung'), order, () => {});
 
 beforeAll(() => { process.env.KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || 'test-key'; });
@@ -28,17 +35,17 @@ afterAll(() => { global.fetch = realFetch; db.prepare(`DELETE FROM geocode_cache
 
 describe('📍 상세 주소 먼저', () => {
     it('🔴 보고의 상차지가 목록 글이어도 상세 팝업 주소로 찍는다', async () => {
-        const order = { pickup: SHORT, dropoff: '', pickupDetails: [{ addressDetail: DETAIL }], dropoffX: 1, dropoffY: 1, dropoffGeoText: '' };
+        const order = call({ pickup: SHORT, pickupDetails: [{ addressDetail: DETAIL }] });
         await stage(order);
         expect(asked).toContain(DETAIL);
-        expect([order.pickupX, order.pickupY]).toEqual([127.312588, 37.3633]);
+        expect(firstPickupStop(order).geo).toEqual({ x: 127.312588, y: 37.3633 });
     });
     it('🔴 짧은 글로 먼저 찍힘 → 상세 주소 도착 → 다시 찍힌다', async () => {
-        const order: any = { pickup: SHORT, dropoff: '', dropoffX: 1, dropoffY: 1, dropoffGeoText: '' };
+        const order = call({ pickup: SHORT });
         await stage(order);
-        expect([order.pickupX, order.pickupY]).toEqual([127.28796, 37.385248]);
-        order.pickupDetails = [{ addressDetail: DETAIL }];
+        expect(firstPickupStop(order).geo).toEqual({ x: 127.28796, y: 37.385248 });
+        firstPickupStop(order).addressDetail = DETAIL;
         await stage(order);
-        expect([order.pickupX, order.pickupY]).toEqual([127.312588, 37.3633]);
+        expect(firstPickupStop(order).geo).toEqual({ x: 127.312588, y: 37.3633 });
     });
 });

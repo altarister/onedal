@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport } from '@onedal/shared';
 import db from '../../src/db';
 import * as userSessionStore from '../../src/state/userSessionStore';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
@@ -65,9 +66,9 @@ describe('🏃 같은 질문은 한 번만', () => {
         const session = getUserSession(U);
         session.myOrders = [];
         const base = { pickup: `경기 이천시 부발읍 경충대로 ${MARK}다`, dropoff: `경기 여주시 가남읍 ${MARK}라`, vehicleType: '다마스', fare: 30000, rawText: '', targetApp: 'insung' };
-        await new OrderEvaluator('insung').prefetch(U, { ...base });
+        await new OrderEvaluator('insung').prefetch(U, callFromAppReport({ ...base } as any));
         const before = { local: localCalls, navi: naviCalls };
-        const o = { ...base, id: `${U}-e`, status: 'ORDER_SECURED_EVALUATING', capturedAt: new Date().toISOString() };
+        const o = callFromAppReport({ ...base, id: `${U}-e`, status: 'ORDER_SECURED_EVALUATING', capturedAt: new Date().toISOString() } as any);
         session.pendingOrdersData.set(o.id, o);
         await new OrderEvaluator('insung').evaluate(U, o, { to: () => ({ emit: () => {} }) });
         expect(before.navi).toBe(1);
@@ -85,7 +86,7 @@ describe('🏃 미리 출발은 세션을 읽기만', () => {
         const was = sizes();
         const guarded = new Proxy(session, { set: () => { throw new Error('미리 출발이 세션에 썼다'); } });
         jest.spyOn(userSessionStore, 'getUserSession').mockReturnValue(guarded);
-        await new OrderEvaluator('insung').prefetch(U, { pickup: `경기 이천시 ${MARK}마`, dropoff: `경기 여주시 ${MARK}바`, targetApp: 'insung' });
+        await new OrderEvaluator('insung').prefetch(U, callFromAppReport({ pickup: `경기 이천시 ${MARK}마`, dropoff: `경기 여주시 ${MARK}바`, targetApp: 'insung' } as any));
         expect(sizes()).toEqual(was);
         expect(naviCalls).toBe(1);
     });

@@ -15,7 +15,7 @@ export function reservedDayLabel(reservedFor: string | null | undefined): string
 
 type ReservedFields = StopSource & { reservedFor?: string | null; capturedAt?: string; timestamp?: string };
 /** 보관 날 — 적힌 것(`reservedFor` · 보관된 콜)이 먼저, 없으면 잡은 날 + 첫 상차 정거장 `requestedDay`(서버와 같은 `reservedForOf`). 오늘 콜이면 null */
-const reservedDayOf = (c: ReservedFields) => c.reservedFor || reservedForOf({ reservedDay: firstPickupStop(c)?.requestedDay, capturedAt: c.capturedAt, timestamp: c.timestamp });
+const reservedDayOf = (c: ReservedFields) => c.reservedFor || reservedForOf(c);
 /** 첫 상차 약속 시각 «HH:MM» — 그 꼴이 아니면 null */
 const pickupClockOf = (c: StopSource) => { const t = firstPickupStop(c)?.requestedTime; return t && /^\d{1,2}:\d{2}$/.test(t) ? t : null; };
 

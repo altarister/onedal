@@ -8,7 +8,6 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf, firstPickupStop, lastDropoffStop, type StopSource } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP, geocodeTargetOf, minutesLate } from '@onedal/shared';
-import type { GeocodeSource } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress, TargetAppType } from '@onedal/shared';
 import { judgmentRecordOf } from './judgmentRecord';
 import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, trappedOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
@@ -173,8 +172,8 @@ export class OrderEvaluator {
             try {
                 if (!process.env.KAKAO_REST_API_KEY || !firstPickupStop(order)?.listText || !lastDropoffStop(order)?.listText) return;
                 const [p, d] = await Promise.all([
-                    geocodeCallAddress(geocodeTargetOf(this.targetApp as TargetAppType, order as GeocodeSource, 'pickup').text),
-                    geocodeCallAddress(geocodeTargetOf(this.targetApp as TargetAppType, order as GeocodeSource, 'dropoff').text),
+                    geocodeCallAddress(geocodeTargetOf(this.targetApp as TargetAppType, firstPickupStop(order)).text),
+                    geocodeCallAddress(geocodeTargetOf(this.targetApp as TargetAppType, lastDropoffStop(order)).text),
                 ]);
                 if (!p || !d) return;
                 const { originNow, activeCallsNow } = evaluationInputsOf(userId, getUserSession(userId), order);
@@ -216,8 +215,10 @@ export class OrderEvaluator {
         if (reservedLater) slog('판정', `   - ${reservedLaterLineOf(reservedForOf(securedOrder), snap.origin, snap.pickupRadiusKm)}`);
 
         // 1. 주소 정규화 — 상차·하차는 원달앱이 올린 전체 주소 그대로다(서버는 팝업에서 주소를 꺼내지 않는다)
-        securedOrder.pickup = addressOf(this.targetApp, securedOrder.pickup);
-        securedOrder.dropoff = addressOf(this.targetApp, securedOrder.dropoff);
+        const pickupStop = firstPickupStop(securedOrder);
+        const dropoffStop = lastDropoffStop(securedOrder);
+        if (pickupStop) pickupStop.listText = addressOf(this.targetApp, pickupStop.listText ?? '');
+        if (dropoffStop) dropoffStop.listText = addressOf(this.targetApp, dropoffStop.listText ?? '');
 
         // Stage 1. 형상 필터
         const { excludedHits } = this.runStage1ShapeFilter(securedOrder, snap.filter, reasons, pros);
@@ -292,9 +293,10 @@ export class OrderEvaluator {
         let geoMs = 0;
         try {
             /* 📍 어느 글로 찍나 · 다시 찍나는 shared `geocodeTargetOf` 한 곳 — 상세 팝업 주소가 먼저 · 찍은 글과 다르면 다시 (90판) */
-            const o = securedOrder as typeof securedOrder & GeocodeSource;
-            const p = geocodeTargetOf(this.targetApp as TargetAppType, o, 'pickup');
-            const d = geocodeTargetOf(this.targetApp as TargetAppType, o, 'dropoff');
+            const ps = firstPickupStop(securedOrder);
+            const ds = lastDropoffStop(securedOrder);
+            const p = geocodeTargetOf(this.targetApp as TargetAppType, ps);
+            const d = geocodeTargetOf(this.targetApp as TargetAppType, ds);
 
             // 지오코딩 (상차지 + 하차지 병렬 실행)
             const [pCoord, dCoord] = await timed(Promise.all([
@@ -305,19 +307,21 @@ export class OrderEvaluator {
             if (p.need) {
                 slog('판정', `🌍 [Geocoding] 상차지 변환: '${p.text}' -> ${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
                 if (pCoord) {
-                    securedOrder.pickupX = pCoord.x;
-                    securedOrder.pickupY = pCoord.y;
+                    if (ps) {
+                        ps.geo = { x: pCoord.x, y: pCoord.y };
+                        ps.geoText = p.text;   // 🧠 찍은 글 — 메모리만(저장 칸 아님) · 고른 글이 바뀌면 다시 찍는다
+                    }
                     securedOrder.pickupApprox = approxNameOf(pCoord.approxArea);
-                    o.pickupGeoText = p.text;   // 🧠 찍은 글 — 메모리만(저장 칸 아님) · 고른 글이 바뀌면 다시 찍는다
                 }
             }
             if (d.need) {
                 slog('판정', `🌍 [Geocoding] 하차지 변환: '${d.text}' -> ${dCoord ? `X:${dCoord.x}, Y:${dCoord.y}` : '실패(null)'}`);
                 if (dCoord) {
-                    securedOrder.dropoffX = dCoord.x;
-                    securedOrder.dropoffY = dCoord.y;
+                    if (ds) {
+                        ds.geo = { x: dCoord.x, y: dCoord.y };
+                        ds.geoText = d.text;
+                    }
                     securedOrder.dropoffApprox = approxNameOf(dCoord.approxArea);
-                    o.dropoffGeoText = d.text;
                 }
             }
         } finally { onMs(geoMs); }

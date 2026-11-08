@@ -12,6 +12,7 @@ jest.mock('../../src/services/kakaoService', () => ({
     calculateSoloRoute: jest.fn(),
     calculateDetourRoute: jest.fn(),
 }));
+import { callFromAppReport } from '@onedal/shared';
 import { measureSoloDelivery } from '../../src/services/routeComposer';
 import { calculateSoloRoute } from '../../src/services/kakaoService';
 
@@ -20,12 +21,13 @@ const mockedSolo = calculateSoloRoute as jest.Mock;
 /** 상차지 → 하차지 33.5km · 42분 */
 const KAKAO_OK = { distance: 33_500, duration: 2_520, approachDistance: 0, approachDuration: 0 };
 
-const call = (over: object = {}) => ({
+/** 서버가 원달앱 보고를 옮겨 담은 콜 — 좌표는 정거장 geo */
+const call = (over: object = {}) => callFromAppReport({
     id: 'order-5aa140',
     pickupX: 127.31, pickupY: 37.36,
     dropoffX: 127.38, dropoffY: 37.29,
     ...over,
-}) as any;
+} as any) as any;
 
 describe('measureSoloDelivery', () => {
     beforeEach(() => mockedSolo.mockReset());

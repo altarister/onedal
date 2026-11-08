@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport } from '@onedal/shared';
 import db from '../../src/db';
 import { handleDecision, recalculateActiveKakaoRoute, recalculateKakaoRoute } from '../../src/services/dispatchEngine';
 import { restoreAndRecalculateSession, bootstrapUserSession } from '../../src/state/sessionRestore';
@@ -46,9 +47,9 @@ afterEach(() => jest.restoreAllMocks());
 function seed(id: string, o: Record<string, unknown> = {}) {
     const s = getUserSession(U);
     s.activeFilter.destinationCity = '이천시';
-    s.pendingOrdersData.set(id, { id, status: 'ORDER_AWAITING_DECISION', capturedDeviceId: DEV, isSimulated: false,
+    s.pendingOrdersData.set(id, callFromAppReport({ id, status: 'ORDER_AWAITING_DECISION', capturedDeviceId: DEV, isSimulated: false,
         pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 중리동', fare: 30000, vehicleType: '1t', timestamp: new Date().toISOString(),
-        capturedAt: new Date().toISOString(), pickupX: 127.31, pickupY: 37.36, dropoffX: 127.44, dropoffY: 37.28, routePolyline: LINE, ...o } as any);
+        capturedAt: new Date().toISOString(), pickupX: 127.31, pickupY: 37.36, dropoffX: 127.44, dropoffY: 37.28, routePolyline: LINE, ...o } as any) as any);
     s.pendingDecisions.set(id, { action: null, evaluatedAt: Date.now() });
     return s;
 }
@@ -211,7 +212,7 @@ describe('♻️ 복구', () => {
 describe('🗺️ 경로 다시 재기 — 다녀온 상차지는 건너뛴다', () => {
     const one = (o: Record<string, unknown> = {}) => {
         const s = getUserSession(U);
-        const c = { id: `${U}-w1`, status: 'ORDER_CONFIRMED', pickupX: 127.31, pickupY: 37.36, dropoffX: 127.44, dropoffY: 37.28, ...o } as any;
+        const c = callFromAppReport({ id: `${U}-w1`, status: 'ORDER_CONFIRMED', pickupX: 127.31, pickupY: 37.36, dropoffX: 127.44, dropoffY: 37.28, ...o } as any) as any;
         s.myOrders = [c];
         s.pendingOrdersData.set(c.id, c);
         return s;
@@ -242,7 +243,7 @@ describe('📦 마일스톤', () => {
         ledgerCall(id, o);
         birthFirstStep(U, id);
         const s = getUserSession(U);
-        s.myOrders.push({ id, status: 'ORDER_CONFIRMED', pickupX: 127.31, pickupY: 37.36, dropoffX: 127.44, dropoffY: 37.28, ...o } as any);
+        s.myOrders.push(callFromAppReport({ id, status: 'ORDER_CONFIRMED', pickupX: 127.31, pickupY: 37.36, dropoffX: 127.44, dropoffY: 37.28, ...o } as any) as any);
         return s;
     };
 

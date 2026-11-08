@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport } from '@onedal/shared';
 import { initGeoService, trapsForKeywords, cityAliases } from '../../src/services/geoService';
 import { getCityRegionsWithRadius, regionsTouchingCircleGrouped, pickupListFor } from '../../src/services/geoRegions';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
@@ -45,8 +46,8 @@ function make(u: string, me: { x: number; y: number } | null = MODA, f: Record<s
 }
 /** 확정 콜 하나(곤지암 → 이천터미널)를 쥐고 KEEP 순간 경로를 얼린 합짐 세션 */
 function withCall(s: any, f: Record<string, unknown> = {}) {
-    s.myOrders = [{ id: `${s.userId}-c1`, status: 'ORDER_CONFIRMED', pickupX: GONJIAM_STAR.x, pickupY: GONJIAM_STAR.y,
-        dropoffX: TERMINAL.x, dropoffY: TERMINAL.y, goalCity: '이천시', capturedAt: new Date().toISOString(), ...f }];
+    s.myOrders = [callFromAppReport({ id: `${s.userId}-c1`, status: 'ORDER_CONFIRMED', pickupX: GONJIAM_STAR.x, pickupY: GONJIAM_STAR.y,
+        dropoffX: TERMINAL.x, dropoffY: TERMINAL.y, goalCity: '이천시', capturedAt: new Date().toISOString(), ...f } as any)];
     s.filterLine = LINE;
     s.activeFilter.dispatchPhase = 'GATHERING';
     s.activeFilter.isSharedMode = true;
@@ -92,7 +93,7 @@ describe('🎯 목적지 · 집 셈', () => {
         const orders = [
             { id: 'done', status: 'ORDER_DELIVERED', capturedAt: after, goalCity: '광주시' },
             { id: 'early', status: 'ORDER_CONFIRMED', capturedAt: before, goalCity: '광주시' },
-            { id: 'byDrop', status: 'ORDER_CONFIRMED', capturedAt: after, dropoffX: MODA.x, dropoffY: MODA.y },
+            callFromAppReport({ id: 'byDrop', status: 'ORDER_CONFIRMED', capturedAt: after, dropoffX: MODA.x, dropoffY: MODA.y } as any),
             { id: 'other', status: 'ORDER_CONFIRMED', capturedAt: after, goalCity: '이천시' },
             { id: 'cancel', status: 'SAFE_CANCEL', capturedAt: after, goalCity: '광주시' },
         ];

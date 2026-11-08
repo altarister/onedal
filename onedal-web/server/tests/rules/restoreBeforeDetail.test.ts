@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport, firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import db from '../../src/db';
 import detailRouter from '../../src/routes/detail';
 import ordersRouter from '../../src/routes/orders';
@@ -131,8 +132,8 @@ describe('🧾 재시작 직후 판정 중 콜은 확정 콜이 아니다', () =
                     VALUES (?, 'NEW_ORDER', 'ORDER_RELEASED_BY_ME', ?, ?, ?, '상', '하', 20000, 'insung')`)
             .run(id, U, todayAt(h), todayAt(h));
     };
-    const evaluating = (id: string) => ({ id, type: 'MANUAL', status: 'ORDER_SECURED_EVALUATING', pickup: '경기 광주시', dropoff: '경기 이천시',
-        fare: 30000, timestamp: new Date().toISOString(), capturedAt: new Date().toISOString(), capturedDeviceId: DEV });
+    const evaluating = (id: string) => callFromAppReport({ id, type: 'MANUAL', status: 'ORDER_SECURED_EVALUATING', pickup: '경기 광주시', dropoff: '경기 이천시',
+        fare: 30000, timestamp: new Date().toISOString(), capturedAt: new Date().toISOString(), capturedDeviceId: DEV } as any);
 
     it('🔴 장부에 진행 중 콜이 없으면 되살린 뒤 확정 콜 목록에 판정 중 콜이 없고 국면은 STANDBY', async () => {
         insertReleased(`${U}-rel`, 9);
@@ -219,6 +220,10 @@ describe('🧾 재시작 뒤 카드 칸', () => {
         await restoreAndRecalculateSession(U, io);
         log.mockRestore();
         const c: any = getUserSession(U).myOrders.find((o: any) => o.id === id);
-        expect(c).toMatchObject({ ...CARD, deliveryDistance: 9.8 });
+        const { scheduleText, ...ledgerFields } = CARD;
+        expect(c).toMatchObject(ledgerFields);
+        /* 예약 시각 원문 · 배송거리는 정거장으로 — 첫 상차 약속 원문 · 마지막 하차 정거장 거리 */
+        expect(firstPickupStop(c)?.promiseText).toBe(scheduleText);
+        expect(lastDropoffStop(c)?.distanceKm).toBe(9.8);
     });
 });

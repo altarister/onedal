@@ -1,3 +1,4 @@
+import { callFromAppReport } from '@onedal/shared';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { hasVisitedStop, isAlreadyLoaded } from '@onedal/shared';
@@ -23,12 +24,12 @@ import { buildSoloRouteUrl } from '../../src/services/kakaoService';
  *   **GPS 도착이면 다녀온 것**이다 — 500m 안에 들어와야 찍히므로 "거기 갔다"는 뜻이고,
  *   **가는 길**은 더 필요 없다. 상차 완료 여부는 별개로 남는다 (단계는 여전히 대기).
  */
-const order = (over: object = {}) => ({
+const order = (over: object = {}) => callFromAppReport({
     id: 'A', status: 'ORDER_CONFIRMED',
     pickup: '상차', dropoff: '하차',
     pickupX: 127.2, pickupY: 37.4, dropoffX: 126.8, dropoffY: 37.7,
     ...over,
-}) as any;
+} as any) as any;
 
 describe('hasVisitedStop — 다녀왔는가', () => {
     it('아무 기록도 없으면 안 갔다', () => {
@@ -112,10 +113,10 @@ describe('정의가 두 벌로 갈라지지 않는다', () => {
  */
 describe('우회 비용의 비교 기준', () => {
     const P = (n: number) => ({ x: 127 + n / 100, y: 37 + n / 100 });
-    const call = (id: string, over: object = {}) => ({
+    const call = (id: string, over: object = {}) => callFromAppReport({
         id, status: 'ORDER_CONFIRMED',
         pickupX: P(1).x, pickupY: P(1).y, dropoffX: P(2).x, dropoffY: P(2).y, ...over,
-    }) as any;
+    } as any) as any;
 
     it('🔴 첫짐 상차지를 다녀왔으면 base 출발에 그 상차지를 넣지 않는다', () => {
         const visited = planMergedStops(

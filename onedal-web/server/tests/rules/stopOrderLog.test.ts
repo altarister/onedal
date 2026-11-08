@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { callFromAppReport } from '@onedal/shared';
 import * as fileLogger from '../../src/utils/fileLogger';
 import { planMergedStops } from '../../src/services/routeComposer';
 
@@ -10,15 +11,15 @@ import { planMergedStops } from '../../src/services/routeComposer';
  */
 /** 그날 좌표 그대로 — ① 문정2동 → 반포1동(잡은 콜 · 카카오에 보낸 순번 있음) · ③ 광남1동 → 양재1동(후보) · 기점 집(경기 광주) */
 const HOME = { x: 127.29444, y: 37.37669 };
-const kept = {
+const kept = callFromAppReport({
     id: 'MANUAL-1790901422218', status: 'ORDER_CONFIRMED',
     pickupX: 127.110912, pickupY: 37.489895, dropoffX: 127.013377, dropoffY: 37.505091,
     sectionStops: [{ orderId: 'MANUAL-1790901422218', stopType: 'pickup' }, { orderId: 'MANUAL-1790901422218', stopType: 'dropoff' }],
-} as any;
-const extra = {
+} as any) as any;
+const extra = callFromAppReport({
     id: 'MANUAL-1790901602138', status: 'ORDER_SECURED_EVALUATING',
     pickupX: 127.228933, pickupY: 37.394351, dropoffX: 127.026729, dropoffY: 37.471639,
-} as any;
+} as any) as any;
 const orderLines = (spy: jest.SpyInstance) => spy.mock.calls.map(c => String(c[1])).filter(l => l.includes('🧭 [순서 판단'));
 
 describe('🧭 순서 판단 줄', () => {

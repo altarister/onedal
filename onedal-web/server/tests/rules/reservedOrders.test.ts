@@ -6,7 +6,7 @@ import { restoreAndRecalculateSession } from '../../src/state/sessionRestore';
 import { ensureBusinessDay } from '../../src/state/filterManager';
 import { getUserSession, clearUserSession } from '../../src/state/userSessionStore';
 import { buildOrderSync } from '../../src/core/helpers';
-import { businessDayKey, pickupClockMsOf } from '@onedal/shared';
+import { businessDayKey, pickupClockMsOf, callFromAppReport } from '@onedal/shared';
 import { isHeldReserved } from '../../src/services/reservedOrders';
 import ordersRouter from '../../src/routes/orders';
 import { birthFirstStep } from '../../src/services/stepSeeder';
@@ -27,12 +27,12 @@ const keyAfter = (days: number) => { const d = new Date(); d.setDate(d.getDate()
 /** 오늘 h 시 (로컬 = KST) */
 const todayAt = (h: number) => { const d = new Date(); d.setHours(h, 0, 0, 0); return d.toISOString(); };
 
-const call = (id: string, extra: Record<string, unknown> = {}) => ({
+const call = (id: string, extra: Record<string, unknown> = {}) => callFromAppReport({
     id: `${U}-${id}`, type: 'NEW_ORDER', status: 'ORDER_AWAITING_DECISION',
     pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 관고동', fare: 30000,
     timestamp: todayAt(15), capturedAt: todayAt(15), targetApp: 'insung', vehicleType: '다마스',
     ...extra,
-}) as any;
+} as any) as any;
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`)
@@ -130,27 +130,27 @@ describe('📅 상차 시계 — 예약 날·시각으로 날짜를 만든다 (B
     const captured = Date.parse(todayAt(15));
     it('🔴 내일 09:00 예약은 내일 09:00 — 오늘 15:20 이 아니다', () => {
         const d = new Date(captured); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0);
-        expect(pickupClockMsOf({ reservedDay: 1, reservedAt: '09:00' } as any, captured, 20)).toBe(d.getTime());
+        expect(pickupClockMsOf(callFromAppReport({ reservedDay: 1, reservedAt: '09:00' } as any), captured, 20)).toBe(d.getTime());
     });
     it('오늘 안의 «예약 18:30» 은 오늘 18:30', () => {
         const d = new Date(captured); d.setHours(18, 30, 0, 0);
-        expect(pickupClockMsOf({ reservedDay: 0, reservedAt: '18:30' } as any, captured, 20)).toBe(d.getTime());
+        expect(pickupClockMsOf(callFromAppReport({ reservedDay: 0, reservedAt: '18:30' } as any), captured, 20)).toBe(d.getTime());
     });
     it('예약이 없으면 지금처럼 — 잡은 시각 + 잠정', () => {
         expect(pickupClockMsOf({} as any, captured, 20)).toBe(captured + 20 * 60_000);
     });
     it('🔴 날만 알고 시각을 모르는 예약(«내상»·«낼»)은 모름(null) — 오늘 시각으로 떨어지지 않는다', () => {
-        expect(pickupClockMsOf({ reservedDay: 1 } as any, captured, 20)).toBeNull();
+        expect(pickupClockMsOf(callFromAppReport({ reservedDay: 1 } as any), captured, 20)).toBeNull();
     });
     it('🔴 날만 아는 예약에 적요 시각을 붙이지 않는다 — 적요는 상차·하차를 안 가른다(«10시전하차»)', () => {
-        expect(pickupClockMsOf({ reservedDay: 1, itemDescription: '14시 상차' } as any, captured, 20)).toBeNull();
+        expect(pickupClockMsOf(callFromAppReport({ reservedDay: 1, itemDescription: '14시 상차' } as any), captured, 20)).toBeNull();
     });
     it('예약 시각이 적요 시각을 이긴다', () => {
         const d = new Date(captured); d.setDate(d.getDate() + 1); d.setHours(9, 30, 0, 0);
-        expect(pickupClockMsOf({ reservedDay: 1, reservedAt: '09:30', itemDescription: '14시 상차' } as any, captured, 20)).toBe(d.getTime());
+        expect(pickupClockMsOf(callFromAppReport({ reservedDay: 1, reservedAt: '09:30', itemDescription: '14시 상차' } as any), captured, 20)).toBe(d.getTime());
     });
     it('오늘 콜(날 0 · 시각 없음 · 적요 없음)은 지금처럼 잡은 시각 + 잠정', () => {
-        expect(pickupClockMsOf({ reservedDay: 0 } as any, captured, 20)).toBe(captured + 20 * 60_000);
+        expect(pickupClockMsOf(callFromAppReport({ reservedDay: 0 } as any), captured, 20)).toBe(captured + 20 * 60_000);
     });
     it('🔴 날만 아는 내일 콜을 KEEP 하면 상차지 통화 행의 약속 칸이 빈 채 태어난다 — 통화로 넣으신다', () => {
         const id = `${U}-seed-dayonly`;
