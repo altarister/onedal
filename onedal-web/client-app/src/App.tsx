@@ -7,6 +7,7 @@ import SheetMockup from "./pages/SheetMockup";
 import StepScreenMockup from "./pages/StepScreenMockup";
 import MapMockup from "./pages/MapMockup";
 import DrawerMockup from "./pages/DrawerMockup";
+import Step6Mockup from "./pages/Step6Mockup";
 import Settlement from "./pages/Settlement";
 import Login from "./pages/Login";
 import Join from "./pages/Join";
@@ -222,6 +223,8 @@ export default function App() {
             새 화면으로 굳히면 옛 화면의 탭 줄이 사라지는데, 폰에서는 현황판도 안 떠 볼 곳이 없어진다.
             고정값만 그리고 서버·소켓·GPS 를 안 쓴다 */}
         <Route path="/mockup/drawer" element={<DrawerMockup />} />
+        {/* 🧭 **걸음 6 목업** — 화면이 바뀌는 커밋마다 지금 / 바뀐 뒤를 나란히. 고정값만 그리고 서버에 쓰지 않는다 */}
+        <Route path="/mockup/step6" element={<Step6Mockup />} />
         {/* 📝 **가입 · 승인 대기 · 앱 받기 · 약관 — 로그인 밖**.
             주소를 받은 새 계정이 로그인 전에 읽는다. 글은 운영센터 «페이지 글»에서 온다 · 서버 문은 `api/join.ts` 한 곳 */}
         <Route path="/join" element={<Join />} />
