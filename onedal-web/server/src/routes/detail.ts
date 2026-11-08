@@ -349,7 +349,7 @@ router.post("/", async (req, res) => {
                     forceCancelEvaluatingOrder(userId, pendingOrder.id, io);
                     if (io) io.to(userId).emit("handler-error", {
                         event: 'manual-confirm',
-                        message: `수동 콜(${firstPickupStop(pendingOrder)?.listText ?? ''} → ${lastDropoffStop(pendingOrder)?.listText ?? ''}) 확정에 실패했습니다. 배차망에서 직접 확인해 주세요.`,
+                        message: `수동 콜(${stopTextOf(firstPickupStop(pendingOrder))} → ${stopTextOf(lastDropoffStop(pendingOrder))}) 확정에 실패했습니다. 배차망에서 직접 확인해 주세요.`,
                     });
                 });
             return;

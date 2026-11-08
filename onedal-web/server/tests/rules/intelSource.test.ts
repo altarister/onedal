@@ -1,6 +1,10 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { reportSourceOf } from '../../src/core/helpers';
+import db from '../../src/db';
+import ordersRouter from '../../src/routes/orders';
+import { clearUserSession } from '../../src/state/userSessionStore';
+import { approvedUser } from '../fixtures/approvedUser';
 
 /**
  * 🏷️ **목록 원문 줄마다 출처 — 실물 앱인가 시뮬레이터인가**.
@@ -39,5 +43,37 @@ describe('🏷️ intel 출처 칸', () => {
         expect(block).toMatch(/rawDetailText, reserved, reservedDay, reservedAt, source\)/);
         expect(block).toContain('reportSourceOf((payload as any).source)');
         expect(block).toContain('pickupStop?.requestedDay ?? null');
+    });
+});
+
+/* 📄 픽커 상세 보관 줄의 상차 · 하차 글자 — 사진 «행정동 + 상호»를 이은 판정 글자(stopQueryOf) · 목록 원문이 아니다 */
+const U = 'test-intel-picker-detail';
+const DEV = 'dev-intel-picker-detail';
+describe('📄 픽커 상세 보관 줄의 상차 · 하차 글자', () => {
+    beforeAll(() => {
+        approvedUser(U);
+        db.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id, mode) VALUES (?, ?, 'ALARM')`).run(U, DEV);
+    });
+    afterAll(() => {
+        clearUserSession(U);
+        db.prepare(`DELETE FROM intel WHERE device_id = ?`).run(DEV);
+        db.prepare(`DELETE FROM orders WHERE userId = ?`).run(U);
+        db.prepare(`DELETE FROM user_devices WHERE user_id = ?`).run(U);
+        try { db.prepare(`DELETE FROM users WHERE id = ?`).run(U); } catch { /* 다른 표가 붙잡으면 다음 돌림이 이어 쓴다 */ }
+    });
+
+    it('🔴 상세 주소 + 상호 → «행정동 상호» · 상호 없는 하차 → 행정동', async () => {
+        const layer = (ordersRouter as any).stack.find((l: any) => l.route?.path === '/confirm' && l.route.methods.post);
+        const res: any = { status: () => res, json: () => res };
+        const app = { get: () => ({ to: () => ({ emit: () => {} }) }) };
+        await layer.route.stack[layer.route.stack.length - 1].handle({ app, body: {
+            step: 'BASIC', deviceId: DEV, targetApp: 'kakaopicker', matchType: 'MANUAL',
+            order: { id: 'intel-picker-1', fare: 9000, rawText: '[사진]\n경기 성남시 중원구 은행2동',
+                pickupDetails: [{ listText: '중원구 은행동', addressDetail: '경기 성남시 중원구 은행2동', customerName: '퓨전중화요리-궁' }],
+                dropoffDetails: [{ listText: '수정구 태평동', addressDetail: '경기 성남시 수정구 태평2동' }] },
+        } }, res);
+        for (let i = 0; i < 20; i++) await new Promise(r => setImmediate(r));
+        const row = db.prepare(`SELECT pickup, dropoff FROM intel WHERE device_id = ? AND type = 'PICKER_DETAIL'`).get(DEV) as any;
+        expect(row).toEqual({ pickup: '경기 성남시 중원구 은행2동 퓨전중화요리-궁', dropoff: '경기 성남시 수정구 태평2동' });
     });
 });

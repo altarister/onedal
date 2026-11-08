@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode, firstPickupStop, lastDropoffStop, firstStopKm } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode, firstPickupStop, lastDropoffStop, firstStopKm, stopQueryOf } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -146,8 +146,8 @@ router.post("/confirm", (req, res) => {
                 userId,
                 payload.deviceId,
                 "PICKER_DETAIL",          // 리스트 훑기(INTEL_BULK)와 갈라 둔다
-                pickupStop?.listText ?? "",
-                lastDropoffStop(reportedCall)?.listText ?? "",
+                stopQueryOf('kakaopicker', pickupStop).text,     // 사진 «행정동 + 상호»를 이은 판정 글자 — 목록 줄(INTEL_BULK)과 갈라 둔다
+                stopQueryOf('kakaopicker', lastDropoffStop(reportedCall)).text,
                 payload.order.fare ?? 0,
                 new Date().toISOString(),
                 'kakaopicker',

@@ -109,14 +109,14 @@ describe('🧾 저장 → 되살리기 왕복 — 콜 한 칸', () => {
         expect(back).toMatchObject({ status: 'ORDER_CONFIRMED', goalCity: '이천시', isExpress: true });
     });
 
-    it('🔴 사본 칸 = 콜 한 칸에서 꺼낸 값 · 기사님 몫 = incomeOf(돈 묶음) · 상차 · 하차 글자 = 첫 상차 · 마지막 하차 목록 글자 · 판 번호 1', () => {
+    it('🔴 사본 칸 = 콜 한 칸에서 꺼낸 값 · 기사님 몫 = incomeOf(돈 묶음) · 상차 · 하차 글자 = 첫 상차 · 마지막 하차 정거장 글자(stopTextOf — 상세 주소 먼저) · 판 번호 1', () => {
         const call = fullCall('copies');
         OrderRepository.upsertOrder(call, U, 0);
         const row = rowOf(call.id);
         const c = ledgerCopiesOf(call);
         expect(row.incomeWon).toBe(incomeOf(call.money));
         expect(row.incomeWon).toBe(33000);
-        expect({ pickup: row.pickup, dropoff: row.dropoff }).toEqual({ pickup: '초월읍', dropoff: '신둔면' });
+        expect({ pickup: row.pickup, dropoff: row.dropoff }).toEqual({ pickup: '경기 광주시 초월읍 경충대로 907', dropoff: '경기 이천시 신둔면 도자예술로 72' });
         for (const k of ['pickup', 'dropoff', 'fare', 'incomeWon', 'isExpress', 'paymentType', 'billingType', 'vehicleType', 'itemDescription', 'tripType', 'orderForm',
             'commissionRate', 'tollFare', 'detailMemo', 'dispatcherName', 'dispatcherPhone', 'scheduleText', 'reservedDay', 'reservedAt', 'deliveryDistance'])
             expect([k, row[k]]).toEqual([k, (c as any)[k]]);
@@ -191,7 +191,7 @@ describe('🧾 저장 → 되살리기 왕복 — 콜 한 칸', () => {
         OrderRepository.upsertOrder(fresh, U, 0);
         const r2 = rowOf(fresh.id);
         expect([r2.callShape, r2.callShapeVersion]).toEqual([null, null]);
-        expect(restore(r2).pickupDetails[0].listText).toBe('초월읍');
+        expect(restore(r2).pickupDetails[0].listText).toBe('경기 광주시 초월읍 경충대로 907');   // 옛 길은 사본 칸 글자를 목록 칸으로
     });
 });
 

@@ -105,7 +105,6 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         private val PICKUP_DAY_BADGES = setOf("당상", "내상")
         private val DROPOFF_DAY_BADGES = setOf("당착", "내착")
 
-        /** 🏷️ 날 배지를 꼬리표로 — 잡음으로 버리지 않는다 (지역 후보에서는 빠진다) */
         /**
          * 🏠 **앱이 연 콜에 상세 상차지 · 하차지 칸을 싣는다** (`Hwamul24Plugin.fillDetail`) — 읽을 글은 `order.rawText`(공통이 채우기 전에 상세 이은 글로 바꿔 둔다).
          * 칸 주소는 그 정거장 상세 주소(`addressDetail`) · 칸 끝 괄호는 상호(`customerName`) — 서버 `detailRecordOf` 와 같은 정의 표 줄로 읽는다.
@@ -121,6 +120,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             return PageFieldRead.withDetailKm(withDropoff, Hwamul24Pages.pages, Page.NEW_CALL, texts)
         }
 
+        /** 🏷️ 날 배지를 꼬리표로 — 잡음으로 버리지 않는다 (지역 후보에서는 빠진다) */
         fun badgesOf(texts: List<String>): String? =
             texts.map { it.trim() }.filter { it in PICKUP_DAY_BADGES || it in DROPOFF_DAY_BADGES }
                 .joinToString(" ").ifEmpty { null }

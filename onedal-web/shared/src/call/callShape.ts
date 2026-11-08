@@ -13,6 +13,7 @@ import { incomeOf, moneyFrom } from './money';
 import { isExpressForm, tripTypeOfLedger, orderFormOfLedger, type TripType, type OrderForm } from './badges';
 import { loadFrom } from '../cargo/callLoad';
 import { firstPickupStop, lastDropoffStop } from '../time/timing';
+import { stopTextOf } from '../network/pageRead';
 
 /** 🧾 콜 모양의 판 번호 — 콜 모양을 바꿀 때 올린다. 장부의 판 번호가 이것과 다르면 옛 길(장부 칸)로 되살린다 */
 export const CALL_SHAPE_VERSION = 1;
@@ -118,8 +119,8 @@ export function callFromShape(text: string | null | undefined, version: number |
 
 /** 🧾 사본 칸 — 콜 한 칸 안 값을 SQL 이 읽게 장부 진짜 칸에 따로 적는 값 */
 export interface LedgerCopies {
-    pickup: string;                     // 첫 상차 목록 글자(NOT NULL 칸 — 없으면 빈 글자)
-    dropoff: string;                    // 마지막 하차 목록 글자
+    pickup: string;                     // 첫 상차 정거장 글자(stopTextOf — 상세 주소 먼저 · NOT NULL 칸 — 없으면 빈 글자)
+    dropoff: string;                    // 마지막 하차 정거장 글자
     fare: number;
     incomeWon: number | null;           // 기사님 몫 — 돈 묶음의 기사님 몫 줄 · 모르면 null
     isExpress: 0 | 1;
@@ -145,8 +146,8 @@ export function ledgerCopiesOf(call: OfficeOrder): LedgerCopies {
     const pickupStop = firstPickupStop(call);
     const dropoffStop = lastDropoffStop(call);
     return {
-        pickup: pickupStop?.listText ?? '',
-        dropoff: dropoffStop?.listText ?? '',
+        pickup: stopTextOf(pickupStop),
+        dropoff: stopTextOf(dropoffStop),
         fare: call.fare || 0,
         incomeWon: call.money ? incomeOf(call.money) : null,
         isExpress: isExpressForm(call.orderForm) ? 1 : 0,

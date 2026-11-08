@@ -1,5 +1,5 @@
 import type { JudgedCallInfo, JudgedFilterInfo, StopSource } from '@onedal/shared';
-import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
+import { firstPickupStop, lastDropoffStop, stopTextOf } from '@onedal/shared';
 
 /**
  * 🧾 **판정할 때 함께 남길 «무슨 콜이었고 어떤 필터였나»** (기사님 «1 예»).
@@ -19,8 +19,8 @@ type FilterLike = {
 export function judgmentRecordOf(order: CallLike, filter: FilterLike): { call: JudgedCallInfo; filter: JudgedFilterInfo } {
     return {
         call: {
-            pickup: firstPickupStop(order)?.listText ?? '',
-            dropoff: lastDropoffStop(order)?.listText ?? '',
+            pickup: stopTextOf(firstPickupStop(order)),
+            dropoff: stopTextOf(lastDropoffStop(order)),
             fare: order.fare ?? 0,
             targetApp: order.targetApp ?? null,
             kind: order.isSimulated ? '체험' : order.isPreview ? '미리보기' : '콜',

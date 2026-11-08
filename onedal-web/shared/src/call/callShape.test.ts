@@ -107,12 +107,12 @@ describe('🧾 돈 줄 · 짐 줄 — 틀린 줄은 버리고 나머지는 남�
 });
 
 describe('🧾 사본 칸 — 콜에서 나온 값과 같다', () => {
-    it('기사님 몫 = incomeOf · 상차 = 첫 상차 목록 글자 · 하차 = 마지막 하차 목록 글자', () => {
+    it('기사님 몫 = incomeOf · 상차 = 첫 상차 정거장 글자 · 하차 = 마지막 하차 정거장 글자(stopTextOf — 상세 주소 먼저)', () => {
         const call = { ...sample, dropoffDetails: [{ listText: '첫 하차' }, ...sample.dropoffDetails!] };
         const c = ledgerCopiesOf(call);
         expect(c.incomeWon).toBe(50000);
-        expect(c.pickup).toBe('초월읍');
-        expect(c.dropoff).toBe('신둔면');
+        expect(c.pickup).toBe('경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점');
+        expect(c.dropoff).toBe('경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점');
         expect(c.scheduleText).toBe('상차 약속 글자');
         expect(c.reservedDay).toBe(0);
         expect(c.reservedAt).toBe('10:01');

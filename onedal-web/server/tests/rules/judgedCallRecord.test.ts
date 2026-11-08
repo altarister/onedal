@@ -29,6 +29,11 @@ describe('판정 기록 — 콜 내용 · 필터 요약', () => {
             isActive: true, todayOnly: true, pickupCount: 2, dropoffCount: 3, excludedCount: 1 });
     });
 
+    it('🔴 상세 주소가 있는 정거장은 그 글자 · 없으면 목록 원문(stopTextOf)', () => {
+        const detailed = testCall({ id: 'TEST-JREC-2', pickups: [{ listText: '광남동', addressDetail: '경기 광주시 광남1동 12' }], dropoffs: [{ listText: '관고동' }], fare: 23000, targetApp: 'insung' });
+        expect(judgmentRecordOf(detailed, FILTER).call).toMatchObject({ pickup: '경기 광주시 광남1동 12', dropoff: '관고동' });
+    });
+
     it('체험 콜은 «체험» · 잡을 수 있는 콜은 «콜»', () => {
         expect(judgmentRecordOf({ ...PREVIEW, isPreview: false, isSimulated: true }, FILTER).call.kind).toBe('체험');
         expect(judgmentRecordOf({ ...PREVIEW, isPreview: false }, FILTER).call.kind).toBe('콜');
