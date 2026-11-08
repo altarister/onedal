@@ -185,7 +185,7 @@
     {"network": "insung", "at": "dropoff", "text": "[착]", "meaning": "unknown", "why": "인성 확정 전 상세 도착지 줄 앞 — 뜻 모름(06 표)"},
     {"network": "insung", "at": "pickup", "text": "X@", "meaning": "unknown", "why": "인성 확정 전 상세 출발지 줄 «X@안성/일죽면» — 뜻 모름(06 표)"},
     {"network": "insung", "at": "pickup", "text": "짐/", "meaning": "unknown", "why": "인성 목록 출발지 «@짐/가산동»(영상_0441) — 뜻 모름"},
-    {"network": "insung", "at": "pickup", "text": "짐)", "meaning": "unknown", "why": "인성 목록 출발지 «@짐)독산동»(영상_1137) — 뜻 모름"},
+    {"network": "insung", "at": "pickup", "text": "짐)", "meaning": "unknown", "why": "인성 목록 출발지 «@짐)독산동»(영상_1250) — 뜻 모름"},
     {"network": "insung", "at": "pickup", "text": "금천)", "meaning": "unknown", "why": "인성 목록 출발지 «@금천)시흥동»(영상_0441) — 뜻 모름"},
     {"network": "insung", "at": "dropoff", "text": "1톤카:", "meaning": "unknown", "why": "인성 확정 전 상세 도착지 «1톤카:월곶면(김포)»(06 표) — 뜻 모름"},
     {"network": "insung", "at": "pickup", "text": "윙", "meaning": "unknown", "why": "인성 목록 칸 안 꼬리 «내일8시.윙/»(06 표) — 뜻 모름"},
