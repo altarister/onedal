@@ -263,6 +263,9 @@ const RULE_LABEL = {
     excludeScan: ['제외어를 찾는 칸', 'excludeScanWhy'], addressCut: ['주소에서 지우는 글자', 'addressCutWhy'], networkMarkers: ['배차망을 알아보는 글자', 'networkMarkersWhy'],
 };
 const DRAWN_KEYS = ['about', 'pages', 'callOverlays', 'screens', 'vehicleWords', 'vehicleWordsWhy', 'slotNotes', 'rulesWhy', 'excludeScanWhy', 'addressCutWhy', 'networkMarkersWhy', ...Object.keys(RULE_LABEL)];
+/** 제목 앞 종류 상자 — 내보낸 것이 interface · type · 함수 · 변수 중 무엇인지 색으로 가른다 */
+const KIND_LABEL = { interface: 'interface', type: 'type', function: '함수', variable: '변수' };
+const kindBadge = (kind) => { const b = document.createElement('span'); b.className = `kind kind-${kind}`; b.textContent = KIND_LABEL[kind]; return b; };
 const sectionHead = (words) => { const h = document.createElement('h2'); h.className = 'value'; h.textContent = words; return h; };
 const paragraph = (words) => { const p = document.createElement('p'); p.textContent = words; return p; };
 const matchText = (match) => (match ?? []).map((m) => [m.all && m.all.join(' + '), m.any && `${m.any.join(' 또는 ')} 중 하나`, m.none && `${m.none.join(' · ')} 없음`, m.shape && `글자 꼴 ${m.shape.read}`].filter(Boolean).join(' / ')).join('\n또는 ');
@@ -459,10 +462,11 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
         block.append(name, body);
         sixBox.after(block);
     }
-    const heading = (words) => {
+    const heading = (words, kind) => {
         const h = document.createElement('h2');
         h.className = 'value';
-        h.textContent = words;
+        if (kind) h.append(kindBadge(kind), ' ');
+        h.append(words);
         return h;
     };
     const withUses = (rows, nameKey, usage) => rows.map((row) => ({ ...row, '쓰는 곳': usesCell(usage, row[nameKey]) }));
@@ -472,7 +476,7 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
     const paint = async (usage) => {
     box.textContent = '';
     box.append(paragraph('«쓰는 곳»은 TypeScript 로 찾은 파일 수입니다. as any · 글자로 읽는 곳 · 원달앱 JSON 은 다 못 찾으니, 0이라고 지워도 된다는 뜻은 아닙니다.'));
-    if (functions.length > 0) box.append(heading(`함수 ${functions.length}개`), draw(withUses(functions, '함수', usage)));
+    if (functions.length > 0) box.append(heading(`${functions.length}개`, 'function'), draw(withUses(functions, '함수', usage)));
     const fieldBook = values.find((v) => v.rows?.byInterface)?.rows;
     if (sheet) {
         const back = document.createElement('a');
@@ -509,11 +513,11 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
     if (aliases.length > 0) {
         const table = draw(withUses(aliases, '타입', usage));
         [...table.tBodies[0].rows].forEach((tr) => { tr.id = `t-${tr.cells[0].textContent}`; });
-        box.append(heading(`타입 ${aliases.length}개`), table);
+        box.append(heading(`${aliases.length}개`, 'type'), table);
     }
     for (const shape of interfaces) {
         const rows = shape.rows.map((row) => ({ ...row, '같은 이름 칸이 있는 타입': usage?.fields[shape.name]?.[row['칸']]?.join(' · ') ?? '' }));
-        box.append(heading(`${shape.name} (칸 ${shape.rows.length}개) — ${shape.about}`), usesLine(usage, shape.name), draw(rows));
+        box.append(heading(`${shape.name} (칸 ${shape.rows.length}개) — ${shape.about}`, 'interface'), usesLine(usage, shape.name), draw(rows));
     }
     if (functions.length + aliases.length + interfaces.length + values.length === 0) box.textContent = '표로 볼 것이 없습니다.';
     for (const v of values) {
@@ -526,7 +530,7 @@ else fetch(`/shared/_/module/${file}`).then((r) => r.json()).then(async ({ value
         const h = document.createElement('h2');
         h.className = 'value';
         const note = notes?.[v.name] && notes[v.name] !== '주석 없음' ? ` — ${notes[v.name]}` : '';
-        h.textContent = v.total > limit ? `${v.name} — ${v.total}개 중 ${limit}개${note}` : `${v.name}${note}`;
+        h.append(kindBadge('variable'), ' ', v.total > limit ? `${v.name} — ${v.total}개 중 ${limit}개${note}` : `${v.name}${note}`);
         if (v.name === 'NETWORK_PAGES') {
             const links = document.createElement('div');
             links.className = 'chips';
