@@ -255,7 +255,7 @@ export interface ServerCallFields {
     approvalReasons?: string[];       // 모든 장점 사유
     distanceKm?: number;              // 운행 거리(km) — 서버가 카카오 단독 거리를 옮겨 적는다
     isShared?: boolean;               // 합짐 여부 — 서버가 저장할 때 진행 콜 수로 계산한다
-    isExpress?: boolean;              // 급송 여부 — 서버가 저장할 때 `orderForm` 으로 계산한다
+    isExpress?: boolean;              // 급송 여부 — 서버가 저장할 때 `isExpressForm(orderForm)` 으로 계산한다
 }
 
 export interface PendingOrder extends OfficeOrder, ApproxAddress, QuickFoldFields, ServerCallFields {  // 심사 중 콜 — OfficeOrder + 서버의 판정 · 경로 값. 서버 메모리에만 있고 아직 내 콜이 아니다

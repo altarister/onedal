@@ -2,7 +2,7 @@
  * ⚖️ **결재 · 경로 다시 재기 · 새 콜 심사 넘기기** — KEEP · 취소 · 강제 정리, 정거장이 바뀌면 카카오로 다시 잰다.
  * 바깥 일을 하는 함수: applyRouteAndSave · applySoloRouteAndSave · forceCancelEvaluatingOrder · promiseOrderOpts · recalcRouteIfStopsChanged · recalculateActiveKakaoRoute · recalculateKakaoRoute · syncDetourFilter · handleDecision · evaluateNewOrder · rebuildDestinationKeywords(세션 · 장부(DB) · 카카오 · 설정 · 지금 시각 · 소켓 · 로그) (장소 이름 · 장부에 적을 정거장 셈 normalizePlaceName · stopPlaceFrom 은 값만 받는다)
  */
-import { businessDayKey, normalizeVehicleType, isEvaluating, isTerminal, reservedForOf, firstPickupStop, lastDropoffStop, type DecisionStatus } from "@onedal/shared";
+import { businessDayKey, normalizeVehicleType, isEvaluating, isTerminal, reservedForOf, firstPickupStop, lastDropoffStop, isExpressForm, type DecisionStatus } from "@onedal/shared";
 import { isLaterThan, takeReserved } from "./reservedOrders";
 import type { SecuredOrder, PendingOrder, MyOrder, CallStop } from "@onedal/shared";
 import { calculateSoloRoute } from "./kakaoService";
@@ -155,7 +155,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
          */
         if (writesLedger({ preview: wasPreview, simulated: wasSimulated })) try {
             const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
-            const isExpress = (cached as any).orderForm === '급송' ? 1 : 0;
+            const isExpress = isExpressForm((cached as any).orderForm) ? 1 : 0;
             OrderRepository.upsertOrder(cached as any, userId, isShared, isExpress);
             const terminatedAt = OrderRepository.updateOrderStatus(orderId, userId, 'SAFE_CANCEL');
             if (terminatedAt) (cached as any).terminatedAt = terminatedAt;   // 🧹 화면으로 가는 메모리 콜에도 (전수표 #65)
@@ -578,7 +578,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
                 // 이 시점에는 confirmedOrder가 이미 myOrders에 push된 뒤이므로,
                 // 활성 콜이 2건 이상이면 앞선 짐이 있었다는 뜻 = 합짐이다.
                 // isExpress: 파서가 추출한 orderForm이 "급송"이면 true
-                const isExpress = (cachedOrder.orderForm === '급송') ? 1 : 0;
+                const isExpress = isExpressForm(cachedOrder.orderForm) ? 1 : 0;
 
                 // 1. orders 등록 (v5 전체 컬럼)
                 OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
@@ -775,7 +775,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
         if (cachedForLedger && writesLedger({ preview: wasPreview, simulated: isSimulatedOrder })) {
             try {
                 const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
-                const isExpress = (cachedForLedger as any).orderForm === '급송' ? 1 : 0;
+                const isExpress = isExpressForm((cachedForLedger as any).orderForm) ? 1 : 0;
                 OrderRepository.upsertOrder(cachedForLedger as any, userId, isShared, isExpress);
                 const terminatedAt = OrderRepository.updateOrderStatus(orderId, userId, endStatus);
                 if (terminatedAt) (cachedForLedger as any).terminatedAt = terminatedAt;   // 🧹 화면으로 가는 메모리 콜에도 (전수표 #65)

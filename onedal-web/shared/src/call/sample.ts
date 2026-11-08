@@ -1282,9 +1282,9 @@ const OFFICE_ORDER_SAMPLE_09 = {
     // scheduleText: "상차 약속 글자",    // → 정거장 pickupDetails[0].promiseText
     // pickupDistance: 101,               // → 정거장 pickupDetails[0].distanceKm
     // deliveryDistance: 201,             // → 정거장 dropoffDetails[i].distanceKm (배송 거리 합은 꺼내 쓴다)
-    tagsText: "표시 글자",
-    tripType: "편도",                     // 구분 — 값 목록 편도 · 왕복 · 경유 · 모름 · 목록에 없는 낱말은 «모름» + 그 글자는 `tagsText` 에
-    orderForm: "보통",                    // 형태 — 값 목록 보통 · 급송 · 모름 · 위와 같다
+    tagsText: "표시 글자" satisfies OfficeOrder['tagsText'],
+    tripType: "편도" satisfies TripType,   // 구분 — 값 목록 편도 · 왕복 · 경유 · 모름 · 목록에 없는 낱말은 «모름» + 그 글자는 `tagsText` 에
+    orderForm: "보통" satisfies OrderForm,  // 형태 — 값 목록 보통 · 급송 · 모름 · 위와 같다
     detailMemo: "적요",
 
     // ── 서버가 붙이는 좌표 ──

@@ -1,5 +1,5 @@
 import { verdictOf, manwonText, wonText, type DecisionStatus } from '@onedal/shared';
-import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
+import { firstPickupStop, lastDropoffStop, isExpressForm } from '@onedal/shared';
 import { BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -321,11 +321,11 @@ export default function PinnedRouteCard({
                                          bg-surface-alt border-border-card text-text-primary">{route.vehicleType}</span>
                     )}
                     {/**
-                      * 🚨 **급송(독차)** — 서버는 `orderForm === '급송'` 을 DB(`isExpress`)에
+                      * 🚨 **급송(독차)** — 서버는 `isExpressForm(orderForm)` 을 DB(`isExpress`)에
                       *    넣는다 — 관제웹은 **덱에서 이것을 그린다.**
                       *    급송은 단가도 긴급도도 다르다.
                       */}
-                    {route.orderForm === '급송' && (
+                    {isExpressForm(route.orderForm) && (
                         <span className="px-1.5 rounded-[5px] text-[11px] font-black border
                                          bg-warning/15 border-warning/40 text-warning">급송</span>
                     )}
