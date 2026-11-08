@@ -83,6 +83,17 @@ class NetworkPagesPairTest {
     @Test fun `카카오 픽커 차종 낱말은 표와 같다`() = assertEquals(wordsOf("kakaopicker"), KakaoPickerPages.vehicleWords)
     @Test fun `인성플렉스 차종 낱말은 표와 같다`() = assertEquals(wordsOf("isflex"), IsflexPages.vehicleWords)
 
+    /** 📦 크기 낱말 → 라면박스 수 — 표의 sizeWords 와 생성 파일의 sizeWords 가 차례까지 같다(없으면 둘 다 빈 지도) */
+    private fun sizesOf(network: String): List<Pair<String, Int?>> =
+        table[network].asJsonObject["sizeWords"]?.asJsonArray?.map { w ->
+            w.asJsonObject["word"].asString to w.asJsonObject["boxes"].takeIf { !it.isJsonNull }?.asInt
+        } ?: emptyList()
+
+    @Test fun `인성 크기 낱말은 표와 같다`() = assertEquals(sizesOf("insung"), InsungPages.sizeWords.toList())
+    @Test fun `화물24시 크기 낱말은 표와 같다`() = assertEquals(sizesOf("hwamul24"), Hwamul24Pages.sizeWords.toList())
+    @Test fun `카카오 픽커 크기 낱말은 표와 같다`() = assertEquals(sizesOf("kakaopicker"), KakaoPickerPages.sizeWords.toList())
+    @Test fun `인성플렉스 크기 낱말은 표와 같다`() = assertEquals(sizesOf("isflex"), IsflexPages.sizeWords.toList())
+
     /** 🖥️ 페이지 목록 — 표의 screens 와 생성 파일 screens 를 같은 글 모양으로 펴서 견준다(차례가 판별 차례라 차례까지) */
     private fun matchText(m: ScreenMatch): String =
         "all=${m.all} any=${m.any} none=${m.none} shape=${m.shape?.pattern} min=${m.shapeMin} max=${m.shapeMax}"

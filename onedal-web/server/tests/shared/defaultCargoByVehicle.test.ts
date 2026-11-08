@@ -1,4 +1,4 @@
-import { defaultCargoByVehicle, cargoPoints, VEHICLE_CAPACITY } from '@onedal/shared';
+import { defaultCargoByVehicle, cargoPoints, VEHICLE_CAPACITY, VEHICLE_PICKS } from '@onedal/shared';
 
 /**
  * 🚚 **차종이 곧 기본 짐** — 통화 전 미리 눌러 둘 단위·수량 (기사님 확정)
@@ -28,7 +28,7 @@ describe('defaultCargoByVehicle — 차종 정원을 기본 짐으로', () => {
      *    **같은 숫자**여야 한다. 어긋나면 화면이 조용히 거짓말한다.
      */
     it('🔴 눌러 둔 값의 박스 환산 = 서버가 잡는 적재(VEHICLE_CAPACITY)', () => {
-        for (const v of ['오토바이', '승용차', '다마스', '라보', '1t']) {
+        for (const v of VEHICLE_PICKS) {
             const d = defaultCargoByVehicle(v)!;
             expect(cargoPoints({ unit: d.unit, quantity: d.quantity } as any)).toBe(VEHICLE_CAPACITY[v]);
         }

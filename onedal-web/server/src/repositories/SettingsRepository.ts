@@ -1,5 +1,5 @@
 import db from "../db";
-import { PricingConfig, mapVehicleToKakaoCarType, fuelCostPerKm, GROSS_RATE_PER_KM, DEFAULT_AGENCY_FEE_PERCENT } from "@onedal/shared";
+import { PricingConfig, mapVehicleToKakaoCarType, normalizeVehicleType, fuelCostPerKm, GROSS_RATE_PER_KM, DEFAULT_AGENCY_FEE_PERCENT } from "@onedal/shared";
 
 export class SettingsRepository {
     /**
@@ -62,7 +62,7 @@ export class SettingsRepository {
         const row = db.prepare("SELECT vehicle_type, default_priority FROM user_settings WHERE user_id = ?").get(userId) as any;
         const vehicleTypeStr = row?.vehicle_type || '1t';
         return {
-            carType: mapVehicleToKakaoCarType(vehicleTypeStr),
+            carType: mapVehicleToKakaoCarType(normalizeVehicleType(vehicleTypeStr)),
             defaultPriority: row?.default_priority || "RECOMMEND",
             vehicleType: vehicleTypeStr
         };

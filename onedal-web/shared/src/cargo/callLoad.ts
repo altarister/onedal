@@ -9,7 +9,7 @@
  */
 /* 🚚 vehicles · networkPages 의 값을 가져온다 — 둘 다 이 파일을 가져오지 않아 순환이 없다 */
 import type { VehicleType } from './vehicles';
-import { VEHICLE_OPTIONS, VEHICLE_CAPACITY, normalizeVehicleType } from './vehicles';
+import { VEHICLE_CAPACITY, normalizeVehicleType } from './vehicles';
 import type { TargetAppType } from '../network/targetApps';
 import { NETWORK_PAGES } from '../network/networkPages';
 
@@ -53,8 +53,7 @@ export function vehicleMatchOf(load: CallLoad, network: TargetAppType): VehicleM
     const spec = NETWORK_PAGES[network];
     const text = load.vehicleText?.trim();
     if (!text) return { kind: spec.vehicleAbsentMeansAny ? 'ANY' : 'UNKNOWN' };
-    const key = normalizeVehicleType(text);
-    const vehicle = VEHICLE_OPTIONS.find(v => v === key);
+    const vehicle = normalizeVehicleType(text);
     if (vehicle) return { kind: 'OURS', vehicle };
     if ((spec.vehicleWords ?? []).some(w => w.word === text && w.vehicle === null)) return { kind: 'NONE' };
     return { kind: 'UNKNOWN' };

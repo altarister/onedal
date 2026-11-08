@@ -40,9 +40,17 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
     {"word": "14t", "vehicle": null, "seen": "SIM"},
     {"word": "18t", "vehicle": null, "seen": "SIM"},
     {"word": "25t", "vehicle": "25t", "seen": "SIM"},
-    {"word": "용/소", "vehicle": null, "seen": "REAL"}
+    {"word": "용/소", "vehicle": null, "seen": "REAL"},
+    {"word": "바이크", "vehicle": "오토바이", "seen": "UNKNOWN"},
+    {"word": "트럭-1t", "vehicle": "1t", "seen": "REAL"},
+    {"word": "트럭-1.4t", "vehicle": "1.4t", "seen": "UNKNOWN"},
+    {"word": "트럭-2.5t", "vehicle": "2.5t", "seen": "UNKNOWN"},
+    {"word": "트럭-3.5t", "vehicle": "3.5t", "seen": "UNKNOWN"},
+    {"word": "트럭-5t", "vehicle": "5t", "seen": "UNKNOWN"},
+    {"word": "트럭-11t", "vehicle": "11t", "seen": "UNKNOWN"},
+    {"word": "트럭-25t", "vehicle": "25t", "seen": "UNKNOWN"}
   ],
-  "vehicleWordsWhy": "목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록 · «용/소» 는 영상 1719 목록 차종 칸에 있고 뜻은 모른다(용달/소형 같음) — 차종을 모름으로 두어 카드는 묶되 차종 필터를 걸었으면 걸러진다",
+  "vehicleWordsWhy": "목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 — 카드 묶기 닻도 이 낱말들이다 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록 · «용/소» 는 영상 1719 목록 차종 칸에 있고 뜻은 모른다(용달/소형 같음) — 차종을 모름으로 두어 카드는 묶되 차종 필터를 걸었으면 걸러진다 · «트럭-1t» 류는 확정 뒤 상세 «차량 :» 줄의 글자(실물은 «트럭-1t» 하나 · 나머지 톤수는 같은 꼴) · «바이크» 는 화면에서 못 본 오토바이 줄임말",
   "networkMarkers": [["신규", "빠른설정"], ["적요상세", "요금"], ["인성퀵화면분할"]],
   "networkMarkersWhy": "목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금») · 첫 화면(«인성퀵화면분할» — 홈에서 바로 알아보기)",
   "callOverlays": [

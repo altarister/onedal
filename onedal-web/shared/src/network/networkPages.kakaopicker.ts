@@ -24,6 +24,13 @@ export const KAKAO_PICKER_PAGES: NetworkPageSpec = /*JSON*/{
   "excludeScanWhy": "기사님 «카카오픽커는 물품정보»+«가» 유의사항 — 둘 다 «최종 수익» · 버튼 앞에서 끝난다 · 픽업지 주소 · 목록 잔상은 안 본다",
   "addressCut": null,
   "addressCutWhy": "지우지 않는다 — 원달앱이 이미 «구 동»으로 정리해 보낸다(앞뒤 공백만)",
+  "sizeWords": [
+    {"word": "초소형", "boxes": null, "seen": "REAL"},
+    {"word": "소형", "boxes": null, "seen": "REAL"},
+    {"word": "중형", "boxes": null, "seen": "REAL"},
+    {"word": "대형", "boxes": null, "seen": "SIM"},
+    {"word": "특대형", "boxes": null, "seen": "UNKNOWN"}
+  ],
   "networkMarkers": [["리스트 설정"], ["넘기기", "수락하기"], ["시작하기"], ["물품이 안전하게 전달"], ["밀어서 픽업 완료"], ["밀어서 사진 촬영"], ["배송 시간"], ["물품 파손"], ["픽업 준비"], ["픽업지 근처에"], ["픽업지 정보"], ["도착지 정보"], ["픽업지 주소 복사하기"], ["픽업지에 전화하기"], ["도착지 주소 복사하기"], ["도착지에 전화하기"]],
   "networkMarkersWhy": "목록 머리 · 수락 전 상세 버튼 둘 · 홈과 수락 뒤 단계 글자 하나씩 · 퀵 흰 페이지 칸 이름 하나씩(퀵 머리 글자는 원달앱이 못 읽는다)",
   "slotNotes": {

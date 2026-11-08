@@ -168,6 +168,11 @@ for (const [net, file, pkg, obj] of TARGETS) {
     const vehicleWords = words.length
         ? `mapOf(\n${words.map((w) => `        ${kstr(w.word)} to ${w.vehicle === null ? 'null' : kstr(w.vehicle)},`).join('\n')}\n    )`
         : 'emptyMap()';
+    /* 📦 크기 낱말 → 라면박스 수 — 없으면 빈 지도 · null 은 «아는 낱말 · 박스 수 모름» */
+    const sizes = spec.sizeWords ?? [];
+    const sizeWords = sizes.length
+        ? `mapOf(\n${sizes.map((w) => `        ${kstr(w.word)} to ${w.boxes === null ? 'null' : w.boxes},`).join('\n')}\n    )`
+        : 'emptyMap()';
     writeFileSync(join(app, file), `package ${pkg}
 
 import com.onedal.app.core.FieldSpec
@@ -196,6 +201,9 @@ ${pages.join('\n')}
 
     /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords${spec.vehicleWordsWhy ? ` — ${spec.vehicleWordsWhy}` : ''}) */
     val vehicleWords: Map<String, String?> = ${vehicleWords}
+
+    /** 📦 크기 낱말 → 라면박스 수(shared sizeWords) · null 은 박스 수 모름 */
+    val sizeWords: Map<String, Int?> = ${sizeWords}
 
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — ${spec.networkMarkersWhy ?? ''}) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(

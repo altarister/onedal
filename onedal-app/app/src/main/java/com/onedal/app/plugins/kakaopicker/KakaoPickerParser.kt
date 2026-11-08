@@ -88,7 +88,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "경유",          // 들를 곳이 여럿인 콜 (6만 원짜리도 있었다)
             "비즈",          // 상세 머리의 상품 표시
         )
-        private val ITEM_SIZES = setOf("초소형", "소형", "중형", "대형", "특대형")
+        /** 📦 물품 크기 낱말 — 배차망 정의 표(shared sizeWords → `KakaoPickerPages.sizeWords`) */
+        private val ITEM_SIZES = KakaoPickerPages.sizeWords.keys
         /** 화면 붙박이 UI 낱말 — 카드 띠에 섞여 들어와 지역으로 오인되던 것들 (0830 실수집에서 발견) */
         private val NOISE_WORDS = setOf(
             "카드설정", "수요지도",                       // 하단 메뉴 (맨 아래 카드 띠에 걸침)
@@ -674,8 +675,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /** 사진 픽업 km 와 목록 줄 픽업 km 의 허용 차 — 둘 다 소수 한 자리 직선거리다 */
         private const val PHOTO_MATCH_KM = 0.3
 
-        /** 상세의 «물품 정보 소형 …» — 🔴 «초소형»을 «소형»보다 먼저 본다 */
-        private val DETAIL_SIZE_REGEX = Regex("""물품\s*정보\s*(초소형|소형|중형|대형|특대형)""")
+        /** 상세의 «물품 정보 소형 …» — 크기 낱말은 정의 표(`KakaoPickerPages.sizeWords`)에서 · 🔴 «초소형»을 «소형»보다 먼저 본다(표 차례) */
+        private val DETAIL_SIZE_REGEX = Regex("""물품\s*정보\s*(""" + ITEM_SIZES.joinToString("|") { Regex.escape(it) } + ")")
 
         /**
          * 🔔 **축별 판정 결과** (카카오픽커_시뮬레이터.md 3단계 3-2).

@@ -92,7 +92,12 @@ object PickerScreenOcr {
     /** 🔴 시각으로 시작하는 줄은 장소(건물 이름)가 아니다 — 오독으로 시각 꼴이 깨져도 건물 이름 자리에 들어가지 않게 */
     private val CLOCK_START = Regex("^[0-9]{1,2}:[0-9]{2}")
 
-    private val SIZE_RE = Regex("^(초소형|소형|중형|대형)")
+    /**
+     * 📦 물품 크기 줄 — 크기 낱말은 배차망 정의 표(`KakaoPickerPages.sizeWords`)에서 · 표 차례(«초소형»이 «소형»보다 먼저).
+     * 🔴 사진 판독 길은 «특대형»을 아직 안 읽는다(접근성 길은 읽는다) — 서버 `pickerScreenOcr.ts` 와 같은 넷이다.
+     */
+    private const val PHOTO_SKIPS_SIZE = "특대형"
+    private val SIZE_RE = Regex("^(" + KakaoPickerPages.sizeWords.keys.filter { it != PHOTO_SKIPS_SIZE }.joinToString("|") { Regex.escape(it) } + ")")
 
     /** OCR 이 줄 앞에 붙이는 불릿(`•`·`·`·`*`) — 한글·숫자·영문이 나오는 첫 자리부터 남긴다 */
     private val BULLET_RE = Regex("^[^0-9A-Za-z가-힣]+")

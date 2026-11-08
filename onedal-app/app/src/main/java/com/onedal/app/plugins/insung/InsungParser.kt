@@ -199,17 +199,11 @@ class InsungParser(private val context: Context) : IScrapParser {
          *    다르다.** 못 싣는 차종은 애매한 콜이 아니라 **불가능한 콜**이다.
          *
          * 🔴 인성 리스트는 **한 글자**로 준다(`다`·`오`·`라`·`승`). 톤 차량만 숫자로 온다(`1t`·`2.5t`).
-         *    화면 낱말을 표(`InsungPages.vehicleWords`)로 우리 차종에 맞춘 뒤 **같은지**로 본다 — 표에 없거나 우리 차종이 없는 낱말(14t · 18t)은 안 맞는다.
+         *    화면 낱말을 표(`InsungPages.vehicleWords`)로 우리 차종에 맞춘 뒤 허용 차종과 **같은지**로 본다 — 표에 없거나 우리 차종이 없는 낱말(14t · 18t)은 안 맞는다.
+         *    허용 차종은 서버가 우리 차종 이름(`1t` · `다마스` …)으로 보낸다 — 다른 배차망(`ListJudge`)과 같은 맞춤이다.
          */
         fun vehicleMatches(allowed: String, parsed: String): Boolean =
-            InsungPages.vehicleWords[parsed]?.let { it == normalizeVehicle(allowed) } ?: false
-
-        /** `1톤`·`1 t`·`1` 을 전부 `1t` 로 맞춘다 — 화면 표기가 제각각이라 */
-        private fun normalizeVehicle(s: String): String {
-            val v = s.lowercase(Locale.getDefault()).replace(" ", "").replace("톤", "t")
-            // 숫자만 온 경우(`1`·`2.5`)는 톤을 붙여 준다
-            return if (Regex("""^\d+(\.\d+)?$""").matches(v)) "${v}t" else v
-        }
+            InsungPages.vehicleWords[parsed]?.let { it == allowed } ?: false
 
         /**
          * 🗳️ **판정 결과 — «통과했나»와 «어느 축에서 걸렸나»**.

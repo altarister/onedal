@@ -1,4 +1,4 @@
-import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType, findTagConflicts, computeStopTiming, recordsOfSteps, unitPoints, handMinutesOf, protectionMinutes } from '@onedal/shared';
+import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType, vehicleKeyOf, findTagConflicts, computeStopTiming, recordsOfSteps, unitPoints, handMinutesOf, protectionMinutes } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming, JudgmentConfig } from '@onedal/shared';
 import { originOf } from '../services/geoMotion';
 import db from '../db';
@@ -60,7 +60,8 @@ export function computeLoadedPoints(
             pointsByOrder[c.id] = reported;
             if (!actual) anyDeclaredOnly = true;
         } else {
-            const guess = VEHICLE_CAPACITY[normalizeVehicleType(c.vehicleType || myVehicle) || myVehicle] ?? 0;
+            const key = normalizeVehicleType(c.vehicleType || myVehicle) ?? vehicleKeyOf(myVehicle);
+            const guess = key ? VEHICLE_CAPACITY[key] : 0;
             points += guess;
             pointsByOrder[c.id] = guess;
             anyEstimated = true;

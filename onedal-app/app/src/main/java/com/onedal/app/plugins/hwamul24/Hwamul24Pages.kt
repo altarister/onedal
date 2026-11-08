@@ -96,6 +96,9 @@ object Hwamul24Pages {
         "승용" to "승용차",
     )
 
+    /** 📦 크기 낱말 → 라면박스 수(shared sizeWords) · null 은 박스 수 모름 */
+    val sizeWords: Map<String, Int?> = emptyMap()
+
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료») · 첫 화면(«전국24시콜화물» — 홈에서 바로 알아보기)) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(
         listOf("화물정보", "자동새로고침"),

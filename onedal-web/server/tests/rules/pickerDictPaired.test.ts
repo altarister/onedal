@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { NETWORK_PAGES } from '@onedal/shared';
 
 /**
  * 🔗 **픽커 낱말 사전은 서버와 앱이 «짝» 이다**.
@@ -26,7 +27,6 @@ const PARSER = join(
 /** 앱 기본값이 담긴 Kotlin 상수 — 서버 사전의 칸 이름과 짝 */
 const PAIRS: Array<[serverKey: string, appConst: string]> = [
     ['tagWords', 'TAG_WORDS'],
-    ['itemSizes', 'ITEM_SIZES'],
     ['bottomTabWords', 'BOTTOM_TAB_WORDS'],
     ['detailOnlyWords', 'DETAIL_ONLY_WORDS'],
 ];
@@ -59,6 +59,12 @@ describe('픽커 낱말 사전 — 서버와 앱 기본값은 짝이다', () => 
         const app = new Set(appWords(parser, appConst));
         const missing = (server as string[]).filter((w) => !app.has(w));
         expect(missing).toEqual([]);
+    });
+
+    /* 📦 앱의 크기 낱말 기본값은 정의 표(`sizeWords`)를 생성 파일로 받는다(원달앱 `NetworkPagesPairTest`) — 서버 «itemSizes» 는 그 표에 있어야 한다 */
+    it('🔗 서버 «itemSizes» 의 낱말은 정의 표 픽커 sizeWords 에도 있다', () => {
+        const table = new Set((NETWORK_PAGES.kakaopicker.sizeWords ?? []).map((w) => w.word));
+        expect((dict.itemSizes as string[]).filter((w) => !table.has(w))).toEqual([]);
     });
 
     /**

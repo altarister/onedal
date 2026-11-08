@@ -25,6 +25,11 @@ export const VEHICLE_OPTIONS = [
 
 export type VehicleType = typeof VEHICLE_OPTIONS[number];
 
+/** 🚚 **우리 차종 키** — 글자가 우리 차종 이름 그대로일 때만 그 차종, 아니면 null (줄임말 · 배차망 낱말은 `normalizeVehicleType`) */
+export function vehicleKeyOf(raw: string | null | undefined): VehicleType | null {
+    return VEHICLE_OPTIONS.find(v => v === raw) ?? null;
+}
+
 /**
  * 물류/배차 중심의 차량 이름을 카카오내비 기준 차종 코드(car_type)로 매핑합니다.
  * 카카오내비 기준:
@@ -36,7 +41,7 @@ export type VehicleType = typeof VEHICLE_OPTIONS[number];
  * 6: 6종 (경차)
  * 7: 이륜차 (오토바이)
  */
-export function mapVehicleToKakaoCarType(vehicle: string): number {
+export function mapVehicleToKakaoCarType(vehicle: VehicleType | null): number {
     switch(vehicle) {
         case '오토바이':
             return 7; // 이륜차
@@ -75,7 +80,7 @@ export function mapVehicleToKakaoCarType(vehicle: string): number {
  *
  * ⚠️ VEHICLE_OPTIONS 의 순서는 UI 드롭다운 표시용이다 — 차종의 크고 작음은 이 표의 박스 수로 가른다.
  */
-export const VEHICLE_CAPACITY: Record<string, number> = {
+export const VEHICLE_CAPACITY: Record<VehicleType, number> = {
     '오토바이': 1,
     '승용차': 5,
     '다마스': 30,
@@ -90,35 +95,24 @@ export const VEHICLE_CAPACITY: Record<string, number> = {
     '특수화물': 2500,
 };
 
-/** 앱 파서가 뽑는 축약 코드(오/다/라 등)를 정식 차종명으로 보정 */
-const VEHICLE_ALIASES: Record<string, string> = {
-    '오': '오토바이', '바이크': '오토바이', '오토': '오토바이',
-    '다': '다마스',
-    '라': '라보',
-    '승': '승용차',
-    '1.4': '1.4t', '2.5': '2.5t', '3.5': '3.5t',
-};
-
 /**
  * 배차망 차종 낱말 → 우리 차종 — 모든 배차망 정의 표의 vehicleWords 를 합친다(같은 낱말은 한 뜻 · 서버 검사 vehicleWordsFromTable 이 묶음).
  * 값이 null 이면 «배차망 낱말은 알지만 우리 차종이 없다»(인성 14t 등) — 가까운 차종으로 때우지 않는다.
  */
-const VEHICLE_WORDS = new Map<string, string | null>(
-    Object.values(NETWORK_PAGES).flatMap(spec => (spec.vehicleWords ?? []).map(w => [w.word, (w.vehicle as string | null) ?? null] as const)));
+const VEHICLE_WORDS = new Map<string, VehicleType | null>(
+    Object.values(NETWORK_PAGES).flatMap(spec => (spec.vehicleWords ?? []).map(w => [w.word, w.vehicle] as const)));
 
-/** 차종 문자열을 VEHICLE_CAPACITY 키로 정규화. 알 수 없으면 null */
-export function normalizeVehicleType(raw?: string | null): string | null {
+/** 차종 글자를 우리 차종(VEHICLE_CAPACITY 키)으로 맞춘다. 알 수 없으면 null */
+export function normalizeVehicleType(raw?: string | null): VehicleType | null {
     if (!raw) return null;
     const v = raw.trim();
-    if (VEHICLE_CAPACITY[v] !== undefined) return v;
-    if (VEHICLE_ALIASES[v]) return VEHICLE_ALIASES[v];
-    /** 🚚 인성 상세 «차량 : 트럭-1t» — 앞 «트럭-» 을 떼고 사전의 톤수만(사전에 없으면 그대로 null) */
-    const truck = /^트럭-(\d+(?:\.\d+)?t)$/.exec(v);
-    if (truck && VEHICLE_CAPACITY[truck[1]] !== undefined) return truck[1];
+    const key = vehicleKeyOf(v);
+    if (key) return key;
     /**
      * 🚚 **배차망의 차종 낱말은 배차망 정의 표(`vehicleWords`)가 원천이다** (기사님 «기준은 배차망 · 그쪽 정의를 플러그인으로 우리 기준에 맞춘다»).
+     *    줄임말(인성 «오» · «1.4») · 인성 상세 «트럭-1t» 도 표의 낱말이다.
      *    화물24시 목록은 원문 그대로 온다(«2.5톤/윙» · «다마스/전체») — 첫 «/»·공백 앞 낱말을 표에서 찾는다(«1.4 톤»은 붙여 «1.4톤»).
-     *    표에 없는 낱말(«1.5톤»)은 `null` 이다 — 가까운 값으로 때우지 않는다 (규칙 ④). 원달앱도 같은 표를 gen:pages 로 받는다.
+     *    표에 없는 낱말(«1.5톤» · «트럭-14t»)은 `null` 이다 — 가까운 값으로 때우지 않는다 (규칙 ④). 원달앱도 같은 표를 gen:pages 로 받는다.
      */
     const word = v.replace(/(\d)\s+톤/, '$1톤').split(/[/\s]/)[0];
     return VEHICLE_WORDS.get(word) ?? null;
@@ -222,19 +216,20 @@ export const TRUCK_CAPACITY_SLOTS = 100;
 export function slotsUsedOf(vehicleTypes: Array<string | null | undefined>): number {
     return vehicleTypes.reduce((sum: number, v) => {
         if (!v) return sum + VEHICLE_CAPACITY['1t'];                       // 모르면 1t짐(80박스)으로 보수적으로
-        const boxes = VEHICLE_CAPACITY[normalizeVehicleType(v) ?? ''];
-        return sum + (boxes !== undefined ? boxes : VEHICLE_CAPACITY['1t']);
+        const key = normalizeVehicleType(v);
+        return sum + (key ? VEHICLE_CAPACITY[key] : VEHICLE_CAPACITY['1t']);
     }, 0);
 }
 
+/** 🚚 **받을 짐에서 고를 수 있는 차종** — 목업과 같은 다섯, 같은 순서 */
+export const VEHICLE_PICKS = ['오토바이', '승용차', '다마스', '라보', '1t'] as const satisfies readonly VehicleType[];
+
 /**
  * 🚚 **차종 짧은 이름** — 좁은 칸에 여럿을 적을 때 (`1t·다`).
+ *    받을 짐 다섯마다 차종 이름과 정의 표에서 그 차종으로 맞는 낱말 가운데 가장 짧은 것(같으면 차종 이름)이다 — 오토바이 «오» · 1t «1t».
  *    목업과 실물 필터가 **이 한 벌**을 쓴다 — 같은 글자를 써야 기사님이 목업에서 맞춰 두신 손맛이
  *    실물에서 다른 물건이 되지 않는다 (규칙 ③).
  */
-export const VEHICLE_SHORT: Record<string, string> = {
-    오토바이: '오', 승용차: '승', 다마스: '다', 라보: '라', '1t': '1t',
-};
-
-/** 🚚 **받을 짐에서 고를 수 있는 차종** — 목업과 같은 다섯, 같은 순서 */
-export const VEHICLE_PICKS = ['오토바이', '승용차', '다마스', '라보', '1t'] as const;
+export const VEHICLE_SHORT: Record<string, string> = Object.fromEntries(VEHICLE_PICKS.map(vehicle => [vehicle,
+    [vehicle, ...[...VEHICLE_WORDS].filter(([, v]) => v === vehicle).map(([word]) => word)]
+        .reduce((short, word) => word.length < short.length ? word : short)]));

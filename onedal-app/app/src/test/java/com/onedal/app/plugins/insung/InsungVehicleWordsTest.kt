@@ -35,10 +35,21 @@ class InsungVehicleWordsTest {
     private val tokens = listOf("오", "다", "라", "승", "1t", "1.4", "2.5t", "2.5", "3.5t", "3.5", "5t", "11t", "14t", "18t", "25t")
     /** 옛 정규식에 없던 낱말 — 영상 1719 «용/소». 뜻을 몰라 차종은 모름(null)이다 */
     private val unknownVehicleWords = listOf("용/소")
-    private val allowed = listOf("오토바이", "다마스", "라보", "승용차", "1t", "1.4t", "2.5t", "3.5t", "5t", "11t", "25t", "특수화물", "1톤", "1 t", "2.5")
+    /** 목록 밖의 낱말 — 확정 뒤 상세 «차량 : 트럭-1t» 류 · 오토바이 줄임말 «바이크» (서버 차종 맞춤이 같은 표를 읽는다) */
+    private val detailWords = mapOf(
+        "바이크" to "오토바이", "트럭-1t" to "1t", "트럭-1.4t" to "1.4t", "트럭-2.5t" to "2.5t",
+        "트럭-3.5t" to "3.5t", "트럭-5t" to "5t", "트럭-11t" to "11t", "트럭-25t" to "25t",
+    )
+    /** 허용 차종 — 서버가 보내는 우리 차종 이름 열둘(shared VEHICLE_OPTIONS) */
+    private val allowed = listOf("오토바이", "다마스", "라보", "승용차", "1t", "1.4t", "2.5t", "3.5t", "5t", "11t", "25t", "특수화물")
 
-    @Test fun `표의 낱말은 옛 토큰 열다섯에 모르는 차종 낱말을 더한 열여섯`() =
-        assertEquals((tokens + unknownVehicleWords).toSet(), InsungPages.vehicleWords.keys)
+    @Test fun `표의 낱말은 옛 토큰 열다섯에 모르는 차종 낱말과 목록 밖 낱말을 더한 것`() =
+        assertEquals((tokens + unknownVehicleWords + detailWords.keys).toSet(), InsungPages.vehicleWords.keys)
+
+    @Test fun `목록 밖 낱말은 그 차종 하나에만 맞는다`() {
+        for ((word, vehicle) in detailWords) for (a in allowed)
+            assertEquals("$a ← $word", a == vehicle, InsungParser.vehicleMatches(a, word))
+    }
 
     @Test fun `토큰 × 허용 차종 격자 전부 - 옛 답 == 새 답`() {
         for (t in tokens) for (a in allowed)

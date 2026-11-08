@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth } from '../middlewares/authMiddleware';
-import { mapVehicleToKakaoCarType } from '@onedal/shared';
+import { mapVehicleToKakaoCarType, normalizeVehicleType } from '@onedal/shared';
 import { compareDirections } from '../services/kakaoService';
 import db from '../db';
 import { slog } from '../utils/fileLogger';
@@ -42,7 +42,7 @@ router.post('/directions/compare', requireAuth, async (req: Request, res: Respon
         if (req.user?.id) {
             const row = db.prepare("SELECT vehicle_type FROM user_settings WHERE user_id = ?").get(req.user.id) as any;
             if (row && row.vehicle_type) {
-                mappedCarType = mapVehicleToKakaoCarType(row.vehicle_type);
+                mappedCarType = mapVehicleToKakaoCarType(normalizeVehicleType(row.vehicle_type));
             }
         }
 
