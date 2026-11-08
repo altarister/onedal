@@ -39,7 +39,7 @@ export interface LocationDetailInfo {
 export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차망 목록에서 읽어 서버로 보내는 칸
     /** 🌐 짐 크기 — 물품 크기 원문(초소형/소형…). 차종 칸에 섞지 않는다 (규칙 ⑤-4 ⑤) */
     itemSize?: string | null;
-    /** 🌐 꼬리표 — 배차망 표시 원문(급송·예약 17:00·준비 29분…) */
+    /** 🌐 표시 글자 화면 기록 — 화면 글자를 빈칸으로 이은 원문 · 기준 값이 아니다(구분 · 형태 값은 tripType · orderForm) */
     tagsText?: string | null;
     /**
      * 🗳️ **앱이 이 콜을 어떻게 판정했나**.
@@ -98,8 +98,8 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
     billingType?: BillingType;        // 세금계산서, 인수증 발급 형태
     
     // 4. 운행 조건 스펙
-    tripType?: string;                // 배송 구분 (예: "편도", "왕복")
-    orderForm?: string;               // 배송 형태 (예: "보통", "급송")
+    tripType?: string;                // 배송 구분 — 값 목록 `TRIP_TYPES`(badges.ts) · 표시 6 에서 좁힌다
+    orderForm?: string;               // 배송 형태 — 값 목록 `ORDER_FORMS`(badges.ts) · 표시 6 에서 좁힌다
     detailMemo?: string;              // 적요 상세 (원문 전체)
     
     // 5. 위치 정보

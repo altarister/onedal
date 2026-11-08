@@ -1,4 +1,5 @@
 export * from './call/money';
+export * from './call/badges';
 export * from './call/callStatus';
 export * from './call/milestones';
 export * from './cargo/cargoReport';

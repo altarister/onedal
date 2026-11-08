@@ -1,4 +1,5 @@
 import type { CallMoney } from './money';
+import type { OrderForm, TripType } from './badges';
 
 export const OFFICE_ORDER_SAMPLE = {
     // ── 목록 칸 (SimplifiedOfficeOrder) ──
@@ -751,8 +752,8 @@ const LIST_EXAMPLE_INSUNG = {
     pickupDistance: 2.6,
     deliveryDistance: 20.4,
     tagsText: null,
-    tripType: null,
-    orderForm: null,
+    tripType: null satisfies TripType | null,
+    orderForm: null satisfies OrderForm | null,
     detailMemo: null,
 };
 
@@ -775,8 +776,8 @@ const LIST_EXAMPLE_HWAMUL24 = {
     pickupDistance: 5,
     deliveryDistance: 36,                 // 목록에 없어 같은 콜 상세 «36Km»(U3 가)
     tagsText: "당상 수 수 당착 독차",
-    tripType: null,
-    orderForm: null,
+    tripType: null satisfies TripType | null,
+    orderForm: null satisfies OrderForm | null,
     detailMemo: "지금상 당착 59박스 수/수-A",
 };
 
@@ -796,8 +797,8 @@ const LIST_EXAMPLE_KAKAOPICKER = {
     pickupDistance: 6.8,
     deliveryDistance: null,
     tagsText: "퀵 승 예약 17:30",
-    tripType: null,
-    orderForm: null,
+    tripType: null satisfies TripType | null,
+    orderForm: null satisfies OrderForm | null,
     detailMemo: null,
 };
 
@@ -818,8 +819,8 @@ const LIST_EXAMPLE_ISFLEX = {
     pickupDistance: 24.3,
     deliveryDistance: 30.1,
     tagsText: null,
-    tripType: null,
-    orderForm: null,
+    tripType: null satisfies TripType | null,
+    orderForm: null satisfies OrderForm | null,
     detailMemo: null,
 };
 
