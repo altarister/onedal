@@ -26,7 +26,7 @@
 | `cargoReport.ts` | CargoSize, CARGO_SIZE_POINTS, CargoReportKind |
 | `cargoSpec.ts` | CARGO_SOURCES, CargoSource, SourcedCargo, CargoRecord, CargoDerived, CargoMismatch |
 | `deviceOffline.ts` | DEVICE_OFFLINE_REASONS_APP, DEVICE_OFFLINE_REASONS_SERVER, DEVICE_OFFLINE_REASONS |
-| `dispatchApi.ts` | DetourRouteData, EdgeDeviceTelemetry, WhoConfirmed, TimeoutAction, DispatchConfirmResponse |
+| `dispatchApi.ts` | DetourRouteData, WhoConfirmed, TimeoutAction, DispatchConfirmResponse |
 | `dispatchFilter.ts` | DriverAction, DispatchPhase, LoadState |
 | `naviLink.ts` | NaviPoint, KAKAO_NAVI_MAX_VIA, KakaoNaviLinkInput |
 | `networkPages.ts` | NetworkFieldSpec, Presence, NetworkVehicleWord |

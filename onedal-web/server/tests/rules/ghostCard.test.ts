@@ -34,6 +34,7 @@ describe('유령 카드 — "리스트로 돌아왔다"의 정의는 하나다',
         expect(isListScreen(null)).toBe(false);
     });
 
+    // 못 잡는 것: 원달앱 HijackService · KakaoPickerPlugin 의 «LIST_COMPLETED 면 목록 복귀» 갈래가 빠지는 것 (원달앱 쪽은 NetworkPagesPairTest · ScreenTableDetectTest 몫)
     it('🔴 원달앱이 목록 복귀로 치는 내 오더 페이지와 서버가 인정하는 페이지가 같다 — 둘 다 정의 표의 listReturn', () => {
         let seen = 0;
         for (const [net, spec] of Object.entries(NETWORK_PAGES)) {
