@@ -42,7 +42,7 @@ object KakaoPickerPages {
             FieldSpec(PageField.TAGS, "시트 맨 위 꼬리표 줄 첫 낱말", "퀵", Seen.REAL, Handling.UNUSED, "",
                 part = "kind"),
             FieldSpec(PageField.TAGS, "시트 맨 위 꼬리표 줄 «퀵» 뒤 — 차례: 급송 → 단거리/반나절 → 승용차 → 예약 → 비즈ⓘ", "퀵 반나절 예약", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.RESERVATION, "사진 띠", "내일 14:00 픽업예약", Seen.REAL, Handling.READ, "PickerDetailOcrParser.detailReservation"),
+            FieldSpec(PageField.RESERVATION, "사진 띠", "내일 14:00 픽업예약", Seen.REAL, Handling.READ, "PickerDetailOcrParser.withDetailPromises"),
             FieldSpec(PageField.REMAINING, "꼬리표 아래 시계 상자", "배송 31분 남음 준비 17분 포함", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "사진 첫 정거장 — 행정동 + 건물", "경기 광주시 경안동 / 람미당", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail → 원달앱 정거장 상세 주소(addressDetail · 행정동)"),
             FieldSpec(PageField.CONTACT, "픽업 주소 아래 회색 상호", "분당스퀘어", Seen.REAL, Handling.READ, "원달앱 상호 칸(customerName) — PickerDetailOcrParser 사진 정거장 상호",
