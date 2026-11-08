@@ -62,7 +62,7 @@ const rateRows = (callDiscountPct: number): Array<[string, number, string]> => {
         .map(m => [m[1], Number(m[2]), m[3]]);
 };
 
-/** 오늘 숫자 — 실수령 시세(총액 × 0.77 반올림)에 콜할인율을 곱해 다시 반올림한 값 */
+/** 오늘 숫자 — 실수령 시세(총액 × (1 − 수수료 23%) 반올림)에 콜할인율을 곱해 다시 반올림한 값 */
 const TODAY: Record<number, Record<string, number>> = {
     0:  { '오토바이': 539, '승용차': 693, '다마스': 616, '라보': 693, '1t': 770 },
     10: { '오토바이': 485, '승용차': 624, '다마스': 554, '라보': 624, '1t': 693 },
