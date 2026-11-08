@@ -279,7 +279,7 @@ const MONEY_EXAMPLE_HWAMUL24_CARD = {
     ],
     feeRateText: "[ 카드수납 수수료 = (운송료+부가세) x1.298% ]",
     paymentType: "카드",
-    paymentShown: "…(가려짐)드",               // 결제방법 칸 글자 그대로 — «카드»는 자막으로 푼 값
+    paymentShown: "…(가려짐)드",               // 결제방법 칸 글자 그대로 — 읽는 코드라면 결제는 «모름» · 여기 «카드»는 자막으로 푼 값
     billingType: "인수증",
     billingShown: "인수증",                    // 같은 콜 목록 줄 «인수증 · 60,000원»
 } satisfies CallMoney;
