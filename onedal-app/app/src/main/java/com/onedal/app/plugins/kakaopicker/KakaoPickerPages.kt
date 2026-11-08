@@ -67,10 +67,15 @@ object KakaoPickerPages {
                 read = Regex("""유의사항\s+([\s\S]*?)(?=\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
             /* 같은 콜의 최종 수익이 보는 중에 오른다(배송비 그대로 · 실물 4번) — 판독 뒤 오른 값은 모른다 */
             FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "PickerDetailOcrParser.detailFare(사진 판독 · 판정 요금)"),
-            FieldSpec(PageField.FARE, "최종 수익 아래 배송비", "배송비 9,730P", Seen.REAL, Handling.UNUSED, "",
-                part = "deliveryFee"),
-            FieldSpec(PageField.FARE, "배송비 아래 프로모션", "프로모션 1,100P", Seen.REAL, Handling.UNUSED, "",
-                part = "promotion"),
+            /* 같은 화면 자리에 이름표 없는 줄과 둘 — 읽는 숫자는 같은 «최종 수익» · 캡처 근거: 실물 상세 8/8 */
+            FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3 — 기사님 몫 줄) · 판정 요금은 이름표 없는 줄(사진 판독) — 돈 8(걸음 4)이 판정 입력을 이 줄로 옮기며 이름표 없는 줄을 지운다",
+                read = Regex("""최종 수익\s+([\d,]+)"""), part = "income"),
+            /* 캡처 근거: 실물 상세 6/6 — 서버 원문은 수익 상자 아래가 잘린 콜이 많다 */
+            FieldSpec(PageField.FARE, "최종 수익 아래 배송비", "배송비 9,730P", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3)",
+                read = Regex("""배송비\s+([\d,]+)P"""), part = "deliveryFee"),
+            /* 캡처 근거: 실물 상세 2/3 */
+            FieldSpec(PageField.FARE, "배송비 아래 프로모션", "프로모션 1,100P", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3)",
+                read = Regex("""프로모션\s+([\d,]+)P"""), part = "promo"),
         ),
         Page.MY_LIST to listOf(
             FieldSpec(PageField.STAGE, "내 오더 줄 머리", "픽업 준비 14분 남음", Seen.REAL, Handling.READ, "KakaoPickerKeywords.stageOf (단계 낱말만)"),

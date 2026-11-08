@@ -40,6 +40,16 @@ describe('📄 상세 콜 자료 — 정의 표', () => {
         expect(detailRecordOf('hwamul24', sheetText('hwamul24', 'payment')).paymentType).toBe('착불');
         expect(detailRecordOf('kakaopicker', sheetText('kakaopicker', 'itemSize')).itemDescription).toBe('초소형 세 변의 합 70cm ∙ 2kg 이하');
     });
+    it('🔴 화물24시 결제방법 «선/착불» → 결제 · «인수증» → 증빙(결제는 비움) — 버려지지 않는다', () => {
+        expect(detailRecordOf('hwamul24', '운송료 180,000 수수료 20,000 결제방법 선/착불 합계금액 200,000')).toMatchObject({ paymentType: '선/착불' });
+        const receipt = detailRecordOf('hwamul24', '운송료 140,000 수수료 0 결제방법 인수증 합계금액 140,000');
+        expect(receipt.billingType).toBe('인수증');
+        expect(receipt.paymentType).toBeUndefined();
+    });
+    it('화면 글자가 «모름»이면 결제 · 증빙에 담지 않는다 — «모름» 값은 돈 묶음(paymentOf)에서만', () => {
+        expect(detailRecordOf('insung', '요금 : 40,000(모름)(모름)')).toEqual({ pickupDetails: [], dropoffDetails: [] });
+        expect(detailRecordOf('hwamul24', '결제방법 모름').paymentType).toBeUndefined();
+    });
     it('결제 괄호가 알려진 결제수단이 아니면 싣지 않는다 · 못 찾은 칸은 싣지 않는다', () => {
         expect(detailRecordOf('insung', '요금 : 40,000(협의)')).toEqual({ pickupDetails: [], dropoffDetails: [] });
         expect(Object.values(detailRecordOf('kakaopicker', '픽업지 경기 광주시 경안동 넘기기')).some(v => v === undefined)).toBe(false);

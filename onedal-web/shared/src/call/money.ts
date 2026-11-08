@@ -3,7 +3,7 @@
  * 누가: 서버 페이지 읽기 · 파서 · 콜 모양
  * 언제: 배차망 화면의 돈 줄 · 결제 · 증빙 글자를 담고 꺼낼 때
  * 어디서: 콜 한 건의 돈 묶음
- * 무엇을: MONEY_KINDS · PAYMENT_TYPES · BILLING_TYPES · CallMoney · incomeOf · collectOf · moneyOf
+ * 무엇을: MONEY_KINDS · PAYMENT_TYPES · BILLING_TYPES · CallMoney · incomeOf · collectOf · moneyOf · paymentOf
  * 어떻게: 화면에 보인 돈 줄만 담고 기사님 몫 · 받을 돈은 그 갈래 줄에서 꺼낸다
  * 왜: 배차망마다 뜻이 다른 숫자 하나에 기사님 몫과 받을 돈이 섞이지 않게 하기 위해서다
  */
@@ -22,7 +22,7 @@ export const MONEY_KIND_LABEL: Record<MoneyKind, string> = {
  * 결제 · 증빙 — «모름» = 화면 글자는 있는데 목록에 없는 낱말(글자는 *Shown 에 그대로) · null = 화면에 글자 없음.
  * 파서가 괄호 안 자유 글(«협의» 등)을 결제로 잘못 읽지 않으려면 런타임에 검사할 목록이 필요해 배열을 원천으로 두고 타입을 파생한다.
  */
-export const PAYMENT_TYPES = ['신용', '선불', '착불', '카드', '현금', '모름'] as const;
+export const PAYMENT_TYPES = ['신용', '선불', '착불', '카드', '현금', '선/착불', '모름'] as const;
 export type PaymentType = typeof PAYMENT_TYPES[number];
 export const BILLING_TYPES = ['계산서', '인수증', '무과세', '모름'] as const;
 export type BillingType = typeof BILLING_TYPES[number];
@@ -52,6 +52,19 @@ export const collectOf = (m: CallMoney): number | null => m.lines.find(l => l.ki
 const textOrNull = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 const oneOf = <T extends string>(list: readonly T[], v: unknown): T | null =>
     (typeof v === 'string' && (list as readonly string[]).includes(v) ? v as T : null);
+
+/**
+ * 결제 · 증빙 화면 글자 → 값 · 화면 글자 — 결제 목록 낱말이면 결제, 증빙 목록 낱말이면 증빙(결제는 빈 값),
+ * 둘 다 아니면 결제 «모름» + 화면 글자 그대로 · 글자가 없으면 모두 null(«모름»과 «없음»을 가른다)
+ */
+export function paymentOf(shown: string | null): Pick<CallMoney, 'paymentType' | 'paymentShown' | 'billingType' | 'billingShown'> {
+    const text = shown?.trim() || null;
+    const none = { paymentType: null, paymentShown: null, billingType: null, billingShown: null };
+    if (!text) return none;
+    const bill = oneOf(BILLING_TYPES, text);
+    if (bill && bill !== '모름') return { ...none, billingType: bill, billingShown: text };
+    return { ...none, paymentType: oneOf(PAYMENT_TYPES, text) ?? '모름', paymentShown: text };
+}
 
 /** 콜 한 칸(orders.callShape)의 money 덩어리 → 돈 묶음 · 비었거나 깨졌으면 빈 묶음(줄 없음) · 모양이 틀린 줄 · 목록 밖 값은 담지 않는다 */
 export function moneyOf(json: string | null): CallMoney {

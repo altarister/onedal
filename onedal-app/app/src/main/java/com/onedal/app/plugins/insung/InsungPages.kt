@@ -115,12 +115,20 @@ object InsungPages {
             FieldSpec(PageField.DROPOFF, "도착지 줄", "서울강남구 / 역삼동 / 이희억", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen"),
             FieldSpec(PageField.FARE, "요금 줄 «요금 :» · 착불이면 «고객에게 받을 금액» 줄 — 확정 뒤 상세의 «실운임 :» 은 수수료를 뺀 값이라 안 읽는다(영상 1621 · 1743)", "고객에게 받을 금액 45,000", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen — PageFieldRead",
                 read = Regex("""(?:요금\s*:|고객에게 받을 금액)\s*([\d,]+)(?![\d.])""")),
+            /* 수수료를 뺀 기사님 몫 — 목록 요금 · 확정 전 «요금 :» 과 한 돈(영상 1621 · 1743) · 이름표 없는 요금 줄은 그대로(원달앱 착불 손 확정 콜 요금 — 돈 9) */
+            FieldSpec(PageField.FARE, "확정 뒤 «실운임 :» 줄", "실운임 : 34,650(착불)", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 이 줄을 안 읽는다",
+                read = Regex("""실운임\s*:\s*([\d,]+)(?![\d.])"""), part = "income"),
+            /* 수수료 앞의 착불 현장 현금 = 받을 돈(영상 1743) */
+            FieldSpec(PageField.FARE, "확정 뒤 «고객에게 받을 금액» 줄(착불)", "고객에게 받을 금액 45,000", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 이 줄을 안 읽는다",
+                read = Regex("""고객에게 받을 금액\s*([\d,]+)(?![\d.])"""), part = "collect"),
             FieldSpec(PageField.CONTACT, "머리 줄", "(주)신한로직스-1588-5480", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.MEMO, "적요 칸", "1시상차 6박스 …", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.STAGE, "상태 줄", "상태 : 배송", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.VEHICLE_TYPE, "차량 줄", "차량 : 다마스", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.TOLL, "탁송료 줄", "탁송료 : 0", Seen.REAL, Handling.UNUSED),
-            FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 : 23%", Seen.REAL, Handling.UNUSED),
+            FieldSpec(PageField.TOLL, "탁송료 줄", "탁송료 : 0", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 이 줄을 안 읽는다",
+                read = Regex("""탁송료[ \t]*:[ \t]*([\d,]+)""")),
+            FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 : 23%", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 이 줄을 안 읽는다",
+                read = Regex("""수수료\s*:\s*(\d+(?:\.\d+)?%)""")),
         ),
     )
 

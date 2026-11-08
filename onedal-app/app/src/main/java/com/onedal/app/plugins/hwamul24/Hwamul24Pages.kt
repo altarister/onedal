@@ -26,6 +26,12 @@ object Hwamul24Pages {
             FieldSpec(PageField.PICKUP, "왼쪽 윗줄", "경기 시흥 정왕동", Seen.REAL, Handling.READ, "Hwamul24Parser.parse"),
             FieldSpec(PageField.DROPOFF, "오른쪽 윗줄", "경기 안산 상록구 장상동", Seen.REAL, Handling.READ, "Hwamul24Parser.parse"),
             FieldSpec(PageField.FARE, "오른쪽 아랫줄", "50,000원", Seen.REAL, Handling.READ, "Hwamul24CardGrouping.fareOf"),
+            /* 운 알약이 있으면 목록 금액은 합계 · «운»이 기사님 몫 · «수»가 수수료(돈 «화물24시 목록 규칙» 1 · 2) — 선/착불 줄에만 나온다(실물 캡처 50 · 11) */
+            FieldSpec(PageField.FARE, "넷째 줄 «운» 알약(만 원 단위)", "운 7.0 · 운 18.0", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 돈 9 · 걸음 5) — 원달앱 목록 읽기는 정의 표를 안 읽는다(Hwamul24CardGrouping)",
+                read = Regex("""(?:^|\s)운\s+(\d+\.\d+)(?=\s|${'$'})"""), part = "income"),
+            /* 상차 · 하차 쪽 배지 «수»(수작업)와 같은 글자 — 소수 숫자 하나가 뒤에 홀로 올 때만 알약으로 읽는다(«수 5Km» · «수 3.5톤/윙» 은 아니다) */
+            FieldSpec(PageField.FARE, "넷째 줄 «수» 알약(만 원 단위)", "수 1.0 · 수 2.0", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 돈 9 · 걸음 5) — 원달앱 목록 읽기는 정의 표를 안 읽는다(Hwamul24CardGrouping)",
+                read = Regex("""(?:^|\s)수\s+(\d+\.\d+)(?=\s|${'$'})"""), part = "fee"),
             FieldSpec(PageField.VEHICLE_TYPE, "셋째 줄 앞", "2.5톤/윙 · 3.5톤/전체 (승용·다마스는 못 읽음)", Seen.REAL, Handling.READ, "Hwamul24Parser.parse"),
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선(설명 영상 «현위치에서 상차지까지 직선거리») */
             FieldSpec(PageField.PICKUP_DISTANCE, "상차 배지 옆", "15Km", Seen.REAL, Handling.READ, "Hwamul24CardGrouping.pickupDistanceOf"),
@@ -53,9 +59,30 @@ object Hwamul24Pages {
             /* 💰 목록 요금과 같은 «운송료»만 — 실물은 «운송료» · «60,000» 이 다른 노드, 시뮬은 «60,000원» (부가세 · 수납금액은 안 읽음) */
             FieldSpec(PageField.FARE, "운송료 · 부가세 · 수납금액", "60,000 · 6,000 · 65,144", Seen.REAL, Handling.READ, "목록 줄을 못 찾은 손 상세는 PageFieldRead(PreConfirmSequence)",
                 read = Regex("""운송료\s*:?\s*([\d,]+)""")),
+            /* 카드 콜에만(18 · 설명 영상 0104) — 서버 원문 0 건이라 원문 기준으로는 모름 */
+            FieldSpec(PageField.FARE, "금액 표 부가세", "부가세 6,000", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""부가세\s+([\d,]+)"""), part = "vat"),
+            /* 인수증 콜에만(51 · 53 · 54) — 서버 원문 0 건 */
+            FieldSpec(PageField.FARE, "금액 표 합계금액", "합계금액 140,000", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""합계금액\s+([\d,]+)"""), part = "total"),
+            /* 인수증 콜에만(51 · 53 · 54) · 카드 콜의 계산법 글자 «수수료 =» 는 금액이 아니다 — 서버 원문 0 건 */
+            FieldSpec(PageField.FARE, "금액 표 수수료 금액", "수수료 0", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""수수료\s+([\d,]+)"""), part = "fee"),
+            /* 기사가 내는 산재보험료 — 실물 18 · 51 · 54 · 값이 «260원]» 노드로 갈려 온다 · 서버 원문 0 건 */
+            FieldSpec(PageField.FARE, "금액 표 아래 산재보험료", "[산재보험료(차주부담액): 260원]", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""산재보험료[^:]*:\s*([\d,]+)\s*원"""), part = "insurance"),
+            /* 뜻은 «(운송료+부가세) − 카드수납 수수료»이나 맞는 갈래가 없어 뜻 모름 줄 · 카드 콜에만(18) · 서버 원문 0 건 */
+            FieldSpec(PageField.FARE, "금액 표 수납금액", "수납금액 65,144", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""수납금액\s+([\d,]+)"""), part = "unknown"),
             FieldSpec(PageField.PAYMENT, "결제방법", "카드", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) · 관제웹 결제 칸(서버 pageFieldOf) — «카드» · «착불» · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""결제방법\s+(?!\S*\s*:)(\S+)""")),
+            /* «인수증»은 결제가 아니라 증빙(배차 사무실이 운반비를 입금해 주는 조건) — 결제 칸 payment 읽는 법은 그대로(제외어 찾는 칸) · 실물 51 · 53 · 54 · 서버 원문 0 건이라 원문 기준으로는 모름 */
+            FieldSpec(PageField.BILLING, "결제방법 자리 «인수증»", "결제방법 인수증", Seen.REAL, Handling.READ, "서버 상세 자료 증빙(detailRecordOf billingType) — 판정 근거 서랍 · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""결제방법\s+(인수증)""")),
             FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 = (운송료+부가세) x1.298%", Seen.REAL, Handling.UNUSED),
+            /* 계산법 글자 통째 · 카드 콜에만(실물 18 · 앞 글자는 설명 영상 0104 ~ 0121) — 서버 원문 0 건이라 원문 기준으로는 모름 */
+            FieldSpec(PageField.COMMISSION, "금액 표 위 수수료 계산법 줄", "[ 카드수납 수수료 = (운송료+부가세) x1.298% ]", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 칸을 안 읽는다 — 조각 줄이라 서버 상세 자료 수수료(commissionRate)에 안 담긴다",
+                read = Regex("""(\[[^\]]*수수료\s*=[^\]]*\])"""), part = "feeRate"),
         ),
         Page.MY_LIST to listOf(
             FieldSpec(PageField.STAGE, "배차내역 줄 오른쪽 상태", "배차완료", Seen.REAL, Handling.UNUSED),

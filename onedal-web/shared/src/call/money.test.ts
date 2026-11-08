@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectOf, incomeOf, moneyOf, type CallMoney, type MoneyLine } from './money';
+import { collectOf, incomeOf, moneyOf, paymentOf, type CallMoney, type MoneyLine } from './money';
 
 /**
  * 💰 **돈 묶음 — 기사님 몫 · 받을 돈은 돈 줄에서 꺼낸다**.
@@ -56,5 +56,20 @@ describe('💰 돈 묶음', () => {
         const empty = moneyWith([]);
         for (const json of [null, '', '{', 'null', '[]', '"글자"']) expect(moneyOf(json)).toEqual(empty);
         expect(incomeOf(moneyOf('{'))).toBeNull();
+    });
+});
+
+describe('💳 결제 · 증빙 화면 글자 → 값', () => {
+    it.each([
+        ['선/착불', { paymentType: '선/착불', paymentShown: '선/착불', billingType: null, billingShown: null }],
+        ['카드', { paymentType: '카드', paymentShown: '카드', billingType: null, billingShown: null }],
+        ['인수증', { paymentType: null, paymentShown: null, billingType: '인수증', billingShown: '인수증' }],
+        ['계좌이체', { paymentType: '모름', paymentShown: '계좌이체', billingType: null, billingShown: null }],
+        ['모름', { paymentType: '모름', paymentShown: '모름', billingType: null, billingShown: null }],
+    ] as const)('%s', (shown, want) => {
+        expect(paymentOf(shown)).toEqual(want);
+    });
+    it('글자가 없으면 모두 빈 값 — «모름»과 «없음»을 가른다', () => {
+        for (const shown of [null, '', '  ']) expect(paymentOf(shown)).toEqual({ paymentType: null, paymentShown: null, billingType: null, billingShown: null });
     });
 });
