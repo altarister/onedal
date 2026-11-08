@@ -67,7 +67,7 @@ object InsungPages {
             FieldSpec(PageField.TAGS, "구분 줄", "구분 : 편도", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) · 서버 상세 자료 구분 · 형태(detailRecordOf → badgeWords) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""구분\s*:\s*(?!\S*\s*:)(\S+)""")),
             FieldSpec(PageField.RESERVATION, "형태 줄", "형태 : 보통 (실물에서 «예약»은 못 봄)", Seen.UNKNOWN, Handling.READ, "서버 상세 자료 구분 · 형태(detailRecordOf → badgeWords) · 원달앱은 이 칸을 안 읽는다",
-                read = Regex("""형태\s*:\s*(?!\S*\s*:)(\S+)""")),
+                read = Regex("""형태[ \t]*:[ \t]*(?!\S*[ \t]*:)(\S+)""")),
             FieldSpec(PageField.MEMO, "적요 칸 · 적요 상세 팝업", "1시상차 6박스 카트가지고 고객님앞 갖다주세요", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — 적요 상세 팝업 «적요 내용»(팝업을 못 열었으면 본문 «적요상세» 줄)부터 적요가 끝나는 자리 — 팝업 «닫기» · 거리 줄 «현위치 →» · 화주 머리 «의뢰지» · 출발지 · 도착지 팝업 머리 — 앞까지 — 적요가 아닌 화주 이름 · 버튼 글을 안 먹게(«[적요상세/정보]» 머리표는 시작으로 안 친다 · 끝 자리가 하나도 없는 원문은 끝까지 읽는다) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""(?:적요 내용|적요상세(?!/)(?![\s\S]*적요 내용))\s+([\s\S]*?)(?=\s*(?:\[출발지상세\]|\[도착지상세\]|현위치\s*→|의뢰지|닫기)|${'$'})""")),
             FieldSpec(PageField.MEMO, "적요 상세 팝업 «적요 내용» ~ «닫기»", "까대기 있음 직접운반 / 대기 30분", Seen.SIM, Handling.READ, "서버 적요(detailMemo) — 줄바꿈을 공백으로 접는 것은 서버 · 원달앱은 이 칸을 안 읽는다",
