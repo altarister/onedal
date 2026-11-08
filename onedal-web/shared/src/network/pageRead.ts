@@ -341,7 +341,7 @@ function detailMoneyOf(app: TargetAppType, rawText: string): CallMoney | null {
 
 /**
  * 📦 **상세 원문의 짐 묶음** — 차종 글자는 `vehicleType/ton` 조각 줄 · 짐 줄은 크기 · 차종 조각 이름이 짐 줄 갈래인 줄(«윙바디» 조각 `body` → 몸 모양 줄).
- *    크기 낱말 · 물품 글은 상세에서 읽지 않는다(보고에서 옮겨 담은 짐에 있다) · 차종 글자도 짐 줄도 못 읽으면 null.
+ *    크기 낱말 · 물품 글은 상세에서 읽지 않는다(원달앱 보고가 실은 짐 묶음에 있다) · 차종 글자도 짐 줄도 못 읽으면 null.
  */
 function detailLoadOf(app: TargetAppType, rawText: string): CallLoad | null {
     const vehicleText = pageFieldOf(app, 'newCall', 'vehicleType', rawText, 'ton');

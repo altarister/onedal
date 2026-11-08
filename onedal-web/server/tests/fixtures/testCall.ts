@@ -1,6 +1,6 @@
 import type { CallStop, OfficeOrder } from '@onedal/shared';
 
-/** 원달앱 양식에만 있는 맨 위 칸 — 검사 콜은 이 칸을 받지 않고 정거장 칸에 적는다 */
+/** 지운 맨 위 칸 — 검사 콜이 옛 칸 이름을 못 쓰게 막는다 */
 type FlatKey = 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | 'dropoffY' | 'scheduleText' | 'reservedDay' | 'reservedAt' | 'pickupDistance' | 'deliveryDistance';
 
 export type TestCallFields = { pickups?: CallStop[]; dropoffs?: CallStop[] } & { [K in FlatKey]?: never } & { [key: string]: unknown };

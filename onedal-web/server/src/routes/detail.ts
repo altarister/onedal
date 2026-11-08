@@ -137,7 +137,7 @@ router.post("/", async (req, res) => {
         if (rawText) {
             // 📄 상세 콜 자료(상태 · 결제 · 수수료 · 구분 · 형태 · 배차사 · 적요 · 출발 · 도착 연락처)는 배차망 정의 표대로 — 못 찾은 칸은 싣지 않는다
             //    정거장은 콜 정거장 그대로, 상세 원문이 읽은 연락처 · 상세 주소 칸만 첫 상차 · 마지막 하차에 얹는다(withStopLists)
-            //    짐은 보고에서 옮겨 담은 짐 위에 상세 차종 글자 · 짐 줄만 얹는다(크기 낱말 · 물품 글은 보고 값) · 돈 묶음은 상세 조각 줄을 읽었을 때만 실린다
+            //    짐은 원달앱 보고가 실은 짐 묶음 위에 상세 차종 글자 · 짐 줄만 얹는다(크기 낱말 · 물품 글은 보고 값) · 돈 묶음은 상세 조각 줄을 읽었을 때만 실린다
             const { load: detailLoad, ...record } = detailRecordOf(targetApp, rawText);
             const before = pendingOrder.load;
             const load = detailLoad && {
