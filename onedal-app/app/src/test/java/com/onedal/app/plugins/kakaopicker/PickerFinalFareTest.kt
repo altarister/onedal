@@ -36,6 +36,16 @@ class PickerFinalFareTest {
         assertEquals(before, CallMemory.fingerprintOf(listCard))
     }
 
+    @Test fun `기사님 몫 줄 - 최종 수익 또는 목록 요금 한 줄`() {
+        val listed = com.onedal.app.core.withIncome(listCard, 11396, "11,396")
+        val final = (PickerDetailOcrParser().verify(detail(11796), listed, null, emptyList(), "") as PickerDetailOcrParser.VerifyResult.Success).order
+        assertEquals(listOf(com.onedal.app.models.MoneyLine("income", 11796, "11,796")), final.money?.lines)
+        val none = (PickerDetailOcrParser().verify(detail(null), listed, null, emptyList(), "") as PickerDetailOcrParser.VerifyResult.Success).order
+        assertEquals(listOf(com.onedal.app.models.MoneyLine("income", 11396, "11,396")), none.money?.lines)
+        val hand = (PickerDetailOcrParser().verify(detail(1302), null, null, emptyList(), "") as PickerDetailOcrParser.VerifyResult.Success).order
+        assertEquals(1302, com.onedal.app.core.incomeOf(hand.money))
+    }
+
     @Test fun `알람이 연 상세 - 사진에 최종 수익이 없으면 목록 요금`() =
         assertEquals(11396, fareOf(PickerDetailOcrParser().verify(detail(null), listCard, null, emptyList(), "")))
 

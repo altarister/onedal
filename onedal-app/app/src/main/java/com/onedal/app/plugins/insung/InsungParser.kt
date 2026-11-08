@@ -402,9 +402,11 @@ class InsungParser(private val context: Context) : IScrapParser {
             val rateFloor = order.vehicleType?.let { vt -> FareFloor.rateOf(filter.ratePerKm, vt) }
             val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && deliveryKmOf(order) != null
 
-            val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
-                (!useRateModel || order.fare >= deliveryKmOf(order)!! * rateFloor!!) &&
-                (!hasFareCeiling || order.fare <= filter.maxFare)
+            // 💰 거르는 돈은 기사님 몫(돈 묶음 기사님 몫 줄) — 착불 손 확정 콜은 받을 돈이 아니라 실운임
+            val income = com.onedal.app.core.incomeOf(order.money) ?: 0
+            val fareMatch = FareFloor.passes(income, filter.minFare) &&
+                (!useRateModel || income >= deliveryKmOf(order)!! * rateFloor!!) &&
+                (!hasFareCeiling || income <= filter.maxFare)
 
             // ── 조건 3: 상차지 ──
             /**
@@ -448,9 +450,9 @@ class InsungParser(private val context: Context) : IScrapParser {
                 AppLogger.roadmap(LogTag.FILTER, "🔍 [타겟 콜 필터 결과] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "?"})=${if(vehicleMatch) "✅" else "❌"} " +
                             "도착지(${filter.destinationKeywords.size}중 ${StopText.query(TargetApp.INSUNG, lastDropoffStop(order))})=${if(regionMatch) "✅" else "❌"} " +
                             (if (useRateModel)
-                                "요금/단가(${deliveryKmOf(order)}km × ${rateFloor}원 = ${((deliveryKmOf(order) ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "
+                                "기사님 몫/단가(${deliveryKmOf(order)}km × ${rateFloor}원 = ${((deliveryKmOf(order) ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${income})=${if(fareMatch) "✅" else "❌"} "
                              else
-                                "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} ") +
+                                "기사님 몫(${filter.minFare} <= ${income}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} ") +
                             (if (pickupListCheck != null)
                                 "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${StopText.query(TargetApp.INSUNG, firstPickupStop(order))})=${if(pickupListMatch) "✅" else "❌"} "
                              else

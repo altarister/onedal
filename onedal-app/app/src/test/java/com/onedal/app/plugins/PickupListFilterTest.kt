@@ -69,7 +69,7 @@ class PickupListFilterTest {
     private val d3 = SimplifiedOfficeOrder(
         id = "D3",
         type = "NEW_ORDER",
-        fare = 30000,
+        fare = 30000, money = com.onedal.app.models.CallMoney.ofIncome(30000),
         timestamp = "2026-09-15T03:08:52",
         vehicleType = "승",
         rawText = "신둔면 곤지암읍",

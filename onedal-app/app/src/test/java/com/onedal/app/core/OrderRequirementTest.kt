@@ -15,7 +15,7 @@ import com.onedal.app.models.CallStop
 class OrderRequirementTest {
 
     private fun order(pickup: String, dropoff: String, fare: Int) =
-        SimplifiedOfficeOrder(id = "t", type = "MANUAL_CLICK", fare = fare, timestamp = "", pickupDetails = listOf(CallStop(listText = pickup)), dropoffDetails = listOf(CallStop(listText = dropoff)))
+        SimplifiedOfficeOrder(id = "t", type = "MANUAL_CLICK", fare = fare, money = com.onedal.app.models.CallMoney.ofIncome(fare), timestamp = "", pickupDetails = listOf(CallStop(listText = pickup)), dropoffDetails = listOf(CallStop(listText = dropoff)))
 
     @Test
     fun `상차·하차·요금이 다 있으면 요건을 갖췄다`() {

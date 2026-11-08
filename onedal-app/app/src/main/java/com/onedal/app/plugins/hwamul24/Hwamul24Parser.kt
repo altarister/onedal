@@ -276,6 +276,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             id = "24H-" + UUID.randomUUID().toString().substring(0, 8),
             type = "NEW_ORDER",
             fare = fare,
+            money = Hwamul24CardGrouping.moneyOf(texts),
             timestamp = now,
             postTime = postTime,
             vehicleType = vehicleType,

@@ -55,7 +55,7 @@ class FareFloorTest {
     private fun insungOrder(fare: Int) = SimplifiedOfficeOrder(
         id = "t",
         type = "NEW_ORDER",
-        fare = fare,
+        fare = fare, money = com.onedal.app.models.CallMoney.ofIncome(fare),
         timestamp = "2026-09-28T10:00:00",
         vehicleType = "다마스",
         rawText = "경기 광주시 태전동 경기 광주시 초월읍",
@@ -76,7 +76,7 @@ class FareFloorTest {
         val o = SimplifiedOfficeOrder(
             id = "p",
             type = "NEW_ORDER",
-            fare = 8000,
+            fare = 8000, money = com.onedal.app.models.CallMoney.ofIncome(8000),
             timestamp = "2026-09-28T10:00:00",
             pickupDetails = listOf(CallStop(listText = "성남시 분당구 정자동", distanceKm = 2.0)),
             dropoffDetails = listOf(CallStop(listText = "성남시 분당구 서현동")),

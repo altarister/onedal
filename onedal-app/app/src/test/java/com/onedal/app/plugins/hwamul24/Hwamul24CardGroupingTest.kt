@@ -39,6 +39,36 @@ class Hwamul24CardGroupingTest {
      * 🔴 **폰에서 그대로 뜬 첫 카드** — «바로 다음 조각»만 보면 이 배치를 못 묶는다.
      *    «30,000»(top 701) 다음에 «계산서»(709)·«독차»(712)가 끼고 «원»(712)은 그 뒤다.
      */
+    /**
+     * 💰 **목록 줄 돈 묶음** (돈 «화물24시 목록 규칙» · 실물 캡처 50 · 11) — «운» 알약이 있으면 금액은 합계 · «운»이 기사님 몫 · «수»가 수수료(만 원 단위).
+     *    알약이 없으면 금액이 기사님 몫 · «인수증» → 증빙 · «선/착불» → 결제.
+     */
+    private val podRow = listOf("경기 이천 중리동", "›", "경기 이천 신둔면", "17", "Km", "05:36", "당상", "수", "수", "당착",
+        "다마스/전체서류봉투", "운", "18.0", "수", "2.0", "선/착불", "200,000", "원")
+
+    @Test
+    fun `🔴 선착불 운 · 수 알약 - 기사님 몫은 운송료 · 금액은 합계 · 수는 수수료`() {
+        val m = Hwamul24CardGrouping.moneyOf(podRow)!!
+        assertEquals(180000, com.onedal.app.core.incomeOf(m))
+        assertEquals(listOf("income" to 180000, "total" to 200000, "fee" to 20000), m.lines.map { it.kind to it.won })
+        assertEquals("선/착불", m.paymentType)
+        assertEquals("보고 요금 칸은 목록 금액 그대로", 200000, fareOf(podRow))
+    }
+
+    @Test
+    fun `알약 없는 줄 - 금액이 기사님 몫 · 인수증은 증빙`() {
+        val m = Hwamul24CardGrouping.moneyOf(listOf("경기 부천 오정구", ">", "인천 서구 오류동", "당상", "지", "11Km", "2.5톤/윙", "독차", "인수증", "70,000원"))!!
+        assertEquals(listOf("income" to 70000), m.lines.map { it.kind to it.won })
+        assertEquals("70,000원", m.lines.single().shown)
+        assertEquals(listOf("인수증", null), listOf(m.billingType, m.paymentType))
+    }
+
+    @Test
+    fun `둘째 줄 수작업 배지 «수» 는 알약이 아니다`() {
+        val m = Hwamul24CardGrouping.moneyOf(realCard().map { it.text } + listOf("수", "5Km", "수", "3.5톤/윙"))!!
+        assertEquals(listOf("income" to 30000), m.lines.map { it.kind to it.won })
+    }
+
     private fun realCard(): List<Cell> = sorted(listOf(
         Cell("경기 이천 중리동", 487, 30),
         Cell("›", 484, 531),

@@ -1,13 +1,15 @@
 package com.onedal.app.core
 
 import com.onedal.app.core.engine.RegionRegister
+import com.onedal.app.models.CallMoney
 import com.onedal.app.models.CallStop
+import com.onedal.app.models.MoneyLine
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.DispatchPluginRegistry
 
 /**
  * 🚏 **콜의 정거장을 읽는 한 자리** — 원달앱 보고는 주소 · 약속 · 거리를 정거장 묶음에 싣는다.
- * shared `firstPickupStop` · `lastDropoffStop` · `isReservedCall` · `stopTextOf` · `stopQueryOf`(`time/timing.ts` · `network/pageRead.ts`)의 원달앱 짝이다 — 같은 규칙.
+ * shared `firstPickupStop` · `lastDropoffStop` · `isReservedCall` · `stopTextOf` · `stopQueryOf` · `incomeOf`(`time/timing.ts` · `network/pageRead.ts` · `call/money.ts`)의 원달앱 짝이다 — 같은 규칙.
  */
 
 /** 🚏 첫 상차 정거장 — 상차 목록의 처음. 없으면 null */
@@ -46,6 +48,15 @@ fun withStopKm(o: SimplifiedOfficeOrder, pickupKm: Double?, dropoffKm: Double?):
 fun isReservedCall(o: SimplifiedOfficeOrder): Boolean {
     val stop = firstPickupStop(o)
     return stop?.promiseText?.contains("예약") == true || (stop?.requestedDay ?: 0) >= 1
+}
+
+/** 💰 **기사님 몫** — 돈 묶음의 기사님 몫 줄 금액 · 없으면 null (shared `incomeOf` · 원달앱 요금 거르기가 읽는다) */
+fun incomeOf(m: CallMoney?): Int? = m?.lines?.firstOrNull { it.kind == MoneyLine.INCOME }?.won
+
+/** 💰 기사님 몫 줄을 이 값으로 — 있으면 바꾸고 없으면 더한다 · 다른 줄 · 결제 · 증빙은 그대로 */
+fun withIncome(o: SimplifiedOfficeOrder, won: Int, shown: String): SimplifiedOfficeOrder {
+    val m = o.money ?: CallMoney(lines = emptyList())
+    return o.copy(money = m.copy(lines = listOf(MoneyLine(MoneyLine.INCOME, won, shown)) + m.lines.filter { it.kind != MoneyLine.INCOME }))
 }
 
 /** ✏️ 첫 상차 정거장을 고친 콜 — 상차 목록이 비어 있으면 한 곳을 만든다 */

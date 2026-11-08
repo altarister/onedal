@@ -91,11 +91,11 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
         val photoSample = parsed.unreadLines.joinToString(" ")
         parsed.unreadLines.forEach { ScreenWords.add(it, WordKind.UNKNOWN, photoSample, page = com.onedal.app.core.Page.NEW_CALL) }   // 📸 찍은 화면(상세)으로 — 판독이 끝날 때 화면이 바뀌어 있어도
         if (alarmTappedCard != null) {
-            val verifiedOrder = withPhotoStops(alarmTappedCard.copy(
+            val verifiedOrder = withPhotoStops(withIncomeLine(alarmTappedCard.copy(
                 fare = detailFare(alarmTappedCard.fare, parsed.finalIncome) ?: alarmTappedCard.fare,
                 rawText = rawScreenStr,
                 itemSize = parsed.itemSize ?: alarmTappedCard.itemSize
-            ), parsed).let { withDetailPromises(it, parsed) }
+            )), parsed).let { withDetailPromises(it, parsed) }
             return VerifyResult.Success(verifiedOrder, parsed)
         } else {
             // 🧾 상세 글자로 못 가르면 사진의 상차·하차·픽업 km 로 한 번 더 — 꼭 한 줄일 때만 (`photoMatchCard`)
@@ -139,7 +139,7 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
                 tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ") +
                     (twinNote?.let { " · $it" } ?: "")
             )
-            return VerifyResult.Success(withDetailPromises(withPhotoStops(manualOrder, parsed), parsed), parsed)
+            return VerifyResult.Success(withDetailPromises(withPhotoStops(withIncomeLine(manualOrder), parsed), parsed), parsed)
         }
     }
 
@@ -165,6 +165,17 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
             com.onedal.app.core.AppLogger.i("1DAL_PRE_CONFIRM", com.onedal.app.core.LogTag.CALL_STAGE,
                 "💰 [요금] 목록 ${"%,d".format(list)} → 최종 수익 ${"%,d".format(fin)}")
         return fin
+    }
+
+    /**
+     * 💰 **기사님 몫 줄 하나** (돈 결정 8) — 판정 요금(최종 수익 또는 목록 요금 · 쌍둥이는 낮은 줄 요금)과 같은 값.
+     * 목록 줄 기사님 몫과 같은 금액이면 그 줄의 화면 글자, 아니면(최종 수익) 쉼표 숫자 · 쌍둥이 꼬리 글은 `tagsText` 그대로.
+     */
+    private fun withIncomeLine(order: SimplifiedOfficeOrder): SimplifiedOfficeOrder {
+        if (order.fare <= 0) return order.copy(money = null)
+        val listed = order.money?.lines?.firstOrNull { it.kind == com.onedal.app.models.MoneyLine.INCOME }
+        return order.copy(money = listed?.takeIf { it.won == order.fare }?.let { com.onedal.app.models.CallMoney.ofIncome(it.won, it.shown) }
+            ?: com.onedal.app.models.CallMoney.ofIncome(order.fare))
     }
 
     /**

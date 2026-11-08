@@ -75,7 +75,7 @@ class FilterVerdictTest {
     private fun orderOf(p: Problem) = SimplifiedOfficeOrder(
         id = p.label,
         type = "NEW_ORDER",
-        fare = p.fare,
+        fare = p.fare, money = com.onedal.app.models.CallMoney.ofIncome(p.fare),
         timestamp = "2026-08-25T13:11:00",
         vehicleType = p.vehicle,
         rawText = "${p.pickup} ${p.dropoff}",
@@ -135,7 +135,7 @@ class FilterVerdictTest {
 
         val 실으러가기 = SimplifiedOfficeOrder(
             id = "x",
-            fare = 50000,
+            fare = 50000, money = com.onedal.app.models.CallMoney.ofIncome(50000),
             timestamp = "2026-08-25T13:11:00",
             vehicleType = "다",
             rawText = "여주시 점동면 가남읍",
@@ -146,7 +146,7 @@ class FilterVerdictTest {
 
         val 내리러가기 = SimplifiedOfficeOrder(
             id = "y",
-            fare = 30000,
+            fare = 30000, money = com.onedal.app.models.CallMoney.ofIncome(30000),
             timestamp = "2026-08-25T13:11:00",
             vehicleType = "다",
             rawText = "가남읍 여주시 점동면",
@@ -165,7 +165,7 @@ class FilterVerdictTest {
         val filter = driveFilter()
         val 승용차콜 = SimplifiedOfficeOrder(
             id = "z",
-            fare = 30000,
+            fare = 30000, money = com.onedal.app.models.CallMoney.ofIncome(30000),
             timestamp = "2026-08-25T13:11:00",
             vehicleType = "승",
             rawText = "가남읍 세종대왕면",
@@ -193,7 +193,7 @@ class FilterVerdictTest {
     fun `선점 중이어도 판정은 돈다 — 잠긴 것은 만석뿐이다`() {
         val order = SimplifiedOfficeOrder(
             id = "t-eval",
-            fare = 39000,
+            fare = 39000, money = com.onedal.app.models.CallMoney.ofIncome(39000),
             vehicleType = "오토바이",
             type = "AUTO",
             timestamp = "2026-09-24T04:58:00+09:00",
@@ -209,7 +209,7 @@ class FilterVerdictTest {
     fun `만석이면 지금처럼 잠긴다`() {
         val order = SimplifiedOfficeOrder(
             id = "t-full",
-            fare = 39000,
+            fare = 39000, money = com.onedal.app.models.CallMoney.ofIncome(39000),
             vehicleType = "오토바이",
             type = "AUTO",
             timestamp = "2026-09-24T04:58:00+09:00",

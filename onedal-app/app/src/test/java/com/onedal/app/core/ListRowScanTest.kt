@@ -21,7 +21,7 @@ class ListRowScanTest {
         var locked = false
         var verdict: String? = null
         var radius: Double? = null
-        override fun parse(texts: List<String>) = orders[texts.firstOrNull()] ?: SimplifiedOfficeOrder(id = "x", fare = 0, timestamp = "t", pickupDetails = listOf(CallStop(listText = "")), dropoffDetails = listOf(CallStop(listText = "")))
+        override fun parse(texts: List<String>) = orders[texts.firstOrNull()] ?: SimplifiedOfficeOrder(id = "x", fare = 0, money = com.onedal.app.models.CallMoney.ofIncome(0), timestamp = "t", pickupDetails = listOf(CallStop(listText = "")), dropoffDetails = listOf(CallStop(listText = "")))
         override fun todayPickupRadiusKm() = radius
         /** 실물 파서처럼 — 잠겨 있으면 성적표를 안 올리고 막는다 */
         override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
@@ -45,11 +45,11 @@ class ListRowScanTest {
     private fun scan(accountBlocked: Boolean = false) = ListRowScan(parser, memory, routes, tally, accountBlocked, nowMs = 1_000L, listScanNo = 1L,
         currentTargetApp = "hwamul24", allowsEmptyDropoff = { false }, report = { reported += it })
 
-    private val call = SimplifiedOfficeOrder(id = "c1", fare = 50000, timestamp = "t", pickupDetails = listOf(CallStop(listText = "경기 광주 초월읍", distanceKm = 3.0)), dropoffDetails = listOf(CallStop(listText = "경기 이천 신둔면")))
+    private val call = SimplifiedOfficeOrder(id = "c1", fare = 50000, money = com.onedal.app.models.CallMoney.ofIncome(50000), timestamp = "t", pickupDetails = listOf(CallStop(listText = "경기 광주 초월읍", distanceKm = 3.0)), dropoffDetails = listOf(CallStop(listText = "경기 이천 신둔면")))
     private fun row(o: SimplifiedOfficeOrder = call): List<String> { parser.orders["row"] = o; return listOf("row") }
 
     @Test fun `요금을 못 읽은 줄은 그 자리에서 뺀다 — 판정 · 보고 · 기억 없음`() {
-        val out = scan().scanRow(row(call.copy(fare = 0)))
+        val out = scan().scanRow(row(call.copy(fare = 0, money = com.onedal.app.models.CallMoney.ofIncome(0))))
         assertEquals(ListRowScan.Kind.FARE_FAIL, out.kind)
         assertEquals(0, tally.seen); assertTrue(reported.isEmpty())
     }

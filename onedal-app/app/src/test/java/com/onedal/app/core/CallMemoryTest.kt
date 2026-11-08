@@ -43,7 +43,7 @@ class CallMemoryTest {
     private fun order07() = SimplifiedOfficeOrder(
         id = "07",
         type = "NEW_ORDER",
-        fare = 30000,
+        fare = 30000, money = com.onedal.app.models.CallMoney.ofIncome(30000),
         timestamp = "2026-08-30T16:04:31",
         vehicleType = "다",
         rawText = "이천터미널 신둔면",
@@ -128,7 +128,7 @@ class CallMemoryTest {
     private fun b3() = SimplifiedOfficeOrder(
         id = "B3",
         type = "NEW_ORDER",
-        fare = 50000,
+        fare = 50000, money = com.onedal.app.models.CallMoney.ofIncome(50000),
         timestamp = "2026-09-15T06:10:13",
         vehicleType = "다",
         rawText = "사음동 중리동",

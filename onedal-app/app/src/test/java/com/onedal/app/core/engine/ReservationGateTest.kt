@@ -20,7 +20,7 @@ class ReservationGateTest {
 
     private fun call(promise: String?, day: Int?) = SimplifiedOfficeOrder(
         id = "c",
-        fare = 20000,
+        fare = 20000, money = com.onedal.app.models.CallMoney.ofIncome(20000),
         timestamp = "t",
         pickupDetails = listOf(CallStop(listText = "광주 경안", promiseText = promise, requestedDay = day, distanceKm = 3.0)),
         dropoffDetails = listOf(CallStop(listText = "용산 한남")),
@@ -94,7 +94,7 @@ class ReservationGateTest {
     @Test fun `오늘 콜만 - 시각만 적힌 밤 콜은 통과하고 자동 확정 대상이다`() {
         val night = java.time.LocalDateTime.of(2026, 10, 2, 23, 15)
         val r = com.onedal.app.core.ReservationText.read("00:08", night)
-        val o = SimplifiedOfficeOrder(id = "n", fare = 30000, timestamp = "t", pickupDetails = listOf(CallStop(listText = "a", requestedDay = r.day)), dropoffDetails = listOf(CallStop(listText = "b")))
+        val o = SimplifiedOfficeOrder(id = "n", fare = 30000, money = com.onedal.app.models.CallMoney.ofIncome(30000), timestamp = "t", pickupDetails = listOf(CallStop(listText = "a", requestedDay = r.day)), dropoffDetails = listOf(CallStop(listText = "b")))
         assertTrue(ReservationGate.passes(o, ReservationGate.TODAY))
         assertTrue(ReservationGate.isToday(o))
     }

@@ -99,6 +99,9 @@ fun ScanContext.buildOrderFromScreen(screenTexts: List<String>): SimplifiedOffic
         /* 💰 목록 규칙(차종 다음 칸)이 못 읽으면 내 콜 화면 정의(«요금 : N»)로 — InsungPages MY_CALL FARE 의 READ */
         fare = tempOrder.fare.takeIf { it > 0 }
             ?: (com.onedal.app.core.PageFieldRead.fareOf(InsungPages.pages, com.onedal.app.core.Page.MY_CALL, screenTexts) ?: 0),
+        /* 💰 돈 묶음도 같은 차례 — 목록 규칙이 못 읽으면 내 콜 화면 돈 줄(«실운임 :» → 기사님 몫 · «고객에게 받을 금액» → 받을 돈 · «요금 :» 만 있으면 기사님 몫) */
+        money = if (tempOrder.fare > 0) tempOrder.money
+            else com.onedal.app.core.PageFieldRead.moneyOf(InsungPages.pages, com.onedal.app.core.Page.MY_CALL, screenTexts),
         timestamp = nowTimestamp(),
         rawText = screenTexts.joinToString(" ")
     )

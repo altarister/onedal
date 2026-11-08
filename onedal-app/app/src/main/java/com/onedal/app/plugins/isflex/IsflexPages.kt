@@ -39,8 +39,8 @@ object IsflexPages {
             FieldSpec(PageField.DROPOFF, "도착지 칸 — (마감 앞글자) + 동", "10:20전/쌍림동 · 구리수택동", Seen.REAL, Handling.READ, "IsflexParser"),
             /* 판정 시한에 넣지 않는다 — 기록만 */
             FieldSpec(PageField.CLOCK, "도착지 앞 마감 앞글자", "10:20전/", Seen.REAL, Handling.READ, "IsflexParser"),
-            FieldSpec(PageField.FARE, "수입 칸(«원» 없음)", "21,252", Seen.REAL, Handling.READ, "IsflexParser"),
-            FieldSpec(PageField.PAYMENT, "수입 아래 작은 테두리 글자", "선불 · 착불", Seen.REAL, Handling.READ, "IsflexParser"),
+            FieldSpec(PageField.FARE, "수입 칸(«원» 없음)", "21,252", Seen.REAL, Handling.READ, "IsflexParser.parseList — 보고 요금 칸 · 돈 묶음 기사님 몫 줄"),
+            FieldSpec(PageField.PAYMENT, "수입 아래 작은 테두리 글자", "선불 · 착불", Seen.REAL, Handling.READ, "IsflexParser.parseList — 화면 기록(tagsText) · 돈 묶음 결제"),
             /* 실물 8건에는 없다 · 안내 그림 img_guide3_1 에만 */
             FieldSpec(PageField.BILLING, "수입 아래 배지(안내 그림)", "계산서", Seen.UNKNOWN, Handling.UNUSED),
             /* 실물 8건에는 없다 · 안내 그림 img_guide3_1 에만 — 차종 바로 뒤에 오면 차종 글자에 섞일 수 있다 */
@@ -69,9 +69,9 @@ object IsflexPages {
                 read = Regex("""적요상세\s+(?!없음\s+(?:선불|착불|총 수입)(?:\s|${'$'}))([\s\S]*?)(?=\s+(?:선불|착불|총 수입)(?:\s|${'$'}))""")),
             FieldSpec(PageField.MEMO, "«적요상세» 다음(빈 적요는 «없음»)", "1박스 3층 계단물건 있음", Seen.REAL, Handling.READ, "서버 상세 적요(detailRecordOf detailMemo)",
                 read = Regex("""적요상세\s+(?!없음\s+(?:선불|착불|총 수입)(?:\s|${'$'}))([\s\S]*?)(?=\s+(?:선불|착불|총 수입)(?:\s|${'$'}))"""), part = "body"),
-            FieldSpec(PageField.PAYMENT, "적요 아래 · «총 수입» 앞", "착불 · 선불", Seen.REAL, Handling.READ, "서버 결제 칸(detailRecordOf paymentType)",
+            FieldSpec(PageField.PAYMENT, "적요 아래 · «총 수입» 앞", "착불 · 선불", Seen.REAL, Handling.READ, "서버 결제 칸(detailRecordOf paymentType) · 원달앱 돈 묶음 결제(IsflexParser.parseDetail)",
                 read = Regex("""(?:^|\s)(선불|착불)\s+총 수입""")),
-            FieldSpec(PageField.FARE, "아래 «총 수입» 다음", "총 수입 8,500원", Seen.REAL, Handling.READ, "서버 · 원달앱 칸 읽기(pageFieldOf · PageFieldRead) — 목록 요금과 다섯 장 모두 같다",
+            FieldSpec(PageField.FARE, "아래 «총 수입» 다음", "총 수입 8,500원", Seen.REAL, Handling.READ, "서버 · 원달앱 칸 읽기(pageFieldOf · PageFieldRead) — 목록 요금과 다섯 장 모두 같다 · 원달앱 돈 묶음 기사님 몫 줄(IsflexParser.parseDetail)",
                 read = Regex("""총 수입\s+([\d,]+)원""")),
             /* 계약 단추 — 원달앱은 어떤 모드에서도 누르지 않는다 */
             FieldSpec(PageField.FARE, "오른쪽 아래 «…원 수행하기» 단추", "8,500원 수행하기(줄바꿈 든 한 글자)", Seen.REAL, Handling.UNUSED, "",
@@ -103,10 +103,10 @@ object IsflexPages {
             FieldSpec(PageField.MEMO, "적요(안내 그림 제목 «오더메모» — 실물 상세는 «적요상세»)", "주차장으로 들어와주세요", Seen.UNKNOWN, Handling.UNUSED),
             FieldSpec(PageField.BILLING, "적요 아래 테두리 글(안내 그림)", "세금계산서", Seen.UNKNOWN, Handling.UNUSED),
             /* 받을 돈 — 실물 원문 0 건(안내 그림에만) */
-            FieldSpec(PageField.FARE, "받으실 현금(안내 그림 — 현금 콜만)", "받으실 현금 123,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱 돈 9(걸음 5)",
+            FieldSpec(PageField.FARE, "받으실 현금(안내 그림 — 현금 콜만)", "받으실 현금 123,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 플렉스 확정 뒤 상세를 안 읽는다",
                 read = Regex("""받으실 현금\s+([\d,]+)원"""), part = "collect"),
             /* 뜻 모름 — 고객이 내는 운임인지 톨비인지 실전 한 건으로 가른다 */
-            FieldSpec(PageField.FARE, "탁송 금액(안내 그림)", "탁송 금액 25,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱 돈 9(걸음 5)",
+            FieldSpec(PageField.FARE, "탁송 금액(안내 그림)", "탁송 금액 25,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 플렉스 확정 뒤 상세를 안 읽는다",
                 read = Regex("""탁송 금액\s+([\d,]+)원"""), part = "unknown"),
             /* 뜻 모름 — «탁송 금액»과 함께 실전 한 건으로 가른다 */
             FieldSpec(PageField.FARE, "배송비(안내 그림)", "배송비 5,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 서버 상세는 확정 전 화면만(확정 뒤 보고는 원달앱 걸음 5 뒤)",

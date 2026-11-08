@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectOf, incomeOf, moneyOf, paymentOf, type CallMoney, type MoneyLine } from './money';
+import { collectOf, incomeOf, moneyOf, paymentOf, withDetailMoney, type CallMoney, type MoneyLine } from './money';
 
 /**
  * 💰 **돈 묶음 — 기사님 몫 · 받을 돈은 돈 줄에서 꺼낸다**.
@@ -76,5 +76,23 @@ describe('💳 결제 · 증빙 화면 글자 → 값', () => {
     });
     it('글자가 없으면 모두 빈 값 — «모름»과 «없음»을 가른다', () => {
         for (const shown of [null, '', '  ']) expect(paymentOf(shown)).toEqual({ paymentType: null, paymentShown: null, billingType: null, billingShown: null });
+    });
+});
+
+describe('💰 상세 돈 묶음을 보고 위에 — 갈래마다 덮고 결제 · 증빙은 글자가 있을 때만', () => {
+    const reported: CallMoney = { ...moneyWith([{ kind: 'income', won: 70000, shown: '70,000원' }, { kind: 'total', won: 70000, shown: '70,000원' }]), billingType: '인수증', billingShown: '인수증' };
+    it('상세 줄 갈래는 상세 값 · 없는 갈래는 보고 그대로 · 증빙은 보고 그대로', () => {
+        const detail = moneyWith([{ kind: 'total', won: 140000, shown: '140,000' }, { kind: 'fee', won: 0, shown: '0' }]);
+        const m = withDetailMoney(reported, detail)!;
+        expect(m.lines.map(l => [l.kind, l.won])).toEqual([['total', 140000], ['fee', 0], ['income', 70000]]);
+        expect(incomeOf(m)).toBe(70000);
+        expect([m.billingType, m.billingShown]).toEqual(['인수증', '인수증']);
+    });
+    it('줄 없는 상세(결제 글자만) — 줄은 보고 그대로 · 결제만 얹는다 · 상세가 없으면 보고 그대로', () => {
+        const m = withDetailMoney(reported, { ...moneyWith([]), paymentType: '신용', paymentShown: '신용' })!;
+        expect(m.lines).toEqual(reported.lines);
+        expect(m.paymentType).toBe('신용');
+        expect(withDetailMoney(reported, undefined)).toBe(reported);
+        expect(withDetailMoney(undefined, reported)).toBe(reported);
     });
 });

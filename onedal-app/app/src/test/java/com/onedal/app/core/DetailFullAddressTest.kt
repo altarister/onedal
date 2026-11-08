@@ -38,7 +38,7 @@ class DetailFullAddressTest {
     private fun order(pickup: String, dropoff: String, fare: Int = 20000) = SimplifiedOfficeOrder(
         id = "t",
         type = "NEW_ORDER",
-        fare = fare,
+        fare = fare, money = com.onedal.app.models.CallMoney.ofIncome(fare),
         timestamp = "2026-09-29T10:00:00",
         pickupDetails = listOf(CallStop(listText = pickup)),
         dropoffDetails = listOf(CallStop(listText = dropoff)),

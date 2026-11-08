@@ -41,6 +41,7 @@ class PickerTwinCallTest {
         val o = verify(listOf(a, b))
         assertEquals(6160, o.fare)
         assertTrue(o.tagsText.orEmpty(), o.tagsText.orEmpty().endsWith("요금 둘 중 낮은 값 · 7,238 / 6,160"))
+        assertEquals("기사님 몫 줄 하나 — 낮은 줄 요금 글자", listOf(com.onedal.app.models.MoneyLine("income", 6160, "6,160")), o.money?.lines)
     }
 
     @Test fun `진단 줄 끝 - 같은 경로 요금 둘 낮은 값`() {

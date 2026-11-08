@@ -10,6 +10,7 @@ import com.onedal.app.core.firstPickupStop
 import com.onedal.app.core.lastDropoffStop
 import com.onedal.app.core.firstStopKm
 import com.onedal.app.core.deliveryKmOf
+import com.onedal.app.core.incomeOf
 import com.onedal.app.core.StopText
 
 /**
@@ -108,9 +109,11 @@ object ListJudge {
         // 단가 조회는 인성과 **같은 함수**를 쓴다 — 차종 별칭 규칙이 두 벌이 되면 망마다 값이 갈린다 · 어느 차종 글자인지는 배차망이 고른다(`Rules.rateVehicleOf`)
         val rateFloor = rules.rateVehicleOf(order, filter)?.let { vt -> FareFloor.rateOf(filter.ratePerKm, vt) }
         val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && deliveryKmOf(order) != null
-        val fareMatch = FareFloor.passes(order.fare, filter.minFare) &&
-                        (!useRateModel || order.fare >= deliveryKmOf(order)!! * rateFloor!!) &&
-                        (!hasFareCeiling || order.fare <= filter.maxFare)
+        // 💰 거르는 돈은 기사님 몫(돈 묶음 기사님 몫 줄) — 화물24시 «운» 알약 콜은 합계가 아니라 운송료
+        val income = incomeOf(order.money) ?: 0
+        val fareMatch = FareFloor.passes(income, filter.minFare) &&
+                        (!useRateModel || income >= deliveryKmOf(order)!! * rateFloor!!) &&
+                        (!hasFareCeiling || income <= filter.maxFare)
 
         // ── 조건 4: 상차지 ──
         // 📋 상차 목록이 오면 그것으로 거른다 — 인성 파서와 같은 규칙 (`PickupListFilter` · 하차 목록»).
@@ -143,7 +146,7 @@ object ListJudge {
         if (isValidOrder && com.onedal.app.core.LogOnce.changed("target:${rules.netCode}|"+"${StopText.of(firstPickupStop(order))}|${StopText.of(lastDropoffStop(order))}|${order.fare}", "$reservationOk$vehicleMatch$regionMatch$fareMatch$pickupListMatch$distanceMatch$blacklistClear")) {
             AppLogger.roadmap(LogTag.FILTER, "🔍 [${rules.logHead} 필터] " + "예약(${com.onedal.app.core.engine.ReservationGate.wordOf(order)})=${if(reservationOk) "✅" else "❌"} " + "차종(${order.vehicleType ?: "?"})=${if(vehicleMatch) "✅" else "❌"} " +
                     "도착지(${StopText.query(rules.netCode, lastDropoffStop(order))})=${if(regionMatch) "✅" else "❌"} " +
-                    "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
+                    "기사님 몫(${filter.minFare} <= ${income}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
                     (if (pickupListCheck != null)
                         "상차 목록(${filter.pickupKeywords?.size ?: 0}중 ${StopText.query(rules.netCode, firstPickupStop(order))})=${if(pickupListMatch) "✅" else "❌"} "
                      else

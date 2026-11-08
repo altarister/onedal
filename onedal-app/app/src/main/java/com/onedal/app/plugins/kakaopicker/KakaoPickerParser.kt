@@ -772,7 +772,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         ): AlarmAxes {
             // 📅 첫 상차 날로 막는다 — 목록에 안 보인 날은 상세 사진(«내일 14:00 픽업예약»)이 채운 뒤 한 번 더
             val reservationOk = com.onedal.app.core.engine.ReservationGate.passes(order, reservationMode)
-            val fareOk = FareFloor.passes(order.fare, minFare)
+            val fareOk = FareFloor.passes(com.onedal.app.core.incomeOf(order.money) ?: 0, minFare)
             // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 통과시키지 않는다
             // 📅 내일 이후 예약 콜 — 집 둘레 기본 반경 안의 동 목록이 있으면 그것으로(목록 줄 km 는 지금 폰 위치 기준이라 내일 콜엔 안 맞다)
             //    상차 동을 못 읽은 줄은 모름 = 통과(서버 판정이 집 기준으로 다시 본다) · 칸이 없으면 지금 길(reservedPickupRadiusKm + 목록 km)
@@ -1055,6 +1055,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         val tagSet = tagWords()
         val sizeSet = itemSizeWords()
         var fare = 0
+        var fareShown: String? = null
         var pickupKm: Double? = null
         var itemSize: String? = null
         var scheduleTime: String? = null
@@ -1070,6 +1071,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             when {
                 t.matches(FARE_REGEX) -> {
                     fare = t.replace(",", "").toIntOrNull() ?: 0
+                    fareShown = t
                     seenFareOrDistance = true
                 }
                 KM_REGEX.matches(t) -> {
@@ -1209,6 +1211,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             id = "",                          // 리스트에는 ID 가 없다 — 상세에만 오더번호가 있다 (0830 실측)
             type = "NEW_ORDER",
             fare = fare,
+            /* 💰 목록 요금 → 돈 묶음 기사님 몫 줄(화면 글자 그대로) — 원달앱 알람 필터가 읽는다 */
+            money = fareShown?.takeIf { fare > 0 }?.let { com.onedal.app.models.CallMoney.ofIncome(fare, it) },
             timestamp = java.time.OffsetDateTime.now().toString(),
             vehicleType = null,               // 픽커에 차종 축이 없다 — 물품 크기가 대신한다. 섞어 싣지 않는다
             itemSize = itemSize,

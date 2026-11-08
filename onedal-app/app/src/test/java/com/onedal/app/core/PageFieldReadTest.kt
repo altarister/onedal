@@ -41,6 +41,35 @@ class PageFieldReadTest {
         }
     }
 
+    /** 💰 문제지 돈 줄 문제(요금 칸 조각)의 갈래 이름이 원달앱 갈래에 다 있다 — shared `MONEY_KINDS` 와 같은 글자 */
+    @Test fun `문제지 돈 줄 갈래는 원달앱 갈래에 다 있다`() {
+        val parts = cases.filter { it["field"].asString == "fare" && it.has("part") }.map { it["part"].asString }.toSet()
+        assertTrue("돈 줄 문제가 없다", parts.isNotEmpty())
+        assertEquals(emptySet<String>(), parts - com.onedal.app.models.MoneyLine.KINDS.toSet())
+    }
+
+    /** 🔴 인성 착불 손 확정 — 확정 뒤 상세(영상 1743) · 보고 요금 칸은 지금처럼 «고객에게 받을 금액»(0장 F) */
+    @Test fun `🔴 인성 확정 뒤 상세 돈 줄 - 기사님 몫은 실운임 · 받을 돈은 고객에게 받을 금액`() {
+        val cod = listOf("고객에게 받을 금액 45,000", "실운임 : 34,650(착불)")
+        val m = PageFieldRead.moneyOf(InsungPages.pages, Page.MY_CALL, cod)
+        assertEquals(34650, incomeOf(m))
+        assertEquals(45000, m?.lines?.firstOrNull { it.kind == com.onedal.app.models.MoneyLine.COLLECT }?.won)
+        assertEquals("보고 요금 칸은 그대로", 45000, PageFieldRead.fareOf(InsungPages.pages, Page.MY_CALL, cod))
+        val credit = PageFieldRead.moneyOf(InsungPages.pages, Page.MY_CALL, listOf("출발지", "도착지", "요금 : 40,000(신용)", "확정"))
+        assertEquals("«요금 :» 만 있으면 기사님 몫", 40000, incomeOf(credit))
+        assertEquals(listOf("income"), credit?.lines?.map { it.kind })
+        assertNull("돈 줄이 없으면 null", PageFieldRead.moneyOf(InsungPages.pages, Page.MY_CALL, listOf("출발지", "도착지")))
+    }
+
+    @Test fun `손 확정 요금은 돈 묶음 기사님 몫 줄도 같은 값`() {
+        val empty = SimplifiedOfficeOrder(id = "o", fare = 0, timestamp = "t", pickupDetails = listOf(CallStop(listText = "배차값없음")), dropoffDetails = listOf(CallStop(listText = "배차값없음")))
+        val filled = PageFieldRead.withFare(empty, InsungPages.pages, Page.NEW_CALL, insungDetail)
+        assertEquals(50000, incomeOf(filled.money))
+        assertEquals("50,000", filled.money?.lines?.first()?.shown)
+        val first = PageFieldRead.fareFirst(empty.copy(fare = 999), InsungPages.pages, Page.NEW_CALL, insungDetail)
+        assertEquals(listOf(50000, 50000), listOf(first.fare, incomeOf(first.money)))
+    }
+
     @Test fun `요금은 쉼표를 떼어 정수 - 문제지 줄과 같은 화면`() {
         assertEquals(50000, PageFieldRead.fareOf(InsungPages.pages, Page.NEW_CALL, insungDetail))
         assertNull(PageFieldRead.fareOf(KakaoPickerPages.pages, Page.NEW_CALL, listOf("최종 수익 2,387")))

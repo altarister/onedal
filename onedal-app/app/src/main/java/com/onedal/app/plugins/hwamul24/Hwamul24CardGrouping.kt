@@ -1,5 +1,13 @@
 package com.onedal.app.plugins.hwamul24
 
+import com.onedal.app.core.BadgeMeaning
+import com.onedal.app.core.BadgePlace
+import com.onedal.app.core.Page
+import com.onedal.app.core.PageField
+import com.onedal.app.core.PageFieldRead
+import com.onedal.app.models.CallMoney
+import com.onedal.app.models.MoneyLine
+
 /**
  * 🧩 **화물24시 화면 글자를 읽는 규칙 — 순수 부분**
  *
@@ -129,6 +137,29 @@ object Hwamul24CardGrouping {
         // 한 조각으로 읽힌 값이 있으면 그것이 우선 — 지어내지 않는다
         if (whole > 0) return whole
         return if (hasWonAlone) biggestNumber else 0
+    }
+
+    /**
+     * 💰 **목록 줄 한 장의 돈 묶음** (돈 «화물24시 목록 규칙» · `Hwamul24CardGroupingTest`) — 넷째 줄 «운» · «수» 알약(만 원 단위 · 정의 표 목록 요금 칸 조각 income · fee)이 있으면
+     * «운»이 기사님 몫 · «수»가 수수료 · 목록 금액은 합계다. 알약이 없으면 목록 금액이 기사님 몫.
+     * 줄 표시 글자 «인수증» → 증빙 · «선/착불» → 결제(정의 표 badgeWords 뜻 갈래). 보고 요금 칸(`fare`)은 목록 금액 그대로 — 이 묶음은 따로 싣는다.
+     * 둘째 줄 «수»(수작업) 배지는 소수 숫자가 뒤에 홀로 올 때만 알약이라 섞이지 않는다(읽는 법이 가른다).
+     * @return 목록 금액도 알약도 못 읽었으면 null
+     */
+    fun moneyOf(texts: List<String>): CallMoney? {
+        val listWon = fareOf(texts).takeIf { it > 0 }
+        val listShown = listWon?.let { won -> texts.map { it.trim() }.firstOrNull { it.replace(",", "").removeSuffix("원") == won.toString() } }
+        fun pill(part: String): MoneyLine? = PageFieldRead.fieldOf(Hwamul24Pages.pages, Page.NEW_LIST, PageField.FARE, texts, part)
+            ?.let { shown -> shown.toBigDecimalOrNull()?.let { MoneyLine(part, it.movePointRight(4).toInt(), shown) } }
+        val income = pill(MoneyLine.INCOME)
+        val listLine = listWon?.let { MoneyLine(if (income != null) MoneyLine.TOTAL else MoneyLine.INCOME, it, listShown ?: "%,d".format(it)) }
+        val lines = listOfNotNull(income, listLine, pill(MoneyLine.FEE))
+        if (lines.isEmpty()) return null
+        val words = texts.map { it.trim() }
+        fun badge(meaning: BadgeMeaning) = Hwamul24Pages.badgeWords.firstOrNull { it.at == BadgePlace.ROW && it.meaning == meaning && it.text in words }?.text
+        val billing = badge(BadgeMeaning.BILLING)
+        val payment = badge(BadgeMeaning.PAYMENT)
+        return CallMoney(lines = lines, paymentType = payment, paymentShown = payment, billingType = billing, billingShown = billing)
     }
 
     /** 한 조각으로 온 거리 — `11Km` */

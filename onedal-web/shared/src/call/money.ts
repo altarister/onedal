@@ -3,7 +3,7 @@
  * 누가: 서버 페이지 읽기 · 파서 · 콜 모양
  * 언제: 배차망 화면의 돈 줄 · 결제 · 증빙 글자를 담고 꺼낼 때
  * 어디서: 콜 한 건의 돈 묶음
- * 무엇을: MONEY_KINDS · PAYMENT_TYPES · BILLING_TYPES · CallMoney · incomeOf · collectOf · moneyOf · moneyFrom · paymentOf
+ * 무엇을: MONEY_KINDS · PAYMENT_TYPES · BILLING_TYPES · CallMoney · incomeOf · collectOf · withDetailMoney · moneyOf · moneyFrom · paymentOf
  * 어떻게: 화면에 보인 돈 줄만 담고 기사님 몫 · 받을 돈은 그 갈래 줄에서 꺼낸다
  * 왜: 배차망마다 뜻이 다른 숫자 하나에 기사님 몫과 받을 돈이 섞이지 않게 하기 위해서다
  */
@@ -48,6 +48,22 @@ export interface CallMoney {
 export const incomeOf = (m: CallMoney): number | null => m.lines.find(l => l.kind === 'income')?.won ?? null;
 /** 받을 돈 — 갈래 collect 줄의 금액 · 없으면 null (착불 안내 · 하차 칸 · 받았음/못 받음 · 미수금) */
 export const collectOf = (m: CallMoney): number | null => m.lines.find(l => l.kind === 'collect')?.won ?? null;
+
+/**
+ * 상세 원문 돈 묶음을 원달앱 보고 돈 묶음 위에 얹는다(/detail) — 상세에 돈 줄이 있으면 그 갈래 줄만 상세 값으로 덮고 다른 갈래 줄은 보고 그대로,
+ * 수수료율 · 결제 · 증빙은 상세에 글자가 있을 때만 얹는다. 상세 돈 묶음이 없으면 보고 그대로(인성 상세 «요금 :» 은 갈래 줄이 아니라 보고의 기사님 몫 줄이 남는다).
+ */
+export function withDetailMoney(reported: CallMoney | undefined, detail: CallMoney | undefined): CallMoney | undefined {
+    if (!detail) return reported;
+    if (!reported) return detail;
+    const kinds = new Set(detail.lines.map(l => l.kind));
+    return {
+        lines: [...detail.lines, ...reported.lines.filter(l => !kinds.has(l.kind))],
+        feeRateText: detail.feeRateText ?? reported.feeRateText,
+        ...(detail.paymentShown ? { paymentType: detail.paymentType, paymentShown: detail.paymentShown } : { paymentType: reported.paymentType, paymentShown: reported.paymentShown }),
+        ...(detail.billingShown ? { billingType: detail.billingType, billingShown: detail.billingShown } : { billingType: reported.billingType, billingShown: reported.billingShown }),
+    };
+}
 
 const textOrNull = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 const oneOf = <T extends string>(list: readonly T[], v: unknown): T | null =>

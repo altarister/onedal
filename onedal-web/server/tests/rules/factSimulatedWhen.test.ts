@@ -85,3 +85,16 @@ describe('✋ 계약 안 함 폰에서 기사님이 손으로 확정한 콜은 �
         expect(getUserSession(U).pendingOrdersData.get('sim-hand')?.type).toBe('MANUAL');
     });
 });
+
+/* 💰 /detail 돈 묶음 — 원달앱 보고 기사님 몫 줄 위에 상세 원문 조각 줄을 갈래마다 얹는다(인성 «요금 :» 은 갈래 줄이 아니라 보고 줄이 남는다) */
+describe('💰 /detail 돈 묶음 합치기', () => {
+    it('🔴 인성 상세 «요금 : 50,000(신용)» — 보고 기사님 몫 줄이 남고 결제는 상세 글자', async () => {
+        modeIs('AUTO');
+        const withMoney = (id: string, rawText: string) => ({ ...order(id), rawText, money: { lines: [{ kind: 'income', won: 38500, shown: '38.5' }], feeRateText: null, paymentType: null, paymentShown: null, billingType: null, billingShown: null } });
+        await post(ordersRouter, '/confirm', { step: 'BASIC', deviceId: DEV, targetApp: 'insung', matchType: 'AUTO', order: withMoney('money-a', '') });
+        await post(detailRouter, '/', { step: 'DETAILED', deviceId: DEV, targetApp: 'insung', matchType: 'AUTO', order: { ...order('money-a'), rawText: '전표 상태 : 신규 차량 : 다마스 요금 : 50,000(신용) 구분 : 편도' } });
+        const m = (getUserSession(U).pendingOrdersData.get('money-a') as any)?.money;
+        expect(m?.lines).toEqual([{ kind: 'income', won: 38500, shown: '38.5' }]);
+        expect(m?.paymentType).toBe('신용');
+    });
+});

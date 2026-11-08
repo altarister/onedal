@@ -5,17 +5,18 @@ import com.onedal.app.core.firstPickupStop
 import com.onedal.app.core.lastDropoffStop
 import com.onedal.app.core.firstStopKm
 import com.onedal.app.core.StopText
+import com.onedal.app.core.incomeOf
 
 /**
  * 📋 **콜 요건 — 모든 배차망이 같은 한 줄** (기사님 «요건은 공통» · 배차망_모드표.md)
  *
- * 서버가 판단하려면 상차 · 하차 · 요금이 있어야 한다(서버도 같은 셋을 «판정 불가»로 본다 — `detail.ts`).
+ * 서버가 판단하려면 상차 · 하차 · 요금(돈 묶음 기사님 몫 줄)이 있어야 한다(서버도 같은 셋을 «판정 불가»로 본다 — `detail.ts`).
  * 목록에서는 «이 줄을 콜로 알아볼 수 있나»(덜 읽힌 줄은 그 스캔에서 뺀다), 상세에서는 채운 뒤 «보낼 수 있나»를 이 한 줄로 본다.
  * 배차망마다 다른 것은 «하차가 없어도 되는 콜 종류»(`IDispatchAppPlugin.allowsEmptyDropoff` — 픽커 도보) 하나다.
  */
 object OrderRequirement {
     fun meets(order: SimplifiedOfficeOrder, allowsEmptyDropoff: Boolean): Boolean =
-        order.fare > 0 && filled(StopText.of(firstPickupStop(order))) && (allowsEmptyDropoff || filled(StopText.of(lastDropoffStop(order))))
+        (incomeOf(order.money) ?: 0) > 0 && filled(StopText.of(firstPickupStop(order))) && (allowsEmptyDropoff || filled(StopText.of(lastDropoffStop(order))))
 
     /**
      * 🏠 **상세의 필수 요소 — 세 배차망 같다** (기사님 «상세에 들어간 뒤엔 모든 주소를 다 가지고 있어야 한다 · 배차망에 따라 달라질 수 없다»)
@@ -37,7 +38,7 @@ object OrderRequirement {
      * 주소는 판정 글자(`StopText.query` — `app` 배차망 정의 표로 다듬은 글자)로 본다.
      */
     fun missingDetail(app: String, order: SimplifiedOfficeOrder): List<String> = buildList {
-        if (order.fare <= 0) add("요금 없음")
+        if ((incomeOf(order.money) ?: 0) <= 0) add("요금 없음")
         val pickup = StopText.query(app, firstPickupStop(order))
         val dropoff = StopText.query(app, lastDropoffStop(order))
         if (!AddressForm.isFull(pickup)) add("상차 주소 짧음(${pickup.take(20)})")

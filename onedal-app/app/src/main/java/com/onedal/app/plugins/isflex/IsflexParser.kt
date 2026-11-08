@@ -31,6 +31,7 @@ import com.onedal.app.core.withFirstPickup
 import com.onedal.app.core.withLastDropoff
 import com.onedal.app.core.withStopKm
 import com.onedal.app.models.CallStop
+import com.onedal.app.models.CallMoney
 
 /**
  * 📄 **인성플렉스 파서** — 목록 줄(칸 7개가 노드 7개로 따로 온다) · 상세(제목 글자 사이) → 콜 양식 (`IsflexParserTest` — 실물 기대값).
@@ -137,7 +138,8 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
             val raw = texts.joinToString(" ")
             val t = texts.map { it.trim() }
             t.filter { it in noiseWords }.forEach { ScreenWords.add(it, WordKind.NOISE, raw) }
-            val fare = t.firstOrNull { IsflexRowGrouping.FARE.matches(it) }?.replace(",", "")?.toIntOrNull() ?: 0
+            val fareShown = t.firstOrNull { IsflexRowGrouping.FARE.matches(it) }
+            val fare = fareShown?.replace(",", "")?.toIntOrNull() ?: 0
             val pickupDistance = t.firstOrNull { IsflexRowGrouping.PICKUP_DISTANCE.matches(it) }?.toDoubleOrNull()
             val delivery = t.firstNotNullOfOrNull { IsflexRowGrouping.DELIVERY_DISTANCE.matchEntire(it)?.groupValues?.get(1)?.toDoubleOrNull() }
             val payment = t.firstOrNull { it in IsflexRowGrouping.PAYMENTS }
@@ -162,6 +164,7 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
                 id = newId(),
                 type = "NEW_ORDER",
                 fare = fare,
+                money = moneyOf(fare, fareShown, payment),
                 timestamp = nowStamp(),
                 vehicleType = vehicle,
                 rawText = raw,
@@ -178,6 +181,11 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
             }
             return order
         }
+
+        /** 💰 «수입» · «총 수입» → 돈 묶음 기사님 몫 줄(화면 글자 그대로) · «선불» · «착불» → 결제 — 요금을 못 읽었으면 null */
+        private fun moneyOf(fare: Int, shown: String?, payment: String?): CallMoney? =
+            if (fare <= 0 || shown == null) null
+            else CallMoney.ofIncome(fare, shown).copy(paymentType = payment, paymentShown = payment)
 
         /** 🏷️ 출발 · 도착 칸의 조건 토막(«급송» · «왕복») — 화면 기록에 남긴다 */
         private fun conditionsOf(vararg cells: com.onedal.app.core.CellPieces?): Array<String> = cells.flatMap { it?.conditions.orEmpty() }.toTypedArray()
@@ -196,10 +204,12 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
             val dropoffCell = detailField(texts, PageField.DROPOFF)
             val pickup = pickupCell?.let { LocationTextAnalyzer.split(it, IsflexPages.badgeWords) }
             val dropoff = dropoffCell?.let { LocationTextAnalyzer.split(it, IsflexPages.badgeWords) }
+            val fare = PageFieldRead.fareOf(IsflexPages.pages, Page.NEW_CALL, texts) ?: 0
             return SimplifiedOfficeOrder(
                 id = newId(),
                 type = "NEW_ORDER",
-                fare = PageFieldRead.fareOf(IsflexPages.pages, Page.NEW_CALL, texts) ?: 0,
+                fare = fare,
+                money = moneyOf(fare, detailField(texts, PageField.FARE), detailField(texts, PageField.PAYMENT)),
                 timestamp = nowStamp(),
                 vehicleType = detailField(texts, PageField.VEHICLE_TYPE),
                 rawText = texts.joinToString(" "),

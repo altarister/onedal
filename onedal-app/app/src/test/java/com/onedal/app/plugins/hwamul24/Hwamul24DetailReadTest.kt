@@ -65,14 +65,14 @@ class Hwamul24DetailReadTest {
     }
 
     @Test fun `🔴 목록 줄 대조는 운송료로 — 잔액(50,000)에 속지 않는다`() {
-        val listRow = SimplifiedOfficeOrder(id = "row", fare = 60_000, timestamp = "t", pickupDetails = listOf(CallStop(listText = "경기 군포 부곡동")), dropoffDetails = listOf(CallStop(listText = "서울 중구 을지로6가")))
-        val other = listRow.copy(id = "other", fare = 50_000)
+        val listRow = SimplifiedOfficeOrder(id = "row", fare = 60_000, money = com.onedal.app.models.CallMoney.ofIncome(60_000), timestamp = "t", pickupDetails = listOf(CallStop(listText = "경기 군포 부곡동")), dropoffDetails = listOf(CallStop(listText = "서울 중구 을지로6가")))
+        val other = listRow.copy(id = "other", fare = 50_000, money = com.onedal.app.models.CallMoney.ofIncome(50_000))
         assertEquals("row", parser.matchDetailOrder(real18, listOf(listRow, other))?.id)
     }
 
     /** 앱이 연 콜 — 목록 줄 값 위에 상세 글(공통이 상세 이은 글로 바꿔 둔 `rawText`)을 채운다 */
     private fun appOpened(pickup: String, dropoff: String, detail: List<String>) = SimplifiedOfficeOrder(
-        id = "row", fare = 60_000, timestamp = "t", rawText = Hwamul24Plugin(null).detailTextsOf(detail).joinToString(" "),
+        id = "row", fare = 60_000, money = com.onedal.app.models.CallMoney.ofIncome(60_000), timestamp = "t", rawText = Hwamul24Plugin(null).detailTextsOf(detail).joinToString(" "),
         pickupDetails = listOf(CallStop(listText = pickup)), dropoffDetails = listOf(CallStop(listText = dropoff)),
     )
 
@@ -122,7 +122,7 @@ class Hwamul24DetailReadTest {
             listOf("(주)신한로직스-1588-5480", "전표", "상태 : 배송", "물품 : 서류", "차량 : 트럭-1t", "탁송료 : 3,000", "수수료 : 20%", "요금 : 85,000(신용)", "구분 : 왕복"),
         )
         for (t in samples) {
-            val read = SimplifiedOfficeOrder(id = "i", fare = InsungParser.readVehicleAndFare(t).second, timestamp = "t", pickupDetails = listOf(CallStop(listText = "")), dropoffDetails = listOf(CallStop(listText = "")))
+            val read = SimplifiedOfficeOrder(id = "i", fare = InsungParser.readVehicleAndFare(t).second, money = com.onedal.app.models.CallMoney.ofIncome(InsungParser.readVehicleAndFare(t).second), timestamp = "t", pickupDetails = listOf(CallStop(listText = "")), dropoffDetails = listOf(CallStop(listText = "")))
             val now = PageFieldRead.withFare(read, InsungPages.pages, Page.NEW_CALL, t).fare
             assertTrue(t.toString(), now > 0)
             assertEquals(t.toString(), now, PageFieldRead.fareFirst(read, InsungPages.pages, Page.NEW_CALL, t).fare)
@@ -131,7 +131,7 @@ class Hwamul24DetailReadTest {
 
     @Test fun `픽커는 상세 요금 칸 정의가 없어 그대로`() {
         assertNull(PageFieldRead.fareOf(KakaoPickerPages.pages, Page.NEW_CALL, listOf("픽업지", "15,785")))
-        val order = SimplifiedOfficeOrder(id = "p", fare = 15_785, timestamp = "t", pickupDetails = listOf(CallStop(listText = "")), dropoffDetails = listOf(CallStop(listText = "")))
+        val order = SimplifiedOfficeOrder(id = "p", fare = 15_785, money = com.onedal.app.models.CallMoney.ofIncome(15_785), timestamp = "t", pickupDetails = listOf(CallStop(listText = "")), dropoffDetails = listOf(CallStop(listText = "")))
         assertEquals(15_785, PageFieldRead.fareFirst(order, KakaoPickerPages.pages, Page.NEW_CALL, listOf("픽업지", "15,785")).fare)
         assertNotNull(order)
     }

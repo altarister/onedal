@@ -18,7 +18,7 @@ class Hwamul24VerdictTest {
     private fun call(fare: Int = 50000, vehicle: String? = "2.5톤/윙", km: Double? = 5.0, reservedDay: Int? = null) =
         SimplifiedOfficeOrder(
             id = "c",
-            fare = fare,
+            fare = fare, money = com.onedal.app.models.CallMoney.ofIncome(fare),
             timestamp = "t",
             vehicleType = vehicle,
             pickupDetails = listOf(CallStop(listText = "경기 시흥 정왕동", distanceKm = km, requestedDay = reservedDay)),

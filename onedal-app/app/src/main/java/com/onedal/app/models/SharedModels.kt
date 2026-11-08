@@ -92,7 +92,7 @@ data class SimplifiedOfficeOrder(
     val id: String,
     val type: String = "NEW_ORDER",
     val fare: Int = 0,
-    /** 💰 돈 묶음 — 화면에 보인 돈 줄(shared `CallMoney`) · 인성 목록 요금 칸 → 기사님 몫 줄 · 못 읽었거나 아직 안 싣는 배차망은 null */
+    /** 💰 돈 묶음 — 화면에 보인 돈 줄 · 결제 · 증빙(shared `CallMoney`) · 원달앱 요금 거르기는 기사님 몫 줄을 읽는다(`incomeOf`) · 못 읽었으면 null */
     val money: CallMoney? = null,
     val timestamp: String,
     val postTime: String? = null,
@@ -173,13 +173,26 @@ data class CallMoney(
     val paymentShown: String? = null,
     val billingType: String? = null,
     val billingShown: String? = null,
-)
+) {
+    companion object {
+        /** 기사님 몫 줄 하나만 든 돈 묶음 — 화면 글자를 안 받으면 쉼표 숫자 */
+        fun ofIncome(won: Int, shown: String = "%,d".format(won)): CallMoney = CallMoney(lines = listOf(MoneyLine(MoneyLine.INCOME, won, shown)))
+    }
+}
 
 /** 💰 돈 줄 한 줄 — shared `MoneyLine` (갈래 · 원 · 화면 글자) · 갈래 이름은 shared `MONEY_KINDS` 의 글자 */
 data class MoneyLine(val kind: String, val won: Int, val shown: String) {
     companion object {
         /** 기사님 몫 */
         const val INCOME = "income"
+        /** 합계 */
+        const val TOTAL = "total"
+        /** 수수료 */
+        const val FEE = "fee"
+        /** 받을 돈 */
+        const val COLLECT = "collect"
+        /** 갈래 이름 전부 — shared `MONEY_KINDS` 와 같은 글자 · 차례(문제지 돈 줄 갈래가 다 들어 있나 `PageFieldReadTest`) */
+        val KINDS = listOf(INCOME, TOTAL, FEE, COLLECT, "consign", "vat", "insurance", "deliveryFee", "promo", "unknown")
     }
 }
 

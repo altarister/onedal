@@ -28,7 +28,7 @@ import com.onedal.app.core.StandardScreen
 object KakaoPickerPages {
     val pages: PageSpecs = mapOf(
         Page.NEW_LIST to listOf(
-            FieldSpec(PageField.FARE, "목록 줄 오른쪽", "16,093", Seen.REAL, Handling.READ, "KakaoPickerParser.parse"),
+            FieldSpec(PageField.FARE, "목록 줄 오른쪽", "16,093", Seen.REAL, Handling.READ, "KakaoPickerParser.parse — 보고 요금 칸 · 돈 묶음 기사님 몫 줄"),
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선 · «581m» 은 km 로 */
             FieldSpec(PageField.PICKUP_DISTANCE, "몸통 줄 맨 앞", "4.7km", Seen.REAL, Handling.READ, "KakaoPickerParser.parse"),
             FieldSpec(PageField.ITEM_SIZE, "꼬리표 줄", "중형", Seen.REAL, Handling.READ, "KakaoPickerParser.parse"),
@@ -80,7 +80,7 @@ object KakaoPickerPages {
             FieldSpec(PageField.MEMO, "사진 유의사항", "바로 배송가주실 분만 잡아주세요", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «유의사항» 다음 «최종 수익» · 버튼 앞 · 원달앱은 이 칸을 안 읽는다(사진 판독도 안 씀)",
                 read = Regex("""유의사항\s+([\s\S]*?)(?=\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
             /* 같은 콜의 최종 수익이 보는 중에 오른다(배송비 그대로 · 실물 4번) — 판독 뒤 오른 값은 모른다 */
-            FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "PickerDetailOcrParser.detailFare(사진 판독 · 판정 요금)"),
+            FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "PickerDetailOcrParser.detailFare(사진 판독 · 판정 요금) → 돈 묶음 기사님 몫 줄(PickerDetailOcrParser.withIncomeLine)"),
             /* 같은 화면 자리에 이름표 없는 줄과 둘 — 읽는 숫자는 같은 «최종 수익» · 캡처 근거: 실물 상세 8/8 */
             FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "서버 상세 자료 돈 묶음 기사님 몫 줄(detailRecordOf money) · 판정 요금은 이름표 없는 줄(사진 판독) — 돈 8 은 걸음 5 의 돈 9 뒤에 판정 입력을 이 줄로 옮기며 이름표 없는 줄을 지운다",
                 read = Regex("""최종 수익\s+([\d,]+)"""), part = "income"),

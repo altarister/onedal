@@ -24,7 +24,7 @@ class ListCompleteTest {
     private fun order(km: Double?) = SimplifiedOfficeOrder(
         id = "t",
         type = "NEW_ORDER",
-        fare = 20000,
+        fare = 20000, money = com.onedal.app.models.CallMoney.ofIncome(20000),
         timestamp = "2026-09-29T10:00:00",
         pickupDetails = listOf(CallStop(listText = "가나시 다라동", distanceKm = km)),
         dropoffDetails = listOf(CallStop(listText = "마바시 사아동")),
