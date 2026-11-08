@@ -54,7 +54,15 @@ object Hwamul24Pages {
             FieldSpec(PageField.DELIVERY_DISTANCE, "하차지 칸 오른쪽", "36Km", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.MEMO, "화물정보 칸", "지금상 당착 59박스 수/수-A [독차]", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «화물정보» 다음 «톤수» 앞(배지 «독차» 포함) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""화물정보\s+(?!톤수)([\s\S]*?)(?=\s+톤수|${'$'})""")),
-            FieldSpec(PageField.VEHICLE_TYPE, "톤수 · 차종 · 적재중량", "1톤 · 전체 · 1톤", Seen.REAL, Handling.UNUSED),
+            /* 콜 차종 — 목록 줄이 없을 때의 차종 글자 · 실물 캡처 ex_images/화물24시 화물상세정보 3/3 에 있다(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) — 서버 원문 0 건이라 원문 기준으로는 모름 */
+            FieldSpec(PageField.VEHICLE_TYPE, "차량 표 톤수", "톤수 3.5톤 · 1톤", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""톤수\s+(\d+(?:\.\d+)?톤)"""), part = "ton"),
+            /* 차 몸 모양(짐 줄 «몸 모양») · 실물 캡처 ex_images/화물24시 화물상세정보 3/3 에 있다(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) — 서버 원문 0 건이라 원문 기준으로는 모름 */
+            FieldSpec(PageField.VEHICLE_TYPE, "차량 표 차종", "차종 윙바디 · 전체", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""차종\s+(?!적재중량|운행방법|운송료)(\S+)"""), part = "body"),
+            /* 실을 무게(짐 줄 «무게») — 아래 안내 «※적재중량은 화주와 통화하여 …» 는 값이 아니다 · 실물 캡처 ex_images/화물24시 화물상세정보 3/3 에 있다(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) — 서버 원문 0 건이라 원문 기준으로는 모름 */
+            FieldSpec(PageField.VEHICLE_TYPE, "차량 표 적재중량", "적재중량 3.85톤 · 2.1톤 이하", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""적재중량\s+(\d+(?:\.\d+)?톤(?:\s*이하)?)"""), part = "weight"),
             FieldSpec(PageField.TAGS, "운행방법", "편도", Seen.REAL, Handling.UNUSED),
             /* 💰 목록 요금과 같은 «운송료»만 — 실물은 «운송료» · «60,000» 이 다른 노드, 시뮬은 «60,000원» (부가세 · 수납금액은 안 읽음) */
             FieldSpec(PageField.FARE, "운송료 · 부가세 · 수납금액", "60,000 · 6,000 · 65,144", Seen.REAL, Handling.READ, "목록 줄을 못 찾은 손 상세는 PageFieldRead(PreConfirmSequence)",
@@ -130,6 +138,9 @@ object Hwamul24Pages {
 
     /** 📦 크기 낱말 → 라면박스 수(shared sizeWords) · null 은 박스 수 모름 */
     val sizeWords: Map<String, Int?> = emptyMap()
+
+    /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
+    val vehicleAbsentMeansAny: Boolean = false
 
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 실시간 목록 머리(«화물정보» + «자동새로고침») · 잡기 전 상세(«화물상세정보» + «운송료») · 첫 화면(«전국24시콜화물» — 홈에서 바로 알아보기)) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(

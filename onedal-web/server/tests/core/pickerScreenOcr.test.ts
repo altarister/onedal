@@ -90,6 +90,12 @@ describe('픽커 상세를 그림으로 읽는다', () => {
         expect(r.itemSize).toBe('초소형 세 번의 합 70cm 2kg 이하');
     });
 
+    it('물품 크기 «특대형» 줄도 표 낱말로 읽는다 — 장소로 새지 않는다(원달앱 PickerScreenOcrTest 와 같은 줄)', () => {
+        const r = parsePickerDetailOcr(실물_위례_삼성2동.map(l => (l.text.startsWith('초소형') ? { y: l.y, text: '특대형 세 변의 합 200cm 30kg 이하' } : l)))!;
+        expect(r.itemSize).toBe('특대형 세 변의 합 200cm 30kg 이하');
+        expect(r.dropoff.place).toBe('더에스엠씨그룹');
+    });
+
     /**
      * 🔴 **지도 라벨이 주소로 새지 않는다.** 화면 위쪽 절반은 지도라 「과천」·「성남」·「광주」가
      *    글자로 떠 있다. 그걸 주소로 집으면 **엉뚱한 좌표로 경로를 낸다** —

@@ -24,10 +24,16 @@ export const KAKAO_PICKER_PAGES: NetworkPageSpec = /*JSON*/{
   "excludeScanWhy": "기사님 «카카오픽커는 물품정보»+«가» 유의사항 — 둘 다 «최종 수익» · 버튼 앞에서 끝난다 · 픽업지 주소 · 목록 잔상은 안 본다",
   "addressCut": null,
   "addressCutWhy": "지우지 않는다 — 원달앱이 이미 «구 동»으로 정리해 보낸다(앞뒤 공백만)",
+  "vehicleWords": [
+    {"word": "승", "vehicle": "승용차", "seen": "REAL"},
+    {"word": "승용차", "vehicle": "승용차", "seen": "REAL"}
+  ],
+  "vehicleWordsWhy": "목록 꼬리표 «승»(승용차로 가는 콜) · 확정 전 상세 시트 꼬리표 «승용차» — «승» 없는 퀵은 수단 상관없음(vehicleAbsentMeansAny) · «한차»는 뜻을 몰라 표에 넣지 않는다(표에 없는 낱말이 모름이고, 표의 null 은 «우리 차종 없음»이라 뜻이 다르다) · 원달앱 픽커 목록은 아직 차종을 안 보낸다",
+  "vehicleAbsentMeansAny": true,
   "sizeWords": [
-    {"word": "초소형", "boxes": null, "seen": "REAL"},
-    {"word": "소형", "boxes": null, "seen": "REAL"},
-    {"word": "중형", "boxes": null, "seen": "REAL"},
+    {"word": "초소형", "boxes": 1, "seen": "REAL"},
+    {"word": "소형", "boxes": 2, "seen": "REAL"},
+    {"word": "중형", "boxes": 3, "seen": "REAL"},
     {"word": "대형", "boxes": null, "seen": "SIM"},
     {"word": "특대형", "boxes": null, "seen": "UNKNOWN"}
   ],
@@ -136,6 +142,9 @@ export const KAKAO_PICKER_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "clock", "where": "배송 상호 오른쪽 회색", "sample": "18:28까지 배송", "seen": "REAL", "handling": "READ", "usedAt": "서버 원문의 [사진] 줄(원달앱 사진 판독 줄 · 57 3단계) — 약속 · 마감에는 아직 안 쓴다(57 5단계 미룸)", "part": "dropoff", "presence": "ALWAYS", "presenceEvidence": {"seen": 15, "of": 15, "from": "실물 캡처 ex_images/카카오픽커/실물_2026 상세 6건 + A24 판독 사진 9건(10-22) — 서로 다른 콜 15건 · «HH:MM까지 배송» 13 · 내일이면 «내일 HH:MM» 2"}, "read": "([0-9]{1,2}:[0-9]{2})\\s*\\S{0,2}\\s*배송"},
       {"field": "memo", "where": "회색 상자 «픽업 장소» 줄들", "sample": "매장 직원에게 문의 오더번호 F2609011638JDU17", "seen": "REAL", "handling": "READ", "usedAt": "지금 읽는 곳 없음(서버 번호 7 · 걸음 3 — 적요) · 원달앱은 이 칸을 안 읽는다", "read": "픽업 장소\\s+([\\s\\S]*?)(?=\\s+물품\\s*정보|\\s+유의사항|\\s+최종 수익|\\s+넘기기|\\s+수락하기|$)", "part": "pickupPlace", "note": "«픽업 장소» 다음부터 «물품 정보» 앞까지 글자 그대로 — 오더번호 글 포함 · 가게 주문 번호이고 우리 콜 번호가 아니다(기사님)", "presence": "SOMETIMES", "presenceEvidence": {"seen": 3, "of": 15, "from": "실물 캡처 ex_images/카카오픽커/실물_2026 상세 6건 + A24 판독 사진 9건(10-22) — 서로 다른 콜 15건 · 늘 단거리 콜 · 오더번호 줄과 함께"}},
       {"field": "itemSize", "where": "사진 물품 정보", "sample": "중형 세 변의 합 140cm · 20kg 이하", "seen": "REAL", "handling": "READ", "usedAt": "PickerScreenOcr.parseDetail · 서버 제외어 찾는 칸(excludeScan) — 접근성 글에서 «최종 수익» · «유의사항» · 버튼 앞까지 · 관제웹 물품 칸(서버 pageFieldOf)", "read": "물품\\s*정보\\s+([\\s\\S]*?)(?=\\s+유의사항|\\s+최종 수익|\\s+넘기기|\\s+수락하기|$)", "presence": "ALWAYS", "presenceEvidence": {"seen": 13, "of": 13, "from": "실물 캡처 ex_images/카카오픽커/실물_2026 상세 6건 + A24 판독 사진 9건(10-22) — 서로 다른 콜 15건 · 아이폰은 «물품정보»(붙여 씀)"}},
+      {"field": "itemSize", "where": "물품 정보 크기 낱말 뒤 치수", "sample": "세 변의 합 140cm", "seen": "REAL", "handling": "READ", "usedAt": "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다", "read": "(세 변의 합\\s*\\d+\\s*cm)", "part": "dimension", "note": "짐 줄 «치수» — 글자 그대로(cm 숫자로 바꾸지 않는다) · 캡처 근거: 실물 캡처 ex_images/카카오픽커/실물_2026 물품 정보", "presence": "SOMETIMES", "presenceEvidence": {"seen": 140, "of": 145, "from": "서버 원문 intel.rawDetailText 145 건 중 140"}},
+      {"field": "itemSize", "where": "물품 정보 치수 뒤 무게", "sample": "20kg 이하", "seen": "REAL", "handling": "READ", "usedAt": "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다", "read": "세 변의 합\\s*\\d+\\s*cm\\s*\\S?\\s*(\\d+(?:\\.\\d+)?\\s*kg\\s*이하)", "part": "weight", "note": "짐 줄 «무게» — 치수 바로 뒤만 읽는다(유의사항의 «5kg 이내» 같은 글에 안 속는다)", "presence": "SOMETIMES", "presenceEvidence": {"seen": 140, "of": 145, "from": "서버 원문 intel.rawDetailText 145 건 중 140"}},
+      {"field": "itemSize", "where": "물품 정보 무게 뒤 취급 주의 글", "sample": "전자제품이에요", "seen": "UNKNOWN", "handling": "READ", "usedAt": "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다", "read": "kg[ \\t]*이하[ \\t]+([^\\n]*?(?:이에요|예요))(?=[ \\t]|\\n|$)", "part": "care", "note": "짐 줄 «취급 주의» — 출처 불명 참고 글자(짐 계획 짐 글자 모음)의 «…이에요» 꼴만 읽는다 · 서버 원문 145 건 중 0 · 같은 자리에 품목 글(«식품» · «검체 채취 키트»)과 현금 착불 안내가 오는 원문이 8 건 — 그 글은 취급 주의로 읽지 않는다", "presence": "UNKNOWN"},
       {"field": "orderNo", "where": "물품 정보 글 끝", "sample": "요기요 주문번호 : 903", "seen": "REAL", "handling": "READ", "usedAt": "지금 읽는 곳 없음(서버 번호 7 · 걸음 3 — 가게 주문 번호) · 원달앱은 이 칸을 안 읽는다", "read": "(\\S+\\s*주문번호\\s*:\\s*\\S+)", "part": "client", "note": "가게(배달앱) 주문 번호 글자 통째 — 우리 콜 번호 아님", "presence": "ONCE", "presenceEvidence": {"seen": 1, "of": 15, "from": "실물 캡처 ex_images/카카오픽커/실물_2026 상세 6건 + A24 판독 사진 9건(10-22) — 서로 다른 콜 15건 · 07 배달 콜 한 건"}},
       {"field": "memo", "where": "사진 유의사항", "sample": "바로 배송가주실 분만 잡아주세요", "seen": "REAL", "handling": "READ", "usedAt": "서버 제외어 찾는 칸(excludeScan) — «유의사항» 다음 «최종 수익» · 버튼 앞 · 원달앱은 이 칸을 안 읽는다(사진 판독도 안 씀)", "read": "유의사항\\s+([\\s\\S]*?)(?=\\s+최종 수익|\\s+넘기기|\\s+수락하기|$)", "presence": "SOMETIMES", "presenceEvidence": {"seen": 9, "of": 12, "from": "실물 캡처 ex_images/카카오픽커/실물_2026 상세 6건 + A24 판독 사진 9건(10-22) — 서로 다른 콜 15건"}},
       {"field": "fare", "where": "상세 아래 최종 수익", "sample": "최종 수익 2,387", "seen": "REAL", "handling": "READ", "usedAt": "PickerDetailOcrParser.detailFare(사진 판독 · 판정 요금)", "note": "같은 콜의 최종 수익이 보는 중에 오른다(배송비 그대로 · 실물 4번) — 판독 뒤 오른 값은 모른다", "presence": "ALWAYS", "presenceEvidence": {"seen": 8, "of": 8, "from": "실물 캡처 ex_images/카카오픽커/실물_2026 상세 6건 + A24 판독 사진 9건(10-22) — 서로 다른 콜 15건"}},

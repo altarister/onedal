@@ -83,6 +83,13 @@ class PickerScreenOcrTest {
     }
 
     @Test
+    fun `물품 크기 «특대형» 줄도 표 낱말로 읽는다 - 장소로 새지 않는다`() {
+        val r = PickerScreenOcr.parseDetail(실물_위례_삼성2동.map { if (it.text.startsWith("초소형")) OcrLine(it.y, "특대형 세 변의 합 200cm 30kg 이하") else it })!!
+        assertEquals("특대형 세 변의 합 200cm 30kg 이하", r.itemSize)
+        assertEquals("더에스엠씨그룹", r.dropoff.place)
+    }
+
+    @Test
     fun `지도 위 지명이 주소로 새지 않는다`() {
         val r = PickerScreenOcr.parseDetail(실물_위례_삼성2동)!!
         for (잡음 in listOf("과천", "성남시 분당", "광주", "안양")) {

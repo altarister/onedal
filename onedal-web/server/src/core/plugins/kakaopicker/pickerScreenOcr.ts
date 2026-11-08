@@ -27,12 +27,9 @@
 import { NETWORK_PAGES } from '@onedal/shared';
 
 /**
- * 📦 물품 크기 줄 — 크기 낱말은 배차망 정의 표(픽커 `sizeWords`)에서 · 표 차례(«초소형»이 «소형»보다 먼저).
- * 🔴 사진 판독 길은 «특대형»을 아직 안 읽는다 — 원달앱 `PickerScreenOcr.kt` 와 같은 넷이다.
+ * 📦 물품 크기 줄 — 크기 낱말은 배차망 정의 표(픽커 `sizeWords`)에서 · 표 차례(«초소형»이 «소형»보다 먼저) · 원달앱 `PickerScreenOcr.kt` 와 같은 다섯이다.
  */
-const PHOTO_SKIPS_SIZE = '특대형';
-const SIZE_RE = new RegExp(`^(${(NETWORK_PAGES.kakaopicker.sizeWords ?? [])
-    .map(w => w.word).filter(word => word !== PHOTO_SKIPS_SIZE).join('|')})`);
+const SIZE_RE = new RegExp(`^(${(NETWORK_PAGES.kakaopicker.sizeWords ?? []).map(w => w.word).join('|')})`);
 
 /** OCR 한 줄 — `y` 는 위에서부터의 자리(위가 작다). 엔진이 무엇이든 이 둘만 주면 된다 */
 export interface OcrLine {

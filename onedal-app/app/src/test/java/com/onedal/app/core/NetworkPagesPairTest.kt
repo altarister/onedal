@@ -94,6 +94,17 @@ class NetworkPagesPairTest {
     @Test fun `카카오 픽커 크기 낱말은 표와 같다`() = assertEquals(sizesOf("kakaopicker"), KakaoPickerPages.sizeWords.toList())
     @Test fun `인성플렉스 크기 낱말은 표와 같다`() = assertEquals(sizesOf("isflex"), IsflexPages.sizeWords.toList())
 
+    /** 🚚 차종 글자가 없으면 수단 상관없음인가 — 표의 vehicleAbsentMeansAny 와 생성 파일이 같다(표에 없으면 false) */
+    private fun absentMeansAnyOf(network: String): Boolean =
+        table[network].asJsonObject["vehicleAbsentMeansAny"]?.asBoolean ?: false
+
+    @Test fun `차종 글자 없음 = 수단 상관없음 칸은 표와 같다`() {
+        assertEquals(absentMeansAnyOf("insung"), InsungPages.vehicleAbsentMeansAny)
+        assertEquals(absentMeansAnyOf("hwamul24"), Hwamul24Pages.vehicleAbsentMeansAny)
+        assertEquals(absentMeansAnyOf("kakaopicker"), KakaoPickerPages.vehicleAbsentMeansAny)
+        assertEquals(absentMeansAnyOf("isflex"), IsflexPages.vehicleAbsentMeansAny)
+    }
+
     /** 🖥️ 페이지 목록 — 표의 screens 와 생성 파일 screens 를 같은 글 모양으로 펴서 견준다(차례가 판별 차례라 차례까지) */
     private fun matchText(m: ScreenMatch): String =
         "all=${m.all} any=${m.any} none=${m.none} shape=${m.shape?.pattern} min=${m.shapeMin} max=${m.shapeMax}"

@@ -32,6 +32,10 @@ export const ISFLEX_PAGES: NetworkPageSpec = /*JSON*/{
     {"word": "개인이동수단", "vehicle": null, "seen": "REAL"}
   ],
   "vehicleWordsWhy": "목록 줄 · 상세 «출발지까지» 다음 차종 글자(실물 8건 모두 «오토») · 목록 칩과 홈 배송 수단 글자(«오토바이» · «승용/소형» · «도보» · «개인이동수단») — 도보 · 개인이동수단은 우리 차종이 없다",
+  "sizeWords": [
+    {"word": "대박스", "boxes": null, "seen": "UNKNOWN"},
+    {"word": "중박스", "boxes": null, "seen": "UNKNOWN"}
+  ],
   "networkMarkers": [["출발지까지", "수입"], ["총 수입", "수행하기"], ["현재 선택된 배송 수단"], ["진행중인 오더가 없습니다"]],
   "networkMarkersWhy": "목록(«출발지까지» + «수입») · 상세(«총 수입» + «수행하기») · 홈(«현재 선택된 배송 수단») · 진행중 빈 화면(«진행중인 오더가 없습니다») — 실물 02 · 08 · 01 · 04 에 있고 인성 화면에는 없는 글자 묶음. 공지 띠 · «AI 배차 대기중»은 글이 바뀌거나 사라져 쓰지 않는다",
   "slotNotes": {

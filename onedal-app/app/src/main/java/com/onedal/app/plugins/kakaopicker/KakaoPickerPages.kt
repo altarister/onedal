@@ -60,6 +60,15 @@ object KakaoPickerPages {
                 read = Regex("""픽업 장소\s+([\s\S]*?)(?=\s+물품\s*정보|\s+유의사항|\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})"""), part = "pickupPlace"),
             FieldSpec(PageField.ITEM_SIZE, "사진 물품 정보", "중형 세 변의 합 140cm · 20kg 이하", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail · 서버 제외어 찾는 칸(excludeScan) — 접근성 글에서 «최종 수익» · «유의사항» · 버튼 앞까지 · 관제웹 물품 칸(서버 pageFieldOf)",
                 read = Regex("""물품\s*정보\s+([\s\S]*?)(?=\s+유의사항|\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
+            /* 짐 줄 «치수» — 글자 그대로(cm 숫자로 바꾸지 않는다) · 캡처 근거: 실물 캡처 ex_images/카카오픽커/실물_2026 물품 정보 */
+            FieldSpec(PageField.ITEM_SIZE, "물품 정보 크기 낱말 뒤 치수", "세 변의 합 140cm", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""(세 변의 합\s*\d+\s*cm)"""), part = "dimension"),
+            /* 짐 줄 «무게» — 치수 바로 뒤만 읽는다(유의사항의 «5kg 이내» 같은 글에 안 속는다) */
+            FieldSpec(PageField.ITEM_SIZE, "물품 정보 치수 뒤 무게", "20kg 이하", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""세 변의 합\s*\d+\s*cm\s*\S?\s*(\d+(?:\.\d+)?\s*kg\s*이하)"""), part = "weight"),
+            /* 짐 줄 «취급 주의» — 출처 불명 참고 글자(짐 계획 짐 글자 모음)의 «…이에요» 꼴만 읽는다 · 서버 원문 145 건 중 0 · 같은 자리에 품목 글(«식품» · «검체 채취 키트»)과 현금 착불 안내가 오는 원문이 8 건 — 그 글은 취급 주의로 읽지 않는다 */
+            FieldSpec(PageField.ITEM_SIZE, "물품 정보 무게 뒤 취급 주의 글", "전자제품이에요", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음(서버 짐 7 · 걸음 3 — 짐 묶음) · 원달앱은 이 칸을 안 읽는다",
+                read = Regex("""kg[ \t]*이하[ \t]+([^\n]*?(?:이에요|예요))(?=[ \t]|\n|${'$'})"""), part = "care"),
             /* 가게(배달앱) 주문 번호 글자 통째 — 우리 콜 번호 아님 */
             FieldSpec(PageField.ORDER_NO, "물품 정보 글 끝", "요기요 주문번호 : 903", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 번호 7 · 걸음 3 — 가게 주문 번호) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""(\S+\s*주문번호\s*:\s*\S+)"""), part = "client"),
@@ -95,17 +104,23 @@ object KakaoPickerPages {
         ),
     )
 
-    /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords) */
-    val vehicleWords: Map<String, String?> = emptyMap()
+    /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 꼬리표 «승»(승용차로 가는 콜) · 확정 전 상세 시트 꼬리표 «승용차» — «승» 없는 퀵은 수단 상관없음(vehicleAbsentMeansAny) · «한차»는 뜻을 몰라 표에 넣지 않는다(표에 없는 낱말이 모름이고, 표의 null 은 «우리 차종 없음»이라 뜻이 다르다) · 원달앱 픽커 목록은 아직 차종을 안 보낸다) */
+    val vehicleWords: Map<String, String?> = mapOf(
+        "승" to "승용차",
+        "승용차" to "승용차",
+    )
 
     /** 📦 크기 낱말 → 라면박스 수(shared sizeWords) · null 은 박스 수 모름 */
     val sizeWords: Map<String, Int?> = mapOf(
-        "초소형" to null,
-        "소형" to null,
-        "중형" to null,
+        "초소형" to 1,
+        "소형" to 2,
+        "중형" to 3,
         "대형" to null,
         "특대형" to null,
     )
+
+    /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
+    val vehicleAbsentMeansAny: Boolean = true
 
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 목록 머리 · 수락 전 상세 버튼 둘 · 홈과 수락 뒤 단계 글자 하나씩 · 퀵 흰 페이지 칸 이름 하나씩(퀵 머리 글자는 원달앱이 못 읽는다)) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(

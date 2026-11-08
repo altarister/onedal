@@ -26,6 +26,12 @@ object InsungPages {
             FieldSpec(PageField.PICKUP, "출발지 칸", "@초이동 · @남양주(오남", Seen.REAL, Handling.READ, "InsungParser.parse"),
             FieldSpec(PageField.DROPOFF, "도착지 칸", "이태원동 · 김포(대곶면", Seen.REAL, Handling.READ, "InsungParser.parse"),
             FieldSpec(PageField.RESERVATION, "출발지 칸 앞글자", "낼7시/ · 낼6시30/ · 21시/(시각만 · 오늘) · 오후7시30/(시각만 · 오늘) · 10일/", Seen.REAL, Handling.READ, "InsungParser.reservationOf"),
+            /* 짐 줄 «품목» — 물건이 핸드폰 · 출발지 · 도착지 칸 앞 토막 — 원달앱 칸 앞 토막 함수(걸음 5)가 읽는다 */
+            FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "폰)", Seen.REAL, Handling.UNUSED, "",
+                part = "goods"),
+            /* 짐 줄 «동승» — 화주 2명 동승(캡처 없음) · 출발지 · 도착지 칸 앞 토막 — 원달앱 칸 앞 토막 함수(걸음 5)가 읽는다 */
+            FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "2분동승", Seen.UNKNOWN, Handling.UNUSED, "",
+                part = "passenger"),
             FieldSpec(PageField.CLOCK, "도착지 칸 앞글자 (도착 약속)", "낼8/ · 8시/ · 낼10시/", Seen.REAL, Handling.DROPPED, "InsungParser.parse — 출발지 쪽이 있으면 버림"),
             FieldSpec(PageField.VEHICLE_TYPE, "차종 칸", "1t · 다 · 라 · 1t화물", Seen.REAL, Handling.READ, "InsungParser.readVehicleAndFare"),
             FieldSpec(PageField.FARE, "요금 칸 (천 원 단위)", "40.0 · 270.0", Seen.REAL, Handling.READ, "InsungParser.readVehicleAndFare"),
@@ -132,7 +138,7 @@ object InsungPages {
         ),
     )
 
-    /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록 · «용/소» 는 영상 1719 목록 차종 칸에 있고 뜻은 모른다(용달/소형 같음) — 차종을 모름으로 두어 목록 줄은 묶되 차종 필터를 걸었으면 걸러진다 · «트럭-1t» 류는 확정 뒤 상세 «차량 :» 줄의 글자(실물은 «트럭-1t» 하나 · 나머지 톤수는 같은 꼴) · «바이크» 는 화면에서 못 본 오토바이 줄임말 · 원달앱은 이 표의 낱말 전부로 목록 줄을 묶는 기준 칸을 찾는다 — 목록 낱말과 상세 낱말이 함께 기준 칸이 되어, 목록에 «트럭-1t» · «바이크 3» 이 와도 차종 · 요금으로 읽힌다) */
+    /** 🚚 차종 낱말 → 우리 차종(shared vehicleWords — 목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록 · «용/소» 는 영상 1719 목록 차종 칸에 있고 뜻은 모른다(용달/소형 같음) — 차종을 모름으로 두어 목록 줄은 묶되 차종 필터를 걸었으면 걸러진다 · «트럭-1t» 류는 확정 뒤 상세 «차량 :» 줄의 글자(실물은 «트럭-1t» 하나 · 나머지 톤수는 같은 꼴) · «다마스-다마» 는 확정 뒤 상세 «차량 :» 의 차종-크기 꼴(영상 1621 · 1743 — 앞이 차종, 뒤 «다마»는 크기 낱말이라 sizeWords 에 따로) · «바이크» 는 화면에서 못 본 오토바이 줄임말 · 원달앱은 이 표의 낱말 전부로 목록 줄을 묶는 기준 칸을 찾는다 — 목록 낱말과 상세 낱말이 함께 기준 칸이 되어, 목록에 «트럭-1t» · «바이크 3» 이 와도 차종 · 요금으로 읽힌다) */
     val vehicleWords: Map<String, String?> = mapOf(
         "오" to "오토바이",
         "다" to "다마스",
@@ -158,10 +164,16 @@ object InsungPages {
         "트럭-5t" to "5t",
         "트럭-11t" to "11t",
         "트럭-25t" to "25t",
+        "다마스-다마" to "다마스",
     )
 
     /** 📦 크기 낱말 → 라면박스 수(shared sizeWords) · null 은 박스 수 모름 */
-    val sizeWords: Map<String, Int?> = emptyMap()
+    val sizeWords: Map<String, Int?> = mapOf(
+        "다마" to null,
+    )
+
+    /** 🚚 차종 글자가 없으면 수단 상관없음인가(shared vehicleAbsentMeansAny) · 없으면 false */
+    val vehicleAbsentMeansAny: Boolean = false
 
     /** 🧭 배차망을 가르는 글자 묶음(shared networkMarkers — 목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금») · 첫 화면(«인성퀵화면분할» — 홈에서 바로 알아보기)) · 묶음 안 글자가 전부 보이면 이 배차망 */
     val networkMarkers: List<List<String>> = listOf(

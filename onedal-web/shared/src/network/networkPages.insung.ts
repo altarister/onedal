@@ -48,9 +48,13 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
     {"word": "트럭-3.5t", "vehicle": "3.5t", "seen": "UNKNOWN"},
     {"word": "트럭-5t", "vehicle": "5t", "seen": "UNKNOWN"},
     {"word": "트럭-11t", "vehicle": "11t", "seen": "UNKNOWN"},
-    {"word": "트럭-25t", "vehicle": "25t", "seen": "UNKNOWN"}
+    {"word": "트럭-25t", "vehicle": "25t", "seen": "UNKNOWN"},
+    {"word": "다마스-다마", "vehicle": "다마스", "seen": "REAL"}
   ],
-  "vehicleWordsWhy": "목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록 · «용/소» 는 영상 1719 목록 차종 칸에 있고 뜻은 모른다(용달/소형 같음) — 차종을 모름으로 두어 목록 줄은 묶되 차종 필터를 걸었으면 걸러진다 · «트럭-1t» 류는 확정 뒤 상세 «차량 :» 줄의 글자(실물은 «트럭-1t» 하나 · 나머지 톤수는 같은 꼴) · «바이크» 는 화면에서 못 본 오토바이 줄임말 · 원달앱은 이 표의 낱말 전부로 목록 줄을 묶는 기준 칸을 찾는다 — 목록 낱말과 상세 낱말이 함께 기준 칸이 되어, 목록에 «트럭-1t» · «바이크 3» 이 와도 차종 · 요금으로 읽힌다",
+  "vehicleWordsWhy": "목록 차종 칸 한 노드(«다» · «1t») 또는 요금과 뭉친 노드(«라2.2»)의 앞 낱말 · REAL 은 표 견본 «1t · 다 · 라», 나머지는 시뮬레이터 목록 · «용/소» 는 영상 1719 목록 차종 칸에 있고 뜻은 모른다(용달/소형 같음) — 차종을 모름으로 두어 목록 줄은 묶되 차종 필터를 걸었으면 걸러진다 · «트럭-1t» 류는 확정 뒤 상세 «차량 :» 줄의 글자(실물은 «트럭-1t» 하나 · 나머지 톤수는 같은 꼴) · «다마스-다마» 는 확정 뒤 상세 «차량 :» 의 차종-크기 꼴(영상 1621 · 1743 — 앞이 차종, 뒤 «다마»는 크기 낱말이라 sizeWords 에 따로) · «바이크» 는 화면에서 못 본 오토바이 줄임말 · 원달앱은 이 표의 낱말 전부로 목록 줄을 묶는 기준 칸을 찾는다 — 목록 낱말과 상세 낱말이 함께 기준 칸이 되어, 목록에 «트럭-1t» · «바이크 3» 이 와도 차종 · 요금으로 읽힌다",
+  "sizeWords": [
+    {"word": "다마", "boxes": null, "seen": "REAL"}
+  ],
   "networkMarkers": [["신규", "빠른설정"], ["적요상세", "요금"], ["인성퀵화면분할"]],
   "networkMarkersWhy": "목록 머리(«신규» + «빠른설정») · 상세(«적요상세» + «요금») · 첫 화면(«인성퀵화면분할» — 홈에서 바로 알아보기)",
   "callOverlays": [
@@ -108,6 +112,8 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "pickup", "where": "출발지 칸", "sample": "@초이동 · @남양주(오남", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},
       {"field": "dropoff", "where": "도착지 칸", "sample": "이태원동 · 김포(대곶면", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.parse"},
       {"field": "reservation", "where": "출발지 칸 앞글자", "sample": "낼7시/ · 낼6시30/ · 21시/(시각만 · 오늘) · 오후7시30/(시각만 · 오늘) · 10일/", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.reservationOf"},
+      {"field": "itemSize", "where": "출발지 · 도착지 칸 앞 낱말", "sample": "폰)", "seen": "REAL", "handling": "UNUSED", "part": "goods", "note": "짐 줄 «품목» — 물건이 핸드폰 · 출발지 · 도착지 칸 앞 토막 — 원달앱 칸 앞 토막 함수(걸음 5)가 읽는다"},
+      {"field": "itemSize", "where": "출발지 · 도착지 칸 앞 낱말", "sample": "2분동승", "seen": "UNKNOWN", "handling": "UNUSED", "part": "passenger", "note": "짐 줄 «동승» — 화주 2명 동승(캡처 없음) · 출발지 · 도착지 칸 앞 토막 — 원달앱 칸 앞 토막 함수(걸음 5)가 읽는다"},
       {"field": "clock", "where": "도착지 칸 앞글자 (도착 약속)", "sample": "낼8/ · 8시/ · 낼10시/", "seen": "REAL", "handling": "DROPPED", "usedAt": "InsungParser.parse — 출발지 쪽이 있으면 버림"},
       {"field": "vehicleType", "where": "차종 칸", "sample": "1t · 다 · 라 · 1t화물", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.readVehicleAndFare"},
       {"field": "fare", "where": "요금 칸 (천 원 단위)", "sample": "40.0 · 270.0", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.readVehicleAndFare"},
