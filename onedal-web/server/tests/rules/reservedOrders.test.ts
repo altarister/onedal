@@ -56,7 +56,7 @@ describe('📅 들어가는 문 — KEEP', () => {
         const session = getUserSession(U);
         session.myOrders = [];
         session.reservedOrders = [];
-        const o = call('tomorrow', { reserved: true, pickups: [{ listText: '경기 광주시 초월읍', requestedDay: 1, requestedTime: '09:00' }] });
+        const o = call('tomorrow', { pickups: [{ listText: '경기 광주시 초월읍', requestedDay: 1, requestedTime: '09:00' }] });
         session.pendingOrdersData.set(o.id, o);
         const phaseBefore = session.activeFilter.dispatchPhase;
 
@@ -74,7 +74,7 @@ describe('📅 들어가는 문 — KEEP', () => {
 
     it('오늘 안의 예약(reservedDay 0)은 오늘 콜이다 — 진행 중 콜에 든다', async () => {
         const session = getUserSession(U);
-        const o = call('today-late', { reserved: true, pickups: [{ listText: '경기 광주시 초월읍', requestedDay: 0, requestedTime: '18:30' }] });
+        const o = call('today-late', { pickups: [{ listText: '경기 광주시 초월읍', requestedDay: 0, requestedTime: '18:30' }] });
         session.pendingOrdersData.set(o.id, o);
         await handleDecision(U, o.id, 'ORDER_CONFIRMED', io);
         expect(session.myOrders.map(c => c.id)).toContain(o.id);

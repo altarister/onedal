@@ -13,12 +13,11 @@ import com.onedal.app.models.CallStop
  * 라이브 — 반경 16.87km 로 내일 콜 셋(신촌 20.0 · 서초 16.9 · 와부 19.4)이 상차에서 떨어졌다. 서버가 reservedPickupRadiusKm 를 싣는다.
  */
 class PickerReservedRadiusTest {
-    private fun call(fare: Int, km: Double, day: Int?, reserved: Boolean = day != null) =
+    private fun call(fare: Int, km: Double, day: Int?) =
         SimplifiedOfficeOrder(
             id = "c$fare",
             fare = fare,
             timestamp = "t",
-            reserved = reserved,
             pickupDetails = listOf(CallStop(listText = "광주 경안", distanceKm = km, requestedDay = day)),
             dropoffDetails = listOf(CallStop(listText = "서대문 신촌")),
 )
@@ -38,7 +37,8 @@ class PickerReservedRadiusTest {
 
     @Test fun `칸이 없으면 옛 반경`() = assertFalse(pickupOk(call(14168, 20.0, 1), null))
 
-    @Test fun `날 모르는 예약은 기본 반경`() = assertFalse(pickupOk(call(14168, 20.0, null, reserved = true), 25.0))
+    /** «예약»만 보인 콜은 날 0(오늘) — 오늘 반경 */
+    @Test fun `예약만 보인 오늘 콜은 오늘 반경`() = assertFalse(pickupOk(call(14168, 20.0, 0), 25.0))
 
     @Test fun `까닭 글에 어느 반경으로 걸렀나`() {
         assertEquals("상차 20.0km > 내일 콜 반경 16.87km", KakaoPickerParser.pickupMissWord(call(14168, 20.0, 1), 16.8735745562319, null))

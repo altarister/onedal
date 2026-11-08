@@ -121,13 +121,8 @@ data class SimplifiedOfficeOrder(
     /** 🏢 공유콜 — 인성 목록 출발지 «@»(다른 사무실 콜) · 표시가 없으면 거짓 · 뜻을 모르는 배차망은 null (shared `CallIdentity.fromOtherOffice`) */
     val fromOtherOffice: Boolean? = null,
     /**
-     * 📅 **예약 표시가 있나** (`ReservationText`) — 상차 쪽 글자로 읽는다.
-     * 표시 없음 = 거짓 · 날 모름 = 참 + 첫 상차 정거장 `requestedDay` null (`withReservation`).
-     */
-    val reserved: Boolean? = null,
-    /**
      * 🚏 **상차 · 하차 정거장** — 목록 글자(`listText`) · 정거장 거리(`distanceKm` — 첫 상차 = 내 자리 → 상차지, 마지막 하차 = 배송 거리) ·
-     * 약속(`promiseText` · `requestedDay` · `requestedTime` — 상세에서 읽은 값이 목록 값을 덮는다(픽커 사진 «내일 14:00 픽업예약»)).
+     * 약속(`promiseText` 화면 원문 · `requestedDay` · `requestedTime` — 정거장 약속 읽기 `ReservationText.read` 가 채운다 · 하차 날 글자가 없으면 상차 날).
      * 읽는 곳은 `firstPickupStop` · `lastDropoffStop` · `StopText.of`(`core/CallStops.kt`) — 원달앱은 정거장 한 곳씩 싣는다.
      */
     val pickupDetails: List<CallStop> = listOf(CallStop()),
@@ -531,6 +526,8 @@ data class PairDeviceResponse(
 )
 
 
-/** 📅 콜에 읽은 예약을 싣는다 — 표시 · 첫 상차 날 · 시각을 한 번에 (한 칸만 바꿔 «표시 없음인데 날이 있다»가 되지 않게) */
-fun SimplifiedOfficeOrder.withReservation(r: com.onedal.app.core.Reservation): SimplifiedOfficeOrder =
-    com.onedal.app.core.withFirstPickup(this) { it.copy(requestedDay = r.day, requestedTime = r.at) }.copy(reserved = r.marked)
+/** 📅 콜에 읽은 정거장 약속을 싣는다 — 첫 상차 · 마지막 하차 정거장의 날 · 시각 (`ReservationText.readStops`) */
+fun SimplifiedOfficeOrder.withPromises(stops: Pair<com.onedal.app.core.Reservation, com.onedal.app.core.Reservation>): SimplifiedOfficeOrder =
+    com.onedal.app.core.withLastDropoff(com.onedal.app.core.withFirstPickup(this) { it.copy(requestedDay = stops.first.day, requestedTime = stops.first.at) }) {
+        it.copy(requestedDay = stops.second.day, requestedTime = stops.second.at)
+    }

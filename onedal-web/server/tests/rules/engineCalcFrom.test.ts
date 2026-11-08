@@ -57,7 +57,7 @@ describe('♻️ 되살리기', () => {
         };
         const o = restoredOrderFrom(row, { visited: { arrivedPickupAt: 'T1' }, judgment: { color: '꿀', score: 80 }, contacts: () => ({ pickupDetails: [{ phone1: '010' }] }) });
         expect(o).toMatchObject({
-            id: 'c1', status: 'ORDER_PICKED_UP', goalCity: '여주시', reserved: true, isShared: true, isExpress: false,
+            id: 'c1', status: 'ORDER_PICKED_UP', goalCity: '여주시', isShared: true, isExpress: false,
             routePolyline: [{ x: 1, y: 2 }], paymentType: '착불', arrivedPickupAt: 'T1', judgment: { color: '꿀', score: 80 },
         });
         /* 장부의 주소 · 좌표 · 약속 칸과 연락처는 정거장으로 */
@@ -65,10 +65,10 @@ describe('♻️ 되살리기', () => {
         expect(lastDropoffStop(o)).toMatchObject({ listText: '하', geo: { x: 3, y: 4 }, distanceKm: null });
         expect(firstPickupStop(o)?.requestedDay).toBeUndefined();
         expect(o.dispatcherName).toBeUndefined();
+        expect((o as any).reserved).toBeUndefined();   // 옛 예약 표시 칸은 콜로 되살리지 않는다(예약 콜은 첫 상차 정거장)
         const broken = restoredOrderFrom({ ...row, routePolyline: '깨짐', goalCity: null, reserved: null }, { visited: {}, judgment: null, contacts: () => ({}) });
         expect(broken.routePolyline).toBeUndefined();
         expect(broken.goalCity).toBeUndefined();
-        expect(broken.reserved).toBeUndefined();
         expect(broken.judgment).toBeUndefined();
     });
 });

@@ -21,7 +21,6 @@ class Hwamul24VerdictTest {
             fare = fare,
             timestamp = "t",
             vehicleType = vehicle,
-            reserved = if (reservedDay != null) true else null,
             pickupDetails = listOf(CallStop(listText = "경기 시흥 정왕동", distanceKm = km, requestedDay = reservedDay)),
             dropoffDetails = listOf(CallStop(listText = "경기 안산 상록구 장상동")),
 )

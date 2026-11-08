@@ -28,7 +28,7 @@ object InsungPages {
         Page.NEW_LIST to listOf(
             FieldSpec(PageField.PICKUP, "출발지 칸", "@초이동 · @남양주(오남", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 칸 원문 그대로 정거장 listText · 판정 글자는 StopText.query"),
             FieldSpec(PageField.DROPOFF, "도착지 칸", "이태원동 · 김포(대곶면", Seen.REAL, Handling.READ, "InsungParser.listCellsOf — 칸 원문 그대로 정거장 listText · 판정 글자는 StopText.query"),
-            FieldSpec(PageField.RESERVATION, "출발지 칸 앞글자", "낼7시/ · 낼6시30/ · 21시/(시각만 · 오늘) · 오후7시30/(시각만 · 오늘) · 10일/", Seen.REAL, Handling.READ, "InsungParser.reservationOf"),
+            FieldSpec(PageField.RESERVATION, "출발지 칸 앞글자", "낼7시/ · 낼6시30/ · 21시/(시각만 · 오늘) · 오후7시30/(시각만 · 오늘) · 10일/", Seen.REAL, Handling.READ, "InsungParser.promisesOf"),
             /* 짐 줄 «품목» — 물건이 핸드폰 · 출발지 · 도착지 칸 앞 토막 */
             FieldSpec(PageField.ITEM_SIZE, "출발지 · 도착지 칸 앞 낱말", "폰)", Seen.REAL, Handling.READ, "원달앱 칸 앞 토막 함수(LocationTextAnalyzer.split) → 조건 토막 · 화면 기록(tagsText) · 짐 줄(InsungParser.listCellsOf → load.lines)",
                 part = "goods"),

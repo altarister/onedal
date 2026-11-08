@@ -10,8 +10,8 @@ import org.junit.Test
 import java.time.LocalDateTime
 
 /**
- * 📅 **인성 예약은 출발지 칸의 약속 토막으로만 읽는다** — 실물 목록 «@낼7시/초이동» · «@대곡동 → 낼8/중구봉래동».
- * 도착지 칸의 «낼8»은 도착 약속이다 — 상차 날로 읽으면 오늘 상차 콜이 «내일 콜»로 막힌다. 하차 약속 토막은 하차 정거장에 남는다.
+ * 📅 **인성 정거장 약속은 제 칸의 약속 토막으로 읽는다** — 실물 목록 «@낼7시/초이동» · «@대곡동 → 낼8/중구봉래동».
+ * 도착지 칸의 «낼8»은 하차 약속이다 — 상차 날로 읽으면 오늘 상차 콜이 «내일 콜»로 막힌다. 하차 날 글자가 없으면 상차 날이다.
  * 🔴 날 표시 없는 시각(«21시/»)은 이르든 늦든 오늘 — 실물 인성은 내일에 «낼»을 적는다(한 화면에 «낼7시/»와 «21시/»가 나란히).
  */
 class InsungReservationTest {
@@ -20,16 +20,18 @@ class InsungReservationTest {
     private fun promiseOf(cell: String) = LocationTextAnalyzer.split(cell, InsungPages.badgeWords).promise
 
     @Test fun `출발지 칸 낼7시는 내일 07시`() {
-        assertEquals(Reservation(true, 1, "07:00"), InsungParser.reservationOf(promiseOf("@낼7시/초이동"), now))
+        assertEquals(Reservation(1, "07:00"), InsungParser.promisesOf(promiseOf("@낼7시/초이동"), null, now).first)
     }
 
-    @Test fun `도착지 칸의 낼8은 상차 날이 아니다`() {
-        assertEquals(Reservation.NONE, InsungParser.reservationOf(promiseOf("@대곡동"), now))
+    @Test fun `도착지 칸의 낼8은 하차 약속 - 상차 날이 아니다`() {
+        val (pickup, dropoff) = InsungParser.promisesOf(promiseOf("@대곡동"), promiseOf("낼8/중구봉래동"), now)
+        assertEquals(Reservation.NONE, pickup)
+        assertEquals(Reservation(1, "08:00"), dropoff)
     }
 
     @Test fun `날 없는 시각은 늦든 이르든 오늘`() {
-        assertEquals(Reservation(true, 0, "21:00"), InsungParser.reservationOf(promiseOf("@21시/천호동"), now))
-        assertEquals(Reservation(true, 0, "09:00"), InsungParser.reservationOf(promiseOf("@9시/천호동"), now))
+        assertEquals(Reservation(0, "21:00"), InsungParser.promisesOf(promiseOf("@21시/천호동"), null, now).first)
+        assertEquals(Reservation(0, "09:00"), InsungParser.promisesOf(promiseOf("@9시/천호동"), null, now).first)
     }
 
     /** 🔴 도착지 칸 앞 «14시전»이 상차 약속으로 새지 않는다 — 하차 정거장 약속 원문으로 */
@@ -40,7 +42,7 @@ class InsungReservationTest {
         assertEquals("14시전/인천송도동", cells.dropoff.listText)
         assertEquals("14시전", cells.dropoff.promiseText)
         assertEquals(true, cells.fromOtherOffice)
-        assertEquals(Reservation.NONE, InsungParser.reservationOf(cells.pickup.promiseText, now))
+        assertEquals(Reservation.NONE, InsungParser.promisesOf(cells.pickup.promiseText, cells.dropoff.promiseText, now).first)
     }
 
     /** 시뮬레이터 인성 목록 — «@» 는 노드 따로 · «급송»은 조건 토막(화면 기록) · 지역 칸 글자는 칸 원문 */
@@ -63,5 +65,21 @@ class InsungReservationTest {
         assertEquals(listOf(LoadLine("goods", "폰)")), order.load?.lines)
         // 보고에는 짐 묶음 칸으로만 — 따로 «loadLines» 칸이 가지 않는다
         com.google.gson.Gson().toJson(order).let { assertTrue(it, !it.contains("loadLines") && it.contains("\"lines\":[{\"kind\":\"goods\"")) }
+    }
+
+    private fun parsed(vararg texts: String) = InsungParser(android.content.ContextWrapper(null)).parse(texts.toList())
+
+    /** 🔴 도착지 칸 «14시전»은 하차 정거장 날 · 시각 — 상차 칸은 비어 있다(날 글자가 없으면 상차와 같은 날 · 상차 약속이 없으면 오늘) */
+    @Test fun `하차 약속 14시전은 하차 정거장 오늘 14시 · 상차는 빈 값`() {
+        val o = parsed("2.6", "20.4", "@가산동", "14시전/인천송도동", "다", "34.6")
+        assertEquals(listOf(null, null), listOf(com.onedal.app.core.firstPickupStop(o)?.requestedDay, com.onedal.app.core.firstPickupStop(o)?.requestedTime))
+        assertEquals(listOf(0, "14:00"), listOf(com.onedal.app.core.lastDropoffStop(o)?.requestedDay, com.onedal.app.core.lastDropoffStop(o)?.requestedTime))
+    }
+
+    /** 🔴 «@낼11-12시 … 14시전/» — 하차 날 글자가 없으면 상차 날(1)을 따른다(약속 정해진 것 5) */
+    @Test fun `낼11-12시 상차면 14시전 하차는 내일 14시`() {
+        val o = parsed("2.6", "20.4", "@낼11-12시/가산동", "14시전/인천송도동", "다", "34.6")
+        assertEquals(listOf(1, "12:00"), listOf(com.onedal.app.core.firstPickupStop(o)?.requestedDay, com.onedal.app.core.firstPickupStop(o)?.requestedTime))
+        assertEquals(listOf(1, "14:00"), listOf(com.onedal.app.core.lastDropoffStop(o)?.requestedDay, com.onedal.app.core.lastDropoffStop(o)?.requestedTime))
     }
 }

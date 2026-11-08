@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { firstPickupStop, lastDropoffStop, isReservedCall, firstStopKm, deliveryKmOf } from './timing';
+import type { CallStop } from '../index';
 
 /**
  * 🚏 **첫 상차 · 마지막 하차 정거장** — 정거장만 있는 콜에서 상차 목록의 처음 · 하차 목록의 끝을 낸다.
- *    **예약 콜** — 첫 상차 정거장의 «예약» 글자 · 날로 가른다.
+ *    **예약 콜** — 첫 상차 정거장의 «예약» 글자 · 날로 가른다(원달앱 `CallStopsTest` 가 같은 문제지로 같은 답을 문다).
  *    **상차 거리 · 배송 거리** — 정거장 거리에서 꺼내고, 배송 거리는 한 곳이라도 모르면 null.
  * 못 잡는 것: 관제웹 화면 글자(관제웹 `stopScreenText.test.ts`) · 서버 판정 값(서버 jest).
  */
@@ -26,18 +29,12 @@ describe('🚏 firstPickupStop · lastDropoffStop', () => {
     });
 });
 
-describe('📅 isReservedCall — «예약» 글자가 보이거나 첫 상차 날 ≥ 1', () => {
-    it('«당상» · «17:04까지 픽업» 은 날 0 오늘 콜 → 예약 아님', () => {
-        expect(isReservedCall({ pickupDetails: [{ promiseText: '당상', requestedDay: 0, requestedTime: null }] })).toBe(false);
-        expect(isReservedCall({ pickupDetails: [{ promiseText: '17:04까지 픽업', requestedDay: 0, requestedTime: '17:04' }] })).toBe(false);
-    });
-    it('«예약» 글자 · «낼8:30»(날 1) → 예약', () => {
-        expect(isReservedCall({ pickupDetails: [{ promiseText: '예약', requestedDay: 0, requestedTime: null }] })).toBe(true);
-        expect(isReservedCall({ pickupDetails: [{ promiseText: '@낼8:30', requestedDay: 1, requestedTime: '08:30' }] })).toBe(true);
-    });
-    it('약속이 없는 콜 · 하차 날만 1 인 콜은 예약 아님', () => {
-        expect(isReservedCall({})).toBe(false);
-        expect(isReservedCall({ dropoffDetails: [{ promiseText: '내착', requestedDay: 1 }] })).toBe(false);
+describe('📅 isReservedCall — «예약» 글자가 보이거나 첫 상차 날 ≥ 1 (공통 문제지 reservedCallCases)', () => {
+    const sheet = JSON.parse(readFileSync(join(__dirname, '../network/pageReadCases.json'), 'utf8')) as
+        { reservedCallCases: Array<{ pickup: CallStop | null; dropoff: CallStop | null; reserved: boolean; why: string }> };
+    it('문제지가 비지 않았다', () => expect(sheet.reservedCallCases.length).toBeGreaterThan(5));
+    it.each(sheet.reservedCallCases.map(c => [c.why, c] as const))('%s', (_, c) => {
+        expect(isReservedCall({ pickupDetails: c.pickup ? [c.pickup] : [], dropoffDetails: c.dropoff ? [c.dropoff] : [] })).toBe(c.reserved);
     });
 });
 

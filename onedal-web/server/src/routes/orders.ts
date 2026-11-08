@@ -156,7 +156,7 @@ router.post("/confirm", (req, res) => {
                 (payload.order as any).tagsText ?? null,
                 payload.order.rawText,
                 /* 📅🏷️ 같은 콜의 목록 줄(INTEL_BULK)과 같은 칸 — 상세 행만 빠지면 통계가 «모름»에 쌓인다 */
-                typeof (payload.order as any).reserved === 'boolean' ? ((payload.order as any).reserved ? 1 : 0) : null,
+                null,   // 예약 표시 칸 — 원달앱이 안 보낸다(scrap.ts 와 같다)
                 pickupStop?.requestedDay ?? null,
                 pickupStop?.requestedTime ?? null,
                 reportSourceOf((payload as any).source),

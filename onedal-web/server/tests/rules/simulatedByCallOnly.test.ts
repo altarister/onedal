@@ -82,7 +82,6 @@ describe('체험 판정 — 콜에 적힌 값', () => {
         it('🔴 예약 KEEP(내일 콜 · 예약 보관 갈래) — 결재만으로 한 번', async () => {
             const s = seed('resv-3', false);
             const resv = s.pendingOrdersData.get('resv-3') as any;
-            Object.assign(resv, { reserved: true });
             Object.assign(resv.pickupDetails[0], { requestedDay: 1, requestedTime: '09:00' });
             await handleDecision(U, 'resv-3', 'ORDER_CONFIRMED', io);
             expect(s.reservedOrders.some(o => o.id === 'resv-3')).toBe(true);

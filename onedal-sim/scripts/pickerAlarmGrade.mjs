@@ -13,7 +13,7 @@
  *
  * 읽는 줄 (원달앱 `KakaoPickerParser.shouldClick`):
  *   🧾 [알람 필터] {"minFare":…,"pickupRadiusKm":…,"destKeywords":[…],"keywordTraps":{…},"cityAliases":[…]}   ← 필터가 바뀔 때만
- *   🔔 [알람 판정] 3000원·픽업 4.2km·도착 이천 창전·예약 없음 — 하한 …·반경 …km·도착목표 N개 → 통과 · 축 요금✅ 상차✅ 도착✅ 예약✅
+ *   🔔 [알람 판정] 3000원·픽업 4.2km·도착 이천 창전·예약 내일 예약콜 — 하한 …·반경 …km·도착목표 N개 → 통과 · 축 요금✅ 상차✅ 도착✅ 예약✅
  *
  * 결과가 어긋나면 고칠 곳이 갈린다:
  *   - 채점기 축 ≠ 앱 축 → **원달앱 판정**이 필터를 잘못 적용했다 (앱을 고친다)
@@ -62,31 +62,30 @@ function dongTokenMatch(dropoff, keys, dongSigungu = {}) {
     });
 }
 
-/** `ReservationGate.passesList` — 목록에서는 확실한 다른 날만 막는다 (날 모름 = day null) */
-function reservationPassesList(day, reserved, mode) {
+/** `ReservationGate.passes` — 첫 상차 날만 본다 (약속 없음 = day null) */
+function reservationPasses(day, mode) {
     if (mode === 'tomorrowToo') return day == null || day <= 1;
-    if (mode === 'tomorrowOnly') return (reserved && day == null) || day === 1;
+    if (mode === 'tomorrowOnly') return day === 1;
     return day == null || day <= 0;
 }
 
-/** `ReservationGate.wordOf` 의 낱말 → { reserved, day } */
+/** `ReservationGate.wordOf` 의 날 낱말(뒤 « 예약콜»은 정규식이 뗀다) → { day } */
 function reservationFromWord(w) {
-    if (w == null || w === '없음') return { reserved: false, day: null };
-    if (w === '날 모름') return { reserved: true, day: null };
-    if (w === '오늘') return { reserved: true, day: 0 };
-    if (w === '내일') return { reserved: true, day: 1 };
+    if (w == null || w === '없음') return { day: null };
+    if (w === '오늘') return { day: 0 };
+    if (w === '내일') return { day: 1 };
     const n = /^(\d+)일 뒤$/.exec(w);
-    return { reserved: true, day: n ? Number(n[1]) : null };
+    return { day: n ? Number(n[1]) : null };
 }
 
 /** `KakaoPickerParser.decideAxes` */
-function decideAxes({ fare, pickupKm, dropoff, reserved = false, day = null }, f) {
-    const reservationOk = reservationPassesList(day, reserved, f.reservationMode ?? 'today');
+function decideAxes({ fare, pickupKm, dropoff, day = null }, f) {
+    const reservationOk = reservationPasses(day, f.reservationMode ?? 'today');
     const fareOk = fare >= f.minFare;
-    /* 📅 `pickupRadiusFor` — 내일 이후 예약 콜은 줄이지 않은 기본 반경(칸 없으면 지금 반경) */
-    const radius = reserved && day != null && day >= 1 ? (f.reservedPickupRadiusKm ?? f.pickupRadiusKm) : f.pickupRadiusKm;
+    /* 📅 `pickupRadiusFor` — 첫 상차 날이 1 이상이면 줄이지 않은 기본 반경(칸 없으면 지금 반경) */
+    const radius = day != null && day >= 1 ? (f.reservedPickupRadiusKm ?? f.pickupRadiusKm) : f.pickupRadiusKm;
     // 📅 내일 이후 예약 콜에 집 둘레 동 목록(reservedPickupKeywords)이 있으면 앱은 상차 글로 가른다 — 판정 줄에 상차 글이 없어 채점기는 다시 셀 수 없다(null = 앱 값을 따른다)
-    const pickupByList = reserved && day != null && day >= 1 && Array.isArray(f.reservedPickupKeywords);
+    const pickupByList = day != null && day >= 1 && Array.isArray(f.reservedPickupKeywords);
     const pickupOk = pickupByList ? null : pickupKm != null && pickupKm <= radius;   // 상차지거리는 목록 완독 칸 — 모르면 통과 아님
     const keys = f.destKeywords ?? [];
     const destOk = keys.length === 0 || dropoff === '' ||
@@ -107,7 +106,7 @@ function logFromPhone() {
     return out;
 }
 
-const DECISION = /(\d\d:\d\d:\d\d)\.\d+ .*🔔 \[알람 판정\] (\d+)원·픽업 ([\d.]+|\?)km·도착 (.*?)(?:·예약 (없음|날 모름|오늘|내일|\d+일 뒤))? — .*→ (통과|탈락)(?: · 축 요금(✅|❌) 상차(✅|❌) 도착(✅|❌)(?: 예약(✅|❌))?)?/;
+const DECISION = /(\d\d:\d\d:\d\d)\.\d+ .*🔔 \[알람 판정\] (\d+)원·픽업 ([\d.]+|\?)km·도착 (.*?)(?:·예약 (없음|오늘|내일|\d+일 뒤)(?: 예약콜)?)? — .*→ (통과|탈락)(?: · 축 요금(✅|❌) 상차(✅|❌) 도착(✅|❌)(?: 예약(✅|❌))?)?/;
 const FILTER = /(\d\d:\d\d:\d\d)\.\d+ .*🧾 \[알람 필터\] (\{.*\})\s*$/;
 const mark = b => (b ? '✅' : '❌');
 

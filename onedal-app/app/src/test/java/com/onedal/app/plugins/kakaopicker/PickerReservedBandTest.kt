@@ -8,12 +8,12 @@ import com.onedal.app.models.CallStop
 import com.onedal.app.core.firstPickupStop
 
 /**
- * 📅 **예약 날은 «픽업예약» 띠 줄이 먼저** — 픽업 줄은 «17:00까지 픽업»(날 없음)이라 픽업 줄만 보면 «날 모름»으로 오늘 콜을 막았다.
+ * 📅 **예약 날은 «픽업예약» 띠 줄이 먼저** — 픽업 줄은 «17:00까지 픽업»(날 없음)이라 띠의 «오늘 · 내일»이 날을 정한다 · 띠의 «예약» 글자로 예약 콜이 된다.
  */
 class PickerReservedBandTest {
     private fun reservationOf(lines: List<OcrLine>, card: SimplifiedOfficeOrder) =
         (PickerDetailOcrParser().verify(PickerScreenOcr.parseDetail(lines)!!, card, null, emptyList(), "") as PickerDetailOcrParser.VerifyResult.Success)
-            .order.let { Triple(it.reserved, firstPickupStop(it)?.requestedDay, firstPickupStop(it)?.requestedTime) }
+            .order.let { Triple(com.onedal.app.core.isReservedCall(it), firstPickupStop(it)?.requestedDay, firstPickupStop(it)?.requestedTime) }
 
     /**
      * 실물 사진 ok_1790745697317.jpg — «오늘» 띠가 든 이상 기록이 없어 줄의 y 는 사진 픽셀 자리를 옮겨 적었다.

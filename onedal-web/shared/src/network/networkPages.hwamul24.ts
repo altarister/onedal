@@ -133,7 +133,7 @@ export const HWAMUL24_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "fare", "where": "넷째 줄 «수» 알약(만 원 단위)", "sample": "수 1.0 · 수 2.0", "seen": "REAL", "handling": "READ", "usedAt": "지금 읽는 곳 없음(원달앱 돈 9 · 걸음 5) — 원달앱 목록 읽기는 정의 표를 안 읽는다(Hwamul24CardGrouping)", "read": "(?:^|\\s)수\\s+(\\d+\\.\\d+)(?=\\s|$)", "part": "fee", "note": "상차 · 하차 쪽 배지 «수»(수작업)와 같은 글자 — 소수 숫자 하나가 뒤에 홀로 올 때만 알약으로 읽는다(«수 5Km» · «수 3.5톤/윙» 은 아니다)"},
       {"field": "vehicleType", "where": "셋째 줄 앞", "sample": "2.5톤/윙 · 3.5톤/전체 (승용·다마스는 못 읽음)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse"},
       {"field": "pickupDistance", "where": "상차 배지 옆", "sample": "15Km", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24CardGrouping.pickupDistanceOf", "note": "첫 상차 정거장 거리(내 자리 → 상차지) · 직선(설명 영상 «현위치에서 상차지까지 직선거리»)"},
-      {"field": "reservation", "where": "상차 배지", "sample": "당상 · 내상(실물 캡처에는 없음)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.reservationOf"},
+      {"field": "reservation", "where": "상차 배지", "sample": "당상 · 내상(실물 캡처에는 없음)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.promisesOf"},
       {"field": "tags", "where": "하차 배지 · 꼬리표", "sample": "당착 · 내착 (읽음) · 수 · 지 · 독차 · 인수증 (잡음으로 뺌)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.badgesOf"},
       {"field": "memo", "where": "셋째 줄 화물 글", "sample": "당일상 당착 공파렛 50p / 10시전하차 · 당일오전9시30분상", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24MemoTimes.split — 상차 쪽만 예약으로"},
       {"field": "clock", "where": "하차 배지 앞 시각", "sample": "06:32 (등록 시각인지 모름)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse — postTime"}

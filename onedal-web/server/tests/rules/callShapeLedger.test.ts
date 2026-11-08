@@ -49,7 +49,7 @@ const fullCall = (id: string, extra: Record<string, unknown> = {}) => ({
     dispatcherName: '고양퀵서비스', dispatcherPhone: '031-000-0000', requesterName: '쑥쑥 TEST', stageText: '접수',
     type: 'NEW_ORDER', timestamp: todayAt(9), rawText: '의뢰지 쑥쑥 TEST 출발지 …', openedBy: 'APP', capturedMode: 'ALARM', isSimulated: false, verdict: null,
     postTime: '09:00', tagsText: '급 · 착', tripType: '편도', orderForm: '급송', detailMemo: '조심히',
-    itemSize: '소형', fare: 42000, vehicleType: '다마스', reserved: false,
+    itemSize: '소형', fare: 42000, vehicleType: '다마스',
     itemDescription: '소형 가전', commissionRate: '23%', tollFare: null, paymentType: '신용', billingType: '계산서',
     pickupDetails: [{
         listText: '초월읍', promiseText: '급송', addressDetail: '경기 광주시 초월읍 경충대로 907', region: '초월읍',
@@ -211,7 +211,7 @@ describe('♻️ 실제 되살리기 — 콜 한 칸이 있는 줄 셋 (상차 �
         const picked = fullCall('r-picked');
         keep(picked);
         db.prepare(`UPDATE orders SET status = 'ORDER_PICKED_UP', completedAt = ? WHERE id = ?`).run(todayAt(10), picked.id);
-        const held = fullCall('r-held', { reservedFor: keyAfter(1), reserved: true });
+        const held = fullCall('r-held', { reservedFor: keyAfter(1) });
         held.pickupDetails[0] = { ...held.pickupDetails[0], requestedDay: 1, requestedTime: '09:00', promiseText: '@낼9시' };
         keep(held);
         const twice = fullCall('r-twice');

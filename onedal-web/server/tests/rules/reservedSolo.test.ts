@@ -47,7 +47,6 @@ it('🔴 예약 KEEP → 단독 배송 칸이 찬다 (메모리 · 장부 둘 �
             timestamp: todayAt(15), capturedAt: todayAt(15), targetApp: 'kakaopicker', vehicleType: '다마스',
             pickups: [{ listText: '경기 광주시 초월읍', geo: { x: 127.29, y: 37.37 }, requestedDay: 1, requestedTime: '09:00' }],
             dropoffs: [{ listText: '경기 이천시 관고동', geo: { x: 127.43, y: 37.28 } }],
-            reserved: true,
         }) as any;
         session.pendingOrdersData.set(o.id, o);
 

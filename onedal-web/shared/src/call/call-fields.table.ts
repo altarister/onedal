@@ -578,7 +578,7 @@ export const TABLE = /*JSON*/{
    "id": "C12",
    "key": "reserved",
    "label": "예약 표시",
-   "desc": "예약 표시가 있나 · 있는데 날을 못 읽으면 날 모름 — 예약 콜은 첫 상차 정거장 promiseText 의 «예약» 글자 · requestedDay 로 가르는 쪽(isReservedCall)으로 옮기는 중",
+   "desc": "옛 예약 표시 — 장부 칸으로만 남고 늘 빈 값 · 콜에서는 지웠다(예약 콜은 첫 상차 정거장 promiseText 의 «예약» 글자 · requestedDay ≥ 1 — isReservedCall)",
    "required": "",
    "filledBy": "앱 목록",
    "ledger": "orders.reserved",

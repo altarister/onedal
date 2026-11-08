@@ -768,7 +768,7 @@ ensureColumns('orders', { terminatedAt: 'TEXT' });
 ensureColumns('orders', { goalCity: 'TEXT' });
 /**
  * 📅 **예약 셋** — 앱이 읽어 싣는 값을 적는다. 판정·경로·약속에는 아직 안 쓴다.
- *    `reserved`(1 예약 표시 있음 · 0 없음 · NULL 모름) — «표시 없음»과 «예약인데 날 모름»은 둘 다 `reservedDay` 가 NULL 이라 이 칸이 가른다.
+ *    `reserved` 는 옛 예약 표시 칸이다 — 원달앱이 보내지 않아 빈 값으로 남는다(«예약» 글자는 첫 상차 정거장 약속 원문 · 칸은 그대로).
  */
 ensureColumns('orders', { reserved: 'INTEGER', reservedDay: 'INTEGER', reservedAt: 'TEXT' });
 /** 📅 **예약 보관 날 `YYYY-MM-DD`** — 오늘 뒤면 이 콜은 진행 중이 아니라 예약 보관이다. 서버가 다시 떠도 보관을 되살린다 (`services/reservedOrders.ts`) */
@@ -972,7 +972,7 @@ db.exec(`
 `);
 // 기존 DB 에는 CREATE 가 안 도니 여기서 붙인다 — **CREATE 뒤여야 한다** (위 [3] 끝 주석 참조)
 ensureColumns('intel', { targetApp: 'TEXT',
-    /** 📅 예약 표시(1·0·NULL)·날(0 오늘 · 1 내일 · N · NULL)·시각 «HH:MM» — 앱이 읽어 싣는다 (orders 칸 주석) */
+    /** 📅 예약 표시(옛 칸 · 지금은 늘 NULL)·첫 상차 날(0 오늘 · 1 내일 · N · NULL)·시각 «HH:MM» — 앱이 읽어 싣는다 (orders 칸 주석) */
     reserved: 'INTEGER', reservedDay: 'INTEGER', reservedAt: 'TEXT',
     /** 🏷️ 실물 앱(real)인가 시뮬레이터(sim)인가 — 보고 본문 한 칸에서. 옛 앱은 NULL. 통계는 real 만 센다 */
     source: 'TEXT',

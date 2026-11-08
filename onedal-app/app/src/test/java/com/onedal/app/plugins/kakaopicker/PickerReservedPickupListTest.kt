@@ -18,7 +18,6 @@ class PickerReservedPickupListTest {
         id = "c",
         fare = 10000,
         timestamp = "t",
-        reserved = day != null,
         pickupDetails = listOf(CallStop(listText = pickup, distanceKm = km, requestedDay = day)),
         dropoffDetails = listOf(CallStop(listText = "서대문 신촌")),
 )

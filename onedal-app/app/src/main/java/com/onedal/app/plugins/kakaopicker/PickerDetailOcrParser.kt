@@ -6,8 +6,11 @@ import com.onedal.app.core.ScreenOcrParser
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.core.ScreenWords
 import com.onedal.app.core.WordKind
-import com.onedal.app.models.withReservation
+import com.onedal.app.models.withPromises
+import com.onedal.app.core.Reservation
+import com.onedal.app.core.ReservationText
 import com.onedal.app.core.withFirstPickup
+import com.onedal.app.core.firstPickupStop
 import com.onedal.app.core.withLastDropoff
 import com.onedal.app.models.CallStop
 
@@ -97,7 +100,7 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
                 fare = detailFare(alarmTappedCard.fare, parsed.finalIncome) ?: alarmTappedCard.fare,
                 rawText = rawScreenStr,
                 itemSize = parsed.itemSize ?: alarmTappedCard.itemSize
-            ), parsed).withReservation(detailReservation(parsed))
+            ), parsed).let { withDetailPromises(it, parsed) }
             return VerifyResult.Success(verifiedOrder, parsed)
         } else {
             // 🧾 상세 글자로 못 가르면 사진의 상차·하차·픽업 km 로 한 번 더 — 꼭 한 줄일 때만 (`photoMatchCard`)
@@ -141,7 +144,7 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
                 tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ") +
                     (twinNote?.let { " · $it" } ?: "")
             )
-            return VerifyResult.Success(manualOrder.withReservation(detailReservation(parsed)), parsed)
+            return VerifyResult.Success(withDetailPromises(manualOrder, parsed), parsed)
         }
     }
 
@@ -174,15 +177,21 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
         withLastDropoff(withFirstPickup(order) { it.copy(listText = fullAddress(parsed.pickup)) }) { it.copy(listText = fullAddress(parsed.dropoff)) }
 
     /**
-     * 📅 **상세 사진의 예약이 목록 값을 덮는다** — «오늘 17:00 픽업예약» 띠 줄을 먼저 읽고, 띠에서 날·시각을 못 읽을 때만
-     * 상차 정거장 시각(«내일 14:00»)으로. 띠가 없으면 예약이 아니다 (`PickerReservationTest` · `PickerReservedBandTest`).
-     * 🔴 띠가 «오늘»이면 픽업 줄은 «17:00까지 픽업»(날 없음)이라 픽업 줄만 보면 «날 모름»으로 오늘 콜을 막는다(실물).
+     * 📅 **목록 «예약 …» 낱말과 상세 사진의 시각을 합친다** (약속 정해진 것 7 · `PickerReservationTest` · `PickerReservedBandTest`).
+     * - 상차 날 = 띠 «내일 15:00 픽업예약»의 날 > 목록 날 낱말(«예약 내일») > 첫 정거장 날(«내일 15:00») > 오늘(0)
+     * - 상차 시각 = 띠 시각 > 첫 정거장 시각(«17:04까지 픽업» 포함) > 목록 시각
+     * - 하차 = 둘째 정거장 «19:22까지 배송» · «내일 16:40» — 날 글자가 없으면 상차 날
+     * 상차 약속 원문은 목록 낱말 · 띠 · 첫 정거장 글자를 « · »로 잇고, 하차 원문은 둘째 정거장 글자다. 띠가 없어도 목록 값을 지우지 않는다.
      */
-    private fun detailReservation(parsed: PickerDetailFromImage): com.onedal.app.core.Reservation {
-        if (!parsed.reserved) return com.onedal.app.core.Reservation.NONE
+    private fun withDetailPromises(order: SimplifiedOfficeOrder, parsed: PickerDetailFromImage): SimplifiedOfficeOrder {
         val now = java.time.LocalDateTime.now()
-        val band = parsed.reservedLine?.let { com.onedal.app.core.ReservationText.read(it, now) }
-        if (band != null && band.day != null && band.at != null) return band
-        return com.onedal.app.core.ReservationText.read("예약 ${parsed.pickup.at.orEmpty()}", now)
+        val listWords = firstPickupStop(order)?.promiseText
+        val stop = ReservationText.read(parsed.pickup.at, now)
+        val list = ReservationText.read(listWords, now, sameDayAs = stop.day)
+        val band = ReservationText.read(parsed.reservedLine, now, sameDayAs = list.day ?: stop.day)
+        val pickup = Reservation(band.day ?: list.day ?: stop.day, band.at ?: stop.at ?: list.at)
+        val dropoff = ReservationText.read(parsed.dropoff.at, now, sameDayAs = pickup.day)
+        val pickupText = listOfNotNull(listWords, parsed.reservedLine, parsed.pickup.at).distinct().joinToString(" · ").ifEmpty { null }
+        return withLastDropoff(withFirstPickup(order.withPromises(pickup to dropoff)) { it.copy(promiseText = pickupText) }) { it.copy(promiseText = parsed.dropoff.at) }
     }
 }

@@ -6,47 +6,47 @@ import java.time.LocalTime
 import java.time.temporal.ChronoUnit
 
 /**
- * 📅 **예약 — 표시가 있나 · 며칠 뒤인가 · 몇 시인가** (예약콜 1단계).
+ * 📅 **정거장 약속 — 며칠 뒤인가 · 몇 시인가** (`ReservationTextTest`).
  *
- * - 표시 없음 = `NONE`(marked 거짓) — 보통 콜
- * - 날 모름 = marked 참 · day `null` — «예약»만 있고 날 · 시각이 없다. 상세가 가른다
- * - day N = 폰 달력으로 N일 뒤(0 = 오늘)
+ * - 약속 없음 = `NONE`(둘 다 null) — 화면에 날 · 시각 · «예약» 글자가 없다
+ * - day N = 폰 달력으로 N일 뒤(0 = 오늘) · at = «HH:MM» 또는 null(시각이 안 보임)
  */
-data class Reservation(val marked: Boolean, val day: Int?, val at: String?) {
-    companion object { val NONE = Reservation(false, null, null) }
+data class Reservation(val day: Int?, val at: String?) {
+    companion object { val NONE = Reservation(null, null) }
 }
 
 /**
- * 📅 **상차 쪽 글자 하나에서 예약을 읽는다 — 세 배차망 공통 한 벌** (`ReservationTextTest`).
+ * 📅 **정거장 약속 읽기 — 상차 · 하차 · 네 배차망 공통 한 벌** (`ReservationTextTest`).
  *
- * 낱말은 배차망 공통 한국어다 — 낼·내일·내상 = 1 · 모레 = 2 · 오늘·당일·당상·지금상 = 0 ·
- * «N일» = 이 달 그날(지났으면 다음 달) · «M/D(요일)» = 그 날짜(지났으면 다음 해) · «H시(M|반)»·«H:MM» = 시각.
+ * 낱말은 배차망 공통 한국어다 — 낼·내일·내상·내착 = 1 · 모레 = 2 · 오늘·당일·당상·당착·지금상 = 0 ·
+ * «N일» = 이 달 그날(지났으면 다음 달) · «M/D(요일)» = 그 날짜(지났으면 다음 해) · «H시(M|반)»·«H:MM»(«까지» 포함) = 시각.
  * 배차망마다 다른 것은 **어느 글자를 넘기나**(플러그인)뿐이다.
  *
- * 🔴 **상차 쪽 글자만 넘긴다** — 하차 쪽 시각(인성 «낼8/중구봉래동»)은 도착 약속이지 상차 날이 아니다.
- *    원문 전체를 넘기지 않는다 — «보낼»의 «낼»처럼 말 속의 글자가 걸린다.
- * 🔴 «N:NN까지»(픽커 오늘 콜의 마감)는 예약이 아니다.
+ * - 시각은 첫 시각 하나 — 구간 «낼11-12시»는 «시»가 붙은 끝 시각 12:00(기사님께 유리한 쪽)
+ * - 날 글자가 없으면 `sameDayAs`(하차는 상차 날을 넘긴다 — «낼08:20 상차 · 10:20전 하차» → 하차 날 1), 그것도 없으면 오늘(0)
+ * - «예약»만 보이고 날 · 시각이 없으면 오늘(0)
+ * 🔴 **정거장 쪽 글자만 넘긴다** — 원문 전체를 넘기지 않는다(«보낼»의 «낼»처럼 말 속의 글자가 걸린다 · 하차 «14시전»이 상차 약속이 된다).
  * 📅 **내일 콜은 날 표시(낼 · 내일 · 내상 · 모레 · N일 · M/D)가 있을 때만이다 — 시각만 있으면 오늘 콜이다(짐작하지 않는다).**
  *    주선사 · 화주는 내일 콜에 «낼»을 쓰고, 오늘 안 가져간 콜은 내일 다시 올린다(기사님).
  *    내일 콜을 받을지는 기사님 예약 설정(오늘 콜만 · 내일 콜도)이 정한다.
  */
 object ReservationText {
 
-    private val TOMORROW = Regex("(?<![가-힣])(낼|내일|내상)")
+    private val TOMORROW = Regex("(?<![가-힣])(낼|내일|내상|내착)")
     private val DAY_AFTER = Regex("(?<![가-힣])모레")
-    private val TODAY = Regex("오늘|당일|당상|지금상")
+    private val TODAY = Regex("오늘|당일|당상|당착|지금상")
     private val MONTH_DATE = Regex("""(\d{1,2})/(\d{1,2})\s*\(""")
     private val DAY_OF_MONTH = Regex("""(?<![\d/])(\d{1,2})일""")
-    private val CLOCK = Regex("""(\d{1,2}):(\d{2})(?!\s*까지)""")
+    private val CLOCK = Regex("""(\d{1,2}):(\d{2})""")
     private val HOUR = Regex("""(오전|오후|저녁|밤|낮|새벽)?\s*(\d{1,2})시\s*(반|(\d{1,2})분?)?""")
     /** «낼8» — 인성이 «시»를 빼고 적는 꼴 */
     private val BARE_HOUR_AFTER_TOMORROW = Regex("""낼\s*(\d{1,2})(?![\d시:])""")
 
     /** 📅 이 글자에 약속 표시(날 · 시각 · «예약»)가 있나 — 칸 앞 토막이 약속 토막을 고를 때. 날 계산이 아니라 표시만 보므로 «31일» · «2/29» 가 다 있는 날을 기준으로 읽는다 */
-    fun hasMark(text: String): Boolean = read(text, MARK_PROBE).marked
+    fun hasMark(text: String): Boolean = read(text, MARK_PROBE).day != null
     private val MARK_PROBE: LocalDateTime = LocalDateTime.of(2000, 1, 1, 0, 0)
 
-    fun read(text: String?, now: LocalDateTime): Reservation {
+    fun read(text: String?, now: LocalDateTime, sameDayAs: Int? = null): Reservation {
         val t = text?.trim().orEmpty()
         if (t.isEmpty()) return Reservation.NONE
 
@@ -58,11 +58,15 @@ object ReservationText {
             else -> monthDateOffset(t, today) ?: dayOfMonthOffset(t, today)
         }
         val time = timeOf(t)
-        /* 📅 날 표시가 없으면 시각만 있어도 오늘 — 지금보다 이른 시각을 내일로 짐작하지 않는다 */
-        val day = explicitDay ?: time?.let { 0 }
-        val marked = explicitDay != null || time != null || t.contains("예약")
-        if (!marked) return Reservation.NONE
-        return Reservation(true, day, time?.let { "%02d:%02d".format(it.hour, it.minute) })
+        if (explicitDay == null && time == null && !t.contains("예약")) return Reservation.NONE
+        /* 📅 날 글자가 없으면 넘겨받은 날(하차는 상차 날) · 그것도 없으면 오늘 — 지금보다 이른 시각을 내일로 짐작하지 않는다 */
+        return Reservation(explicitDay ?: sameDayAs ?: 0, time?.let { "%02d:%02d".format(it.hour, it.minute) })
+    }
+
+    /** 📅 상차 · 하차 정거장 약속을 한 번에 — 하차 쪽 글자도 같은 함수로 읽고, 하차 날 글자가 없으면 상차 날을 넘긴다 */
+    fun readStops(pickupText: String?, dropoffText: String?, now: LocalDateTime): Pair<Reservation, Reservation> {
+        val pickup = read(pickupText, now)
+        return pickup to read(dropoffText, now, sameDayAs = pickup.day)
     }
 
     private fun monthDateOffset(t: String, today: LocalDate): Int? {

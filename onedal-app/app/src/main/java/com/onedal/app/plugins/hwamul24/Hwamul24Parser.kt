@@ -15,7 +15,7 @@ import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.core.ScreenWords
 import com.onedal.app.core.WordKind
-import com.onedal.app.models.withReservation
+import com.onedal.app.models.withPromises
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -106,14 +106,15 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 .joinToString(" ").ifEmpty { null }
 
         /**
-         * 📅 **예약은 상차 배지 + 화물 글의 상차 쪽 + 상차지 앞글자로 읽는다** (`Hwamul24ReservationTest` · `Hwamul24MemoTimesTest`).
-         * 하차 배지(내착)와 화물 글의 하차 쪽(«10시전하차»)은 상차 날이 아니다 — `Hwamul24MemoTimes` 가 가른다.
+         * 📅 **정거장 약속 — 상차는 상차 배지 + 화물 글의 상차 쪽 + 상차지 앞글자 · 하차는 하차 배지 + 화물 글의 하차 쪽 + 하차지 앞글자** (`Hwamul24ReservationTest` · `Hwamul24MemoTimesTest`).
+         * 상차 · 하차는 같은 읽기 함수 — 하차 날 글자(«당착 · 내착»)가 없으면 상차 날. 화물 글 한 줄의 «10시전하차»를 상차 시각으로 읽지 않게 `Hwamul24MemoTimes` 가 가른다.
          */
-        fun reservationOf(texts: List<String>, pickupPromise: String?, now: java.time.LocalDateTime, memo: String? = null): com.onedal.app.core.Reservation {
-            val badge = texts.map { it.trim() }.firstOrNull { it in PICKUP_DAY_BADGES }
-            val memoPickup = Hwamul24MemoTimes.split(memo).pickup.ifEmpty { null }
-            val source = listOfNotNull(badge, memoPickup, pickupPromise).joinToString(" ")
-            return com.onedal.app.core.ReservationText.read(source, now)
+        fun promisesOf(texts: List<String>, pickupPromise: String?, dropoffPromise: String?, now: java.time.LocalDateTime, memo: String? = null): Pair<com.onedal.app.core.Reservation, com.onedal.app.core.Reservation> {
+            val trimmed = texts.map { it.trim() }
+            val memoTimes = Hwamul24MemoTimes.split(memo)
+            val pickup = listOfNotNull(trimmed.firstOrNull { it in PICKUP_DAY_BADGES }, memoTimes.pickup.ifEmpty { null }, pickupPromise).joinToString(" ")
+            val dropoff = listOfNotNull(trimmed.firstOrNull { it in DROPOFF_DAY_BADGES }, memoTimes.dropoff.ifEmpty { null }, dropoffPromise).joinToString(" ")
+            return com.onedal.app.core.ReservationText.readStops(pickup, dropoff, now)
         }
     }
 
@@ -264,7 +265,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 promiseText = pickupPieces?.promise, distanceKm = pickupDistance)),
             dropoffDetails = listOf(CallStop(listText = dropoffCell, region = StopText.regionOf(TargetApp.HWAMUL24, dropoffCell),
                 promiseText = dropoffPieces?.promise)),
-        ).withReservation(reservationOf(texts, pickupPieces?.promise, java.time.LocalDateTime.now(), memo = detailMemo))
+        ).withPromises(promisesOf(texts, pickupPieces?.promise, dropoffPieces?.promise, java.time.LocalDateTime.now(), memo = detailMemo))
     }
 
     // ════════════════════════════════════════════════════════════════

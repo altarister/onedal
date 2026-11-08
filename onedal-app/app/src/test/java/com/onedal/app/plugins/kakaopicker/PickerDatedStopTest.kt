@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import com.onedal.app.models.CallStop
 import com.onedal.app.core.firstPickupStop
+import com.onedal.app.core.isReservedCall
 import com.onedal.app.core.StopText
 
 /**
@@ -45,7 +46,7 @@ class PickerDatedStopTest {
     @Test fun `띠 줄의 날짜를 예약으로 읽는다 - 손으로 연 상세도 판정 콜에 싣는다`() {
         val d = PickerScreenOcr.parseDetail(lines)!!
         val r = PickerDetailOcrParser().verify(d, null, null, emptyList(), "", listOf(listCard)) as PickerDetailOcrParser.VerifyResult.Success
-        assertEquals(true, r.order.reserved)
+        assertEquals(true, isReservedCall(r.order))
         assertEquals(1, firstPickupStop(r.order)?.requestedDay)
         assertEquals("09:00", firstPickupStop(r.order)?.requestedTime)
         assertEquals(13013, r.order.fare)

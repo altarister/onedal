@@ -1463,6 +1463,7 @@ export function deliveryKmOf(o: StopSource): number | null {
 /**
  * 📅 **예약 콜** — 첫 상차 정거장 약속 원문에 «예약» 글자가 보이거나, 첫 상차 날이 1 이상인 콜.
  *    화물24시 «당상»(날 0) · 픽커 «17:04까지 픽업»처럼 날 · 시각만 있는 오늘 콜은 예약 콜이 아니다.
+ *    원달앱 짝 `isReservedCall`(`core/CallStops.kt`)이 같은 문제지(`pageReadCases.json` `reservedCallCases`)로 같은 답을 낸다.
  */
 export function isReservedCall(o: StopSource): boolean {
     const stop = firstPickupStop(o);

@@ -5,7 +5,7 @@ import org.junit.Test
 import java.time.LocalDateTime
 
 /**
- * 📅 **예약이 언제인가 — 상차 쪽 글자 하나로 읽는다** (예약콜 1단계 · 세 배차망 공통 한 벌).
+ * 📅 **정거장 약속이 언제인가 — 정거장 쪽 글자 하나로 읽는다** (예약콜 1단계 · 네 배차망 공통 한 벌).
  * 정답지는 실물 화면 글자다 — 인성 목록 «낼7시/»·«21시/»·«10일/», 픽커 «예약 내일»·«예약 18:30»·«예약 9/30(수)»·«예약»만,
  * 화물24시 «당상»·«당일오후1시상». 날은 달력 기준(폰 날짜)이다.
  * 📅 내일 콜은 날 표시(낼 · 내일 · 내상 · 모레 · N일 · M/D)가 있을 때만 — 시각만 있으면 오늘 콜이다(짐작하지 않는다 · 기사님).
@@ -23,33 +23,33 @@ class ReservationTextTest {
     }
 
     @Test fun `인성 낼 - 내일 그 시각`() {
-        assertEquals(Reservation(true, 1, "07:00"), read("@낼7시"))
-        assertEquals(Reservation(true, 1, "06:30"), read("@낼6시30"))
-        assertEquals(Reservation(true, 1, "08:00"), read("낼08시"))
-        assertEquals(Reservation(true, 1, "08:00"), read("낼8"))
-        assertEquals(Reservation(true, 1, "06:00"), read("@낼6시("))
-        assertEquals(Reservation(true, 1, "09:30"), read("낼9시반"))
+        assertEquals(Reservation(1, "07:00"), read("@낼7시"))
+        assertEquals(Reservation(1, "06:30"), read("@낼6시30"))
+        assertEquals(Reservation(1, "08:00"), read("낼08시"))
+        assertEquals(Reservation(1, "08:00"), read("낼8"))
+        assertEquals(Reservation(1, "06:00"), read("@낼6시("))
+        assertEquals(Reservation(1, "09:30"), read("낼9시반"))
     }
 
     @Test fun `시각만 - 지금보다 일러도 오늘 (짐작하지 않는다)`() {
-        assertEquals(Reservation(true, 0, "08:00"), read("8시"))
-        assertEquals(Reservation(true, 0, "08:30"), read("예약 08:30"))
+        assertEquals(Reservation(0, "08:00"), read("8시"))
+        assertEquals(Reservation(0, "08:30"), read("예약 08:30"))
     }
 
     @Test fun `시각만 - 지금보다 늦어도 오늘 · 배차망 상관없이`() {
-        assertEquals(Reservation(true, 0, "21:00"), read("@21시"))
-        assertEquals(Reservation(true, 0, "19:30"), read("@오후7시30"))
-        assertEquals(Reservation(true, 0, "18:30"), read("예약 18:30"))
-        assertEquals(Reservation(true, 0, "18:30"), read("예약 18:30", now = LocalDateTime.of(2026, 9, 30, 19, 0)))
+        assertEquals(Reservation(0, "21:00"), read("@21시"))
+        assertEquals(Reservation(0, "19:30"), read("@오후7시30"))
+        assertEquals(Reservation(0, "18:30"), read("예약 18:30"))
+        assertEquals(Reservation(0, "18:30"), read("예약 18:30", now = LocalDateTime.of(2026, 9, 30, 19, 0)))
     }
 
     /** 🌙 자정 가까운 밤 — 시각만 있으면 오늘 · «낼» · «내일»이 적혀 있으면 내일 (이천 방향 바퀴 23:15) */
     @Test fun `밤 23시 15분 - 00시08분은 오늘 · 낼 내일 표시는 내일`() {
         val night = LocalDateTime.of(2026, 10, 2, 23, 15)
-        assertEquals(Reservation(true, 0, "00:08"), read("00:08", now = night))
-        assertEquals(Reservation(true, 1, "00:10"), read("낼0시10", now = night))
-        assertEquals(Reservation(true, 1, "09:00"), read("낼09시", now = night))
-        assertEquals(Reservation(true, 1, "17:49"), read("내일 17:49 픽업예약", now = night))
+        assertEquals(Reservation(0, "00:08"), read("00:08", now = night))
+        assertEquals(Reservation(1, "00:10"), read("낼0시10", now = night))
+        assertEquals(Reservation(1, "09:00"), read("낼09시", now = night))
+        assertEquals(Reservation(1, "17:49"), read("내일 17:49 픽업예약", now = night))
     }
 
     /** 🕘 시작 시각 꼴 — «그때부터 실을 수 있다»는 약속 시각이 아니다 (기사님 «가» · 교차 리뷰 ①) */
@@ -62,42 +62,66 @@ class ReservationTextTest {
     }
 
     @Test fun `오전 오후 저녁 낮`() {
-        assertEquals(Reservation(true, 0, "19:00"), read("저녁7시"))
-        assertEquals(Reservation(true, 0, "12:00"), read("낮12시", now = LocalDateTime.of(2026, 9, 30, 10, 0)))
-        assertEquals(Reservation(true, 0, "10:00"), read("오전10시"))
+        assertEquals(Reservation(0, "19:00"), read("저녁7시"))
+        assertEquals(Reservation(0, "12:00"), read("낮12시", now = LocalDateTime.of(2026, 9, 30, 10, 0)))
+        assertEquals(Reservation(0, "10:00"), read("오전10시"))
     }
 
     @Test fun `N일 - 이 달 그날 · 지났으면 다음 달`() {
-        assertEquals(Reservation(true, 10, null), read("10일", now = LocalDateTime.of(2026, 9, 30, 9, 0)))
-        assertEquals(Reservation(true, 0, "09:00"), read("30일)09시"))
-        assertEquals(Reservation(true, 1, null), read("1일", now = LocalDateTime.of(2026, 12, 31, 9, 0)))
+        assertEquals(Reservation(10, null), read("10일", now = LocalDateTime.of(2026, 9, 30, 9, 0)))
+        assertEquals(Reservation(0, "09:00"), read("30일)09시"))
+        assertEquals(Reservation(1, null), read("1일", now = LocalDateTime.of(2026, 12, 31, 9, 0)))
     }
 
     @Test fun `월 일 요일 배지 - 해 넘김`() {
-        assertEquals(Reservation(true, 0, null), read("예약 9/30(수)"))
-        assertEquals(Reservation(true, 1, null), read("예약 10/1(목)"))
-        assertEquals(Reservation(true, 1, null), read("예약 1/1(금)", now = LocalDateTime.of(2026, 12, 31, 9, 0)))
+        assertEquals(Reservation(0, null), read("예약 9/30(수)"))
+        assertEquals(Reservation(1, null), read("예약 10/1(목)"))
+        assertEquals(Reservation(1, null), read("예약 1/1(금)", now = LocalDateTime.of(2026, 12, 31, 9, 0)))
     }
 
     @Test fun `픽커 - 예약 내일 · 예약만`() {
-        assertEquals(Reservation(true, 1, null), read("퀵 반나절 예약 내일"))
-        assertEquals(Reservation(true, 1, "14:00"), read("예약 내일 14:00"))
-        assertEquals(Reservation(true, 0, "15:00"), read("예약 오늘 15:00"))
-        assertEquals(Reservation(true, null, null), read("퀵 예약"))
+        assertEquals(Reservation(1, null), read("퀵 반나절 예약 내일"))
+        assertEquals(Reservation(1, "14:00"), read("예약 내일 14:00"))
+        assertEquals(Reservation(0, "15:00"), read("예약 오늘 15:00"))
+        assertEquals(Reservation(0, null), read("퀵 예약"))
     }
 
-    @Test fun `픽커 오늘 콜의 마감 시각은 예약이 아니다`() {
-        assertEquals(Reservation.NONE, read("10:00까지"))
+    /** 화물24시 하차 배지 «당착 · 내착»은 하차 날 · 하차 날 글자가 없으면 넘겨받은 상차 날(약속 정해진 것 5) */
+    @Test fun `하차 - 당착 내착 · 날 글자가 없으면 상차 날`() {
+        assertEquals(Reservation(0, null), read("당착"))
+        assertEquals(Reservation(1, null), read("내착"))
+        assertEquals(Reservation(1, "14:00"), ReservationText.read("14시전", morning, sameDayAs = 1))
+        assertEquals(Reservation(0, "10:20"), read("10:20전"))
+        assertEquals(Reservation.NONE, ReservationText.read(null, morning, sameDayAs = 1))
+        assertEquals(Pair(Reservation(1, "08:20"), Reservation(1, "10:20")), ReservationText.readStops("낼08:20", "10:20전", morning))
     }
 
     @Test fun `화물24시 - 당상 내상 · 당일 상차 글`() {
-        assertEquals(Reservation(true, 0, null), read("당상"))
-        assertEquals(Reservation(true, 1, null), read("내상"))
-        assertEquals(Reservation(true, 0, "13:00"), read("예약 당일오후1시상"))
-        assertEquals(Reservation(true, 2, null), read("모레"))
+        assertEquals(Reservation(0, null), read("당상"))
+        assertEquals(Reservation(1, null), read("내상"))
+        assertEquals(Reservation(0, "13:00"), read("예약 당일오후1시상"))
+        assertEquals(Reservation(2, null), read("모레"))
     }
 
     @Test fun `보낼 같은 말 속의 낼은 날 낱말이 아니다`() {
         assertEquals(Reservation.NONE, read("보낼것"))
+    }
+
+    /** 🔴 «예약»만 보이고 날이 없으면 오늘(날 0) — «날 모름» 상태는 없다(약속 정해진 것 6) */
+    @Test fun `예약만 보이면 오늘`() {
+        assertEquals(0, read("퀵 예약").day)
+        assertEquals(null, read("퀵 예약").at)
+    }
+
+    /** 🔴 «HH:MM까지»도 그 정거장의 약속 시각이다 — 픽커 «17:04까지 픽업»(약속 정해진 것 1 · 8) */
+    @Test fun `까지 마감도 그 시각`() {
+        assertEquals(0, read("17:04까지 픽업").day)
+        assertEquals("17:04", read("17:04까지 픽업").at)
+    }
+
+    /** 구간 약속은 기사님께 유리한 끝 시각(약속 정해진 것 1) */
+    @Test fun `구간 낼11-12시는 내일 12시`() {
+        assertEquals(1, read("@낼11-12시").day)
+        assertEquals("12:00", read("@낼11-12시").at)
     }
 }

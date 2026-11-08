@@ -31,7 +31,7 @@ import com.onedal.app.core.withLastDropoff
 class IsflexParserTest {
     private val now = LocalDateTime.of(2026, 10, 30, 20, 0)
 
-    /** 한 줄 기대값 — 예약은 (날, 시각) · 예약 아님은 null */
+    /** 한 줄 기대값 — 상차 약속은 (날, 시각) · 약속 없음은 null */
     private data class Want(
         val pickup: String, val dropoff: String, val fare: Int, val pickupKm: Double?, val deliveryKm: Double?,
         val vehicle: String?, val schedule: String?, val reserved: Pair<Int, String>?, val tags: String?, val tapY: Int? = null,
@@ -50,7 +50,6 @@ class IsflexParserTest {
         assertEquals("$label 운행 거리", w.deliveryKm, lastDropoffStop(o)?.distanceKm)
         assertEquals("$label 차종", w.vehicle, o.vehicleType)
         assertEquals("$label 예약 글자", w.schedule, firstPickupStop(o)?.promiseText)
-        assertEquals("$label 예약", w.reserved != null, o.reserved == true)
         assertEquals("$label 예약 날", w.reserved?.first, firstPickupStop(o)?.requestedDay)
         assertEquals("$label 예약 시각", w.reserved?.second, firstPickupStop(o)?.requestedTime)
         assertEquals("$label 꼬리표", w.tags, o.tagsText)

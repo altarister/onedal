@@ -50,8 +50,8 @@ object ListJudge {
             return Verdict(false, "locked")
         }
 
-        // 📅 예약 — 인성 파서와 같은 자리 (목록에서는 확실한 다른 날만 · 날 모름은 채운 뒤 필터)
-        val reservationOk = com.onedal.app.core.engine.ReservationGate.passesList(order, filter.reservationMode)
+        // 📅 예약 — 인성 파서와 같은 자리 (첫 상차 날 · 상세에서 채운 뒤 필터가 한 번 더)
+        val reservationOk = com.onedal.app.core.engine.ReservationGate.passes(order, filter.reservationMode)
 
         // ── 조건 1: 차종 매칭 (빈 배열이면 전체 허용) ──
         //    🚚 배차망 낱말(«다마스/전체»의 «다마스»)을 배차망 차종 표(`Rules.vehicleOf`)로 우리 차종에 맞춘 뒤 **같은지**로 본다 —

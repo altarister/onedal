@@ -7,7 +7,7 @@ import com.onedal.app.plugins.DispatchPluginRegistry
 
 /**
  * 🚏 **콜의 정거장을 읽는 한 자리** — 원달앱 보고는 주소 · 약속 · 거리를 정거장 묶음에 싣는다.
- * shared `firstPickupStop` · `lastDropoffStop` · `stopTextOf` · `stopQueryOf`(`time/timing.ts` · `network/pageRead.ts`)의 원달앱 짝이다 — 같은 규칙.
+ * shared `firstPickupStop` · `lastDropoffStop` · `isReservedCall` · `stopTextOf` · `stopQueryOf`(`time/timing.ts` · `network/pageRead.ts`)의 원달앱 짝이다 — 같은 규칙.
  */
 
 /** 🚏 첫 상차 정거장 — 상차 목록의 처음. 없으면 null */
@@ -15,6 +15,15 @@ fun firstPickupStop(o: SimplifiedOfficeOrder): CallStop? = o.pickupDetails.first
 
 /** 🚏 마지막 하차 정거장 — 하차 목록의 끝. 없으면 null */
 fun lastDropoffStop(o: SimplifiedOfficeOrder): CallStop? = o.dropoffDetails.lastOrNull()
+
+/**
+ * 📅 **예약 콜** — 첫 상차 정거장 약속 원문에 «예약» 글자가 보이거나 첫 상차 날이 1 이상 (shared `isReservedCall` · 같은 문제지 `reservedCallCases`).
+ *    «당상»(날 0) · 픽커 «17:04까지 픽업»처럼 날 · 시각만 있는 오늘 콜은 예약 콜이 아니다. 로그 낱말(`ReservationGate.wordOf`)이 읽는다.
+ */
+fun isReservedCall(o: SimplifiedOfficeOrder): Boolean {
+    val stop = firstPickupStop(o)
+    return stop?.promiseText?.contains("예약") == true || (stop?.requestedDay ?: 0) >= 1
+}
 
 /** ✏️ 첫 상차 정거장을 고친 콜 — 상차 목록이 비어 있으면 한 곳을 만든다 */
 fun withFirstPickup(o: SimplifiedOfficeOrder, f: (CallStop) -> CallStop): SimplifiedOfficeOrder =

@@ -17,7 +17,7 @@ import com.onedal.app.models.CallStop
  */
 class InsungSimTimeLabelTest {
     private fun read(cell: String, now: LocalDateTime): Reservation =
-        InsungParser.reservationOf(LocationTextAnalyzer.split(cell, InsungPages.badgeWords).promise, now)
+        InsungParser.promisesOf(LocationTextAnalyzer.split(cell, InsungPages.badgeWords).promise, null, now).first
 
     private fun isToday(r: Reservation): Boolean = ReservationGate.isToday(
         SimplifiedOfficeOrder(
@@ -25,14 +25,13 @@ class InsungSimTimeLabelTest {
             type = "LIST",
             fare = 50000,
             timestamp = "",
-            reserved = r.marked,
             pickupDetails = listOf(CallStop(listText = "중리동", requestedDay = r.day, requestedTime = r.at)),
             dropoffDetails = listOf(CallStop(listText = "초월읍")),
 ))
 
     @Test fun `새벽 03시43분 - 오전4시6 은 오늘 04시06 · 확정까지 간다`() {
         val r = read("오전4시6/중리동", LocalDateTime.of(2026, 10, 1, 3, 43))
-        assertEquals(Reservation(true, 0, "04:06"), r)
+        assertEquals(Reservation(0, "04:06"), r)
         assertTrue(isToday(r))
     }
 
@@ -41,10 +40,10 @@ class InsungSimTimeLabelTest {
     }
 
     @Test fun `모레8시반 은 모레 08시30`() {
-        assertEquals(Reservation(true, 2, "08:30"), read("모레8시반/중리동", LocalDateTime.of(2026, 10, 1, 14, 0)))
+        assertEquals(Reservation(2, "08:30"), read("모레8시반/중리동", LocalDateTime.of(2026, 10, 1, 14, 0)))
     }
 
     @Test fun `저녁7시 는 오늘 19시`() {
-        assertEquals(Reservation(true, 0, "19:00"), read("저녁7시/중리동", LocalDateTime.of(2026, 10, 1, 14, 0)))
+        assertEquals(Reservation(0, "19:00"), read("저녁7시/중리동", LocalDateTime.of(2026, 10, 1, 14, 0)))
     }
 }

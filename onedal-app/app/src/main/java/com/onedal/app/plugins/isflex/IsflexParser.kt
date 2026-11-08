@@ -17,7 +17,7 @@ import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
-import com.onedal.app.models.withReservation
+import com.onedal.app.models.withPromises
 import com.onedal.app.plugins.ListJudge
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
@@ -166,7 +166,7 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
                 pickupDetails = listOf(CallStop(listText = pickupCell, region = StopText.regionOf(TargetApp.ISFLEX, pickupCell), promiseText = pickup?.promise, distanceKm = pickupDistance)),
                 dropoffDetails = listOf(CallStop(listText = dropoffCell, region = StopText.regionOf(TargetApp.ISFLEX, dropoffCell), promiseText = dropoff?.promise, distanceKm = delivery)),
                 tagsText = tagsOf(*badges.toTypedArray(), *conditionsOf(pickup, dropoff), dropoff?.promise, payment),
-            ).withReservation(ReservationText.read(pickup?.promise, now))   // 🔴 상차 쪽 글자만 — 도착 마감 «10:20전»은 넘기지 않는다
+            ).withPromises(ReservationText.readStops(pickup?.promise, dropoff?.promise, now))   // 🔴 제 칸의 약속 토막만 — 도착 마감 «10:20전»은 하차 정거장
             if (order.fare > 0) {
                 /* 🔕 목록을 읽을 때마다 돈다 — 같은 콜은 글자가 바뀔 때만 */
                 val line = "📦 [플렉스 파싱] 상차=${StopText.query(TargetApp.ISFLEX, firstPickupStop(order))}, 하차=${StopText.query(TargetApp.ISFLEX, lastDropoffStop(order))}, 요금=${order.fare}, 차종=$vehicle, " +
@@ -206,7 +206,7 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
                 dropoffDetails = listOf(CallStop(listText = dropoffCell, region = StopText.regionOf(TargetApp.ISFLEX, dropoffCell), promiseText = dropoff?.promise,
                     distanceKm = kmOf(detailField(texts, PageField.DELIVERY_DISTANCE)))),
                 tagsText = tagsOf(detailField(texts, PageField.TAGS), *conditionsOf(pickup, dropoff), dropoff?.promise, detailField(texts, PageField.PAYMENT)),
-            ).withReservation(ReservationText.read(pickup?.promise, now))
+            ).withPromises(ReservationText.readStops(pickup?.promise, dropoff?.promise, now))
         }
 
         /**
@@ -219,7 +219,6 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
             val dp = firstPickupStop(d)
             val dd = lastDropoffStop(d)
             val filled = order.copy(
-                reserved = if (readPickup) d.reserved else order.reserved,
                 tagsText = if (readPickup) d.tagsText else order.tagsText,
                 vehicleType = order.vehicleType ?: d.vehicleType,
             )

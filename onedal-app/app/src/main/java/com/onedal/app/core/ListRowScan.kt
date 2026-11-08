@@ -64,9 +64,6 @@ class ListRowScan(
         }
         val orderHash = CallMemory.fingerprintOf(order)
         com.onedal.app.core.ListSightings.saw(orderHash, listScanNo)   // 🧾 몇 번째 읽기에서 봤나 — 같은 콜 요금 인상 가르기
-        // 📅 예약인데 날을 모른다 — 상세가 가른다. 배차망별로 몇 번인지 세려고 콜당 한 줄
-        if (order.reserved == true && firstPickupStop(order)?.requestedDay == null && LogOnce.changed("reservation-unknown:$orderHash", "1"))
-            AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 날 모름] $currentTargetApp · ${StopText.of(firstPickupStop(order))}→${StopText.of(lastDropoffStop(order))} ${order.fare}원 · ${order.tagsText ?: firstPickupStop(order)?.promiseText ?: ""}")
         /**
          * ⏭️ **건너뛰었다는 사실을 남긴다**.
          *

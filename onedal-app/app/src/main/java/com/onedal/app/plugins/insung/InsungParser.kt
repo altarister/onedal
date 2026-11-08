@@ -17,7 +17,7 @@ import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.core.ScreenWords
 import com.onedal.app.core.WordKind
-import com.onedal.app.models.withReservation
+import com.onedal.app.models.withPromises
 import org.json.JSONObject
 import org.json.JSONArray
 import java.text.SimpleDateFormat
@@ -303,11 +303,11 @@ class InsungParser(private val context: Context) : IScrapParser {
         data class Verdict(val passed: Boolean, val axis: String)
 
         /**
-         * 📅 예약은 **출발지 칸의 약속 토막**으로만 읽는다 — 도착지 칸 «낼8/중구봉래동»은 도착 약속이다 (`InsungReservationTest`).
-         *    실물 인성은 내일에 «낼»을 적는다(한 화면에 «낼7시/»와 «21시/»가 나란히) — 시각만 있으면 오늘(`ReservationText`).
+         * 📅 정거장 약속은 **제 칸의 약속 토막**으로 읽는다 — 출발지 칸 «낼7시/» → 상차 · 도착지 칸 «14시전/» · «낼8/» → 하차 (`InsungReservationTest`).
+         *    실물 인성은 내일에 «낼»을 적는다(한 화면에 «낼7시/»와 «21시/»가 나란히) — 시각만 있으면 오늘 · 하차 날 글자가 없으면 상차 날(`ReservationText`).
          */
-        fun reservationOf(pickupPromise: String?, now: java.time.LocalDateTime): com.onedal.app.core.Reservation =
-            com.onedal.app.core.ReservationText.read(pickupPromise, now)
+        fun promisesOf(pickupPromise: String?, dropoffPromise: String?, now: java.time.LocalDateTime): Pair<com.onedal.app.core.Reservation, com.onedal.app.core.Reservation> =
+            com.onedal.app.core.ReservationText.readStops(pickupPromise, dropoffPromise, now)
 
         /** 판정하고 **어느 축에서 걸렸는지**까지 돌려준다 — `decide` 는 이것을 감싼 것이다 */
         fun decide(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Boolean =
@@ -323,8 +323,8 @@ class InsungParser(private val context: Context) : IScrapParser {
 
             val rawText = order.rawText ?: ""
 
-            // 📅 예약 — 목록에서는 확실한 다른 날만 막는다(날 모름은 상세에서 채운 뒤 `passesFilterAfterFill`)
-            val reservationOk = com.onedal.app.core.engine.ReservationGate.passesList(order, filter.reservationMode)
+            // 📅 예약 — 첫 상차 날로 막는다(상세에서 채운 뒤 `passesFilterAfterFill` 이 한 번 더)
+            val reservationOk = com.onedal.app.core.engine.ReservationGate.passes(order, filter.reservationMode)
 
             // ── 조건 1: 차종 매칭 (빈 배열이면 전체 허용) ──
             val vehicleMatch = if (filter.allowedVehicleTypes.isEmpty()) {
@@ -579,7 +579,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             //    단가 판정(fare ≥ 배송거리 × 단가)의 입력이다. 없으면 null →
             //    판정을 건너뛰고 통과시킨다 (앱은 일단 잡아와라, 서버가 정확히 잰다).
             dropoffDetails = listOf(cells.dropoff.copy(distanceKm = dropoffKm)),
-        ).withReservation(reservationOf(cells.pickup.promiseText, java.time.LocalDateTime.now()))
+        ).withPromises(promisesOf(cells.pickup.promiseText, cells.dropoff.promiseText, java.time.LocalDateTime.now()))
     }
 
     /**

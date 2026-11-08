@@ -19,7 +19,6 @@ class BundleReviewTest {
         id = "c",
         fare = 10000,
         timestamp = "t",
-        reserved = true,
         pickupDetails = listOf(CallStop(listText = pickup, distanceKm = km, requestedDay = 1)),
         dropoffDetails = listOf(CallStop(listText = "서대문 신촌")),
 )

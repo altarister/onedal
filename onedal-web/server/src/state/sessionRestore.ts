@@ -188,8 +188,7 @@ export function restoredOrderFrom(row: any, got: {
         capturedAt: row.capturedAt,
         /** 🎯 판 — 안 읽으면 재기동 뒤 전부 하차지 시로 조용히 물러난다 (#131) */
         goalCity: row.goalCity ?? undefined,
-        /** 📅 예약 — 안 읽으면 재기동 뒤 예약 콜이 오늘 첫짐이 되고 상차 약속이 오늘로 돌아간다 */
-        reserved: row.reserved == null ? undefined : !!row.reserved,
+        /** 📅 예약 보관 날 — 안 읽으면 재기동 뒤 예약 콜이 오늘 첫짐이 된다 */
         reservedFor: row.reserved_for ?? undefined,
         capturedDeviceId: row.capturedDeviceId,
         vehicleType: row.vehicleType,

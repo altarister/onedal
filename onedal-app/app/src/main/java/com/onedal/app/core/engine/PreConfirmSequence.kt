@@ -481,25 +481,25 @@ fun ScanContext.releaseAppOpened(reason: String) {
  */
 fun ScanContext.passesFilterAfterFill(order: SimplifiedOfficeOrder): Boolean {
     /**
-     * 📅 **예약 — 채운 뒤에는 날 모름도 막는다** (`ReservationGate.passesAfterFill`).
-     * 목록은 확실한 다른 날만 막고 날 모름을 들였다 — 상세에서 채워도 날을 모르면 여기서 막는다(«내일 걸 오늘 잡으면 사고다»).
+     * 📅 **예약 — 상세에서 읽은 첫 상차 날로 한 번 더 묻는다** (`ReservationGate.passes`).
+     * 목록 줄에 안 보이던 날(픽커 사진 «내일 15:00 픽업예약»)이 여기서 걸린다(«내일 걸 오늘 잡으면 사고다»).
      */
-    val reservationOk = ReservationGate.passesAfterFill(order, scrapParser.reservationMode())
-    if (!reservationOk && com.onedal.app.core.LogOnce.changed("reservation-after-fill:${order.id}", "${order.reserved}${firstPickupStop(order)?.requestedDay}"))
+    val reservationOk = ReservationGate.passes(order, scrapParser.reservationMode())
+    if (!reservationOk && com.onedal.app.core.LogOnce.changed("reservation-after-fill:${order.id}", "${firstPickupStop(order)?.requestedDay}"))
         AppLogger.i(TAG, LogTag.FILTER, "📅 [예약 막음] 채운 뒤 — $currentTargetApp · 예약 ${ReservationGate.wordOf(order)} ${firstPickupStop(order)?.requestedTime ?: ""} · ${StopText.of(firstPickupStop(order))}→${StopText.of(lastDropoffStop(order))}")
     return reservationOk && scrapParser.shouldClick(order)
 }
 
 /**
  * ✍️ **앱이 확정을 누르나** — 앱이 계약하는 콜(자동 모드) · 수락 칸이 있는 배차망 · **오늘 콜** (`AppPressesAcceptTest`).
- * 📅 내일 콜·날 모름은 자동이어도 누르지 않는다 — 미리보기로 올리고 기사님이 확정한다 (기사님 «가»).
+ * 📅 내일 콜은 자동이어도 누르지 않는다 — 미리보기로 올리고 기사님이 확정한다 (기사님 «가»).
  */
 fun appPressesAccept(contractedByApp: Boolean, acceptButtons: List<String>?, order: SimplifiedOfficeOrder): Boolean =
     contractedByApp && acceptButtons != null && ReservationGate.isToday(order)
 
 /**
  * 🚪 **앱이 연 상세에서 앱이 계약하나** — 자동 모드이고 **오늘 콜**일 때만 (`AppPressesAcceptTest`).
- * 📅 내일 콜·날 모름은 자동이어도 기사님이 확정한다 — 상세에서 한 번 더 보는 곳은 `appPressesAccept`.
+ * 📅 내일 콜은 자동이어도 기사님이 확정한다 — 상세에서 한 번 더 보는 곳은 `appPressesAccept`.
  */
 fun appContractsOnOpen(mode: String, order: SimplifiedOfficeOrder): Boolean =
     ModeActs.of(mode).contracts && ReservationGate.isToday(order)

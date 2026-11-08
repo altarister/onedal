@@ -118,8 +118,8 @@ router.post("/", (req, res) => {
                 dropoffStop?.geo?.y ?? null,
                 /* 🗳️ 앱이 낸 판정 — 화면이 다시 재지 않게 */
                 (item as any).verdict ?? null,
-                /* 📅 예약 표시·날·시각 — 받아 적기만 · 참/거짓이 아니면 모름(NULL) */
-                typeof (item as any).reserved === 'boolean' ? ((item as any).reserved ? 1 : 0) : null,
+                /* 📅 예약 표시 칸은 남지만 원달앱이 안 보낸다(«예약» 글자는 상차 약속 원문 · 날 · 시각은 첫 상차 정거장) — 빈 값 */
+                null,
                 pickupStop?.requestedDay ?? null,
                 pickupStop?.requestedTime ?? null,
                 source

@@ -32,9 +32,9 @@ class Hwamul24MemoTimesTest {
     @Test fun `예약은 상차 배지와 상차 글로 - 하차 시각은 안 섞인다`() {
         val now = LocalDateTime.of(2026, 9, 30, 11, 0)
         val card = listOf("경기 시흥 정왕동", "당상", "15Km", "경기 안산 상록구 장상동", "당착", "2.5톤/윙")
-        assertEquals(Reservation(true, 0, "09:30"),
-            Hwamul24Parser.reservationOf(card, null, now, memo = "당일오전9시30분상 당착 지/지 4파렛"))
-        assertEquals(Reservation(true, 0, null),
-            Hwamul24Parser.reservationOf(card, null, now, memo = "당일상 당착 공파렛 50p / 10시전하차"))
+        assertEquals(Reservation(0, "09:30"),
+            Hwamul24Parser.promisesOf(card, null, null, now, memo = "당일오전9시30분상 당착 지/지 4파렛").first)
+        assertEquals(Reservation(0, null),
+            Hwamul24Parser.promisesOf(card, null, null, now, memo = "당일상 당착 공파렛 50p / 10시전하차").first)
     }
 }

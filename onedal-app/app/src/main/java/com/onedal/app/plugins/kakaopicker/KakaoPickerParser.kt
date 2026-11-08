@@ -16,7 +16,7 @@ import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
-import com.onedal.app.models.withReservation
+import com.onedal.app.models.withPromises
 import com.onedal.app.core.firstPickupStop
 import com.onedal.app.core.lastDropoffStop
 import com.onedal.app.core.StopText
@@ -698,6 +698,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         private const val WALK_TAG = "도보"
         /** 📅 목록 태그 줄의 예약 표시 */
         private const val RESERVED_TAG = "예약"
+        /** 📅 «예약» 꼬리표 뒤에 붙는 날 낱말 — 꼬리표 낱말(`TAG_WORDS`)의 «예약 콜의 날짜 표식»과 같은 글자 */
+        private val RESERVED_DAY_WORDS = setOf("내일", "오늘")
 
         /**
          * ⏸️ **퀵 콜인데 하차지를 못 읽었나** (기사님 지시).
@@ -719,14 +721,14 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         }
 
         /**
-         * 📅 **이 콜을 거를 상차 반경** (기사님 «가» · `PickerReservedRadiusTest`) — 예약 날이 내일 이후면 줄이지 않은 기본 반경
-         * (`reservedPickupRadiusKm` · 서버가 싣는다), 오늘 콜·날 모르는 예약은 지금 반경. 칸이 없으면(옛 서버) 지금 반경.
+         * 📅 **이 콜을 거를 상차 반경** (기사님 «가» · `PickerReservedRadiusTest`) — 첫 상차 날이 1 이상(«내일»이나 날짜가 보인 콜)이면 줄이지 않은 기본 반경
+         * (`reservedPickupRadiusKm` · 서버가 싣는다), 오늘 콜은 지금 반경. 칸이 없으면(옛 서버) 지금 반경.
          * 자동 반경은 지금 자리에서 줄인 값이라 내일 콜에는 맞지 않다 — 내일은 그 자리에서 출발하지 않는다.
          */
         fun pickupRadiusFor(order: SimplifiedOfficeOrder, pickupRadiusKm: Double, reservedPickupRadiusKm: Double?): Double =
             if (laterDay(order)) reservedPickupRadiusKm ?: pickupRadiusKm else pickupRadiusKm
 
-        private fun laterDay(order: SimplifiedOfficeOrder) = order.reserved == true && (firstPickupStop(order)?.requestedDay ?: 0) >= 1
+        private fun laterDay(order: SimplifiedOfficeOrder) = (firstPickupStop(order)?.requestedDay ?: 0) >= 1
 
         /** 📅 상차에서 떨어진 까닭 — «상차 20.0km > 내일 콜 반경 25km» (판정 줄 끝) */
         fun pickupMissWord(order: SimplifiedOfficeOrder, pickupRadiusKm: Double, reservedPickupRadiusKm: Double?, reservedPickupKeywords: List<String>? = null): String {
@@ -767,8 +769,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             reservedPickupKeywords: List<String>? = null,
             reservedPickupGroups: Map<String, List<String>>? = null,
         ): AlarmAxes {
-            // 📅 목록에서는 확실한 다른 날만 막는다 — 날 모름은 상세 사진(«내일 14:00 픽업예약»)이 가른다
-            val reservationOk = com.onedal.app.core.engine.ReservationGate.passesList(order, reservationMode)
+            // 📅 첫 상차 날로 막는다 — 목록에 안 보인 날은 상세 사진(«내일 14:00 픽업예약»)이 채운 뒤 한 번 더
+            val reservationOk = com.onedal.app.core.engine.ReservationGate.passes(order, reservationMode)
             val fareOk = FareFloor.passes(order.fare, minFare)
             // 상차지거리는 목록 완독 칸이다(`OrderRequirement.listComplete`) — 모르면 통과시키지 않는다
             // 📅 내일 이후 예약 콜 — 집 둘레 기본 반경 안의 동 목록이 있으면 그것으로(목록 줄 km 는 지금 폰 위치 기준이라 내일 콜엔 안 맞다)
@@ -1208,18 +1210,19 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             itemSize = itemSize,
             tagsText = tags.joinToString(" ").ifEmpty { null },
             rawText = texts.joinToString(" "),
-            pickupDetails = listOf(CallStop(listText = pickup, promiseText = scheduleTime, distanceKm = pickupKm)),
+            pickupDetails = listOf(CallStop(listText = pickup, promiseText = listReservation(tags) ?: scheduleTime, distanceKm = pickupKm)),
             dropoffDetails = listOf(CallStop(listText = dropoff)),   // 리스트에 배송거리가 없다 (인성과의 결정적 차이)
-        ).withReservation(listReservation(tags, java.time.LocalDateTime.now()))
+        ).withPromises(com.onedal.app.core.ReservationText.readStops(listReservation(tags), null, java.time.LocalDateTime.now()))
     }
 
     /**
-     * 📅 **목록 예약은 태그 줄로 읽는다** — «예약» 태그가 있을 때만(«예약 내일»·«예약 18:30»·«예약 9/30(수)»·«예약»만).
-     * 시각만 있으면 오늘 · «예약»만이면 날 모름 — 상세 사진(«내일 14:00 픽업예약»)이 가른다 (`PickerReservationTest`).
+     * 📅 **목록 예약은 꼬리표의 «예약 …» 낱말로 읽는다** — «예약» 꼬리표가 있을 때만 «예약 · 내일 · 오늘 · 시각 · 날짜» 낱말을 화면 차례로 잇는다
+     * («예약 내일» · «예약 18:30» · «예약 9/30(수)» · «예약»). 이 글자가 상차 약속 원문이고, 날 · 시각은 정거장 약속 읽기가 낸다 —
+     * 시각만 있거나 «예약»만이면 오늘 · 상세 사진(«내일 14:00 픽업예약»)이 날 · 시각을 합친다 (`PickerReservationTest`).
      */
-    private fun listReservation(tags: List<String>, now: java.time.LocalDateTime): com.onedal.app.core.Reservation =
-        if (RESERVED_TAG in tags) com.onedal.app.core.ReservationText.read(tags.joinToString(" "), now)
-        else com.onedal.app.core.Reservation.NONE
+    private fun listReservation(tags: List<String>): String? =
+        if (RESERVED_TAG !in tags) null
+        else tags.filter { it == RESERVED_TAG || it in RESERVED_DAY_WORDS || TIME_REGEX.matches(it) || DATE_REGEX.matches(it) }.joinToString(" ")
 
     /**
      * 🔔 알람 판정 위임 — 조건은 관제앱이 블루투스로 준 필터(원천 DB · 저장 이름 `activeFilter`)에서 읽는다.

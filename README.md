@@ -145,6 +145,7 @@
 | DB 스키마 · `onedal-web/shared/` | 🟡 기존 DB 사본으로 부팅 (빈 DB 는 문제를 숨긴다) · 빈 DB 로도 부팅 |
 | 픽커 상세 화면 OCR 파서 | 🟡 앱 `PickerScreenOcr.kt` ↔ 서버 `pickerScreenOcr.ts` (두 검사가 같은 문제지를 문다) |
 | 판정 글자 shared `stopQueryOf`(`onedal-web/shared/src/network/pageRead.ts`) ↔ 원달앱 `StopText.query`(`core/CallStops.kt`) · 칸 앞 토막 `LocationTextAnalyzer.split` | ✅ 원달앱 `StopTextTest` · shared `stopText.test.ts` — 같은 문제지 `pageReadCases.json` `stopQueryCases` |
+| 예약 콜 shared `isReservedCall`(`onedal-web/shared/src/time/timing.ts`) ↔ 원달앱 `isReservedCall`(`core/CallStops.kt`) | ✅ 원달앱 `CallStopsTest` · shared `stopOf.test.ts` — 같은 문제지 `pageReadCases.json` `reservedCallCases` |
 | 네 모드 표 `onedal-web/shared/src/device/modeTable.ts` ↔ 서버 `modeForPhone` · 원달앱 `ModeActs` · `TargetApp.runningMode` | ✅ shared `modeTable.test.ts` · 원달앱 `ModeTablePairTest` |
 | 블루투스 틀 `onedal-web/shared/src/device/bleProtocol.ts` ↔ 관제앱 `BleProtocol.java` · `SupplyService`(거절 글 · 증명 셈) · 원달앱 `BleFrames.kt` | ✅ 서버 `bleProtocolPair.test.ts` |
 | 배차망 정의 표 `onedal-web/shared/src/network/networkPages.ts`(칸 · 페이지 목록 · 부속 팝업 `callOverlays` · 단추 `buttons` · 차종 낱말 · 표시 글자 `badgeWords` — 배차망 몫은 `networkPages.<배차망>.ts`) ↔ 원달앱 `InsungPages.kt` · `Hwamul24Pages.kt` · `KakaoPickerPages.kt` · `IsflexPages.kt` · `core/PageSpec.kt` 의 `StandardScreen` · `BadgePlace` · `BadgeMeaning` ↔ shared `call/badges.ts` 의 `BADGE_PLACES` · `BADGE_MEANINGS` | ✅ 원달앱 `NetworkPagesPairTest`(표 = 생성 파일 — 칸 · 페이지 목록 · 화면 줄의 기준 페이지 `base` · 부속 팝업 붙이기 · 단추 `buttons` · 화면 종류 이름 · 표시 글자 `badgeWords` 와 그 자리 · 뜻 갈래 낱말) · 다시 뽑기는 `pnpm gen:pages` |

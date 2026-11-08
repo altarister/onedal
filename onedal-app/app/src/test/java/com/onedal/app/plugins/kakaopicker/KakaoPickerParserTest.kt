@@ -60,7 +60,7 @@ class KakaoPickerParserTest {
         assertEquals(14168, o.fare)
         assertEquals("중원 성남", StopText.of(firstPickupStop(o)))    // 성남시 중원구 성남동 — 구·동 표기
         assertEquals("수지 동천", StopText.of(lastDropoffStop(o)))
-        assertEquals("17:00", firstPickupStop(o)?.promiseText)
+        assertEquals("예약 17:00", firstPickupStop(o)?.promiseText)   // 상차 약속 원문은 «예약 …» 낱말
     }
 
     @Test

@@ -8,8 +8,8 @@ import { approvedUser } from '../fixtures/approvedUser';
 /**
  * 📅 **예약 셋 — 받아 적기만**.
  *
- * 원달앱이 콜 줄마다 `reserved`(예약 표시가 있나 · true/false/null)와 첫 상차 정거장 `requestedDay`(0 오늘 · 1 내일 · N 그 뒤 · null 모름) · `requestedTime`(«HH:MM» · null)을 싣는다.
- * 서버는 목록 원문(`intel`)과 장부(`orders`)의 `reserved` · `reservedDay` · `reservedAt` 칸에 그 값을 적는다 — 값은 보고 그대로다.
+ * 원달앱이 콜 줄마다 첫 상차 정거장 `requestedDay`(0 오늘 · 1 내일 · N 그 뒤 · null 약속 없음) · `requestedTime`(«HH:MM» · null) · 약속 원문 `promiseText` 를 싣는다.
+ * 서버는 목록 원문(`intel`)과 장부(`orders`)의 `reservedDay` · `reservedAt` 칸에 그 값을 적는다 — 값은 보고 그대로다. 옛 예약 표시 칸 `reserved` 는 남고 빈 값이다.
  * 🔴 서버 칸이 앱보다 먼저 선다 — 앱이 칸을 더했는데 서버에 없으면 `intelColumns` 짝이 빨간불이다.
  *    shared 콜 양식(`SimplifiedOfficeOrder`)의 칸은 원달앱 칸과 같은 때 든다 — `appOrderShape` 짝이 한쪽만 있으면 빨간불이다.
  */
@@ -46,7 +46,7 @@ describe('📅 예약 셋', () => {
         const scrap = read(join(SRC, 'routes/scrap.ts'));
         expect(scrap).toMatch(/INSERT INTO intel \([^)]*reserved, reservedDay, reservedAt[,)]/);
         const item = {
-            fare: 12000, reserved: true,
+            fare: 12000,
             pickupDetails: [{ listText: '강남 대치2', distanceKm: 3.2, promiseText: '예약', requestedDay: 1, requestedTime: '14:00', geo: { x: 127.06, y: 37.5 } }],
             dropoffDetails: [{ listText: '분당 이매2', distanceKm: 17.5, geo: { x: 127.13, y: 37.39 } }],
         };
@@ -59,7 +59,7 @@ describe('📅 예약 셋', () => {
         }
         expect(row).toMatchObject({
             pickup: '강남 대치2', dropoff: '분당 이매2', pickupDistanceKm: 3.2, deliveryDistanceKm: 17.5,
-            scheduleText: '예약', reserved: 1, reservedDay: 1, reservedAt: '14:00',
+            scheduleText: '예약', reserved: null, reservedDay: 1, reservedAt: '14:00',
             pickupX: 127.06, pickupY: 37.5, dropoffX: 127.13, dropoffY: 37.39,
         });
     });

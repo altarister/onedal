@@ -133,7 +133,7 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
     "newList": [
       {"field": "pickup", "where": "출발지 칸", "sample": "@초이동 · @남양주(오남", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.listCellsOf — 칸 원문 그대로 정거장 listText · 판정 글자는 StopText.query"},
       {"field": "dropoff", "where": "도착지 칸", "sample": "이태원동 · 김포(대곶면", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.listCellsOf — 칸 원문 그대로 정거장 listText · 판정 글자는 StopText.query"},
-      {"field": "reservation", "where": "출발지 칸 앞글자", "sample": "낼7시/ · 낼6시30/ · 21시/(시각만 · 오늘) · 오후7시30/(시각만 · 오늘) · 10일/", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.reservationOf"},
+      {"field": "reservation", "where": "출발지 칸 앞글자", "sample": "낼7시/ · 낼6시30/ · 21시/(시각만 · 오늘) · 오후7시30/(시각만 · 오늘) · 10일/", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.promisesOf"},
       {"field": "itemSize", "where": "출발지 · 도착지 칸 앞 낱말", "sample": "폰)", "seen": "REAL", "handling": "READ", "usedAt": "원달앱 칸 앞 토막 함수(LocationTextAnalyzer.split) → 조건 토막 · 화면 기록(tagsText) · 짐 줄(InsungParser.listCellsOf → load.lines)", "part": "goods", "note": "짐 줄 «품목» — 물건이 핸드폰 · 출발지 · 도착지 칸 앞 토막"},
       {"field": "itemSize", "where": "출발지 · 도착지 칸 앞 낱말", "sample": "2분동승", "seen": "UNKNOWN", "handling": "READ", "usedAt": "원달앱 칸 앞 토막 함수(LocationTextAnalyzer.split) → 조건 토막 · 화면 기록(tagsText) · 짐 줄(InsungParser.listCellsOf → load.lines)", "part": "passenger", "note": "짐 줄 «동승» — 화주 2명 동승(캡처 없음) · 출발지 · 도착지 칸 앞 토막"},
       {"field": "clock", "where": "도착지 칸 앞글자 (도착 약속)", "sample": "낼8/ · 8시/ · 낼10시/", "seen": "REAL", "handling": "READ", "usedAt": "InsungParser.listCellsOf — 하차 정거장 약속 원문(promiseText)"},
