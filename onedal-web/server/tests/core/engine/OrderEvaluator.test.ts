@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { callFromAppReport } from '@onedal/shared';
+import { callFromAppReport, firstPickupStop } from '@onedal/shared';
 import { describe, test, expect, jest, beforeEach } from '@jest/globals';
 import { OrderEvaluator } from '../../../src/core/engine/OrderEvaluator';
 import { SettingsRepository } from '../../../src/repositories/SettingsRepository';
@@ -110,6 +110,19 @@ describe('OrderEvaluator', () => {
          *    할인율을 안 본다는 표시다. 글자를 통째로 박으면 문구를 다듬을 때마다 깨진다.
          */
         expect(order.rejectionReasons.some(r => r.includes('요율') && r.includes('모자람'))).toBe(true);
+    });
+
+    test('🔴 판정은 정거장 글자를 덮어쓰지 않는다 — 인성 괄호 주소는 원문 그대로 · 카카오에는 판정 글자로 묻는다', async () => {
+        const raw = '경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)';
+        const order = callFromAppReport({ id: 'order-paren', pickup: raw, dropoff: '경기 오산시 원동', vehicleType: '1t', fare: 30000, rawText: '' } as any);
+        process.env.KAKAO_REST_API_KEY = "test-key";
+        order.status = 'ORDER_SECURED_EVALUATING';
+        userSessionStore.getUserSession().pendingOrdersData.set(order.id, order);
+
+        await evaluator.evaluate('test-user', order, mockIo);
+
+        expect(firstPickupStop(order).listText).toBe(raw);
+        expect(kakaoService.geocodeCallAddress).toHaveBeenCalledWith('경기 화성시 안녕동 158-95');
     });
 
     /* 🔴 배차망은 차종을 줄여 적는다(«승»). 원달앱은 줄임말을 맞춰 통과시키므로, 서버 판정도 줄임말을 맞춰 본다 —

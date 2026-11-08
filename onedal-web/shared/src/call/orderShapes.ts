@@ -39,7 +39,7 @@ export interface CallStop {
     distanceKm?: number | null;
     memo?: string | null;           // 그 정거장 안내 글
     geo?: { x: number; y: number } | null;   // 서버가 붙이는 좌표 — 원달앱은 비운다
-    geoText?: string | null;        // 🧠 서버가 좌표를 찍은 글 — 서버 메모리만(저장 칸 아님) · 고른 글이 바뀌면 다시 찍는다 (`geocodeTargetOf`)
+    geoText?: string | null;        // 🧠 서버가 좌표를 찍은 글 — 서버 메모리만(저장 칸 아님) · 고른 글이 바뀌면 다시 찍는다 (`stopQueryOf`)
 }
 
 /**

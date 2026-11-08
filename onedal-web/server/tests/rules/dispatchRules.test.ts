@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { sameCallOf } from '../../src/routes/detail';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -161,6 +162,33 @@ describe('규칙 ① — 강제 정리는 심사 중인 콜만 건드린다', ()
     it('🔴 재열람 대조는 종결된 콜을 건너뛴다 — 취소한 콜을 다시 잡을 수 있어야 한다', () => {
         const detail = src('../../src/routes/detail.ts');
         expect(detail).toMatch(/myOrders\.filter\(\w+ => !isTerminal\(/);
+    });
+});
+
+/**
+ * 🔁 **같은 콜 찾기는 정거장 글자(`stopTextOf` — 상세 주소가 먼저)를 견준다** — 서버가 판정 글자로 정거장을 덮어쓰지 않는다.
+ *    덮어쓴 글자끼리 견주면 다시 연 인성 괄호 콜이 다른 콜로 뜨고, 목록 하차만 같은 화물24시 두 콜이 한 콜로 묶인다.
+ */
+describe('🔁 같은 콜 찾기 — sameCallOf', () => {
+    const insungPickup = '경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)';
+    const call = (id: string, pickup: { listText: string; addressDetail?: string }, dropoff: { listText: string; addressDetail?: string }, fare = 50000): any =>
+        ({ id, fare, pickupDetails: [pickup], dropoffDetails: [dropoff] });
+
+    it('🔴 앞 콜 상차 글자가 다듬어져 있어도 상세 주소가 같으면 같은 콜이다', () => {
+        const before = call('a', { listText: '경기 화성시 안녕동 158-95', addressDetail: insungPickup }, { listText: '경기 오산시 원동' });
+        const reopened = call('b', { listText: insungPickup, addressDetail: insungPickup }, { listText: '경기 오산시 원동' });
+        expect(sameCallOf(before, reopened)).toBe(true);
+    });
+
+    it('🔴 화물24시 — 목록 하차가 같아도 상세 하차 주소가 다르면 다른 콜이다', () => {
+        const pickup = { listText: '경기 군포 부곡동', addressDetail: '경기 군포 당정동 공단로124번길 4' };
+        const one = call('a', pickup, { listText: '경기 안산 단원구 와동', addressDetail: '경기 안산 단원구 와동 715' });
+        const two = call('b', pickup, { listText: '경기 안산 단원구 와동', addressDetail: '경기 안산 단원구 와동 820-3' });
+        expect(sameCallOf(one, two)).toBe(false);
+    });
+
+    it('번호가 같으면 같은 콜이다', () => {
+        expect(sameCallOf(call('a', { listText: '가산동' }, { listText: '방배동' }), call('a', { listText: '구로동' }, { listText: '방배동' }, 1))).toBe(true);
     });
 });
 

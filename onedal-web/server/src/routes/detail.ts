@@ -1,10 +1,12 @@
 /**
  * POST /api/orders/detail
+ *
+ * 바깥 일을 하는 함수: POST / (세션 · 장부(DB) · 소켓 · 기다림 · 판정 · 로그) (같은 콜 셈 sameCallOf 는 값만 받는다)
  */
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder, EmergencyAlert } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, missingAlwaysOf, firstPickupStop, lastDropoffStop, callFromAppReport, withStopLists, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, missingAlwaysOf, firstPickupStop, lastDropoffStop, stopTextOf, callFromAppReport, withStopLists, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -26,6 +28,29 @@ import { isAppTooOld } from "../state/phoneStatus";
 /** 🧾 «늘 있던 칸이 없다»를 찍은 날 — (배차망 | 빠진 칸 묶음) → 날짜(KST) */
 const missingAlwaysLogged = new Map<string, string>();
 const router = Router();
+
+/**
+ * 🔁 **같은 콜인가 — 값만 받는 셈** (앞에 잡은 콜 · 새로 연 상세).
+ *    번호가 같거나 · 요금 · 상차 · 하차 정거장 글자(`stopTextOf` — 상세 주소가 먼저)가 같고 상차 전화나 상차 상세 주소가 같으면 같은 콜이다.
+ */
+export function sameCallOf(existingOrder: SecuredOrder | PendingOrder, pendingOrder: SecuredOrder | PendingOrder): boolean {
+    const phone1 = existingOrder.pickupDetails?.[0]?.phone1;
+    const phone2 = pendingOrder.pickupDetails?.[0]?.phone1;
+    const isPhoneMatch = (phone1 === phone2) && !!phone1;
+
+    const isPickupAddressMatch = stopTextOf(firstPickupStop(existingOrder)) === stopTextOf(firstPickupStop(pendingOrder));
+    const isDropoffAddressMatch = stopTextOf(lastDropoffStop(existingOrder)) === stopTextOf(lastDropoffStop(pendingOrder));
+    const isFareMatch = existingOrder.fare > 0 && existingOrder.fare === pendingOrder.fare;
+
+    const p1Addr = existingOrder.pickupDetails?.[0]?.addressDetail;
+    const p2Addr = pendingOrder.pickupDetails?.[0]?.addressDetail;
+    const isExactAddrMatch = !!p1Addr && !!p2Addr && p1Addr === p2Addr;
+
+    if (existingOrder.id === pendingOrder.id) return true;
+    if (isPhoneMatch && isPickupAddressMatch && isDropoffAddressMatch && isFareMatch) return true;
+    if (isFareMatch && isPickupAddressMatch && isDropoffAddressMatch && isExactAddrMatch) return true;
+    return false;
+}
 
 router.post("/", async (req, res) => {
     try {
@@ -143,25 +168,6 @@ router.post("/", async (req, res) => {
             }
         }
 
-        const checkMatch = (existingOrder: SecuredOrder | PendingOrder) => {
-            const phone1 = existingOrder.pickupDetails?.[0]?.phone1;
-            const phone2 = pendingOrder.pickupDetails?.[0]?.phone1;
-            const isPhoneMatch = (phone1 === phone2) && !!phone1;
-
-            const isPickupAddressMatch = firstPickupStop(existingOrder)?.listText === firstPickupStop(pendingOrder)?.listText;
-            const isDropoffAddressMatch = lastDropoffStop(existingOrder)?.listText === lastDropoffStop(pendingOrder)?.listText;
-            const isFareMatch = existingOrder.fare > 0 && existingOrder.fare === pendingOrder.fare;
-
-            const p1Addr = existingOrder.pickupDetails?.[0]?.addressDetail;
-            const p2Addr = pendingOrder.pickupDetails?.[0]?.addressDetail;
-            const isExactAddrMatch = !!p1Addr && !!p2Addr && p1Addr === p2Addr;
-
-            if (existingOrder.id === pendingOrder.id) return true;
-            if (isPhoneMatch && isPickupAddressMatch && isDropoffAddressMatch && isFareMatch) return true;
-            if (isFareMatch && isPickupAddressMatch && isDropoffAddressMatch && isExactAddrMatch) return true;
-            return false;
-        }
-
         let matchedId: string | null = null;
         /**
          * 🔴 **종결된 콜은 재열람 대상이 아니다** (실사고).
@@ -169,7 +175,7 @@ router.post("/", async (req, res) => {
          *    매칭해 "진짜 ID" 를 돌려줬고, 새 콜은 만들어지지 않은 채 30초 타이머로
          *    죽었다 — **취소했다가 다시 잡는 정상 흐름이 영영 막힌다.**
          */
-        const existingMatch = session.myOrders.filter(o => !isTerminal(o.status)).find(checkMatch);
+        const existingMatch = session.myOrders.filter(o => !isTerminal(o.status)).find(o => sameCallOf(o, pendingOrder));
         if (existingMatch) matchedId = existingMatch.id;
 
         if (matchedId) {
@@ -263,10 +269,8 @@ router.post("/", async (req, res) => {
              */
             const unreadable: string[] = [];
             if (!pendingOrder.fare || pendingOrder.fare <= 0) unreadable.push('요금');
-            const pickupText = firstPickupStop(pendingOrder)?.listText;
-            const dropoffText = lastDropoffStop(pendingOrder)?.listText;
-            if (!pickupText || pickupText === '배차값없음') unreadable.push('상차지');
-            if (!dropoffText || dropoffText === '배차값없음') unreadable.push('하차지');
+            if (!stopTextOf(firstPickupStop(pendingOrder))) unreadable.push('상차지');
+            if (!stopTextOf(lastDropoffStop(pendingOrder))) unreadable.push('하차지');
 
             if (unreadable.length > 0) {
                 const what = unreadable.join('·');

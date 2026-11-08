@@ -2,7 +2,7 @@
  * ⚖️ **결재 · 경로 다시 재기 · 새 콜 심사 넘기기** — KEEP · 취소 · 강제 정리, 정거장이 바뀌면 카카오로 다시 잰다.
  * 바깥 일을 하는 함수: applyRouteAndSave · applySoloRouteAndSave · forceCancelEvaluatingOrder · promiseOrderOpts · recalcRouteIfStopsChanged · recalculateActiveKakaoRoute · recalculateKakaoRoute · syncDetourFilter · handleDecision · evaluateNewOrder · rebuildDestinationKeywords(세션 · 장부(DB) · 카카오 · 설정 · 지금 시각 · 소켓 · 로그) (장소 이름 · 장부에 적을 정거장 셈 normalizePlaceName · stopPlaceFrom 은 값만 받는다)
  */
-import { businessDayKey, normalizeVehicleType, isEvaluating, isTerminal, reservedForOf, firstPickupStop, lastDropoffStop, type DecisionStatus } from "@onedal/shared";
+import { businessDayKey, normalizeVehicleType, isEvaluating, isTerminal, reservedForOf, firstPickupStop, lastDropoffStop, stopQueryOf, DEFAULT_TARGET_APP, type DecisionStatus } from "@onedal/shared";
 import { isLaterThan, takeReserved } from "./reservedOrders";
 import type { SecuredOrder, PendingOrder, MyOrder, CallStop } from "@onedal/shared";
 import { calculateSoloRoute } from "./kakaoService";
@@ -43,13 +43,13 @@ export const normalizePlaceName = (name?: string) => {
     return name.replace(/\(주\)|주식회사|\s/g, '').trim();
 };
 
-/** 🏷️ 장부에 적을 정거장 한 곳 — 값만 받는 셈 (상세의 첫 줄 · 콜에 적힌 주소 글자 · 좌표) */
+/** 🏷️ 장부에 적을 정거장 한 곳 — 값만 받는 셈 (상세의 첫 줄 · 콜에 적힌 주소 글자 · 좌표) · 지역은 정거장 읍면동(없으면 빈 값 — 주소에서 지어내지 않는다) */
 export function stopPlaceFrom(detail: CallStop | undefined, text: string, x: number | undefined, y: number | undefined):
-    { name: string; address: string; region: string; x: number | null; y: number | null; phone: string | null } {
+    { name: string; address: string; region: string | null; x: number | null; y: number | null; phone: string | null } {
     return {
         name: normalizePlaceName(detail?.customerName || "배차값없음"),
         address: detail?.addressDetail || text,
-        region: detail?.region || text.split(' ').slice(0, 2).join(' ') || "배차값없음",
+        region: detail?.region || null,
         x: x || null,
         y: y || null,
         phone: detail?.phone1 || null,
@@ -641,7 +641,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
              *    하차의 **행정 시**가 오늘 목적지 시인가 하나로 가른다(`keepGoalCityOf`).
              * 🔴 넣기 **전에** 적는다 — 승격본·캐시본 둘 다 (화면·장부가 갈리지 않게)
              */
-            const goal = keepGoalCityOf({ dropoff: lastDropoffStop(cachedOrder)?.listText ?? '', destCities: destCitiesOf(session),
+            const goal = keepGoalCityOf({ dropoff: stopQueryOf(cachedOrder.targetApp ?? DEFAULT_TARGET_APP, lastDropoffStop(cachedOrder)).text, destCities: destCitiesOf(session),
                 dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) });
             confirmedOrder.goalCity = goal.city || undefined;
             (cachedOrder as any).goalCity = confirmedOrder.goalCity;

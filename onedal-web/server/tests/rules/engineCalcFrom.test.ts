@@ -14,10 +14,10 @@ describe('🏷️ 장부에 적을 정거장', () => {
         expect(p).toEqual({ name: '레드캠프', address: '경기 이천시 중리동 1', region: '경기 이천시', x: 127.4, y: 37.2, phone: '010-1' });
     });
 
-    it('🔴 상세가 없으면 콜 글자에서 — 지역은 앞 두 낱말 · 이름은 «배차값없음» · 좌표 0 은 없음', () => {
+    it('🔴 상세가 없으면 주소는 콜 글자 · 지역은 빈 값(주소에서 지어내지 않는다) · 이름은 «배차값없음» · 좌표 0 은 없음', () => {
         expect(stopPlaceFrom(undefined, '경기 광주시 초월읍', 0, undefined))
-            .toEqual({ name: '배차값없음', address: '경기 광주시 초월읍', region: '경기 광주시', x: null, y: null, phone: null });
-        expect(stopPlaceFrom(undefined, '', undefined, undefined).region).toBe('배차값없음');
+            .toEqual({ name: '배차값없음', address: '경기 광주시 초월읍', region: null, x: null, y: null, phone: null });
+        expect(stopPlaceFrom(undefined, '', undefined, undefined).region).toBeNull();
         expect(normalizePlaceName('(주) 한 빛')).toBe('한빛');
     });
 });

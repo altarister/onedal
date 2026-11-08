@@ -7,7 +7,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf, firstPickupStop, lastDropoffStop, type StopSource } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP, geocodeTargetOf, minutesLate } from '@onedal/shared';
+import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, isTargetApp, DEFAULT_TARGET_APP, stopQueryOf, minutesLate } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress, TargetAppType } from '@onedal/shared';
 import { judgmentRecordOf } from './judgmentRecord';
 import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, trappedOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
@@ -64,7 +64,7 @@ function verdictLine(v: JudgmentSnapshot): string {
  * 판정 입력 — 기점 · 잡은 콜 · 목적지. 판정(`evaluate`)과 1차 신호 미리 출발(`prefetch`)이 같은 한 벌을 쓴다.
  * 세션을 읽기만 한다 — 부를 때마다 그때 값을 읽는다.
  */
-export function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: StopSource & { capturedAt?: string; timestamp?: string }) {
+export function evaluationInputsOf(userId: string, session: ReturnType<typeof getUserSession>, order: StopSource & { capturedAt?: string; timestamp?: string }, app: TargetAppType) {
     /**
      * 📅 **내일 이후 콜은 그날 첫 콜로 가정한다** (기사님 결정 3 «가»).
      *    ① 접근 구간은 지금 자리가 아니라 **집**에서 잰다 — 그날은 집에서 출발한다. 집이 비면 기점이 없다 → 그 축은 «잴 게 없음».
@@ -80,7 +80,7 @@ export function evaluationInputsOf(userId: string, session: ReturnType<typeof ge
      */
     /* 🏠 오늘 콜은 KEEP 과 같은 목표 시(관내 콜은 그 목적지 시 · 그 밖은 필터값) — 복귀를 켠 뒤 관내 콜을 «집 방향»으로 깎지 않는다 (38 F41 · `keepGoalCityOf`) */
     const goalNow = () => reservedLater ? (session.baseFilter.destinationCity ?? '')
-        : keepGoalCityOf({ dropoff: lastDropoffStop(order)?.listText ?? '', destCities: destCitiesOf(session), dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) }).city;
+        : keepGoalCityOf({ dropoff: stopQueryOf(app, lastDropoffStop(order)).text, destCities: destCitiesOf(session), dongSigungu: session.activeFilter.destinationDongSigungu, fallback: goalCityOf(session, userId) }).city;
     /**
      * 🔙 등 뒤 상차의 여유(상차 반경) — 내일 콜은 **내일의 반경**(기본 설정 값). 오늘 자동 반경으로 줄인 값으로 재면 내일 콜을 등 뒤로 깎는다.
      *    기본 값이 비면 오늘 반경으로 물러서지 않고 «모름»(null) — 깎지 않는다.
@@ -163,7 +163,7 @@ export class OrderEvaluator {
     }
 
     /**
-     * 🏃 **1차 신호(/confirm)에서 카카오를 미리 출발** — 판정과 같은 주소 정규화 · 같은 입력 · 같은 길찾기 인자.
+     * 🏃 **1차 신호(/confirm)에서 카카오를 미리 출발** — 판정과 같은 판정 글자 · 같은 입력 · 같은 길찾기 인자.
      *    세션은 읽기만(기점 · 잡은 콜 수) · 알림·저장 없음 · 판정을 시작하지 않는다(문지기는 /detail 에 그대로).
      *    좌표 둘 → 잡은 콜이 없으면 단독 길찾기까지. 합짐은 좌표만(합짐 경로 인자는 약속 순서·비교 경로 캐시와 얽혀 떼면 두 벌이 된다).
      */
@@ -172,11 +172,11 @@ export class OrderEvaluator {
             try {
                 if (!process.env.KAKAO_REST_API_KEY || !firstPickupStop(order)?.listText || !lastDropoffStop(order)?.listText) return;
                 const [p, d] = await Promise.all([
-                    geocodeCallAddress(geocodeTargetOf(this.targetApp as TargetAppType, firstPickupStop(order)).text),
-                    geocodeCallAddress(geocodeTargetOf(this.targetApp as TargetAppType, lastDropoffStop(order)).text),
+                    geocodeCallAddress(stopQueryOf(this.targetApp, firstPickupStop(order)).text),
+                    geocodeCallAddress(stopQueryOf(this.targetApp, lastDropoffStop(order)).text),
                 ]);
                 if (!p || !d) return;
-                const { originNow, activeCallsNow } = evaluationInputsOf(userId, getUserSession(userId), order);
+                const { originNow, activeCallsNow } = evaluationInputsOf(userId, getUserSession(userId), order, this.targetApp);
                 if (activeCallsNow().length > 0) return;
                 prefetchSoloRoute(...soloRouteArgsOf(userId, originNow, p, d));
             } catch (e) {
@@ -194,7 +194,7 @@ export class OrderEvaluator {
          *    두 사실만 본다: map 의 그 객체가 이 객체인가 · 아직 심사 중인가. 아니면 저장도 알림도 안 한다.
          */
         const alive = () => session.pendingOrdersData.get(securedOrder.id) === securedOrder && isEvaluating(securedOrder.status);
-        const { reservedLater, originNow, activeCallsNow, goalNow, pickupRadiusNow } = evaluationInputsOf(userId, session, securedOrder);
+        const { reservedLater, originNow, activeCallsNow, goalNow, pickupRadiusNow } = evaluationInputsOf(userId, session, securedOrder, this.targetApp);
         /**
          * 📸 **판정 재료는 시작 때 한 번 뜬다** — 기점 · 잡은 콜 · 목적지 · 오늘 필터(얕은 사본: 칸을 그 자리에서 고치는 쪽이 있어 참조는 사진이 아니다).
          *    카카오를 기다리는 사이 GPS · 필터 변경 · KEEP 이 끼어들어도 한 판정이 옛 값/새 값을 섞지 않는다.
@@ -214,11 +214,7 @@ export class OrderEvaluator {
         slog('판정', `[서버-사이드 카카오 연산] 🚀 ${firstPickupStop(securedOrder)?.listText ?? ''} ➡️ ${lastDropoffStop(securedOrder)?.listText ?? ''}`);
         if (reservedLater) slog('판정', `   - ${reservedLaterLineOf(reservedForOf(securedOrder), snap.origin, snap.pickupRadiusKm)}`);
 
-        // 1. 주소 정규화 — 상차·하차는 원달앱이 올린 전체 주소 그대로다(서버는 팝업에서 주소를 꺼내지 않는다)
-        const pickupStop = firstPickupStop(securedOrder);
-        const dropoffStop = lastDropoffStop(securedOrder);
-        if (pickupStop) pickupStop.listText = addressOf(this.targetApp, pickupStop.listText ?? '');
-        if (dropoffStop) dropoffStop.listText = addressOf(this.targetApp, dropoffStop.listText ?? '');
+        // 판정 글자는 `stopQueryOf` 가 그때 만든다 — 정거장에는 화면 원문이 남는다
 
         // Stage 1. 형상 필터
         const { excludedHits } = this.runStage1ShapeFilter(securedOrder, snap.filter, reasons, pros);
@@ -267,7 +263,7 @@ export class OrderEvaluator {
                                            index: snap.activeCalls.length, candidate: true });
                     const pickupStop = firstPickupStop(securedOrder);
                     const missing = !pickupStop?.geo?.x ? '상차지' : '하차지';
-                    const addr = (!pickupStop?.geo?.x ? pickupStop?.listText : lastDropoffStop(securedOrder)?.listText) || '';
+                    const addr = stopQueryOf(this.targetApp, !pickupStop?.geo?.x ? pickupStop : lastDropoffStop(securedOrder)).text;
                     reasons.push(`${who}의 ${missing} 주소를 찾지 못했습니다`);
                     slog('경고', `   - ❌ ${who}: ${missing} 좌표 변환 실패 — '${addr}'`);
                 }
@@ -292,11 +288,11 @@ export class OrderEvaluator {
     private async geocodeStage(securedOrder: SecuredOrder | PendingOrder, onMs: (ms: number) => void): Promise<void> {
         let geoMs = 0;
         try {
-            /* 📍 어느 글로 찍나 · 다시 찍나는 shared `geocodeTargetOf` 한 곳 — 상세 팝업 주소가 먼저 · 찍은 글과 다르면 다시 (90판) */
+            /* 📍 어느 글로 찍나 · 다시 찍나는 shared `stopQueryOf` 한 곳 — 상세 팝업 주소가 먼저 · 찍은 글과 다르면 다시 (90판) */
             const ps = firstPickupStop(securedOrder);
             const ds = lastDropoffStop(securedOrder);
-            const p = geocodeTargetOf(this.targetApp as TargetAppType, ps);
-            const d = geocodeTargetOf(this.targetApp as TargetAppType, ds);
+            const p = stopQueryOf(this.targetApp, ps);
+            const d = stopQueryOf(this.targetApp, ds);
 
             // 지오코딩 (상차지 + 하차지 병렬 실행)
             const [pCoord, dCoord] = await timed(Promise.all([
@@ -676,7 +672,7 @@ export class OrderEvaluator {
             if (keywords.length === 0) {
                 reasons.push(`경유 미확정 (경로가 아직 안 잡혔습니다)`);
             } else {
-                const dropoffText = lastDropoffStop(order)?.listText || '';
+                const dropoffText = stopQueryOf(this.targetApp, lastDropoffStop(order)).text;
                 // 🗺️ 사전 확장 매칭 (④) — "남동"⊂"남동구" 부분 문자열 오탐을 트랩으로 거른다
                 const matched = anyRegionHit(dropoffText, keywords, filter.keywordTraps, filter.destinationDongSigungu);
                 if (!matched) {

@@ -9,7 +9,7 @@ export class PlaceRepository {
         userId: string,
         addressDetail: string, 
         customerName: string, 
-        region: string, 
+        region: string | null, 
         x: number | null, 
         y: number | null, 
         phone1: string | null

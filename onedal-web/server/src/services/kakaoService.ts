@@ -741,7 +741,7 @@ const geocodeInFlight = new Map<string, Promise<{x: number, y: number} | null>>(
 const cleanQueryOf = (query: string) => query.replace(/\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim();
 
 export function geocodeAddress(query: string): Promise<{x: number, y: number} | null> {
-    if (!query || query === "배차값없음") return Promise.resolve(null);
+    if (!query) return Promise.resolve(null);
     const key = cleanQueryOf(query);
     const flying = geocodeInFlight.get(key);
     if (flying) return flying;

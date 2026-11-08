@@ -3,7 +3,7 @@
  * 누가: 서버 판정 · 상세 · 스캔 · 시뮬레이션
  * 언제: 배차망 화면 글자에서 칸 값을 꺼낼 때
  * 어디서: 서버가 원달앱 보고를 받는 자리
- * 무엇을: pageFieldOf · pageFareOf · badgeOf · addressOf · geocodeTargetOf · stopTextOf · stopQueryOf · detailRecordOf(칸 · 정거장 · 돈 · 짐 묶음)
+ * 무엇을: pageFieldOf · pageFareOf · badgeOf · addressOf · stopTextOf · stopQueryOf · detailRecordOf(칸 · 정거장 · 돈 · 짐 묶음)
  * 어떻게: 정의 표의 읽는 법으로 글자를 잘라 낸다
  * 왜: 정의에 없거나 원문에 없는 값을 지어내지 않기 위해서다
  */
@@ -91,17 +91,6 @@ export function addressOf(app: TargetAppType, raw: string): string {
     }
     const re = addressCutRes.get(app);
     return (re ? raw.replace(re, '') : raw).trim();
-}
-
-/**
- * 📍 **이 정거장을 어느 글로 지오코딩하나 · 다시 찍나 — 한 곳** (90판 · 71 «가» · `geocodeTarget.test`).
- *    상세 팝업에서 읽은 주소(`addressDetail`)가 있으면 그것이 먼저 · 없으면 목록 글(`listText`) — 둘 다 `addressOf` 로 다듬는다.
- *    좌표는 «고른 글»을 따라가는 값이라, 좌표가 없거나 찍은 글(`geoText`)이 지금 고른 글과 다르면 다시 찍는다(짧은 목록 글로 먼저 찍힌 콜에 상세 주소가 오면).
- */
-export function geocodeTargetOf(app: TargetAppType, stop: CallStop | null | undefined): { text: string; need: boolean } {
-    const text = addressOf(app, stopTextOf(stop));
-    const need = !stop?.geo?.x || !stop?.geo?.y || stop?.geoText !== text;
-    return { text, need };
 }
 
 /** 🏠 **이 정거장 글자** — 상세 주소(앞뒤 빈칸 뗌)가 있으면 그것, 없으면 목록 원문 · 둘 다 없으면 빈 글자 */
@@ -208,7 +197,8 @@ function withoutPromise(text: string, promise: string): string {
 }
 
 /**
- * 📍 **판정 글자** — 지오코딩 · 필터 · 상세 요건이 읽는 다듬은 글자와, 좌표를 다시 찍을지(`geocodeTargetOf` 와 같은 규칙).
+ * 📍 **판정 글자** — 지오코딩 · 필터 · 상세 요건이 읽는 다듬은 글자와, 좌표를 다시 찍을지(`geocodeTarget.test`).
+ *    좌표는 «고른 글»을 따라가는 값이라, 좌표가 없거나 찍은 글(`geoText`)이 지금 판정 글자와 다르면 다시 찍는다(짧은 목록 글로 먼저 찍힌 콜에 상세 주소가 오면).
  *    ① `stopTextOf` ② 약속 원문 떼기 — 정거장에 `promiseText` 가 있으면 그 글자 한 자리(와 붙은 «/» · «@» · «(» · «)»)를 뗀다.
  *       없을 때만 글자 규칙: 마지막 토막에 약속 글자가 «/» · «)»(글자에 «(» 가 없을 때만) 로 붙어 있으면
  *       지역 끝말 토막(`REGION_PIECE`)을 · 없으면 동 꼴 토막(`PLACE_PIECE`)을 남긴다.

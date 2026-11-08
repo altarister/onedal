@@ -27,13 +27,13 @@ afterAll(() => clearUserSession(U));
 
 describe('③ 내일 콜의 상차 반경', () => {
     it('🔴 내일 콜은 기본 설정 반경(15km) — 10km 등 뒤는 «등 뒤» 아님', () => {
-        const { pickupRadiusNow } = evaluationInputsOf(U, getUserSession(U), tomorrowCall);
+        const { pickupRadiusNow } = evaluationInputsOf(U, getUserSession(U), tomorrowCall, 'insung');
         expect(pickupRadiusNow()).toBe(15);
         expect(pickupBackwardOf({ me, pickup, goalCity: '김포시', pickupRadiusKm: pickupRadiusNow() })).toBe(false);
     });
 
     it('오늘 콜은 오늘 반경(5km) 그대로 — 같은 상차가 «등 뒤»', () => {
-        const { pickupRadiusNow } = evaluationInputsOf(U, getUserSession(U), todayCall);
+        const { pickupRadiusNow } = evaluationInputsOf(U, getUserSession(U), todayCall, 'insung');
         expect(pickupRadiusNow()).toBe(5);
         expect(pickupBackwardOf({ me, pickup, goalCity: '김포시', pickupRadiusKm: pickupRadiusNow() })).toBe(true);
     });
@@ -41,7 +41,7 @@ describe('③ 내일 콜의 상차 반경', () => {
     it('🔴 기본 설정 반경이 비면 오늘 반경으로 물러서지 않고 «모름»', () => {
         const s = getUserSession(U);
         s.baseFilter = { ...s.baseFilter, pickupRadiusKm: undefined };
-        const { pickupRadiusNow } = evaluationInputsOf(U, s, tomorrowCall);
+        const { pickupRadiusNow } = evaluationInputsOf(U, s, tomorrowCall, 'insung');
         expect(pickupRadiusNow()).toBeNull();
         expect(pickupBackwardOf({ me, pickup, goalCity: '김포시', pickupRadiusKm: pickupRadiusNow() })).toBeNull();
     });
