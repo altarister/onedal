@@ -153,18 +153,34 @@ function unglueCity(dong: string, head: readonly string[]): string {
     return dong;
 }
 
-/** 약속 원문 떼기 — «@낼8:30/가산동» − «@낼8:30» → « 가산동» · «내곡동/7시까지» − «7시까지» → «내곡동 ». 원문 앞 «/» 와 뒤 «/» · «)» 하나도 함께 뗀다 */
+const PROMISE_GLUE_FRONT = new Set(['/', '@', '(']);
+const PROMISE_GLUE_BACK = new Set(['/', ')']);
+
+/**
+ * 약속 원문 떼기 — 하나만 뗀다(상호 안의 같은 글자는 남긴다). 뗀 자리는 빈칸이 된다.
+ *    ① 원문 앞에 «/» · «@» · «(» 가 붙었거나 뒤에 «/» · «)» 가 붙은 첫 자리를 붙은 글자와 함께 —
+ *       «@낼8:30/가산동» − «@낼8:30» → « 가산동» · «오포읍(14시전)» − «14시전» → «오포읍 »
+ *    ② 그런 자리가 없으면 낱말 머리(글 시작이나 빈칸 뒤)의 첫 자리 — «14시전쌍림동» − «14시전» → « 쌍림동»
+ *    둘 다 없으면 그대로.
+ */
 function withoutPromise(text: string, promise: string): string {
-    const parts = text.split(promise);
-    return parts.map((p, i) => {
-        const tail = i < parts.length - 1 ? p.replace(/\/$/, '') : p;
-        return i > 0 ? tail.replace(/^[/)]/, '') : tail;
-    }).join(' ');
+    const at: number[] = [];
+    for (let i = text.indexOf(promise); i >= 0; i = text.indexOf(promise, i + 1)) at.push(i);
+    const frontGlued = (i: number) => PROMISE_GLUE_FRONT.has(text[i - 1]);
+    const backGlued = (i: number) => PROMISE_GLUE_BACK.has(text[i + promise.length]);
+    const glued = at.find(i => frontGlued(i) || backGlued(i));
+    if (glued !== undefined) {
+        const start = frontGlued(glued) ? glued - 1 : glued;
+        const end = glued + promise.length + (backGlued(glued) ? 1 : 0);
+        return `${text.slice(0, start)} ${text.slice(end)}`;
+    }
+    const head = at.find(i => i === 0 || /\s/.test(text[i - 1]));
+    return head === undefined ? text : `${text.slice(0, head)} ${text.slice(head + promise.length)}`;
 }
 
 /**
  * 📍 **판정 글자** — 지오코딩 · 필터 · 상세 요건이 읽는 다듬은 글자와, 좌표를 다시 찍을지(`geocodeTargetOf` 와 같은 규칙).
- *    ① `stopTextOf` ② 약속 원문 떼기 — 정거장에 `promiseText` 가 있으면 그 글자(와 붙은 «/» · «)» 하나)를 뗀다.
+ *    ① `stopTextOf` ② 약속 원문 떼기 — 정거장에 `promiseText` 가 있으면 그 글자 한 자리(와 붙은 «/» · «@» · «(» · «)»)를 뗀다.
  *       없을 때만 글자 규칙: 마지막 토막에 약속 글자가 «/» · «)»(글자에 «(» 가 없을 때만) 로 붙어 있으면
  *       지역 끝말 토막(`REGION_PIECE`)을 · 없으면 동 꼴 토막(`PLACE_PIECE`)을 남긴다.
  *       끝말 목록은 원달앱 `LocationTextAnalyzer` 1차와 같다. 원달앱은 토막을 나누지 않아 «가산동/오늘중»을 «오늘중»으로 읽는다.
