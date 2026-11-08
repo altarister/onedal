@@ -6,6 +6,7 @@ import { PAGE_FIELDS, SCREEN_PAGES, BASE_PAGES, BASE_PAGE_OF, basePageOf, type P
 import { TARGET_APPS, type TargetAppType } from '../index';
 import { pageFieldOf, pageFareOf, excludeScanTextOf, missingAlwaysOf } from './pageRead';
 import { VEHICLE_OPTIONS } from '../cargo/vehicles';
+import { MONEY_KINDS } from '../call/money';
 
 /**
  * 📄 **배차망 화면 정의 표 — 서버가 믿고 읽을 수 있나** (onedal-46 3단계 조건).
@@ -38,6 +39,14 @@ describe('배차망 화면 정의 표', () => {
         for (const [net, spec] of Object.entries(NETWORK_PAGES)) for (const [page, rows] of Object.entries(spec.pages)) {
             const readable = rows.filter(r => r.handling === 'READ' && r.read !== undefined).map(r => `${r.field}|${r.part ?? ''}`);   // 같은 칸이라도 조각(part)이 다르면 다른 줄
             expect(readable.filter((f, i) => readable.indexOf(f) !== i), `${net} ${page}`).toEqual([]);
+        }
+    });
+
+    it('💰 요금 조각 줄의 조각 이름은 «갈래» 또는 «갈래.구별 낱말» — 돈 묶음(detailRecordOf)이 «.» 앞을 돈 줄 갈래로 읽는다', () => {
+        for (const [net, spec] of Object.entries(NETWORK_PAGES)) for (const [page, rows] of Object.entries(spec.pages)) {
+            const odd = rows.filter(r => r.field === 'fare' && r.part && r.handling === 'READ' && r.read !== undefined
+                && !(MONEY_KINDS as readonly string[]).includes(r.part.split('.')[0])).map(r => r.part);
+            expect(odd, `${net} ${page}`).toEqual([]);
         }
     });
 

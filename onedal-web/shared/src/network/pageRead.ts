@@ -3,12 +3,13 @@
  * 누가: 서버 판정 · 상세 · 스캔 · 시뮬레이션
  * 언제: 배차망 화면 글자에서 칸 값을 꺼낼 때
  * 어디서: 서버가 원달앱 보고를 받는 자리
- * 무엇을: pageFieldOf · pageFareOf · badgeOf · addressOf · geocodeTargetOf · stopTextOf · stopQueryOf · detailRecordOf
+ * 무엇을: pageFieldOf · pageFareOf · badgeOf · addressOf · geocodeTargetOf · stopTextOf · stopQueryOf · detailRecordOf(칸 · 정거장 · 돈 · 짐 묶음)
  * 어떻게: 정의 표의 읽는 법으로 글자를 잘라 낸다
  * 왜: 정의에 없거나 원문에 없는 값을 지어내지 않기 위해서다
  */
 import type { TargetAppType, CallStop, DetailedOfficeOrder, CallIdentity } from '../index';
-import { PAYMENT_TYPES, BILLING_TYPES, type PaymentType, type BillingType } from '../call/money';
+import { PAYMENT_TYPES, BILLING_TYPES, MONEY_KINDS, paymentOf, type PaymentType, type BillingType, type CallMoney, type MoneyLine, type MoneyKind } from '../call/money';
+import { LOAD_KINDS, type CallLoad, type LoadLine, type LoadKind } from '../cargo/callLoad';
 import type { BadgePlace, BadgeWord } from '../call/badges';
 import type { PageField, ScreenPage } from './pageFields';
 import { NETWORK_PAGES, fieldsOf } from './networkPages';
@@ -245,13 +246,15 @@ export function stopQueryOf(app: TargetAppType, stop: CallStop | null | undefine
 }
 
 /** 📄 상세 콜 자료 — 상세 화면 정의 칸(· 조각)이 콜의 어느 자료가 되나. 배차망마다 다른 것은 표의 읽는 법뿐이다 */
-type DetailRecordText = 'stageText' | 'itemDescription' | 'commissionRate' | 'tollFare' | 'tripType' | 'orderForm' | 'dispatcherName' | 'dispatcherPhone';
-/** 상세 원문에서 읽는 콜 칸 — 상세 칸 + 번호 묶음의 배차사 · 진행 글자 */
+type DetailRecordText = 'stageText' | 'itemDescription' | 'commissionRate' | 'tollFare' | 'tripType' | 'orderForm' | 'dispatcherName' | 'dispatcherPhone'
+    | 'orderNo' | 'clientOrderNo' | 'requesterName';
+/** 상세 원문에서 읽는 콜 칸 — 상세 칸 + 번호 묶음의 배차사 · 진행 글자 · 화물번호 · 가게 주문 번호 · 의뢰인 */
 type DetailFields = Partial<Pick<DetailedOfficeOrder & CallIdentity, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>>;
 const DETAIL_RECORD: ReadonlyArray<readonly [key: DetailRecordText, field: PageField, part?: string]> = [
     ['stageText', 'stage'], ['itemDescription', 'itemSize'], ['commissionRate', 'commission'],
     ['tollFare', 'toll'], ['tripType', 'tags'], ['orderForm', 'reservation'],
     ['dispatcherName', 'contact', 'dispatcher'], ['dispatcherPhone', 'contact', 'dispatcherPhone'],
+    ['orderNo', 'orderNo'], ['clientOrderNo', 'orderNo', 'client'], ['requesterName', 'contact', 'requester'],
 ];
 /** 정거장 한 덩어리의 조각 — 출발 · 도착이 같은 꼴이다 · 상세 주소는 `<쪽>.address` 조각 줄이 먼저, 없으면 조각 없는 줄(`plainToo`) */
 const STOP_CONTACT: ReadonlyArray<readonly [key: keyof CallStop, field: PageField, part: (side: string) => string, plainToo?: true]> = [
@@ -260,14 +263,15 @@ const STOP_CONTACT: ReadonlyArray<readonly [key: keyof CallStop, field: PageFiel
 ];
 
 /**
- * 📄 **상세 원문의 콜 자료** — 상태 · 물품 · 결제 · 계산서 · 수수료 · 탁송료 · 구분 · 형태 · 배차사 · 적요 · 출발 · 도착 연락처(서버 `/detail` · 기사님 «1~5 모두 가»).
+ * 📄 **상세 원문의 콜 자료** — 상태 · 물품 · 결제 · 계산서 · 수수료 · 탁송료 · 구분 · 형태 · 배차사 · 화물번호 · 가게 주문 번호 · 의뢰인 · 적요 · 출발 · 도착 연락처 · 돈 · 짐 묶음(서버 `/detail` · 기사님 «1~5 모두 가»).
  *    칸마다 상세 화면 정의 줄의 읽는 법으로 읽는다. 🔴 못 찾은 칸은 싣지 않는다 — `/detail` 이 이 결과를 앞 기억 위에 펼치므로 빈 칸이 아는 값을 지우면 안 된다.
  *    결제 · 계산서는 알려진 값(결제 · 증빙 값 목록 `money.ts` — «모름» 은 빼고)일 때만 · 적요는 팝업 글(줄바꿈 → 공백)이 먼저, 없으면 본문 «적요상세» 줄(상차 약속 시각이 본문 시각으로 바뀌지 않게).
  *    출발 · 도착 정거장은 인성 팝업 머리표가 원문에 있거나 그 정거장 조각(`pickup.` · `dropoff.`) 줄을 하나라도 읽었을 때만 한 덩어리(없으면 빈 목록) —
  *    조각 없는 출발 · 도착 줄만 읽힌 원문(플렉스 상세)은 덩어리를 만들지 않는다.
+ *    돈 · 짐 묶음은 조각 이름이 갈래 이름인 줄만 읽는다(`detailMoneyOf` · `detailLoadOf`) — 하나도 못 읽은 묶음은 싣지 않는다.
  */
 export type DetailRecord = DetailFields
-    & { pickupDetails: CallStop[]; dropoffDetails: CallStop[] };
+    & { pickupDetails: CallStop[]; dropoffDetails: CallStop[]; money?: CallMoney; load?: CallLoad };
 export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecord {
     const read = (field: PageField, part = '') => pageFieldOf(app, 'newCall', field, rawText, part) ?? undefined;
     const out: DetailFields = {};
@@ -290,5 +294,50 @@ export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecor
         }
         return partRead || rawText.includes(tag) ? [info] : [];
     };
-    return { ...out, pickupDetails: stopOf('pickup', '[출발지상세]'), dropoffDetails: stopOf('dropoff', '[도착지상세]') };
+    const money = detailMoneyOf(app, rawText);
+    const load = detailLoadOf(app, rawText);
+    return { ...out, pickupDetails: stopOf('pickup', '[출발지상세]'), dropoffDetails: stopOf('dropoff', '[도착지상세]'),
+        ...(money ? { money } : {}), ...(load ? { load } : {}) };
+}
+
+/** 그 화면 · 그 칸의 읽는 줄 가운데 조각 이름의 «.» 앞(갈래)이 목록에 있는 줄 — 정의 표 차례 그대로 */
+const kindRowsOf = <K extends string>(app: TargetAppType, fields: readonly PageField[], kinds: readonly K[]) =>
+    fieldsOf(app, 'newCall').flatMap(r => {
+        const kind = r.part?.split('.')[0];
+        return fields.includes(r.field) && r.handling === 'READ' && r.read !== undefined && kind && (kinds as readonly string[]).includes(kind)
+            ? [{ field: r.field, part: r.part!, kind: kind as K }] : [];
+    });
+
+/**
+ * 💰 **상세 원문의 돈 묶음** — 요금(`fare`) 조각 줄마다 그 갈래의 돈 줄(«배송비 5,000원» 조각 `unknown.deliveryFee` → 뜻 모름 줄) ·
+ *    수수료율 글자는 `commission/feeRate` 조각 줄이 먼저, 없으면 조각 없는 수수료 줄(인성 «23%») · 결제 · 증빙은 화면 글자 그대로(`paymentOf` — «모름» 포함).
+ *    조각 없는 요금 줄은 읽지 않는다 — 보고 요금도 옮겨 담지 않는다(화면에 보인 금액만). 돈 줄 `shown` 은 읽는 법이 잡은 글자 · 숫자가 아니면 그 줄은 버린다.
+ *    줄 · 수수료율 · 결제 · 증빙을 하나도 못 읽으면 null.
+ */
+function detailMoneyOf(app: TargetAppType, rawText: string): CallMoney | null {
+    const read = (field: PageField, part = '') => pageFieldOf(app, 'newCall', field, rawText, part);
+    const lines = kindRowsOf<MoneyKind>(app, ['fare'], MONEY_KINDS).flatMap(({ part, kind }): MoneyLine[] => {
+        const shown = read('fare', part);
+        const digits = shown?.replace(/,/g, '');
+        return shown && digits && /^\d+$/.test(digits) ? [{ kind, won: Number(digits), shown }] : [];
+    });
+    const feeRateText = read('commission', 'feeRate') ?? read('commission');
+    const paid = paymentOf(read('payment'));
+    const bill = read('billing')?.trim() || null;
+    const billing = bill ? { billingType: (BILLING_TYPES as readonly string[]).includes(bill) ? bill as BillingType : '모름' as const, billingShown: bill } : {};
+    const money: CallMoney = { lines, feeRateText, ...paid, ...billing };
+    return lines.length || feeRateText || money.paymentShown || money.billingShown ? money : null;
+}
+
+/**
+ * 📦 **상세 원문의 짐 묶음** — 차종 글자는 `vehicleType/ton` 조각 줄 · 짐 줄은 크기 · 차종 조각 이름이 짐 줄 갈래인 줄(«윙바디» 조각 `body` → 몸 모양 줄).
+ *    크기 낱말 · 물품 글은 상세에서 읽지 않는다(보고에서 옮겨 담은 짐에 있다) · 차종 글자도 짐 줄도 못 읽으면 null.
+ */
+function detailLoadOf(app: TargetAppType, rawText: string): CallLoad | null {
+    const vehicleText = pageFieldOf(app, 'newCall', 'vehicleType', rawText, 'ton');
+    const lines = kindRowsOf<LoadKind>(app, ['itemSize', 'vehicleType'], LOAD_KINDS).flatMap(({ field, part, kind }): LoadLine[] => {
+        const shown = pageFieldOf(app, 'newCall', field, rawText, part);
+        return shown ? [{ kind, shown }] : [];
+    });
+    return vehicleText || lines.length ? { vehicleText, sizeText: null, itemText: null, lines } : null;
 }

@@ -70,6 +70,23 @@ describe('📱→🚏 callFromAppReport', () => {
     });
 });
 
+describe('📱→📦 callFromAppReport — 짐은 맨 위 칸 글자 그대로 옮겨 담고 돈은 옮기지 않는다', () => {
+    it('보고 차종 · 크기 · 물품 → 짐 묶음 글자 그대로 · 짐 줄 없음', () => {
+        const call = callFromAppReport(report({ vehicleType: '오', itemSize: null, itemDescription: '소형 가전' }));
+        expect(call.load).toEqual({ vehicleText: '오', sizeText: null, itemText: '소형 가전', lines: [] });
+    });
+    it('보고에 짐 묶음이 있으면 그대로 · 맨 위 칸 셋이 다 없으면 짐 칸 없음', () => {
+        const load = { vehicleText: '1t', sizeText: '소형', itemText: null, lines: [{ kind: 'weight' as const, shown: '3kg' }] };
+        expect(callFromAppReport(report({ vehicleType: '오', load })).load).toBe(load);
+        expect(callFromAppReport(report({}))).not.toHaveProperty('load');
+    });
+    it('보고 요금이 있어도 돈 묶음은 만들지 않는다 — 화면에 보인 금액만(상세 원문 조각 줄)', () => {
+        const call = callFromAppReport(report({ fare: 42000, paymentType: '신용' }));
+        expect(call).not.toHaveProperty('money');
+        expect(call.fare).toBe(42000);
+    });
+});
+
 describe('🚏 withStopLists — 상세 연락처를 펼쳐도 옮겨 담은 칸은 남는다', () => {
     const call = callFromAppReport(report({ pickup: '초월읍', dropoff: '신둔면', pickupX: 127.31, pickupY: 37.36, deliveryDistance: 20.4, scheduleText: '@낼8:30', reservedDay: 1 }));
     call.pickupDetails![0].geoText = '초월읍';

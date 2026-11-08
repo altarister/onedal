@@ -108,8 +108,14 @@ router.post("/", async (req, res) => {
         if (rawText) {
             // 📄 상세 콜 자료(상태 · 결제 · 수수료 · 구분 · 형태 · 배차사 · 적요 · 출발 · 도착 연락처)는 배차망 정의 표대로 — 못 찾은 칸은 싣지 않는다
             //    연락처를 펼쳐도 첫 상차 · 마지막 하차의 글자 · 좌표 · 약속 · 거리는 남는다(withStopLists)
-            const record = detailRecordOf(targetApp, rawText);
-            pendingOrder = { ...pendingOrder, ...record, ...withStopLists(pendingOrder, record) };
+            //    짐은 보고에서 옮겨 담은 짐 위에 상세 차종 글자 · 짐 줄만 얹는다(크기 낱말 · 물품 글은 보고 값) · 돈 묶음은 상세 조각 줄을 읽었을 때만 실린다
+            const { load: detailLoad, ...record } = detailRecordOf(targetApp, rawText);
+            const before = pendingOrder.load;
+            const load = detailLoad && {
+                vehicleText: detailLoad.vehicleText ?? before?.vehicleText ?? null, sizeText: before?.sizeText ?? null, itemText: before?.itemText ?? null,
+                lines: detailLoad.lines.length ? detailLoad.lines : before?.lines ?? [],
+            };
+            pendingOrder = { ...pendingOrder, ...record, ...withStopLists(pendingOrder, record), ...(load ? { load } : {}) };
             /* 🧾 늘 있던 칸이 이 상세에 없으면 한 줄 — 배차망 화면이 바뀌었을 수 있다(58 ② · 리뉴얼 신호 · 판정은 그대로) */
             const missingAlways = missingAlwaysOf(targetApp, 'newCall', rawText);
             /* 같은 배차망 · 같은 빠짐은 하루 한 번 — 리뉴얼이면 모든 콜이 같은 빠짐을 내 로그를 덮는다(원달앱 미등록 화면 보고와 같은 결) · 빠진 묶음이 달라지면 새 사건 */

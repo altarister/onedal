@@ -105,9 +105,12 @@ object IsflexPages {
             /* 받을 돈 — 실물 원문 0 건(안내 그림에만) */
             FieldSpec(PageField.FARE, "받으실 현금(안내 그림 — 현금 콜만)", "받으실 현금 123,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 줄을 안 읽는다",
                 read = Regex("""받으실 현금\s+([\d,]+)원"""), part = "collect"),
-            /* 뜻 모름 — 고객이 내는 운임인지 톨비인지 실전 한 건으로 가른다 · 같은 화면 «배송비 5,000원»(안내 그림)도 뜻 모름 줄인데 한 페이지에 같은 칸 · 조각은 한 줄뿐이라 따로 두지 않았다 — 그 줄의 조각 이름은 돈 7(걸음 3)에서 */
+            /* 뜻 모름 — 고객이 내는 운임인지 톨비인지 실전 한 건으로 가른다 */
             FieldSpec(PageField.FARE, "탁송 금액(안내 그림)", "탁송 금액 25,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 줄을 안 읽는다",
                 read = Regex("""탁송 금액\s+([\d,]+)원"""), part = "unknown"),
+            /* 뜻 모름 — «탁송 금액»과 함께 실전 한 건으로 가른다 */
+            FieldSpec(PageField.FARE, "배송비(안내 그림)", "배송비 5,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 서버 상세는 확정 전 화면만(확정 뒤 보고는 원달앱 걸음 5 뒤)",
+                read = Regex("""배송비\s+([\d,]+)원"""), part = "unknown.deliveryFee"),
             FieldSpec(PageField.FARE, "총 수익(안내 그림 — 실물 상세는 «총 수입»)", "총 수익 ₩ 123,000원", Seen.UNKNOWN, Handling.UNUSED),
         ),
     )

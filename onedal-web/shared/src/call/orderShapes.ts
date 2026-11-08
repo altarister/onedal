@@ -117,9 +117,9 @@ type StopFlatKey = 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | '
 
 /** 배차망에서 온 콜 한 건 — 번호 묶음(이 콜이 무엇인가) + 출처 묶음(이 보고가 어디서 어떻게 왔나) + 목록 콜 + 상세 콜 + 돈 묶음 + 짐 묶음. 아래 콜 모양 셋의 부모 */
 export interface OfficeOrder extends CallIdentity, CallProvenance, Omit<SimplifiedOfficeOrder, StopFlatKey>, DetailedOfficeOrder {
-    /** 💰 돈 묶음 — 돈 줄 · 결제 · 증빙(`money.ts`). 채우는 곳은 아직 없다(서버 돈 7 · 원달앱 돈 9) · 그동안 `fare` · 요금 칸 넷을 읽는다 */
+    /** 💰 돈 묶음 — 돈 줄 · 결제 · 증빙(`money.ts`). 서버 상세 원문 조각 줄이 채운다(`detailRecordOf` · 원달앱 보고는 돈 9) · 읽는 곳은 아직 없다 — 그동안 `fare` · 요금 칸 넷을 읽는다 */
     money?: CallMoney;
-    /** 📦 짐 묶음 — 짐 줄 · 차종 맞춤 재료(`cargo/callLoad.ts`). 채우는 곳은 아직 없다(짐 7) · 그동안 `vehicleType` · `itemSize` · `itemDescription` 을 읽는다 */
+    /** 📦 짐 묶음 — 짐 줄 · 차종 맞춤 재료(`cargo/callLoad.ts`). 서버 입구가 보고 맨 위 칸 글자를 옮겨 담고(`callFromAppReport`) 상세 원문 조각 줄을 얹는다 · 읽는 곳은 아직 없다 — 그동안 `vehicleType` · `itemSize` · `itemDescription` 을 읽는다 */
     load?: CallLoad;
 }
 
@@ -137,7 +137,10 @@ const reportedOr = <T,>(v: T | undefined, before: T | undefined) => (v !== undef
  *    글자 → `listText` · 좌표 → `geo` · 상차 거리 → 첫 상차 `distanceKm` · 배송 거리 → 마지막 하차 `distanceKm` ·
  *    약속 원문 · 날 · 시각 → 첫 상차 `promiseText` · `requestedDay` · `requestedTime`(맨 위 칸이 비면 정거장 칸 그대로).
  *    `before`(앞 기억 · /detail) — 보고에 없는 맨 위 칸 · 정거장 목록은 앞 기억 값을 잇는다(찍은 글 `geoText` 도).
- *    정거장 목록이 비어 있으면 한 곳을 만든다. 원달앱이 정거장 묶음을 보내게 되면(원달앱 5단계) 이 함수는 없어진다.
+ *    정거장 목록이 비어 있으면 한 곳을 만든다.
+ *    짐 — 보고에 짐 묶음이 없으면 맨 위 차종 · 크기 · 물품 글자를 그대로 짐 묶음에 옮겨 담는다(짐 줄 없음 · `loadFromReport`).
+ *    돈은 옮겨 담지 않는다 — 돈 묶음은 화면에 보인 금액만(상세 원문 조각 줄 · `detailRecordOf`), 보고 요금은 `fare` 칸에 남는다.
+ *    원달앱이 정거장 · 짐 묶음을 보내게 되면(원달앱 5단계) 이 함수는 없어진다.
  */
 export function callFromAppReport(r: AppCallReport, before?: StopLists): OfficeOrder {
     const { pickup, dropoff, pickupX, pickupY, dropoffX, dropoffY, scheduleText, reservedDay, reservedAt, pickupDistance, deliveryDistance, ...rest } = r;
@@ -164,7 +167,15 @@ export function callFromAppReport(r: AppCallReport, before?: StopLists): OfficeO
         geo: geoOf(reportedOr(dropoffX, bd?.geo?.x), reportedOr(dropoffY, bd?.geo?.y)),
         distanceKm: reportedOr(deliveryDistance, bd?.distanceKm) ?? null,
     };
-    return { ...rest, pickupDetails: pickups, dropoffDetails: drops };
+    const load = r.load ?? loadFromReport(r);
+    return { ...rest, pickupDetails: pickups, dropoffDetails: drops, ...(load ? { load } : {}) };
+}
+
+/** 📦 보고의 맨 위 차종 · 크기 · 물품 글자 → 짐 묶음 — 화면 글자 그대로 · 짐 줄 없음 · 셋 다 글자가 아니면 null */
+function loadFromReport(r: AppCallReport): CallLoad | null {
+    const text = (v: unknown) => (typeof v === 'string' ? v : null);
+    const [vehicleText, sizeText, itemText] = [text(r.vehicleType), text(r.itemSize), text(r.itemDescription)];
+    return vehicleText !== null || sizeText !== null || itemText !== null ? { vehicleText, sizeText, itemText, lines: [] } : null;
 }
 
 /** 첫 상차 · 마지막 하차에 맨 위 칸에서 옮겨 담은 칸 + 찍은 글 — 정거장 목록을 새로 받아도 남는다 */

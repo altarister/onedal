@@ -142,7 +142,8 @@ export const ISFLEX_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "memo", "where": "적요(안내 그림 제목 «오더메모» — 실물 상세는 «적요상세»)", "sample": "주차장으로 들어와주세요", "seen": "UNKNOWN", "handling": "UNUSED"},
       {"field": "billing", "where": "적요 아래 테두리 글(안내 그림)", "sample": "세금계산서", "seen": "UNKNOWN", "handling": "UNUSED"},
       {"field": "fare", "where": "받으실 현금(안내 그림 — 현금 콜만)", "sample": "받으실 현금 123,000원", "seen": "UNKNOWN", "handling": "READ", "usedAt": "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 줄을 안 읽는다", "read": "받으실 현금\\s+([\\d,]+)원", "part": "collect", "note": "받을 돈 — 실물 원문 0 건(안내 그림에만)"},
-      {"field": "fare", "where": "탁송 금액(안내 그림)", "sample": "탁송 금액 25,000원", "seen": "UNKNOWN", "handling": "READ", "usedAt": "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 줄을 안 읽는다", "read": "탁송 금액\\s+([\\d,]+)원", "part": "unknown", "note": "뜻 모름 — 고객이 내는 운임인지 톨비인지 실전 한 건으로 가른다 · 같은 화면 «배송비 5,000원»(안내 그림)도 뜻 모름 줄인데 한 페이지에 같은 칸 · 조각은 한 줄뿐이라 따로 두지 않았다 — 그 줄의 조각 이름은 돈 7(걸음 3)에서"},
+      {"field": "fare", "where": "탁송 금액(안내 그림)", "sample": "탁송 금액 25,000원", "seen": "UNKNOWN", "handling": "READ", "usedAt": "지금 읽는 곳 없음(서버 돈 7 · 걸음 3) · 원달앱은 이 줄을 안 읽는다", "read": "탁송 금액\\s+([\\d,]+)원", "part": "unknown", "note": "뜻 모름 — 고객이 내는 운임인지 톨비인지 실전 한 건으로 가른다"},
+      {"field": "fare", "where": "배송비(안내 그림)", "sample": "배송비 5,000원", "seen": "UNKNOWN", "handling": "READ", "usedAt": "지금 읽는 곳 없음 — 서버 상세는 확정 전 화면만(확정 뒤 보고는 원달앱 걸음 5 뒤)", "read": "배송비\\s+([\\d,]+)원", "part": "unknown.deliveryFee", "note": "뜻 모름 — «탁송 금액»과 함께 실전 한 건으로 가른다"},
       {"field": "fare", "where": "총 수익(안내 그림 — 실물 상세는 «총 수입»)", "sample": "총 수익 ₩ 123,000원", "seen": "UNKNOWN", "handling": "UNUSED"}
     ]
   }
