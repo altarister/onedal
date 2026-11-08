@@ -82,7 +82,7 @@ object InsungPages {
                 read = Regex("""^\s*[^\n\[]+?[-\[](\d[\d-]*\d)(?=\]|\s|${'$'})"""), part = "dispatcherPhone"),
             /* 콜을 맡긴 의뢰인(사람 · 가게) — 이름표만 있는 줄이면 다음 줄 값 · 한 칸 띄어 이은 글이면 «출발지» 앞까지 */
             FieldSpec(PageField.CONTACT, "의뢰지 줄", "쑥쑥 TEST · 오티디코퍼레이션/ 아크앤북동탄호수점 · ***(확정 전 실물은 가린 글자)", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(서버 번호 7 · 걸음 3 — 의뢰인) · 원달앱은 이 칸을 안 읽는다",
-                read = Regex("""의뢰지[ \t]*:?[ \t]*(?:\n[ \t]*)?(?!출발지)([^\n]+?)(?=[ \t]+출발지|\n|${'$'})"""), part = "requester"),
+                read = Regex("""의뢰지[ \t]*:?[ \t]*(?:\n[ \t]*)?(?!출발지)(\S[^\n]*?)(?=[ \t]+출발지|\n|${'$'})"""), part = "requester"),
             FieldSpec(PageField.CONTACT, "출발지 상세 팝업 «고객»", "고객 …(이름표만 있는 줄이면 다음 줄)", Seen.SIM, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""\[출발지상세\](?:(?!\[도착지상세\])[\s\S])*?\n고객[ \t]*:?[ \t]*(?:\n[ \t]*)?([^\n]+)"""), part = "pickup.customer"),
             FieldSpec(PageField.CONTACT, "출발지 상세 팝업 «부서»", "부서 …(이름표만 있는 줄이면 다음 줄)", Seen.SIM, Handling.READ, "서버 원문 칸 읽기(utils/parser 짐작 대신) — 원달앱은 이 칸을 안 읽는다",
