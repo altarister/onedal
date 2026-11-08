@@ -1,4 +1,4 @@
-
+import type { CallMoney } from './money';
 
 export const OFFICE_ORDER_SAMPLE = {
     // ── 목록 칸 (SimplifiedOfficeOrder) ──
@@ -139,7 +139,7 @@ const OFFICE_ORDER_SAMPLE_02 = {
  *
  * 위 `OFFICE_ORDER_SAMPLE_02` 와 다른 것만:
  * - 뺌: `fare` · `commissionRate` · `tollFare` · `paymentType` · `billingType` — 돈 칸 다섯이 `money` 한 칸 안으로 들어간다
- * - 더함: `money` — 기사님 몫 · 받을 돈은 이름 붙은 칸, 화면에 보인 돈 줄은 글자 그대로 `lines` 에
+ * - 더함: `money`(`CallMoney`) — 화면에 보인 돈 줄은 글자 그대로 `lines` 에 · 기사님 몫 · 받을 돈은 그 줄에서 `incomeOf` · `collectOf` 로 꺼낸다
  * - 돈 줄 갈래(`kind`): income 기사님 몫 · total 합계 · fee 수수료 · collect 받을 돈 · consign 탁송료 · vat 부가세 ·
  *   insurance 보험료 · deliveryFee 배송비 · promo 프로모션 · unknown 뜻 모름
  * - 규칙: 화면이 보여 준 것만 담는다 — 없는 돈을 계산해 채우지 않는다
@@ -197,16 +197,16 @@ const OFFICE_ORDER_SAMPLE_03 = {
 
     // ── 돈 (새 칸 — 위에서 뺀 다섯이 여기로) ──
     money: {
-        income: 50000,                    // 기사님 몫 — 판정 · 요금 거르기 · 화면 금액이 읽는다 · 화면에 없으면 null
-        collect: null,                    // 받을 돈 — 착불 현장 현금 · 착불 안내 · 하차 칸 · 미수금이 읽는다 · 이 콜은 착불 아님
-        lines: [                          // 화면에 보인 돈 줄 전부 — shown 은 화면 글자 그대로
+        lines: [                          // 화면에 보인 돈 줄 전부 — shown 은 화면 글자 그대로 · 기사님 몫 = kind income 줄 · 받을 돈 = kind collect 줄(이 콜은 착불 아님)
             { kind: "income", won: 50000, shown: "기사님 몫 글자" },
             { kind: "consign", won: 70001, shown: "탁송료 글자" },
         ],
         feeRateText: "수수료 비율",       // 화면의 수수료율 글자(인성 «23%») — 기사님 설정의 수수료(agencyFeePercent)와 다른 값
-        paymentType: "신용",              // 결제 — 신용 · 선불 · 착불 · 카드 · 현금 · 선/착불(화물24시 화면 글자 그대로)
-        billingType: "계산서",            // 증빙 — 계산서 · 인수증 · 무과세
-    },
+        paymentType: "신용",              // 결제 — 값 목록 `PAYMENT_TYPES`(money.ts)의 값 하나
+        paymentShown: "신용",             // 결제 화면 글자 그대로
+        billingType: "계산서",            // 증빙 — 값 목록 `BILLING_TYPES`(money.ts)의 값 하나
+        billingShown: "계산서",           // 증빙 화면 글자 그대로
+    } satisfies CallMoney,
 
     // ── 배차망 칸 (OfficeOrder) ──
     targetApp: "배차망",
@@ -224,8 +224,6 @@ const OFFICE_ORDER_SAMPLE_03 = {
  * - 묶음: 기사님 몫 34,650 과 받을 돈 45,000 이 따로 산다 · 이 화면의 수수료 줄은 기록이 없어 feeRateText 를 비운다
  */
 const MONEY_EXAMPLE_INSUNG_COD = {
-    income: 34650,
-    collect: 45000,
     lines: [
         { kind: "income", won: 34650, shown: "실운임 : 34,650(착불)" },
         { kind: "collect", won: 45000, shown: "고객에게 받을 금액 45,000" },
@@ -233,8 +231,10 @@ const MONEY_EXAMPLE_INSUNG_COD = {
     ],
     feeRateText: null,
     paymentType: "착불",
+    paymentShown: "착불",
     billingType: null,
-};
+    billingShown: null,
+} satisfies CallMoney;
 
 /**
  * 화물24시 인수증 — ex_images/화물24시/이미지글자_화물24시.md 51_화물상세정보(확정 전 상세):
@@ -245,8 +245,6 @@ const MONEY_EXAMPLE_INSUNG_COD = {
  *   (실제 손에 들어오는 돈 140,000 − 610 은 화면에 없는 값이라 계산해 담지 않는다)
  */
 const MONEY_EXAMPLE_HWAMUL24_RECEIPT = {
-    income: 140000,
-    collect: null,
     lines: [
         { kind: "income", won: 140000, shown: "운송료 140,000" },
         { kind: "fee", won: 0, shown: "수수료 0" },
@@ -255,8 +253,10 @@ const MONEY_EXAMPLE_HWAMUL24_RECEIPT = {
     ],
     feeRateText: null,
     paymentType: null,
+    paymentShown: null,
     billingType: "인수증",
-};
+    billingShown: "인수증",
+} satisfies CallMoney;
 
 /**
  * 화물24시 카드 결제 (설명 영상) — ex_images/화물24시/화물24시설명서/영상_0121.txt(확정 전 상세 · 경기 군포 부곡동 → 서울 중구 을지로6가):
@@ -271,8 +271,6 @@ const MONEY_EXAMPLE_HWAMUL24_RECEIPT = {
  *   (카드 수수료 856 은 화면에 금액이 없고 계산법 글자만 있어 줄로 안 담는다)
  */
 const MONEY_EXAMPLE_HWAMUL24_CARD = {
-    income: 60000,
-    collect: null,
     lines: [
         { kind: "income", won: 60000, shown: "운송료 60,000" },
         { kind: "vat", won: 6000, shown: "부가세 6,000" },
@@ -281,8 +279,10 @@ const MONEY_EXAMPLE_HWAMUL24_CARD = {
     ],
     feeRateText: "[ 카드수납 수수료 = (운송료+부가세) x1.298% ]",
     paymentType: "카드",
+    paymentShown: "…(가려짐)드",               // 결제방법 칸 글자 그대로 — «카드»는 자막으로 푼 값
     billingType: "인수증",
-};
+    billingShown: "인수증",                    // 같은 콜 목록 줄 «인수증 · 60,000원»
+} satisfies CallMoney;
 
 /**
  * 카카오 픽커 — ex_images/카카오픽커/이미지글자_카카오픽커_필수화면_02.md 실물_2026/07_상세_최종수익분해(확정 전 상세 · 수익 상자):
@@ -292,8 +292,6 @@ const MONEY_EXAMPLE_HWAMUL24_CARD = {
  * - 이 사진에는 결제 표시가 없어 paymentType 을 비운다(목록 줄의 «착불»은 다른 콜)
  */
 const MONEY_EXAMPLE_KAKAOPICKER = {
-    income: 5600,
-    collect: null,
     lines: [
         { kind: "income", won: 5600, shown: "5,600 P" },          // 칸 이름 «최종 수익»
         { kind: "deliveryFee", won: 5500, shown: "배송비 5,500P" },
@@ -301,8 +299,10 @@ const MONEY_EXAMPLE_KAKAOPICKER = {
     ],
     feeRateText: null,
     paymentType: null,
+    paymentShown: null,
     billingType: null,
-};
+    billingShown: null,
+} satisfies CallMoney;
 
 /**
  * 인성플렉스 (실물) — ex_images/인성플렉스/이미지글자_인성플렉스_필수화면_02.md 10_상세_3(확정 전 상세):
@@ -312,15 +312,15 @@ const MONEY_EXAMPLE_KAKAOPICKER = {
  * - 이 사진에는 결제 줄이 없어 paymentType 을 비운다(«착불»은 08_상세 — 다른 사진)
  */
 const MONEY_EXAMPLE_ISFLEX = {
-    income: 21252,
-    collect: null,
     lines: [
         { kind: "income", won: 21252, shown: "21,252원" },        // 칸 이름 «총 수입»
     ],
     feeRateText: null,
     paymentType: null,
+    paymentShown: null,
     billingType: null,
-};
+    billingShown: null,
+} satisfies CallMoney;
 
 /**
  * 인성플렉스 현금 콜 (안내 영상 · 그림 — 실물 아님) — 같은 표 영상_4확정_픽업완료 · img_guide3_3(확정 뒤 상세):
@@ -330,16 +330,16 @@ const MONEY_EXAMPLE_ISFLEX = {
  *   (총 수익 «₩ 123,000원»은 영상_6 — 다른 화면이라 섞지 않는다)
  */
 const MONEY_EXAMPLE_ISFLEX_CASH = {
-    income: null,
-    collect: 123000,
     lines: [
         { kind: "collect", won: 123000, shown: "받으실 현금 123,000원" },
         { kind: "unknown", won: 25000, shown: "탁송 금액 25,000원" },
     ],
     feeRateText: null,
     paymentType: null,
+    paymentShown: null,
     billingType: null,
-};
+    billingShown: null,
+} satisfies CallMoney;
 
 /**
  * 🔍 **새 콜 견본 — 번호 묶음(CallIdentity)을 모은 모양** (`설계/shared/번호출처_정의_계획_03.md` · 아직 코드에 없음)
@@ -1235,7 +1235,7 @@ const LOAD_EXAMPLE_ISFLEX = {
 };
 
 /**
- * 🔍 **새 콜 견본 — 정거장 묶음 · 돈 줄만 · 판정 축 자리 (마지막 모양)** (`여덟계획_맞춤_03` · 아직 코드에 없음)
+ * 🔍 **새 콜 견본 — 정거장 묶음 · 돈 줄만 · 판정 축 자리 (마지막 모양)** (`여덟계획_맞춤_05` · 아직 코드에 없음)
  *
  * 위 `OFFICE_ORDER_SAMPLE_08` 과 다른 것만:
  * - 정거장 묶음: 정거장 한 곳(`pickupDetails[i]` · `dropoffDetails[i]`)이 자기 글자를 다 갖는다 —
@@ -1250,7 +1250,7 @@ const LOAD_EXAMPLE_ISFLEX = {
  *   예약 콜 = 예약 글자가 화면에 보이거나, 첫 상차 정거장 날이 1 이상(내일 이후)
  * - 값 목록과 «모름»: 결제(`paymentType`) · 증빙(`billingType`) · 구분(`tripType`) · 형태(`orderForm`) 값은 값 목록의 값 하나 —
  *   «모름» = 화면에 그 자리 글자는 있는데 목록에 없는 낱말 · null = 화면에 그 자리 글자가 없다 · 뜻 모를 낱말은 버리지 않는다:
- *   결제 · 증빙은 화면 글자를 `paymentShown` · `billingShown` 에 따로 남기고(돈_정의_계획_05), 구분 · 형태는 표시 글자(`tagsText`)에 남는다(표시글자_정의_계획_03 — 따로 칸 없음)
+ *   결제 · 증빙은 화면 글자를 `paymentShown` · `billingShown` 에 따로 남기고(돈_정의_계획_06), 구분 · 형태는 표시 글자(`tagsText`)에 남는다(표시글자_정의_계획_04 — 따로 칸 없음)
  * - 두 곳에 보이는 글자의 기준 (한 줄씩):
  *   · 값 칸이 기준 — 표시 글자(`tagsText`) · 약속 원문(`promiseText`) · 목록 글자(`listText`)는 화면 기록
  *   · 돈은 돈 줄이 기준 — 기사님 몫 · 받을 돈은 줄에서 꺼낸 값(장부의 기사님 몫 숫자 칸은 저장 사본)
@@ -1336,7 +1336,7 @@ const OFFICE_ORDER_SAMPLE_09 = {
         // income: 50000,                 // → 돈 줄에서 꺼내 쓴다(기사님 몫 = kind income 줄 · 받을 돈 = kind collect 줄) · 장부에는 기사님 몫 숫자 칸을 따로 적는다(정해짐)
         // collect: null,                 // → 위와 같다
         lines: [{ kind: "income", won: 50000, shown: "기사님 몫 글자" }, { kind: "consign", won: 70001, shown: "탁송료 글자" }],
-        // 쌍둥이 요금(픽커 상세 최종 수익을 못 읽은 콜)은 돈 줄 하나(kind income · shown 에 목록 금액 글자) — 판정은 낮은 값 (`여덟계획_맞춤_03` 9번)
+        // 쌍둥이 요금(픽커 상세 최종 수익을 못 읽은 콜)은 돈 줄 하나(kind income · shown 에 목록 금액 글자) — 판정은 낮은 값 (`여덟계획_맞춤_05` 9번)
         feeRateText: "수수료 비율",
         paymentType: "신용",              // 결제 값 목록: 신용 · 선불 · 착불 · 카드 · 현금 · 선/착불 · 모름 — 화물24시 «선/착불» 은 목록의 값(관제웹 «💵 현장 현금» 안내가 이 값을 본다)
         paymentShown: "신용",             // 결제 화면 글자 그대로 — 새 배차망 «후불» 이면 paymentType «모름» · paymentShown «후불» · 화면에 없으면 둘 다 null

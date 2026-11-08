@@ -1,4 +1,4 @@
-export * from './call/paymentTypes';
+export * from './call/money';
 export * from './call/callStatus';
 export * from './call/milestones';
 export * from './cargo/cargoReport';

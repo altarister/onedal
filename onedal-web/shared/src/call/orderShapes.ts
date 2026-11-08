@@ -7,7 +7,7 @@
  * 어떻게: 대부분 타입만 두고 값은 EVENT_TYPES 하나다
  * 왜: 같은 콜을 앱마다 다른 모양으로 적지 않기 위해서다
  */
-import type { PaymentType, BillingType } from './paymentTypes';
+import type { PaymentType, BillingType } from './money';
 import type { OrderStatus, MyOrderStatus } from './callStatus';
 
 /** 콜 종류 값 — 어떤 길로 온 보고인가. 이 상수는 이 파일 밖에서 안 쓰고, 서버와 원달앱은 글자('NEW_ORDER' 등)로 맞춘다 */

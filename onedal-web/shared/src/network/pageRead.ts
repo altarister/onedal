@@ -8,7 +8,7 @@
  * 왜: 정의에 없거나 원문에 없는 값을 지어내지 않기 위해서다
  */
 import type { TargetAppType, LocationDetailInfo, DetailedOfficeOrder } from '../index';
-import { PAYMENT_TYPES, type PaymentType, type BillingType } from '../call/paymentTypes';
+import { PAYMENT_TYPES, BILLING_TYPES, type PaymentType, type BillingType } from '../call/money';
 import type { PageField, ScreenPage } from './pageFields';
 import { NETWORK_PAGES, fieldsOf } from './networkPages';
 
@@ -114,10 +114,9 @@ const STOP_CONTACT: ReadonlyArray<readonly [key: keyof LocationDetailInfo, field
 /**
  * 📄 **상세 원문의 콜 자료** — 상태 · 물품 · 결제 · 계산서 · 수수료 · 탁송료 · 구분 · 형태 · 배차사 · 적요 · 출발 · 도착 연락처(서버 `/detail` · 기사님 «1~5 모두 가»).
  *    칸마다 상세 화면 정의 줄의 읽는 법으로 읽는다. 🔴 못 찾은 칸은 싣지 않는다 — `/detail` 이 이 결과를 앞 기억 위에 펼치므로 빈 칸이 아는 값을 지우면 안 된다.
- *    결제 · 계산서는 알려진 값(PAYMENT_TYPES · 계산서 · 인수증 · 무과세)일 때만 · 적요는 팝업 글(줄바꿈 → 공백)이 먼저, 없으면 본문 «적요상세» 줄(상차 약속 시각이 본문 시각으로 바뀌지 않게).
+ *    결제 · 계산서는 알려진 값(결제 · 증빙 값 목록 `money.ts`)일 때만 · 적요는 팝업 글(줄바꿈 → 공백)이 먼저, 없으면 본문 «적요상세» 줄(상차 약속 시각이 본문 시각으로 바뀌지 않게).
  *    출발 · 도착 연락처는 그 팝업 머리표가 원문에 있을 때만 한 덩어리(없으면 빈 목록).
  */
-const BILLING_TYPES: readonly BillingType[] = ['계산서', '인수증', '무과세'];
 export type DetailRecord = Partial<Pick<DetailedOfficeOrder, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>>
     & { pickupDetails: LocationDetailInfo[]; dropoffDetails: LocationDetailInfo[] };
 export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecord {

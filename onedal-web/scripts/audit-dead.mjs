@@ -77,6 +77,7 @@ const isRouteFile = (rel) => rel.includes('/routes/');
 const KEEP = {
     /** 🧾 shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 deviceModes.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로 */
     CAPTURED_VIA_LABEL: 'index 나누기로 처음 세임 · 옮기기만 · 지울지는 따로',
+    MONEY_KIND_LABEL: '돈 줄 갈래의 말 — 돈 묶음 정의(`money.ts`)를 먼저 세웠고 콜 모양이 돈 묶음을 담는 걸음(1-6-2)부터 화면 · 로그가 부른다 · 부르면 이 줄을 뺀다.',
     /**
      * 🚗 **«이동 중 42km/h · 정차 중» 배지 — 잇는 자리가 빠졌다** (옛 화면을 걷으며).
      *
@@ -144,6 +145,9 @@ const TEST_ONLY_KEEP = {
     isSkipped: 'shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 milestones.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로.',
     ARRIVAL_REASONS: 'shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 arrivalReasons.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로.',
     getEffectiveDetourRadius: 'shared index.ts 안(입구 파일이라 감사 밖)에 있다가 나누기로 dispatchFilter.ts 에 옮겨 처음 세였다 — 옮기기만 한 일이라 지우지 않는다 · 지울지는 따로.',
+    incomeOf: '돈 묶음에서 기사님 몫을 꺼내는 함수 — 정의(`money.ts`)를 먼저 세웠고 콜 모양이 돈 묶음을 담는 걸음(1-6-2)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
+    collectOf: '돈 묶음에서 받을 돈을 꺼내는 함수 — 정의(`money.ts`)를 먼저 세웠고 콜 모양이 돈 묶음을 담는 걸음(1-6-2)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
+    moneyOf: '콜 한 칸의 돈 덩어리를 푸는 함수 — 정의(`money.ts`)를 먼저 세웠고 저장된 콜 한 칸을 읽는 걸음부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
 };
 /** 🤖 원달앱에서 이름으로 안 불리는데 남기는 fun · const val — 사유 없이는 못 넣는다 (①-3) */
 const KT_KEEP = {
