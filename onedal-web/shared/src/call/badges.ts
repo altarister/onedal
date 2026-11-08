@@ -40,7 +40,7 @@ export interface BadgeWord {
     value?: TripType | OrderForm;   // 구분 · 형태 갈래만 — «왕» → '왕복'
 }
 
-/** 급송 콜인가 — 서버 isExpress · 관제웹 «급송» 표시가 같이 부른다 */
-export function isExpressForm(orderForm: OrderForm | null | undefined): boolean {
+/** 급송 콜인가 — 서버 isExpress · 관제웹 «급송» 표시가 같이 부른다 · 콜 모양의 형태 칸이 아직 `string` 이라 인자도 글자로 받는다(표시 6 에서 `OrderForm` 으로 좁힌다) */
+export function isExpressForm(orderForm: string | null | undefined): boolean {
     return orderForm === '급송';
 }
