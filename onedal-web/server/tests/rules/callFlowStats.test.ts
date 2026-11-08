@@ -59,6 +59,11 @@ describe('📊 같은 콜 — 상차 + 하차 + 30분 창', () => {
     it('창은 미끄러진다 — 계속 떠 있으면 하나', () => {
         expect(groupSameCalls([row(0, 1), row(25, 1), row(50, 1), row(75, 1)]).length).toBe(1);
     });
+    it('🔴 예약 = 상차 약속 원문 «예약» 글자 또는 날 ≥ 1 — «당상»(날 0)은 아니다', () => {
+        expect(groupSameCalls([row(0, 1, { scheduleText: '예약 17:30', reservedDay: 0 })])[0].reserved).toBe(true);
+        expect(groupSameCalls([row(0, 1, { scheduleText: '당상', reservedDay: 0 })])[0].reserved).toBe(false);
+        expect(groupSameCalls([row(0, 1, { reservedDay: 1 })])[0].reserved).toBe(true);
+    });
 });
 
 describe('📊 하루 묶기 · 90일 합치기', () => {

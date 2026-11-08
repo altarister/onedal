@@ -42,6 +42,12 @@ describe('📄 상세 콜 자료 — 정의 표', () => {
         const captured = Date.parse('2030-01-01T02:00:00+09:00');
         expect(pickupClockMsOf(detailRecordOf('insung', FULL), captured, 30)).toBe(captured + 30 * 60_000);
     });
+    it('🔴 첫 상차 시각만 있고 날 글자가 없으면 오늘 그 시각 · 날만 있고 시각이 없으면 모름 · 지난 시각이면 다음 순서', () => {
+        const captured = Date.parse('2030-01-01T16:30:00+09:00');
+        expect(pickupClockMsOf({ pickupDetails: [{ requestedTime: '17:04' }] }, captured, 20)).toBe(Date.parse('2030-01-01T17:04:00+09:00'));
+        expect(pickupClockMsOf({ pickupDetails: [{ requestedDay: 1 }] }, captured, 20)).toBeNull();
+        expect(pickupClockMsOf({ pickupDetails: [{ requestedTime: '15:00' }] }, captured, 20)).toBe(captured + 20 * 60_000);
+    });
     it('🔴 화물24시 결제방법 · 픽커 물품정보도 표대로(기사님 «가») — 원문은 공통 문제지에서', () => {
         expect(detailRecordOf('hwamul24', sheetText('hwamul24', 'payment')).paymentType).toBe('착불');
         expect(detailRecordOf('kakaopicker', sheetText('kakaopicker', 'itemSize')).itemDescription).toBe('초소형 세 변의 합 70cm ∙ 2kg 이하');

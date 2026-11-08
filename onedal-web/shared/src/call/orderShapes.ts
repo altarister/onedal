@@ -178,9 +178,8 @@ function loadFromReport(r: AppCallReport): CallLoad | null {
     return vehicleText !== null || sizeText !== null || itemText !== null ? { vehicleText, sizeText, itemText, lines: [] } : null;
 }
 
-/** 첫 상차 · 마지막 하차에 맨 위 칸에서 옮겨 담은 칸 + 찍은 글 — 정거장 목록을 새로 받아도 남는다 */
-const CARRIED_PICKUP = ['listText', 'geo', 'distanceKm', 'promiseText', 'requestedDay', 'requestedTime', 'geoText'] as const;
-const CARRIED_DROPOFF = ['listText', 'geo', 'distanceKm', 'geoText'] as const;
+/** 첫 상차 · 마지막 하차의 글자 · 좌표 · 거리 · 약속 셋 + 찍은 글 — 정거장 목록을 새로 받아도 남는다(상차 · 하차 같은 칸) */
+const CARRIED = ['listText', 'geo', 'distanceKm', 'promiseText', 'requestedDay', 'requestedTime', 'geoText'] as const;
 const carried = (next: CallStop | undefined, before: CallStop | undefined, keys: ReadonlyArray<keyof CallStop>): CallStop => {
     const out: Record<string, unknown> = { ...next };
     for (const k of keys) if (before?.[k] !== undefined) out[k] = before[k];
@@ -189,15 +188,16 @@ const carried = (next: CallStop | undefined, before: CallStop | undefined, keys:
 
 /**
  * 🚏 **정거장 목록을 새 목록으로** — 상세 연락처(`detailRecordOf`)를 앞 기억 위에 펼칠 때.
- *    연락처 · 상세 주소는 새 목록이 이기고, 첫 상차 · 마지막 하차에 옮겨 담은 글자 · 좌표 · 거리 · 약속(`callFromAppReport`)은 콜의 값이 남는다.
+ *    연락처 · 상세 주소는 새 목록이 이기고, 첫 상차 · 마지막 하차의 글자 · 좌표 · 거리 · 약속(`callFromAppReport` · 원달앱이 보낸 정거장)은 콜의 값이 남는다.
+ *    새 목록에 하차 덩어리가 없어도(픽커 · 플렉스 상세) 마지막 하차 한 곳에 그 값이 남는다.
  *    `callFromAppReport` 와 함께 원달앱 5단계에서 없어진다.
  */
 export function withStopLists(call: StopLists, lists: StopLists): Required<StopLists> {
     const pickups = [...(lists.pickupDetails ?? [])];
     const drops = [...(lists.dropoffDetails ?? [])];
-    pickups[0] = carried(pickups[0], call.pickupDetails?.[0], CARRIED_PICKUP);
+    pickups[0] = carried(pickups[0], call.pickupDetails?.[0], CARRIED);
     const lastAt = Math.max(drops.length - 1, 0);
-    drops[lastAt] = carried(drops[lastAt], call.dropoffDetails?.at(-1), CARRIED_DROPOFF);
+    drops[lastAt] = carried(drops[lastAt], call.dropoffDetails?.at(-1), CARRIED);
     return { pickupDetails: pickups, dropoffDetails: drops };
 }
 

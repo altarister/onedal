@@ -760,7 +760,7 @@ export function derivationInputsOf(cfg: Pick<JudgmentConfig, 'unknown' | 'deadli
 }
 
 /**
- * ⏱️ **상차 시계** (주선사의 시계 · ⑯) — 적요의 상차 시각 > 잡은 시각 + 잠정.
+ * ⏱️ **상차 시계** (주선사의 시계 · ⑯) — 첫 상차 정거장 시각(날 글자가 없으면 오늘) > 적요의 상차 시각 > 잡은 시각 + 잠정.
  * 통화로 굳힌 약속은 호출부(declared)가 이긴다. 파생 한 곳 — 시딩과 타임라인이 같이 쓴다.
  */
 export function pickupClockMsOf(
@@ -770,11 +770,13 @@ export function pickupClockMsOf(
     const { requestedDay, requestedTime } = firstPickupStop(order) ?? {};
     /**
      * 📅 **예약이 먼저다** — «잡은 날 + 첫 상차 `requestedDay` 일»의 `requestedTime` 시각.
-     *    오늘 안의 «예약 18:30»(0일)도 여기서 맞는다. 적요 시각은 날을 모르니 예약이 없을 때만 쓴다.
+     *    오늘 안의 «예약 18:30»(0일)도 여기서 맞는다. 날 글자 없이 시각만 보이면 오늘(0일)이다.
+     *    적요 시각은 날을 모르니 정거장 시각이 없을 때만 쓴다.
      */
     const at = /^(\d{1,2}):(\d{2})$/.exec(requestedTime ?? '');
-    if (at && requestedDay != null && requestedDay >= 0) {
-        const day = kstDateText(capturedMs + requestedDay * 86_400_000);
+    const atDay = requestedDay ?? 0;
+    if (at && atDay >= 0) {
+        const day = kstDateText(capturedMs + atDay * 86_400_000);
         const t = Date.parse(`${day}T${at[1].padStart(2, '0')}:${at[2]}:00+09:00`);
         if (Number.isFinite(t) && t >= capturedMs) return t;   // 과거 시각이면 무시 (적요 시각과 같은 규칙)
     }

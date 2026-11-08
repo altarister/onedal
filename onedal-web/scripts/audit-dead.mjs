@@ -156,7 +156,6 @@ const TEST_ONLY_KEEP = {
     moneyOf: '콜 한 칸의 돈 덩어리를 푸는 함수 — 정의(`money.ts`)를 먼저 세웠고 저장된 콜 한 칸을 읽는 걸음부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
     boxesOf: '짐 묶음에서 라면박스 수를 꺼내는 함수 — 정의(`callLoad.ts`)를 먼저 세웠고 서버 합짐 자리(`computeLoadedPoints` · `dispatchEngine` 경고)가 부르는 걸음(짐 계획 8)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
     stopQueryOf: '판정 글자 — 정의(`pageRead.ts`)를 먼저 세웠고 서버 판정 · 필터 · 지오코딩이 이 글자를 읽는 걸음(주소 계획 6)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
-    isReservedCall: '예약 콜인가 — 정의(`timing.ts`)를 먼저 세웠다 · 부르는 걸음은 아직 정하지 않았다(흐름 통계 `callFlowStats.ts` 가 이 함수를 읽을지는 걸음 1 맞춤 3-3 의 고칠 자리 표에서 정한다) · 부르면 이 줄을 뺀다.',
     firstStopKm: '상차 거리 — 정의(`timing.ts`)를 먼저 세웠고 서버가 `intel` 상차 거리 칸에 이 값을 적는 걸음(거리 계획 7)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
     OFFICE_ORDER_SAMPLE_09: '콜 모양 견본의 마지막 판 — 견본은 본 코드가 부르지 않는 것이 맞고, 콜 한 칸 문제지(`callShape.test.ts`)가 이 견본으로 글 왕복을 묻는다.',
 };

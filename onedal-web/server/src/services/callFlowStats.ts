@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import db from "../db";
-import { businessDayKey, sigunguOfShort, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO, TARGET_APPS } from "@onedal/shared";
+import { businessDayKey, isReservedCall, sigunguOfShort, SIGUNGU_AMBIGUOUS, SIGUNGU_UNKNOWN, WEEKDAY_KO, TARGET_APPS } from "@onedal/shared";
 import type { FlowCell, OpsStats, WatchedHour } from "@onedal/shared";
 import { slog } from "../utils/fileLogger";
 
@@ -16,7 +16,7 @@ import { slog } from "../utils/fileLogger";
  * 🔴 **묶기는 그날 지우고 다시 넣기 한 트랜잭션** — 되풀이해도 같다. 서버가 뜰 때 + 1시간마다 «어제까지 안 묶은 날»을 묶는다
  *    (영업일 전환에 넣지 않는다 — 한 기사의 보고를 붙잡고, 기사가 안 온 날은 안 돈다).
  * 🔴 **모르는 값은 합에 넣지 않는다** — 앱은 모르는 요금을 0 으로 적는다. 요금·km 합과 최소·최대는 아는 값만, 평균은 아는 콜 수(fare_calls · km_calls)로 나눈다.
- *    예약은 날(reservedDay)이 1 이상인 콜만 — «당상»(오늘)은 예약이 아니다.
+ *    예약은 `isReservedCall` 하나로 — 상차 약속 원문(scheduleText)에 «예약» 글자가 있거나 날(reservedDay)이 1 이상인 콜. «당상»(오늘)은 예약이 아니다.
  * ⚠️ 원문(intel) 지우기는 여기 없다 — 묶기가 한 달 잘 돈 뒤 기사님께 여쭙고 켠다.
  */
 
@@ -28,7 +28,7 @@ const PER_DRIVER_DAYS = 90;
 interface IntelRow {
     user_id: string | null; targetApp: string | null; pickup: string; dropoff: string; fare: number | null;
     timestamp: string; vehicleType?: string | null; deliveryDistanceKm?: number | null;
-    verdict?: string | null; reservedDay?: number | null;
+    verdict?: string | null; scheduleText?: string | null; reservedDay?: number | null;
 }
 export interface SameCall {
     userId: string; targetApp: string; pickup: string; dropoff: string;
@@ -49,7 +49,7 @@ export function groupSameCalls(rows: IntelRow[]): SameCall[] {
         const key = `${r.user_id ?? ''}|${r.targetApp ?? ''}|${r.pickup}|${r.dropoff}`;
         const hit = open.get(key);
         const fare = r.fare != null && r.fare > 0 ? r.fare : null;
-        const reserved = (r.reservedDay ?? 0) >= 1;
+        const reserved = isReservedCall({ pickupDetails: [{ promiseText: r.scheduleText ?? null, requestedDay: r.reservedDay ?? null }] });
         if (hit && ms - hit.lastMs <= SAME_CALL_WINDOW_MS) {
             hit.lastMs = ms;
             hit.call.fareFirst ??= fare;
@@ -82,7 +82,7 @@ const kstHourOf = (ms: number) => new Date(ms + 9 * 3600_000).getUTCHours();
 const resolved = (s: string) => s !== SIGUNGU_AMBIGUOUS && s !== SIGUNGU_UNKNOWN;
 
 const stmtDayRows = db.prepare(`
-    SELECT user_id, targetApp, pickup, dropoff, fare, timestamp, vehicleType, deliveryDistanceKm, verdict, reservedDay
+    SELECT user_id, targetApp, pickup, dropoff, fare, timestamp, vehicleType, deliveryDistanceKm, verdict, scheduleText, reservedDay
     FROM intel WHERE type = 'INTEL_BULK' AND source = 'real' AND timestamp >= ? AND timestamp < ?
     ORDER BY timestamp, id
 `);

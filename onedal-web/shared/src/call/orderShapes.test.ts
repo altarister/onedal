@@ -106,4 +106,11 @@ describe('🚏 withStopLists — 상세 연락처를 펼쳐도 옮겨 담은 칸
         expect(out.pickupDetails?.[0]?.listText).toBe('초월읍');
         expect(out.dropoffDetails?.[0]).toEqual({ listText: '신둔면', geo: null, distanceKm: 20.4 });
     });
+    it('🔴 마지막 하차 약속도 남는다 — 하차 덩어리가 와도 · 빈 목록이어도', () => {
+        const promise = { promiseText: '14시전', requestedDay: 0, requestedTime: '14:00' };
+        const withDrop = { ...call, dropoffDetails: [{ ...call.dropoffDetails![0], ...promise }] };
+        const out = withStopLists(withDrop, { pickupDetails: [], dropoffDetails: [{ customerName: '하나로마트' }] });
+        expect(out.dropoffDetails[0]).toMatchObject({ customerName: '하나로마트', ...promise });
+        expect(withStopLists(withDrop, { pickupDetails: [], dropoffDetails: [] }).dropoffDetails[0]).toMatchObject(promise);
+    });
 });
