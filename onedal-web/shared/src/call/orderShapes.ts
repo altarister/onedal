@@ -4,12 +4,13 @@
  * 언제: 콜 값을 주고받을 때
  * 어디서: 콜 타입을 쓰는 모든 자리
  * 무엇을: 목록 콜 · 상세 콜 · 대기 콜 · 내 콜 · 판정 기록 타입 · 원달앱 보고를 콜로 옮겨 담는 함수
- * 어떻게: 대부분 타입만 두고 값은 원달앱 보고를 정거장으로 옮기는 함수 둘(callFromAppReport · withStopLists)이다 · 번호 · 출처 묶음은 callIdentity 가, 돈 묶음은 money 가 정의한다
+ * 어떻게: 대부분 타입만 두고 값은 원달앱 보고를 정거장으로 옮기는 함수 둘(callFromAppReport · withStopLists)이다 · 번호 · 출처 묶음은 callIdentity 가, 돈 묶음은 money 가, 짐 묶음은 cargo/callLoad 가 정의한다
  * 왜: 같은 콜을 앱마다 다른 모양으로 적지 않기 위해서다
  */
 import type { PaymentType, BillingType, CallMoney } from './money';
 import type { OrderStatus, MyOrderStatus } from './callStatus';
 import type { CallIdentity, CallProvenance, ReportKind } from './callIdentity';
+import type { CallLoad } from '../cargo/callLoad';
 
 /**
  * 🚏 정거장 한 곳 — 상차지 · 하차지. 화면이 보인 것만 담고 못 읽은 칸은 비운다.
@@ -46,7 +47,7 @@ export interface CallStop {
  *    맨 위 주소 · 좌표 · 약속 · 거리 칸은 이 양식에만 있다 — 서버 입구가 `callFromAppReport` 로 정거장 칸에 옮겨 담는다.
  */
 export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차망 목록에서 읽어 서버로 보내는 칸
-    /** 🌐 짐 크기 — 물품 크기 원문(초소형/소형…). 차종 칸에 섞지 않는다 (규칙 ⑤-4 ⑤) */
+    /** 🌐 짐 크기 — 물품 크기 원문(초소형/소형…). 차종 칸에 섞지 않는다 (규칙 ⑤-4 ⑤) · 짐 묶음 `load` 로 옮기는 중(짐 7) */
     itemSize?: string | null;
     /** 🌐 표시 글자 화면 기록 — 화면 글자를 빈칸으로 이은 원문 · 기준 값이 아니다(구분 · 형태 값은 tripType · orderForm) */
     tagsText?: string | null;
@@ -66,7 +67,7 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     timestamp: string;                // ISO 8601 포맷
     postTime?: string;                // 콜 상차시간 · 등록시간 (예: "12:23")
     scheduleText?: string;            // 예약 앞글자 원문 (예: "낼09시", "11일)09시", "@")
-    vehicleType?: string;             // 콜 차종 — 목록 줄임말("라", "다", "1t") 또는 상세의 차량 이름("다마스")
+    vehicleType?: string;             // 콜 차종 — 목록 줄임말("라", "다", "1t") 또는 상세의 차량 이름("다마스") · 짐 묶음 `load` 로 옮기는 중(짐 7)
     rawText?: string;                 // 안드로이드 스캐너에서 긁어온 원본 텍스트         
     // 좌표 — 원달앱 명부 (서버 지오코딩은 정거장 `geo` 에 적는다)
     pickupX?: number;                 // 상차지 좌표 X
@@ -93,7 +94,7 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
 }
 export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보내고 서버가 상세 원문에서 뽑거나 계산해 채우는 칸 · 배차사 · 의뢰인 · 진행 글자는 번호 묶음(CallIdentity)
     // 1. 물품
-    itemDescription?: string;         // 물품 요약 (예: "소형 가전", "박스 2개")
+    itemDescription?: string;         // 물품 요약 (예: "소형 가전", "박스 2개") · 짐 묶음 `load` 로 옮기는 중(짐 7)
     
     // 2. 요금 상세 스펙 — 돈 묶음 `money` 로 옮기는 중(돈 7 · 8)
     commissionRate?: string;          // 수수료율 (예: "23%", "10%", "*%")
@@ -114,10 +115,12 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
 /** 원달앱 양식에만 있는 맨 위 칸 — 콜 모양은 정거장 칸(`pickupDetails` · `dropoffDetails`)으로 담는다 (`reserved` 는 원달앱 몫이라 콜 모양에도 남는다) */
 type StopFlatKey = 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | 'dropoffY' | 'scheduleText' | 'reservedDay' | 'reservedAt' | 'pickupDistance' | 'deliveryDistance';
 
-/** 배차망에서 온 콜 한 건 — 번호 묶음(이 콜이 무엇인가) + 출처 묶음(이 보고가 어디서 어떻게 왔나) + 목록 콜 + 상세 콜 + 돈 묶음. 아래 콜 모양 셋의 부모 */
+/** 배차망에서 온 콜 한 건 — 번호 묶음(이 콜이 무엇인가) + 출처 묶음(이 보고가 어디서 어떻게 왔나) + 목록 콜 + 상세 콜 + 돈 묶음 + 짐 묶음. 아래 콜 모양 셋의 부모 */
 export interface OfficeOrder extends CallIdentity, CallProvenance, Omit<SimplifiedOfficeOrder, StopFlatKey>, DetailedOfficeOrder {
     /** 💰 돈 묶음 — 돈 줄 · 결제 · 증빙(`money.ts`). 채우는 곳은 아직 없다(서버 돈 7 · 원달앱 돈 9) · 그동안 `fare` · 요금 칸 넷을 읽는다 */
     money?: CallMoney;
+    /** 📦 짐 묶음 — 짐 줄 · 차종 맞춤 재료(`cargo/callLoad.ts`). 채우는 곳은 아직 없다(짐 7) · 그동안 `vehicleType` · `itemSize` · `itemDescription` 을 읽는다 */
+    load?: CallLoad;
 }
 
 /** 📱 원달앱 보고 한 건 — 원달앱 양식(맨 위 칸 포함) + 상세 칸 + 배차망 칸. 서버 입구 두 곳(/confirm · /detail)이 받는다 */
