@@ -49,7 +49,6 @@ export const OFFICE_ORDER_SAMPLE = {
         addressDetail: "경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점", requestedTime: "", memo: "하차 메모",
     }],
     companyName: "의뢰인",
-    pickupTime: "10:01",
 
     // ── 배차망 칸 (OfficeOrder) ──
     targetApp: "배차망",

@@ -9,7 +9,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
          resolvePhaseKey, effectiveRadii, radiusScaleOf, cityCenter, haversineKm,
-         VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT, wonText } from "@onedal/shared";
+         VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT, wonText, RESERVATION_MODES } from "@onedal/shared";
 import { radiusScaleNoteOf } from '../../lib/radiusNote';
 import { draftViewOf, hasUnappliedDraft, changedFrom } from '../../lib/filterDraft';
 import type { PhaseKey, FlatValueKey, CallTarget, ReservationMode } from "@onedal/shared";
@@ -121,10 +121,9 @@ const AUTO_PATH_OF: Record<string, 'pickupRadiusKmAuto' | 'destinationRadiusKmAu
     detourRadiusKm: 'detourRadiusKmAuto',
 };
 
-/** 📅 예약콜 세 값 — 기사님 말로 */
-const RESERVATION_PICKS: ReadonlyArray<[ReservationMode, string]> = [
-    ['today', '오늘 콜만'], ['tomorrowToo', '내일 콜도'], ['tomorrowOnly', '내일 콜만'],
-];
+/** 📅 예약콜 세 값 — 기사님 말로 · 차례는 shared `RESERVATION_MODES` */
+const RESERVATION_LABEL: Record<ReservationMode, string> = { today: '오늘 콜만', tomorrowToo: '내일 콜도', tomorrowOnly: '내일 콜만' };
+const RESERVATION_PICKS = RESERVATION_MODES.map(m => [m, RESERVATION_LABEL[m]] as const);
 
 interface OrderFilterModalProps {
     isOpen: boolean;

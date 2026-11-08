@@ -228,7 +228,8 @@ export interface AutoDispatchFilter {
 }
 
 /** 📅 예약콜 축의 값 셋 — `today` 오늘 콜만 · `tomorrowToo` 내일 콜도 · `tomorrowOnly` 내일 콜만 */
-export type ReservationMode = 'today' | 'tomorrowToo' | 'tomorrowOnly';
+export const RESERVATION_MODES = ['today', 'tomorrowToo', 'tomorrowOnly'] as const;
+export type ReservationMode = typeof RESERVATION_MODES[number];
 
 /**
  * 📦 **앱이 필터에서 읽는 키 — 유일한 원천**.

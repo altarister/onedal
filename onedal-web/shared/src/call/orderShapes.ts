@@ -108,7 +108,6 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
     
     // 6. 메타 데이터 및 호환성 필드
     companyName?: string;             // 화주 상호/이름 (과거 호환 유지 목적)
-    pickupTime?: string;              // 픽업 예약 시간 지정
 }
 
 export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder {  // 배차망에서 온 콜 한 건 — 목록 콜 + 상세 콜 + 어느 배차망에서 어떻게 잡았나. 아래 콜 모양 셋의 부모

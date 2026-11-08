@@ -93,10 +93,7 @@ export function parseDetailedRawText(rawText: string): any {
     result.vehicleType = extractField(lines, "차종") || extractField(lines, "요청차종");
     result.itemDescription = extractField(lines, "물품") || extractField(lines, "품목") || extractField(lines, "화물명");
 
-    // 5. 픽업 시간
-    result.pickupTime = extractField(lines, "상차일시") || extractField(lines, "상차시간") || extractField(lines, "출발시간");
-
-    // 6. 적요 (상세 메모)
+    // 5. 적요 (상세 메모)
     // 팝업 상세본 "[적요상세/정보]"가 있으면 최우선으로 파싱
     if (rawText.includes("[적요상세/정보]")) {
         const parts = rawText.split("[적요상세/정보]")[1];

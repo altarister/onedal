@@ -355,30 +355,26 @@ export function reservedForOf(order: { reservedDay?: number | null; capturedAt?:
     if (days == null || !(days >= 1)) return null;
     const base = Date.parse(order.capturedAt ?? order.timestamp ?? '');
     if (!Number.isFinite(base)) return null;
-    const d = new Date(base);
-    d.setDate(d.getDate() + days);
-    return businessDayKey(d.getTime());
+    return businessDayKey(base + days * 86_400_000);
 }
 
+/** 한국 날 글자(`YYYY-MM-DD`)의 그 시각 — 한국은 시각 바꿈(서머타임)이 없어 늘 +09:00 이다 */
+const kstClockMs = (dayKey: string, hhmm: string): number => Date.parse(`${dayKey}T${hhmm}:00+09:00`);
+
 /**
- * 📅 **영업일 [시작, 끝)** — businessDayKey 와 같은 규칙(로컬 자정). 저장된 시각(UTC ISO 글자)을 이 구간으로 거른다 —
+ * 📅 **영업일 [시작, 끝)** — businessDayKey 와 같은 규칙(한국 자정). 저장된 시각(UTC ISO 글자)을 이 구간으로 거른다 —
  *    날 글자 앞부분(LIKE 'YYYY-MM-DD%')으로 거르면 한국 새벽 0~9시가 어제로 간다.
  */
 export function businessDayRange(ms: number): { startMs: number; endMs: number } {
-    const d = new Date(ms);
-    return {
-        startMs: new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(),
-        endMs: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime(),
-    };
+    const startMs = kstClockMs(businessDayKey(ms), '00:00');
+    return { startMs, endMs: startMs + 86_400_000 };
 }
 
-/** 📅 **그 영업일이 든 달 [1일, 다음 달 1일)** — 같은 로컬 자정 규칙 */
+/** 📅 **그 영업일이 든 달 [1일, 다음 달 1일)** — 같은 한국 자정 규칙 */
 export function businessMonthRange(ms: number): { startMs: number; endMs: number } {
-    const d = new Date(ms);
-    return {
-        startMs: new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
-        endMs: new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(),
-    };
+    const [y, m] = businessDayKey(ms).split('-').map(Number);
+    const firstOf = (year: number, month: number) => kstClockMs(`${year}-${String(month).padStart(2, '0')}-01`, '00:00');
+    return { startMs: firstOf(y, m), endMs: m === 12 ? firstOf(y + 1, 1) : firstOf(y, m + 1) };
 }
 
 /** 원칙 1 — 일과 종료. 기사님 결정: **17시** */
@@ -394,10 +390,8 @@ export const DEFAULT_DELIVERY_SLACK_MINUTES = 120;
  * (기사님: *"전날에 잡은 콜이 내일 오전 9시 도착으로 되어 있다면…"*)
  */
 export function businessDayEnd(nowMs: number): number {
-    const t = new Date(nowMs);
-    t.setHours(BUSINESS_DAY_END_HOUR, 0, 0, 0);
-    if (t.getTime() <= nowMs) t.setDate(t.getDate() + 1);
-    return t.getTime();
+    const t = kstClockMs(businessDayKey(nowMs), `${String(BUSINESS_DAY_END_HOUR).padStart(2, '0')}:00`);
+    return t <= nowMs ? t + 86_400_000 : t;
 }
 
 /**

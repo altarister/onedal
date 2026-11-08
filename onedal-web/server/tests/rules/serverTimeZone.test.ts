@@ -16,7 +16,7 @@ describe('🕐 서버 시간대', () => {
     /**
      * 🔴 jest 안의 process.env 는 사본이라 TZ 를 바꿔도 날 계산에 안 닿는다 — 기계가 한국 시간이면 늘 초록인 빈 검사가 된다.
      *    그래서 자식 프로세스를 TZ=UTC 로 띄워, 서버 입구처럼 config/timezone 을 먼저 불러온 뒤 «기계 시간대를 따르는 계산»을 잰다.
-     *    날 키(businessDayKey)는 이제 시간대를 안 따르니(oneDayKey), 재는 것은 되살리는 기간의 «오늘 0시»(restoreWindow) · 지역 시각이다.
+     *    날 키(businessDayKey)와 되살리는 기간의 «오늘 0시»(restoreWindow)는 한국 자정으로 자르니 시간대를 안 따른다 — 기계 시간대를 재는 것은 지역 시각이고, «오늘 0시»는 값이 같은지 함께 본다.
      */
     it('🔴 기계가 UTC 여도 서버는 한국 시간으로 잰다 — 오늘 0시 · 지역 시각', () => {
         const script = `import './src/config/timezone';

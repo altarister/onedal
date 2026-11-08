@@ -289,7 +289,7 @@ export function rawFieldsOf(route: SecuredOrder): Array<[string, unknown]> {
         dispatcherName: route.dispatcherName, dispatcherPhone: route.dispatcherPhone,
         companyName: route.companyName, pickup: route.pickup, dropoff: route.dropoff,
         fare: route.fare, timestamp: route.timestamp, postTime: route.postTime,
-        scheduleText: route.scheduleText, pickupTime: route.pickupTime,
+        scheduleText: route.scheduleText,
         detailMemo: route.detailMemo,
         approachDurationMin: route.approachDurationMin,
         kakaoSoloDistanceKm: route.kakaoSoloDistanceKm,

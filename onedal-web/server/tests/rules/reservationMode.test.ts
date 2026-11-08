@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { AutoDispatchFilter, FilterTally, ReservationMode } from '@onedal/shared';
+import { RESERVATION_MODES } from '@onedal/shared';
 
 /**
  * 📅 **예약콜 축 — 필터 칸 하나** (기사님 결정 «오늘 콜만»).
@@ -37,7 +38,8 @@ describe('📅 예약콜 필터 칸', () => {
     it('관제웹 «어떤 콜» 칸에서 세 값을 고른다 — 예약 보관이 섰으니 연다', () => {
         const modal = read(join(__dirname, '../../../client-app/src/components/dashboard/OrderFilterModal.tsx'));
         expect(modal).toContain("RESERVATION_PICKS");
-        for (const v of ["'today'", "'tomorrowToo'", "'tomorrowOnly'"]) expect(modal).toContain(v);
+        expect(RESERVATION_MODES).toEqual(['today', 'tomorrowToo', 'tomorrowOnly']);   // 세 값 · 차례는 shared 한 벌
+        expect(modal).toContain('RESERVATION_MODES.map(');
         expect(modal).toContain('previewFilter({ reservationMode: v })');
     });
 

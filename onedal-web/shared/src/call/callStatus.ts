@@ -8,6 +8,7 @@
  * 왜: 같은 묶음을 자리마다 따로 적으면 서로 어긋나기 때문이다
  */
 import { LET_GO_STATUSES, type LetGoStatus } from './orderStatuses';
+import { businessDayRange } from '../time/timing';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 콜(Order) 통합 라이프사이클 상태 (DB 영구 저장 + 메모리 관리)
@@ -144,8 +145,7 @@ export function restoreWhere(nowMs: number, prefix = ''): { sql: string; params:
 }
 
 export function restoreWindow(nowMs: number): { todayStartIso: string; unfinishedSinceIso: string } {
-    const todayStart = new Date(nowMs);
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = new Date(businessDayRange(nowMs).startMs);
     return {
         todayStartIso: todayStart.toISOString(),
         unfinishedSinceIso: new Date(
