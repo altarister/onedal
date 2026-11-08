@@ -17,7 +17,7 @@
  */
 /** 밀림 한 줄 — 실물 `step_arrive_*.system_reasons` 로 갈 모양 */
 // ⏱️ 약속의 두 계수는 **실물 기본값을 그대로 읽는다** — 여기 숫자를 또 적지 않는다 (규칙 ③)
-import { DEFAULT_DEADLINE_RULES, type StopImpact } from '@onedal/shared';
+import { DEFAULT_DEADLINE_RULES, DEFAULT_JUDGMENT, callDeadlineMs, type StopImpact } from '@onedal/shared';
 
 // 🔴 `StopImpact` 는 `@onedal/shared` 에 있다 — 아래에서 다시 내보낸다
 
@@ -147,8 +147,8 @@ export function promiseTimes(opts: {
      * 🔴 기산점이 **상차 약속**(잡은 시각 + 20분)이라, 실제 상차가 늦어도 이 약속은 밀리지 않는다 —
      *    상차 지연은 상차 ± 와 하차 ± 에 함께 보인다.
      */
-    const dropoffAt = pickupAt == null || direct.durMin == null ? null
-        : pickupAt + (pickupDwellMin + Math.round(direct.durMin * (DEFAULT_DEADLINE_RULES.deadlineRatioPct ?? 150) / 100)) * 60000;
+    const dropoffAt = pickupAt == null ? null
+        : callDeadlineMs(pickupAt + pickupDwellMin * 60000, direct.durMin, DEFAULT_DEADLINE_RULES.deadlineRatioPct ?? DEFAULT_JUDGMENT.deadline.ratioPct, true);
     return { pickupAt, dropoffAt };
 }
 

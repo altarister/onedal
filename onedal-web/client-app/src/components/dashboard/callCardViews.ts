@@ -1,4 +1,4 @@
-import { hhmmText, manwonText, stopPhoneOf, unitPoints, dwellMinutes, protectionMinutes, afterworkMinutes, jsonArrayOf } from '@onedal/shared';
+import { hhmmText, manwonText, stopPhoneOf, unitPoints, dwellMinutes, protectionMinutes, afterworkMinutes, jsonArrayOf, minutesEarly } from '@onedal/shared';
 import type { DwellUnknown } from '@onedal/shared';
 import type { SecuredOrder, StepViewRow, RouteTimelineEntry, CallTiming } from '@onedal/shared';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -261,7 +261,7 @@ export function stopBlocksOf({ route, timeline, visitOrder, timing, etas, seeded
         const tl = timeline?.find(e => e.orderId === route.id && e.stopType === r.stopType);
         const promised = tl?.promisedUntil ?? (pickup ? timing.pickupPromisedArrivalAt : timing.dropoffPromisedArrivalAt);
         const slackMin = r.arrived ? null
-            : tl?.etaMs != null && promised ? Math.round((Date.parse(promised) - tl.etaMs) / 60000)
+            : tl?.etaMs != null && promised ? minutesEarly(tl.etaMs, promised)
                 : (() => { const a = minutesOfHm(r.promisedText), b = minutesOfHm(r.real); return a != null && b != null ? a - b : null; })();
         return {
             ...r,

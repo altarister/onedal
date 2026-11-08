@@ -1,6 +1,6 @@
 import type { MyOrder, PendingOrder } from "@onedal/shared";
 import { isAlreadyLoaded, hasVisitedStop } from "@onedal/shared";
-import { haversineKm, nearestDong } from "@onedal/shared";
+import { haversineKm, nearestDong, minutesLateMs } from "@onedal/shared";
 import { calculateDetourRoute, calculateSoloRoute } from "./kakaoService";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
 import { slog } from "../utils/fileLogger";
@@ -581,7 +581,7 @@ function orderByPromise<T extends Coord & { orderId: string; stopType: 'pickup' 
             const d = haversineKm(at, st);
             const arrive = tMs + (d / speed) * 3600_000;
             const promise = promiseOf.get(`${st.orderId}|${st.stopType}`) ?? null;
-            const lateMin = promise != null ? Math.max(0, Math.round((arrive - promise) / 60_000)) : 0;
+            const lateMin = promise != null ? Math.max(0, minutesLateMs(arrive, promise)) : 0;
             const nextLoaded = st.stopType === 'pickup' ? new Set([...loaded, st.orderId]) : loaded;
             walk(
                 [...left.slice(0, i), ...left.slice(i + 1)], [...taken, st], nextLoaded,

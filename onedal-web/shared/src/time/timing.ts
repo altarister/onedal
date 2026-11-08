@@ -20,6 +20,7 @@ import { protectionMinutes, afterworkMinutes } from '../cargo/cargoUnits';
 import type { CargoReport } from '../index';
 import { parseCargoHints } from '../cargo/cargoHints';
 import { hhmmText, kstDateText } from '../common/format';
+import { DEFAULT_JUDGMENT, type JudgmentConfig } from '../judge/judgment';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 상하차 소요 시간 (dwell time)
@@ -64,8 +65,8 @@ export const DWELL_PER_POINT: Record<string, number> = { '지게차': 0.05, '수
  *
  *    상차가 더 걸리는 이유도 기사님 말이다 — **상차에는 결박이 붙는다.**
  */
-export const DWELL_UNKNOWN_PICKUP_MINUTES = 15;    // 찾기 + 상차 + 결박
-export const DWELL_UNKNOWN_DROPOFF_MINUTES = 10;   // 찾기 + 하차
+export const DWELL_UNKNOWN_PICKUP_MINUTES = DEFAULT_JUDGMENT.unknown.pickupDwellMin;    // 찾기 + 상차 + 결박
+export const DWELL_UNKNOWN_DROPOFF_MINUTES = DEFAULT_JUDGMENT.unknown.dropoffDwellMin;   // 찾기 + 하차
 
 /**
  * 모를 때 쓸 일반값을 **밖에서 넘길 수 있다**.
@@ -439,6 +440,30 @@ export function parseCapturedAt(iso: string | null | undefined, nowMs: number): 
 }
 
 /**
+ * ⏱️ **배달 데드라인 (ms) = 기산 시각 + 단독 주행 × 마감 비율** — 하차 시한 식은 이 함수 하나다.
+ * 기산점은 **상차 완료**(실어 보내는 시각)다 (두 시계 · 시간체계 ⑯).
+ * 배송 주행을 모르면 `null` (지어내지 않는다 · 규칙 ④).
+ * `roundToMinute` 이면 «단독 주행 × 비율»을 분으로 반올림한다 — 카드 · 실험실이 분 단위로 말한다.
+ * 쓰는 곳: 시딩의 하차 추정 약속 · 격자의 ⚠️ · 카드의 하차 마감 · 경로 타임라인의 하차 약속 · 실험실 약속.
+ */
+export function callDeadlineMs(
+    baseMs: number, soloMin: number | null | undefined, ratioPct: number, roundToMinute = false,
+): number | null {
+    if (soloMin == null || !Number.isFinite(soloMin) || soloMin <= 0) return null;
+    const min = soloMin * ratioPct / 100;
+    return baseMs + (roundToMinute ? Math.round(min) : min) * 60_000;
+}
+
+/**
+ * ⏱️ **약속과 견준 분 차이** — 늦음은 «예정 − 약속», 남는 분(버퍼)은 «약속 − 예정». 각자 반올림한다
+ *    (`Math.round(-x)` 와 `-Math.round(x)` 는 .5 분에서 다르다). 0 아래 자르기는 부르는 쪽 몫이다.
+ */
+export const minutesLateMs = (etaMs: number, promisedMs: number) => Math.round((etaMs - promisedMs) / 60_000);
+export const minutesEarlyMs = (etaMs: number, promisedMs: number) => Math.round((promisedMs - etaMs) / 60_000);
+export const minutesLate = (etaMs: number, promisedIso: string) => minutesLateMs(etaMs, Date.parse(promisedIso));
+export const minutesEarly = (etaMs: number, promisedIso: string) => minutesEarlyMs(etaMs, Date.parse(promisedIso));
+
+/**
  * **하차 마감 — 상차 마감에서 순산한다.**
  *
  * 🔴 하차에서 상차를 역산하지 않는다 — *하차 도착 예상 + 120분* 에서 역산하면 100km 콜의 마감이
@@ -457,9 +482,9 @@ export function dropoffDeadlineFromPickup(
     soloMinutes: number | null | undefined,
     deadlineRatioPct: number,
 ): string | null {
-    if (!pickupDeadlineIso || soloMinutes == null) return null;
-    const ms = new Date(pickupDeadlineIso).getTime() + Math.round(soloMinutes * deadlineRatioPct / 100) * 60_000;
-    return new Date(ms).toISOString();
+    if (!pickupDeadlineIso) return null;
+    const ms = callDeadlineMs(Date.parse(pickupDeadlineIso), soloMinutes, deadlineRatioPct, true);
+    return ms == null ? null : new Date(ms).toISOString();
 }
 
 /**
@@ -697,10 +722,10 @@ export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
      * ⏱️ **20분** (기사님 확정) — 콜을 잡았으면 20분 안에 그 상차지에 닿는다.
      * 🔴 근거는 배송 원칙(20분 룰)이다.
      */
-    pickupPromiseMinutes: 20,
-    deadlineRatioPct: 150,
+    pickupPromiseMinutes: DEFAULT_JUDGMENT.unknown.pickupPromiseMin,
+    deadlineRatioPct: DEFAULT_JUDGMENT.deadline.ratioPct,
     // 카카오 실측 45건 중앙값. 근거는 judgment.ts 의 speed 절에
-    speedShortKmh: 25, speedMidKmh: 46, speedLongKmh: 56,
+    speedShortKmh: DEFAULT_JUDGMENT.speed.shortKmh, speedMidKmh: DEFAULT_JUDGMENT.speed.midKmh, speedLongKmh: DEFAULT_JUDGMENT.speed.longKmh,
 };
 
 /**
@@ -710,11 +735,7 @@ export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
  * 🔴 **서버와 관제웹이 모두 이 함수로 조립한다** — 한쪽이 기본값 상수로 파생하면 기사님이 탭에서
  *    값을 바꾸는 순간 서버와 화면이 다른 값을 쓴다.
  */
-export function derivationInputsOf(cfg: {
-    unknown: { pickupDwellMin: number; dropoffDwellMin: number; pickupPromiseMin: number };
-    deadline: { ratioPct: number };
-    speed?: { shortKmh: number; midKmh: number; longKmh: number };
-}, /**
+export function derivationInputsOf(cfg: Pick<JudgmentConfig, 'unknown' | 'deadline'> & Partial<Pick<JudgmentConfig, 'speed'>>, /**
  * 🎛️ **정차 값은 콜 옵션 표에서 온다** (그릇을 가른 뒤).
  *    그 셋은 «어떻게 잴 것인가»(판정 기준 설정)가 아니라
  *    **화면의 칩에 붙는 숫자**라 콜 옵션 표에 둔다 (`dwellRatesOf`).
@@ -833,9 +854,9 @@ export function soloMinutesOf(
     // ② 화면 배송거리 → 구간 속도로 환산. 거리·시간이 같은 출처가 된다
     const km = pos(order.deliveryDistance);
     if (km != null) {
-        const kmh = km < 10 ? (rules.speedShortKmh ?? 25)
-            : km < 25 ? (rules.speedMidKmh ?? 46)
-                : (rules.speedLongKmh ?? 56);
+        const kmh = km < 10 ? (rules.speedShortKmh ?? DEFAULT_JUDGMENT.speed.shortKmh)
+            : km < 25 ? (rules.speedMidKmh ?? DEFAULT_JUDGMENT.speed.midKmh)
+                : (rules.speedLongKmh ?? DEFAULT_JUDGMENT.speed.longKmh);
         return { minutes: Math.max(1, Math.round((km / kmh) * 60)), km, estimated: true };
     }
 
@@ -926,7 +947,7 @@ export function deriveCallTiming(
          *    늦는 것도 가려진다. `deriveRouteTimeline` 과 같은 식이어야 심사 카드와 덱이 같은 숫자를 말한다.
          * 🔴 «마감»은 실어 **보내는** 시각이라 약속에 상차 정차를 더한다 — 두 갈래 모두.
          */
-        const clockMs = pickupClockMsOf(order, capturedMs, rules.pickupPromiseMinutes ?? 20);
+        const clockMs = pickupClockMsOf(order, capturedMs, rules.pickupPromiseMinutes ?? DEFAULT_JUDGMENT.unknown.pickupPromiseMin);
         if (clockMs != null) {   // 날만 아는 예약은 모름 — 마감도 «추정»도 안 켠다
             pickupPromisedArrivalAt = new Date(clockMs).toISOString();
             pickupDeadlineAt = addMin(pickupPromisedArrivalAt, pickupDwell);
@@ -935,7 +956,7 @@ export function deriveCallTiming(
     }
     if (!dropoffDeadlineAt) {
         dropoffDeadlineAt = dropoffDeadlineFromPickup(
-            pickupDeadlineAt, soloMinutes, rules.deadlineRatioPct ?? 150);
+            pickupDeadlineAt, soloMinutes, rules.deadlineRatioPct ?? DEFAULT_JUDGMENT.deadline.ratioPct);
         if (dropoffDeadlineAt) deadlineEstimated = true;
     }
 
@@ -1222,7 +1243,7 @@ export function deriveRouteTimeline(
                  *    `max(도착 예상, 시계)` 로 두면 상차 여유가 구조적으로 늘 0 이고 «늦는다»는 사실이 가려진다 —
                  *    늦는 것을 알아야 기사님이 그 상차지에 전화를 거신다.
                  */
-                return pickupClockMsOf(order, capturedMs2, rules.pickupPromiseMinutes ?? 20);
+                return pickupClockMsOf(order, capturedMs2, rules.pickupPromiseMinutes ?? DEFAULT_JUDGMENT.unknown.pickupPromiseMin);
             }
             /**
              * 🚚 **상차지에 도착해도 «상차 완료 예정»을 잃지 않는다** (기사님 실측).
@@ -1266,7 +1287,7 @@ export function deriveRouteTimeline(
              *    지금은 «말할 시각»을 따로 두지 않는다. 필요해지면 그때 값을 하나 더 만든다
              *    (규칙 ⑤-4 — 만들기 전에 다섯 가지를 정한다).
              */
-            return loadedBase + t.soloMinutes * (rules.deadlineRatioPct ?? 150) / 100 * 60_000;
+            return callDeadlineMs(loadedBase, t.soloMinutes, rules.deadlineRatioPct ?? DEFAULT_JUDGMENT.deadline.ratioPct);
         })();
         const promisedUntil: string | null = declared?.promisedArrivalAt
             ?? (estMs != null ? new Date(estMs).toISOString() : null);

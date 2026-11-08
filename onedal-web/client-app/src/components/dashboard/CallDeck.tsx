@@ -4,7 +4,7 @@ import { deriveCallTiming, derivationInputsOf } from '@onedal/shared';
 import type { RouteTimelineEntry } from '@onedal/shared';
 import { pickAutoFocus } from '../../lib/deckFocus';
 import { getAddressLabel } from '../../lib/routeUtils';
-import { hhmmText } from '@onedal/shared';
+import { hhmmText, minutesLate } from '@onedal/shared';
 import { useTheme } from '@onedal/ui/theme';
 /* 🌈 지도와 **같은 색표**를 읽는다 — 두 벌이면 지도와 목록이 다른 말을 한다 (규칙 ③) */
 import { stopBoxBg, callTextColor, PROMISE_CALLED } from '../../styles/callPalette';
@@ -288,7 +288,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                             const real = gone ? (goneAt ? Date.parse(goneAt) : null) : (tl?.etaMs ?? null);
                             /** ± 는 **약속과 견준 값** 하나다 — 지났든 아니든 같은 셈법이다 (규칙 ③) */
                             const diff = real != null && promised != null
-                                ? Math.round((real - Date.parse(promised)) / 60000) : null;
+                                ? minutesLate(real, promised) : null;
                             const no = callNoOf?.(o.id) ?? 1;
                             const box = stopBoxBg(no, stop, theme, gone);
                             return (

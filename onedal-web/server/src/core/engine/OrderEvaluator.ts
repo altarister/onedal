@@ -7,7 +7,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP, geocodeTargetOf } from '@onedal/shared';
+import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, addressOf, isTargetApp, DEFAULT_TARGET_APP, geocodeTargetOf, minutesLate } from '@onedal/shared';
 import type { GeocodeSource } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress, TargetAppType } from '@onedal/shared';
 import { judgmentRecordOf } from './judgmentRecord';
@@ -1051,7 +1051,7 @@ export function mergedJudgmentFrom(o: {
          *    한쪽만 고치면 심사석의 셋째 줄(걸리는 것)과 넷째 줄(대상과 까닭)이
          *    다른 말을 한다. 화면 대조는 `pnpm lab` 이 한다.
          */
-        lateMin: e.etaMs != null && e.promisedUntil ? Math.round((e.etaMs - Date.parse(e.promisedUntil)) / 60_000) : null,
+        lateMin: e.etaMs != null && e.promisedUntil ? minutesLate(e.etaMs, e.promisedUntil) : null,
         confirmed: e.promiseConfirmed,
         arrived: e.arrived,
     }));

@@ -422,18 +422,6 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
 ] as const;
 
 /** 표의 기본값을 DB 컬럼 이름으로 뽑는다 (`CREATE TABLE` 의 `DEFAULT` 와 시드가 이걸 쓴다) */
-/**
- * ⏱️ **배달 데드라인 (ms)** — 기산점은 **상차 완료**다 (두 시계 · 시간체계 ⑯).
- * 배송 주행을 모르면 `null` (지어내지 않는다 · 규칙 ④).
- * 쓰는 곳: 시딩의 하차 추정 약속 · 격자의 ⚠️ · (예정) 합짐 버퍼 판정의 기본 제약.
- */
-export function callDeadlineMs(
-    loadedMs: number, soloDriveMin: number | null | undefined, cfg: JudgmentConfig,
-): number | null {
-    if (soloDriveMin == null || !Number.isFinite(soloDriveMin) || soloDriveMin <= 0) return null;
-    return loadedMs + (soloDriveMin * cfg.deadline.ratioPct / 100) * 60_000;
-}
-
 export function judgmentDefaults(): Record<string, number> {
     const out: Record<string, number> = {};
     for (const f of JUDGMENT_FIELDS) {

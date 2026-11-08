@@ -20,7 +20,7 @@ import { deriveCallTiming } from "@onedal/shared";
 import { useJudgmentStore } from "../../stores/judgmentStore";
 import type { RouteTimelineEntry, RouteStopInfo } from "@onedal/shared";
 import { Button } from "@onedal/ui/button";
-import { clockText, hhmmText } from "@onedal/shared";
+import { clockText, hhmmText, minutesEarly } from "@onedal/shared";
 
 /**
  * 🕐 **칩 한 칸이 아는 것** — 도착 예상과, 앞 정거장 실측이 밀어낸 분.
@@ -517,7 +517,7 @@ export default function PinnedRouteCard({
                                 const t = deriveCallTiming(route, [], [], Date.now(), jdRules, jdUnk);
                                 if (!t.pickupPromisedArrivalAt || t.toPickup.driveMinutes == null) return null;
                                 const etaMs = Date.now() + (t.toPickup.driveMinutes + t.toPickup.leadMinutes) * 60_000;
-                                const buf = Math.round((Date.parse(t.pickupPromisedArrivalAt) - etaMs) / 60_000);
+                                const buf = minutesEarly(etaMs, t.pickupPromisedArrivalAt);
                                 return (
                                     <div className="mt-2 flex items-center gap-1.5 text-[11px]">
                                         <span className="text-text-muted font-bold">버퍼</span>

@@ -53,7 +53,7 @@ describe('🕐 접힌 줄 — 안 C (기호로만)', () => {
     });
 
     it('🔴 약속과 견준 값이다 — 지났든 아니든 **같은 셈법** (규칙 ③)', () => {
-        expect(덱).toMatch(/real[\s\S]{0,80}promised[\s\S]{0,80}60000/);
+        expect(덱).toMatch(/minutesLate\(real, promised\)/);
     });
 
     it('🔴 통화로 정한 약속은 **색**이 말한다 — 글자를 더하면 격자가 깨진다', () => {

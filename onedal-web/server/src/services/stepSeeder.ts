@@ -165,7 +165,7 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
      *    (경유버퍼 = 데드라인 − 예상이 저절로 여유를 말한다).
      *    🔴 굳은 약속(통화)은 데드라인과 무관하게 그대로 — 화주 합의가 면책.
      */
-    const deadlineMs = departMs != null ? callDeadlineMs(departMs, solo, cfg) : null;
+    const deadlineMs = departMs != null ? callDeadlineMs(departMs, solo, cfg.deadline.ratioPct) : null;
     /**
      * 🔴 **하차 약속은 도착 예상을 따라가지 않는다** (기사님 확정 · 상차와 같은 규칙).
      *    예상이 늦다고 약속을 그 시각까지 올리면 **여유가 늘 0** 이라 늦는 것이 가려진다.
@@ -603,7 +603,7 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig,
     const dl = departPlanned != null
         ? callDeadlineMs(departPlanned,
             soloMinutesOf(o as any, derivationInputsOf(judgment ?? DEFAULT_JUDGMENT).rules).minutes,
-            judgment ?? DEFAULT_JUDGMENT) : null;
+            (judgment ?? DEFAULT_JUDGMENT).deadline.ratioPct) : null;
     // 상차 격자의 ⚠️ 기준 = **상차 시계**(무통보 한계) 그 자체 — 약속(바닥 적용값)이 아니다.
     //    실측: 약속을 기준 삼으니 경로 유무에 따라 값이 흔들렸다
     const capturedMs2 = Date.parse(o.capturedAt ?? '');
