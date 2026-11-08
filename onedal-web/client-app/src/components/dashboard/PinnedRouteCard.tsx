@@ -620,7 +620,7 @@ export default function PinnedRouteCard({
                         {(() => {
                             /* 🏗️ pDetail/dDetail/phonesOf 는 새 단계 화면이 자기 자리에서 꺼낸다 */
 
-                            const quickName = route.companyName || '';
+                            const quickName = route.requesterName || '';
                             const quickPhone = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/)?.[0] || route.dispatcherPhone || '';
                             const quickClean = quickName.replace(quickPhone, '').trim() || route.dispatcherName || '퀵사무실';
 

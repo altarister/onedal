@@ -169,14 +169,15 @@ describe('♻️ 복구', () => {
         expect(s.lastFixAt).toBe(at);
     });
 
-    it('🔴 장부의 칸을 콜에 되살린다 — 판(목표 시) · 잡은 갈래 · 하차 시각 · 판정 · 궤적', async () => {
+    it('🔴 장부의 칸을 콜에 되살린다 — 판(목표 시) · 하차 시각 · 판정 · 궤적 · 옛 잡은 방식 칸은 콜에 안 싣는다', async () => {
         ledgerCall(`${U}-rf`);
         db.prepare(`UPDATE orders SET goalCity = ?, capturedVia = ?, completedAt = ? WHERE id = ?`)
             .run('여주시', 'alarm', '2026-10-07T04:00:00.000Z', `${U}-rf`);
         OrderRepository.saveJudgment(`${U}-rf`, U, { color: '꿀', score: 82, axes: [], gates: [], tags: [] });
         await restoreAndRecalculateSession(U, io);
         const c = getUserSession(U).myOrders[0];
-        expect(c).toMatchObject({ goalCity: '여주시', capturedVia: 'alarm', completedAt: '2026-10-07T04:00:00.000Z' });
+        expect(c).toMatchObject({ goalCity: '여주시', completedAt: '2026-10-07T04:00:00.000Z' });
+        expect(c).not.toHaveProperty('capturedVia');
         expect(c.judgment).toMatchObject({ color: '꿀', score: 82 });
         expect(c.routePolyline).toEqual(LINE);
     });

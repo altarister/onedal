@@ -7,7 +7,7 @@
  * 어떻게: 정의 표의 읽는 법으로 글자를 잘라 낸다
  * 왜: 정의에 없거나 원문에 없는 값을 지어내지 않기 위해서다
  */
-import type { TargetAppType, CallStop, DetailedOfficeOrder } from '../index';
+import type { TargetAppType, CallStop, DetailedOfficeOrder, CallIdentity } from '../index';
 import { PAYMENT_TYPES, BILLING_TYPES, type PaymentType, type BillingType } from '../call/money';
 import type { PageField, ScreenPage } from './pageFields';
 import { NETWORK_PAGES, fieldsOf } from './networkPages';
@@ -207,9 +207,11 @@ export function stopQueryOf(app: TargetAppType, stop: CallStop | null | undefine
 }
 
 /** 📄 상세 콜 자료 — 상세 화면 정의 칸(· 조각)이 콜의 어느 자료가 되나. 배차망마다 다른 것은 표의 읽는 법뿐이다 */
-type DetailRecordText = 'receiptStatus' | 'itemDescription' | 'commissionRate' | 'tollFare' | 'tripType' | 'orderForm' | 'dispatcherName' | 'dispatcherPhone';
+type DetailRecordText = 'stageText' | 'itemDescription' | 'commissionRate' | 'tollFare' | 'tripType' | 'orderForm' | 'dispatcherName' | 'dispatcherPhone';
+/** 상세 원문에서 읽는 콜 칸 — 상세 칸 + 번호 묶음의 배차사 · 진행 글자 */
+type DetailFields = Partial<Pick<DetailedOfficeOrder & CallIdentity, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>>;
 const DETAIL_RECORD: ReadonlyArray<readonly [key: DetailRecordText, field: PageField, part?: string]> = [
-    ['receiptStatus', 'stage'], ['itemDescription', 'itemSize'], ['commissionRate', 'commission'],
+    ['stageText', 'stage'], ['itemDescription', 'itemSize'], ['commissionRate', 'commission'],
     ['tollFare', 'toll'], ['tripType', 'tags'], ['orderForm', 'reservation'],
     ['dispatcherName', 'contact', 'dispatcher'], ['dispatcherPhone', 'contact', 'dispatcherPhone'],
 ];
@@ -225,11 +227,11 @@ const STOP_CONTACT: ReadonlyArray<readonly [key: keyof CallStop, field: PageFiel
  *    결제 · 계산서는 알려진 값(결제 · 증빙 값 목록 `money.ts`)일 때만 · 적요는 팝업 글(줄바꿈 → 공백)이 먼저, 없으면 본문 «적요상세» 줄(상차 약속 시각이 본문 시각으로 바뀌지 않게).
  *    출발 · 도착 연락처는 그 팝업 머리표가 원문에 있을 때만 한 덩어리(없으면 빈 목록).
  */
-export type DetailRecord = Partial<Pick<DetailedOfficeOrder, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>>
+export type DetailRecord = DetailFields
     & { pickupDetails: CallStop[]; dropoffDetails: CallStop[] };
 export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecord {
     const read = (field: PageField, part = '') => pageFieldOf(app, 'newCall', field, rawText, part) ?? undefined;
-    const out: Partial<Pick<DetailedOfficeOrder, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>> = {};
+    const out: DetailFields = {};
     for (const [key, field, part] of DETAIL_RECORD) { const v = read(field, part); if (v !== undefined) out[key] = v; }
     const pay = read('payment');
     if (pay && (PAYMENT_TYPES as readonly string[]).includes(pay)) out.paymentType = pay as PaymentType;

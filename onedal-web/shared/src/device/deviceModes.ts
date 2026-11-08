@@ -80,8 +80,8 @@ export function chosenModeOf(command: DeviceModeType): ChosenModeType {
 /**
  * 🖱️ **잡은 방식 — 6하원칙의 «어떻게»** (기사님 확정).
  *
- * 원장 `orders.capturedVia` 에 기록만 한다: `AUTO`(앱이 누름) · `ALARM`(알람 듣고
- * 기사님이 누름) · `MANUAL`(기사님이 직접 골라 누름). 옛 원달앱만 보낸다 — 새 원달앱은 안 보내고,
+ * 원장 `orders.capturedVia` 는 옛 칸 — 지금은 빈 값이다(콜 모양에 없다): `AUTO`(앱이 누름) · `ALARM`(알람 듣고
+ * 기사님이 누름) · `MANUAL`(기사님이 직접 골라 누름)은 옛 줄에만 남는다.
  * 잡은 방식은 서버가 그때 도는 모드(`capturedMode`) · 진입 주체(`openedBy`)로 적는다(36 P6).
  *
  * 🔴 **기록이지 판단이 아니다.** 서버의 직접콜 보호(심사 없음·강제취소 없음)는

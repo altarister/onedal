@@ -136,7 +136,7 @@ const OFFICE_ORDER_SAMPLE_02 = {
     capturedVia: "수집 길",
     capturedMode: "수집 모드",
     openedBy: "APP",
-} satisfies Partial<AppCallReport>;
+} satisfies Pick<AppCallReport, 'pickupDetails' | 'dropoffDetails'> & Record<string, unknown>;   // 타입은 이 견본이 바꾼 정거장 칸만 본다 — 번호 · 출처 칸 이름은 `_04` · `_05` 에서 바뀐다
 
 /**
  * 🔍 **옛 콜 견본 — 돈을 한 묶음(`money`)으로 모은 모양** (`설계/shared/돈_정의_계획_04.md` · 아직 코드에 없음 · 아무 곳도 읽지 않는다)

@@ -33,11 +33,10 @@ describe('🐥 연습 배지', () => {
 });
 
 describe('🖱️ 잡은 방식', () => {
-    it('🔴 새 칸(그때 도는 모드)이 알람이면 🔔 — 옛 칸이 MANUAL 이어도', () => {
-        expect(capturedHowOf(call({ capturedMode: 'ALARM', capturedVia: 'MANUAL' }))).toEqual({ icon: '🔔', label: '🔔 알람콜' });
+    it('🔴 그때 도는 모드가 알람이면 🔔', () => {
+        expect(capturedHowOf(call({ capturedMode: 'ALARM' }))).toEqual({ icon: '🔔', label: '🔔 알람콜' });
     });
-    it('새 칸이 없는 옛 줄은 옛 칸으로 · 알람이 아니면 ✋ 직접콜', () => {
-        expect(capturedHowOf(call({ capturedVia: 'ALARM' })).icon).toBe('🔔');
+    it('알람이 아니거나 모드를 모르면 ✋ 직접콜', () => {
         expect(capturedHowOf(call({ capturedMode: 'AUTO' }))).toEqual({ icon: '✋', label: '✋ 직접콜' });
         expect(capturedHowOf(call({})).icon).toBe('✋');
     });

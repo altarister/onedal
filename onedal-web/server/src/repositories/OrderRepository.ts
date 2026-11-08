@@ -98,7 +98,7 @@ export class OrderRepository {
             pickupStop?.promiseText || null,
             cachedOrder.postTime || null,
             (cachedOrder as any).targetApp || null,
-            (cachedOrder as any).capturedVia || null,
+            null,                                   // capturedVia — 옛 칸 · 콜 모양에 없다(잡은 방식은 capturedMode · openedBy) · 빈 값은 앞 값을 덮지 않는다
             (cachedOrder as any).goalCity ?? null,
             typeof (cachedOrder as any).reserved === 'boolean' ? ((cachedOrder as any).reserved ? 1 : 0) : null,
             pickupStop?.requestedDay ?? null,

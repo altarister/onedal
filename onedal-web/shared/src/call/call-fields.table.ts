@@ -1212,9 +1212,9 @@ export const TABLE = /*JSON*/{
   },
   {
    "id": "C32",
-   "key": "receiptStatus",
-   "label": "전표 상태",
-   "desc": "신규 · 배송 등",
+   "key": "stageText",
+   "label": "진행 글자",
+   "desc": "«배차» · «배송» 등 화면 글자 그대로 · 우리 콜 상태(status)와 다르다",
    "required": "",
    "filledBy": "서버 원문",
    "ledger": "orders 칸 없음",

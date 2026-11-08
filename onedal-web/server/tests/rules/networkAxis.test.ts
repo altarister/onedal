@@ -25,9 +25,7 @@ describe('«어떻게 잡았나» — 기록 전용 칸', () => {
     const strip = (p: string) => readFileSync(join(__dirname, p), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-    /* confirm 의 capturedVia 거르기 — 동작 검사 factCapturedVia «허용 값은 그대로 · 모르는 값은 비운다» 가 문다(31 P0 T) */
-
-    /* 장부 upsert 의 capturedVia · COALESCE — 동작 검사 factCapturedVia «장부 줄에 남는다» · «빈 값은 앞 값을 덮지 않는다» 가 문다(31 P0 T) */
+    /* confirm 이 capturedVia 를 싣지 않고 장부 칸은 빈 값 · 옛 값은 덮지 않음 — 동작 검사 factCapturedVia 가 문다 */
 
     it('모르는 값은 null — 지어내지 않는다 (규칙 ④)', () => {
         expect(isCapturedVia('ALARM')).toBe(true);

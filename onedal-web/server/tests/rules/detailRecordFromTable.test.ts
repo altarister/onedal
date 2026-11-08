@@ -18,7 +18,7 @@ const BODY = '(주)신한로직스-1588-5480\n상태 : 배송\n물품 : 서류\n
 describe('📄 상세 콜 자료 — 정의 표', () => {
     it('🔴 인성 상세(팝업까지) — 칸마다 표대로', () => {
         expect(detailRecordOf('insung', FULL)).toEqual({
-            receiptStatus: '신규', itemDescription: '박스 1개', paymentType: '카드', billingType: '계산서', commissionRate: '23%',
+            stageText: '신규', itemDescription: '박스 1개', paymentType: '카드', billingType: '계산서', commissionRate: '23%',
             tripType: '편도', orderForm: '보통', detailMemo: '까대기 있음 직접운반 대기 30분',
             dispatcherName: '고양퀵서비스', dispatcherPhone: '031-932-7722',
             pickupDetails: [{ customerName: '가나상사', addressDetail: '경기 광주시 경안동 1-2', department: '물류팀', contactName: '김철수', phone1: '010-1234-5678', phone2: '031-000-0000' }],
@@ -27,7 +27,7 @@ describe('📄 상세 콜 자료 — 정의 표', () => {
     });
     it('🔴 인성 상세(팝업 없음) — 급송 · 왕복 · 탁송료 · 본문 적요', () => {
         expect(detailRecordOf('insung', BODY)).toEqual({
-            receiptStatus: '배송', itemDescription: '서류', paymentType: '신용', commissionRate: '20%', tollFare: '3,000',
+            stageText: '배송', itemDescription: '서류', paymentType: '신용', commissionRate: '20%', tollFare: '3,000',
             tripType: '왕복', orderForm: '급송', detailMemo: '10시전하차 착불',
             dispatcherName: '(주)신한로직스', dispatcherPhone: '1588-5480', pickupDetails: [], dropoffDetails: [],
         });

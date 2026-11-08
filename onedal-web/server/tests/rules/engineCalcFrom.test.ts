@@ -57,7 +57,7 @@ describe('♻️ 되살리기', () => {
         };
         const o = restoredOrderFrom(row, { visited: { arrivedPickupAt: 'T1' }, judgment: { color: '꿀', score: 80 }, contacts: { pickupDetails: [{ phone1: '010' }] } });
         expect(o).toMatchObject({
-            id: 'c1', status: 'ORDER_PICKED_UP', goalCity: '여주시', reserved: true, capturedVia: 'alarm', isShared: true, isExpress: false,
+            id: 'c1', status: 'ORDER_PICKED_UP', goalCity: '여주시', reserved: true, isShared: true, isExpress: false,
             routePolyline: [{ x: 1, y: 2 }], paymentType: '착불', arrivedPickupAt: 'T1', judgment: { color: '꿀', score: 80 },
         });
         /* 장부의 주소 · 좌표 · 약속 칸과 연락처는 정거장으로 */

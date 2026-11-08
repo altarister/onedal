@@ -277,17 +277,17 @@ export function stopBlocksOf({ route, timeline, visitOrder, timing, etas, seeded
 }
 
 // ─────────────────────────── 판정 근거 서랍 ───────────────────────────
-/** 🗄️ 원본 칸 — 서랍 아래에 `route.<칸> : 값` 으로 그린다 (차례가 화면 차례다) */
+/** 🗄️ 원본 칸 — 서랍 아래에 `route.<칸> : 값` 으로 그린다 (차례가 화면 차례다 · 줄 이름은 옛 칸 이름 그대로 — 값은 정거장 · 진행 글자 `stageText` · 의뢰인 `requesterName` 에서) */
 export function rawFieldsOf(route: SecuredOrder): Array<[string, unknown]> {
     return Object.entries({
         id: route.id, type: route.type, status: route.status,
-        receiptStatus: route.receiptStatus, itemDescription: route.itemDescription,
+        receiptStatus: route.stageText, itemDescription: route.itemDescription,
         vehicleType: route.vehicleType, commissionRate: route.commissionRate,
         tollFare: route.tollFare, paymentType: route.paymentType,
         billingType: route.billingType, tripType: route.tripType,
         orderForm: route.orderForm, distanceKm: route.distanceKm,
         dispatcherName: route.dispatcherName, dispatcherPhone: route.dispatcherPhone,
-        companyName: route.companyName, pickup: firstPickupStop(route)?.listText, dropoff: lastDropoffStop(route)?.listText,
+        companyName: route.requesterName, pickup: firstPickupStop(route)?.listText, dropoff: lastDropoffStop(route)?.listText,
         fare: route.fare, timestamp: route.timestamp, postTime: route.postTime,
         scheduleText: firstPickupStop(route)?.promiseText ?? undefined,
         detailMemo: route.detailMemo,

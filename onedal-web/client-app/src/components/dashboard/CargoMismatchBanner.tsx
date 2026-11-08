@@ -52,7 +52,7 @@ export default function CargoMismatchBanner({ orders }: { orders: SecuredOrder[]
                 const where = a.stopType === 'pickup' ? '상차지' : '하차지';
                 const bigger = a.ratio >= 1;
                 const quickPhone =
-                    order?.companyName?.match(/\d{2,3}-\d{3,4}-\d{4}/)?.[0] || order?.dispatcherPhone || '';
+                    order?.requesterName?.match(/\d{2,3}-\d{3,4}-\d{4}/)?.[0] || order?.dispatcherPhone || '';
 
                 const resolve = (action: 'CONTINUE' | 'RELEASE') =>
                     socket.emit('resolve-cargo-mismatch', {

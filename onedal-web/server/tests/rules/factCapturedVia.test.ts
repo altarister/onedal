@@ -6,10 +6,10 @@ import { getUserSession, clearUserSession } from '../../src/state/userSessionSto
 import { approvedUser } from '../fixtures/approvedUser';
 
 /**
- * 🖱️ **잡은 방식 기록 — 원달앱이 보낸 값 그대로 · 모르면 비움** (31 P0 · S6 · 29 N2 «지금» 칸).
- *    서버는 잡은 방식을 스스로 정하지 않는다 — `/confirm` 의 capturedVia 를 허용 값(AUTO · ALARM · MANUAL)이면 싣고, 아니면 null.
- *    장부에 쓸 때 빈 값은 앞 값을 덮지 않는다(COALESCE). P5 에서 «모드 + 진입 주체»로 바뀌면 이 기댓값이 바뀐다.
- * 못 잡는 것: 원달앱이 무엇을 보내나(옛 원달앱만 보낸다 · 새 원달앱은 안 보냄 — 36 P6).
+ * 🖱️ **옛 잡은 방식 칸(capturedVia) — 콜 모양에 없다 · 장부 칸은 빈 값** (번호 계획 4).
+ *    원달앱이 안 보내 늘 빈 값이던 칸이다 — `/confirm` 은 보고에 그 칸이 있어도 콜에 싣지 않는다.
+ *    잡은 방식은 그때 도는 모드(capturedMode) · 연 주체(openedBy)가 맡는다. 장부에 쓸 때 빈 값은 옛 줄의 값을 덮지 않는다(COALESCE).
+ * 못 잡는 것: 옛 장부 줄의 값을 읽는 곳(관제웹 · 운행일지는 이 칸을 안 본다).
  */
 const U = 'test-fact-captured-via';
 const DEV = 'dev-fact-via';
@@ -38,23 +38,19 @@ afterAll(() => {
     try { db.prepare(`DELETE FROM users WHERE id = ?`).run(U); } catch { /* 다른 표가 붙잡으면 다음 돌림이 이어 쓴다 */ }
 });
 
-describe('🖱️ 잡은 방식 — 원달앱이 보낸 값 그대로', () => {
-    it('🔴 허용 값은 그대로 싣고 장부 줄에 남는다', async () => {
+describe('🖱️ 옛 잡은 방식 칸 — 콜에 안 싣는다', () => {
+    it('🔴 보고에 그 칸이 있어도 콜에 없고 장부 칸은 빈 값', async () => {
         const o = await confirm('via-a', 'ALARM');
-        expect(o.capturedVia).toBe('ALARM');
+        expect(o).not.toHaveProperty('capturedVia');
         OrderRepository.upsertOrder(o, U, 0, 0);
-        expect(ledgerVia('via-a')).toBe('ALARM');
+        expect(ledgerVia('via-a')).toBeNull();
     });
 
-    it('🔴 모르는 값 · 없음은 지어내지 않고 비운다 — 폰 모드(알람)로 채우지 않는다', async () => {
-        expect((await confirm('via-b', 'ROBOT')).capturedVia).toBeNull();
-        expect((await confirm('via-c', undefined)).capturedVia).toBeNull();
-    });
-
-    it('🔴 장부에 다시 쓸 때 빈 값은 앞 값을 덮지 않는다', async () => {
-        const o = await confirm('via-d', 'MANUAL');
+    it('🔴 장부에 다시 쓸 때 옛 줄의 값을 덮지 않는다', async () => {
+        const o = await confirm('via-d', undefined);
         OrderRepository.upsertOrder(o, U, 0, 0);
-        OrderRepository.upsertOrder({ ...o, capturedVia: null }, U, 0, 0);
+        db.prepare(`UPDATE orders SET capturedVia = 'MANUAL' WHERE id = ?`).run('via-d');
+        OrderRepository.upsertOrder(o, U, 0, 0);
         expect(ledgerVia('via-d')).toBe('MANUAL');
     });
 });

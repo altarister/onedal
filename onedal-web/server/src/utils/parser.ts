@@ -32,7 +32,7 @@ export function parseDetailedRawText(rawText: string): any {
     result.dispatcherPhone = extractField(lines, "배차화물전화") || extractField(lines, "화물전화") || extractField(lines, "배차전화");
 
     // 2. 상태/형태 — 못 찾으면 칸 없음(«편도» · «일반»을 지어내지 않는다 · 관제웹은 빈 칸의 줄을 안 그린다)
-    result.receiptStatus = extractField(lines, "상태") || extractField(lines, "접수");
+    result.stageText = extractField(lines, "상태") || extractField(lines, "접수");
     result.tripType = extractField(lines, "운송구분") || extractField(lines, "운행구분") || extractField(lines, "왕복여부");
     result.orderForm = extractField(lines, "오더형태");
 

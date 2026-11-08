@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode, firstPickupStop, lastDropoffStop, callFromAppReport } from "@onedal/shared";
+import { restoreWhere, RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, whoConfirmed, safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, modeActsOf, runningModeOf, isDeviceMode, firstPickupStop, lastDropoffStop, callFromAppReport } from "@onedal/shared";
 import db from "../db";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -192,13 +192,7 @@ router.post("/confirm", (req, res) => {
             capturedAt: payload.capturedAt || new Date().toISOString(),
             // 어느 배차망에서 온 콜인가 — 원장에 남긴다 (값 표준은 shared 한 벌 · 픽커_수집.md §6-전)
             targetApp: isTargetApp((payload as any).targetApp) ? (payload as any).targetApp : DEFAULT_TARGET_APP,
-            /**
-             * 🖱️ 잡은 방식 — 6하원칙의 «어떻게» (기사님 확정).
-             * 🔴 기록 전용. 직접콜 보호는 여전히 matchType 만 본다 (#75 재발 방지) —
-             *    모르는 값·구앱(미전송)은 null 로 남긴다. 지어내지 않는다 (규칙 ④).
-             */
-            capturedVia: isCapturedVia((payload as any).capturedVia) ? (payload as any).capturedVia : null,
-            /* ⏩ 원달앱이 목록에서 눌러 연 상세인가(자동 · 알람 모드 모두 — ListTapRecord) — 빨리 접기 대상(판단용 · capturedVia 는 기록 전용이라 따로) · 모르면 없음 */
+            /* ⏩ 원달앱이 목록에서 눌러 연 상세인가(자동 · 알람 모드 모두 — ListTapRecord) — 빨리 접기 대상(판단용 · 기록 칸 openedBy 와 따로) · 모르면 없음 */
             ...(typeof (payload as any).openedByApp === 'boolean' ? { openedByApp: (payload as any).openedByApp } : {}),
             /* 🖱️ 잡은 방식 = 그때 도는 모드 + 진입 주체(29 P5-1) — 원천은 원달앱(보고의 도는 모드 · 이 확정 보고의 openedByApp) · 서버는 옮겨 적기만 · 모르면 null */
             capturedMode: ((m) => isDeviceMode(m) ? m : null)(runningModeOf(activeDevices.get(payload.deviceId) ?? {})),

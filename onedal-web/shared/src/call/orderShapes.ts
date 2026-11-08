@@ -4,23 +4,12 @@
  * 언제: 콜 값을 주고받을 때
  * 어디서: 콜 타입을 쓰는 모든 자리
  * 무엇을: 목록 콜 · 상세 콜 · 대기 콜 · 내 콜 · 판정 기록 타입 · 원달앱 보고를 콜로 옮겨 담는 함수
- * 어떻게: 대부분 타입만 두고 값은 EVENT_TYPES 와 원달앱 보고를 정거장으로 옮기는 함수 둘(callFromAppReport · withStopLists)이다
+ * 어떻게: 대부분 타입만 두고 값은 원달앱 보고를 정거장으로 옮기는 함수 둘(callFromAppReport · withStopLists)이다 · 번호 · 출처 묶음은 callIdentity 가 정의한다
  * 왜: 같은 콜을 앱마다 다른 모양으로 적지 않기 위해서다
  */
 import type { PaymentType, BillingType } from './money';
 import type { OrderStatus, MyOrderStatus } from './callStatus';
-
-/** 콜 종류 값 — 어떤 길로 온 보고인가. 이 상수는 이 파일 밖에서 안 쓰고, 서버와 원달앱은 글자('NEW_ORDER' 등)로 맞춘다 */
-export const EVENT_TYPES = {
-    NEW_ORDER: "NEW_ORDER" as const,
-    INTEL_BULK: "INTEL_BULK" as const,
-    MANUAL: "MANUAL" as const,
-    SIMULATION: "SIMULATION" as const,
-    ALARM: "ALARM" as const,
-};
-
-/** 콜 종류 — 직접 잡음 · 체험 여부를 함께 담는다. `SimplifiedOfficeOrder.type` 의 타입이다 */
-export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
+import type { CallIdentity, CallProvenance, ReportKind } from './callIdentity';
 
 /**
  * 🚏 정거장 한 곳 — 상차지 · 하차지. 화면이 보인 것만 담고 못 읽은 칸은 비운다.
@@ -70,7 +59,7 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
      */
     verdict?: string | null;
     id: string;                       // 스캐너 앱 쪽 고유 ID
-    type: EventType;                  // NEW_ORDER 등 통신 규격
+    type: ReportKind;                 // 보고 종류 — 값 목록 REPORT_KINDS(callIdentity)
     pickup: string;                   // 예: "경기 광주 오포"
     dropoff: string;                  // 예: "강남구 역삼동"
     fare: number;                     // 45000 (숫자)
@@ -102,48 +91,31 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     /** 📅 예약 시각 «HH:MM» */
     reservedAt?: string | null;
 }
-export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보내고 서버가 상세 원문에서 뽑거나 계산해 채우는 칸
-    // 1. 배차사(퀵사무실) 정보 (상세화면 최상단)
-    dispatcherName?: string;          // 배차 사무실 상호 (예: "고양퀵서비스")
-    dispatcherPhone?: string;         // 배차 사무실 연락처 (예: "031-932-7722")
-    
-    // 2. 문서/전표 기본 정보
-    receiptStatus?: string;           // 전표 상태 (예: "신규", "수정", "취소")
+export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보내고 서버가 상세 원문에서 뽑거나 계산해 채우는 칸 · 배차사 · 의뢰인 · 진행 글자는 번호 묶음(CallIdentity)
+    // 1. 물품
     itemDescription?: string;         // 물품 요약 (예: "소형 가전", "박스 2개")
     
-    // 3. 요금 상세 스펙
+    // 2. 요금 상세 스펙
     commissionRate?: string;          // 수수료율 (예: "23%", "10%", "*%")
     tollFare?: string;                // 탁송료/통행료 별도 기재 항목
     paymentType?: PaymentType;        // 신용, 착불 등 결제수단
     billingType?: BillingType;        // 세금계산서, 인수증 발급 형태
     
-    // 4. 운행 조건 스펙
+    // 3. 운행 조건 스펙
     tripType?: string;                // 배송 구분 — 값 목록 `TRIP_TYPES`(badges.ts) · 표시 6 에서 좁힌다
     orderForm?: string;               // 배송 형태 — 값 목록 `ORDER_FORMS`(badges.ts) · 표시 6 에서 좁힌다
     detailMemo?: string;              // 적요 상세 (원문 전체)
     
-    // 5. 위치 정보
+    // 4. 위치 정보
     pickupDetails?: CallStop[];  // 상차 정거장
     dropoffDetails?: CallStop[]; // 하차 정거장
-    
-    // 6. 메타 데이터 및 호환성 필드
-    companyName?: string;             // 화주 상호/이름 (과거 호환 유지 목적)
 }
 
 /** 원달앱 양식에만 있는 맨 위 칸 — 콜 모양은 정거장 칸(`pickupDetails` · `dropoffDetails`)으로 담는다 (`reserved` 는 원달앱 몫이라 콜 모양에도 남는다) */
 type StopFlatKey = 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | 'dropoffY' | 'scheduleText' | 'reservedDay' | 'reservedAt' | 'pickupDistance' | 'deliveryDistance';
 
-export interface OfficeOrder extends Omit<SimplifiedOfficeOrder, StopFlatKey>, DetailedOfficeOrder {  // 배차망에서 온 콜 한 건 — 목록 콜 + 상세 콜 + 어느 배차망에서 어떻게 잡았나. 아래 콜 모양 셋의 부모
-    /** 어느 배차망에서 온 콜인가 — TARGET_APPS 표준값 (앱 confirm 페이로드가 싣는다).
-     *  🔴 원장(orders.targetApp)에 저장 — 배차망별 콜 검색·분석의 근거 (기사님) */
-    targetApp?: string;
-    /** 🖱️ 잡은 방식 — 6하원칙의 «어떻게» (CAPTURED_VIA · 기록 전용, 보호 분기는 matchType).
-     *  구앱·모르는 값은 null — 지어내지 않는다 (기사님 확정) */
-    capturedVia?: string | null;
-    /** 🖱️ 잡은 방식 — 그때 도는 모드(명령 값 · 화면 이름은 네 모드 표 name) · 상세페이지로 진입시킨 주체 (29 P5-1 · 기록 전용 · 모르면 null) */
-    capturedMode?: string | null;
-    openedBy?: 'APP' | 'DRIVER' | null;  // 상세 화면을 연 주체 — 원달앱 / 기사님
-}
+/** 배차망에서 온 콜 한 건 — 번호 묶음(이 콜이 무엇인가) + 출처 묶음(이 보고가 어디서 어떻게 왔나) + 목록 콜 + 상세 콜. 아래 콜 모양 셋의 부모 */
+export interface OfficeOrder extends CallIdentity, CallProvenance, Omit<SimplifiedOfficeOrder, StopFlatKey>, DetailedOfficeOrder {}
 
 /** 📱 원달앱 보고 한 건 — 원달앱 양식(맨 위 칸 포함) + 상세 칸 + 배차망 칸. 서버 입구 두 곳(/confirm · /detail)이 받는다 */
 export type AppCallReport = SimplifiedOfficeOrder & Omit<OfficeOrder, keyof SimplifiedOfficeOrder>;
@@ -227,7 +199,7 @@ export interface ApproxAddress {
 
 /**
  * ⏩ **빨리 접기 재료** — 서버가 심사 콜에 싣는다(DB 칸 아님).
- *    `openedByApp`: 이 상세를 앱이 알람 모드로 목록에서 눌러 열었나(/confirm · 모르면 없음 · 기록 칸 capturedVia 와 따로).
+ *    `openedByApp`: 이 상세를 앱이 알람 모드로 목록에서 눌러 열었나(/confirm · 모르면 없음 · 기록 칸 openedBy 와 따로).
  *    `foldAfterSec`: 판정 끝에 정한 빨리 접기 초(`quickFoldSecOf`) — 있으면 judgeUntil 이 판정 끝 + 그 초로 당겨진다.
  */
 export interface QuickFoldFields {
