@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
-import { useSettingsStore, loadScreenSettings } from "../../stores/settingsStore";
+import { useSettingsStore, loadScreenSettings, fetchPricing, FALLBACK_PRICING } from "../../stores/settingsStore";
 import { useFilterStore } from "../../stores/filterStore";
 import { useLocationStore } from "../../stores/useLocationStore";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
-import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
+import { netRateOf, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS,
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
@@ -50,9 +50,6 @@ const shortWon = (won: number): string =>
  *    자유 입력칸을 함께 둔다 (목록만 남기면 기능이 준다).
  */
 const COMMON_EXCLUDED_WORDS = ['착불', '수거', '까대기', '직접운반', '왕복', '대기'];
-
-/** 하한표에 보여줄 차종 — 내 차(1t)로 수행 가능한 등급만, 칸이 작은 순 */
-const RATE_TABLE_ORDER = ['오토바이', '다마스', '승용차', '라보', '1t'];
 
 /**
  * 📍 **내 위치 → 그 시 중심 거리 — 못 재면 undefined** (지도에 없는 시군구면 `cityCenter` 가 던진다).
@@ -421,6 +418,13 @@ export default function OrderFilterModal({ isOpen, onClose,
     /* 🏠 «설정의 집 주소»는 설정 저장소 한 곳 — 못 읽으면 "자동 · 설정의 집 주소" 로 남는다 */
     const homeAddress = useSettingsStore(st => st.homeAddress) ?? "";
     useEffect(() => { if (isOpen) void loadScreenSettings(); }, [isOpen]);
+
+    /** 💰 단가 표의 요율 — 원천은 ⚙️ 설정창 요율 탭(차종 단가 · 수수료). 열릴 때 한 번 읽고, 못 읽으면 shared 기본값 그대로 */
+    const [pricing, setPricing] = useState(FALLBACK_PRICING);
+    useEffect(() => {
+        if (!isOpen) return;
+        fetchPricing().then(setPricing).catch(() => { /* 못 읽으면 기본값으로 남는다 */ });
+    }, [isOpen]);
 
     /**
      * 🔴 **«서버와 다른가»는 파생이다 — 깃발을 손으로 들지 않는다** (규칙 ③).
@@ -1015,14 +1019,16 @@ export default function OrderFilterModal({ isOpen, onClose,
                                                 <span className="text-[9.5px] text-text-muted/70 text-right whitespace-nowrap">통과 = 요금 ≥ 배송거리 × 단가</span>
                                             </div>
                                             {/* 남은 용량에 안 들어가는 차종은 흐리게 — 잡아도 못 싣는다 */}
-                                            {RATE_TABLE_ORDER.map(v => {
-                                                const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - callDiscount / 100));
+                                            {/* 차례는 받을 짐과 같은 표(내 차 1t 로 수행 가능한 등급 · 칸이 작은 순) — 실수령 단가를 먼저 반올림하고 콜할인율을 곱해 다시 반올림한다 */}
+                                            {VEHICLE_PICKS.map(v => {
+                                                const net = netRateOf(pricing.vehicleRates[v] ?? 0, pricing.agencyFeePercent);
+                                                const floor = Math.round(net * Math.max(0, 1 - callDiscount / 100));
                                                 const slot = VEHICLE_CAPACITY[v] ?? 0;
                                                 const fits = slot <= remainSlots;
                                                 return (
                                                     <div key={v} className={`flex items-center justify-between text-[10px] ${fits ? '' : 'opacity-35'}`}>
                                                         <span className="text-text-muted font-bold">
-                                                            {v}<span className="text-text-muted/60 font-normal ml-1">시세 {NET_RATE_PER_KM[v]}원/km · 짐 {slot}박스</span>
+                                                            {v}<span className="text-text-muted/60 font-normal ml-1">시세 {net}원/km · 짐 {slot}박스</span>
                                                         </span>
                                                         <span className="font-mono font-black text-success whitespace-nowrap">
                                                             {!fits ? <span className="text-text-muted font-normal">용량 부족</span>

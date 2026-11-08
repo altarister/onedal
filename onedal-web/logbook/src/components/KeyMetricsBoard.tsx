@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, Route, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
 import axios from 'axios';
-import type { SummaryMetrics } from '@onedal/shared';   // 응답 모양은 shared 한 곳(공통 함수 6)
+import { wonText, type SummaryMetrics } from '@onedal/shared';   // 응답 모양은 shared 한 곳(공통 함수 6)
 
 
 export default function KeyMetricsBoard() {
@@ -47,8 +47,8 @@ export default function KeyMetricsBoard() {
   const cards = [
     {
       title: '오늘 누적 매출',
-      value: `${fmt(metrics.todayRevenue)}원`,
-      sub: `${metrics.todayOrderCount}건 · 이번 달 ${fmt(metrics.monthRevenue)}원`,
+      value: wonText(metrics.todayRevenue),
+      sub: `${metrics.todayOrderCount}건 · 이번 달 ${wonText(metrics.monthRevenue)}`,
       icon: DollarSign,
       color: 'text-success',
     },
@@ -68,7 +68,7 @@ export default function KeyMetricsBoard() {
     },
     {
       title: '미수금 총액',
-      value: `${fmt(metrics.unpaidTotal)}원`,
+      value: wonText(metrics.unpaidTotal),
       sub: metrics.unpaidTotal > 0 ? '미수금 건이 있습니다' : '미수금 없음',
       icon: AlertCircle,
       color: 'text-destructive',

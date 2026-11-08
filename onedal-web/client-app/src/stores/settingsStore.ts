@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MOTION_HOLD_SEC_DEFAULT, DEFAULT_WAIT_TIMES } from '@onedal/shared';
+import { MOTION_HOLD_SEC_DEFAULT, DEFAULT_WAIT_TIMES, GROSS_RATE_PER_KM, DEFAULT_AGENCY_FEE_PERCENT } from '@onedal/shared';
 import type { WaitTimes } from '@onedal/shared';
 import { apiClient } from '../api/apiClient';
 import { socket } from '../lib/socket';
@@ -15,7 +15,8 @@ import { socket } from '../lib/socket';
  *    `shared` 한 곳에서 온다 (`MOTION_HOLD_SEC_DEFAULT` · `DEFAULT_WAIT_TIMES`).
  *
  * ⚠️ 설정 전부를 여기 담지 않는다. **화면이 실제로 읽는 것만** 올린다 —
- *    요율·판정 기준은 서버가 쓰는 값이라 화면이 들고 있을 이유가 없다.
+ *    판정 기준은 서버가 쓰는 값이라 화면이 들고 있을 이유가 없다.
+ *    요율(차종 단가 · 수수료)은 설정창 · 필터창이 열릴 때 `fetchPricing` 으로 읽는다.
  */
 interface SettingsState extends WaitTimes {
     /** ⏱️ «주행·정차»로 굳는 초 — 모의 주행에서는 줄여 쓴다 */
@@ -89,4 +90,22 @@ export async function loadScreenSettings(force = false): Promise<void> {
         /* 🔴 못 읽으면 기본값으로 간다 — 화면이 멈추는 것보다 낫다 (규칙 ④: 지어내지 않고 기본을 쓴다) */
         useSettingsStore.setState({ loaded: true });
     }
+}
+
+/** 💰 요율 — 차종 총액 단가(원/km)와 대행 수수료 % */
+export interface PricingSettings { vehicleRates: Record<string, number>; agencyFeePercent: number }
+
+/** 💰 요율을 못 읽었을 때 — shared 단가 표 한 벌과 수수료 기본값 */
+export const FALLBACK_PRICING: PricingSettings = { vehicleRates: GROSS_RATE_PER_KM, agencyFeePercent: DEFAULT_AGENCY_FEE_PERCENT };
+
+/**
+ * 💰 **`/settings/pricing` 을 읽는 곳은 여기 하나다** — 설정창 요율 탭 · 필터창 단가 표가 부른다.
+ *    빈 칸은 shared 기본값으로 채운다. 못 읽으면 던진다 — 무엇으로 갈지는 부르는 쪽이 정한다.
+ */
+export async function fetchPricing(): Promise<PricingSettings> {
+    const { data } = await apiClient.get('/settings/pricing');
+    return {
+        vehicleRates: data?.vehicleRates ?? FALLBACK_PRICING.vehicleRates,
+        agencyFeePercent: data?.agencyFeePercent ?? FALLBACK_PRICING.agencyFeePercent,
+    };
 }

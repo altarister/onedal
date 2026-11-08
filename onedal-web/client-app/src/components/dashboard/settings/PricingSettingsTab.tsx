@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "../../../api/apiClient";
-import { VEHICLE_OPTIONS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
+import { fetchPricing } from "../../../stores/settingsStore";
+import { VEHICLE_OPTIONS, RADIUS_BASE_KM_DEFAULT, DEFAULT_AGENCY_FEE_PERCENT } from "@onedal/shared";
 import { useFilterConfig } from "../../../hooks/useFilterConfig";
 import { Button } from "@onedal/ui/button";
 import { Input } from "@onedal/ui/input";
@@ -22,7 +23,7 @@ export default function PricingSettingsTab({ onClose }: Props) {
   /* 📏 기준거리는 **필터 값**이라 필터 훅을 지난다 — 설정 API 가 아니다 (규칙 ③) */
   const { filter, updateFilter } = useFilterConfig();
   const [vehicleRates, setVehicleRates] = useState<Record<string, number>>({});
-  const [agencyFeePercent, setAgencyFeePercent] = useState(23);
+  const [agencyFeePercent, setAgencyFeePercent] = useState(DEFAULT_AGENCY_FEE_PERCENT);
   const [radiusBaseKm, setRadiusBaseKm] = useState<number>(filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -35,9 +36,9 @@ export default function PricingSettingsTab({ onClose }: Props) {
   const loadPricing = async () => {
     try {
       setIsLoading(true);
-      const { data: p } = await apiClient.get('/settings/pricing');
-      setVehicleRates(p.vehicleRates || {});
-      setAgencyFeePercent(p.agencyFeePercent ?? 23);
+      const p = await fetchPricing();
+      setVehicleRates(p.vehicleRates);
+      setAgencyFeePercent(p.agencyFeePercent);
     } catch (e) {
       console.error("Failed to load pricing:", e);
     } finally {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { DEFAULT_WAIT_TIMES, waitSecOrNull } from "@onedal/shared";
+import { DEFAULT_WAIT_TIMES, waitSecOrNull, GROSS_RATE_PER_KM, DEFAULT_AGENCY_FEE_PERCENT } from "@onedal/shared";
 import db from "../db";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
@@ -308,15 +308,9 @@ router.get("/pricing", requireAuth, (req, res) => {
             "SELECT vehicle_rates, agency_fee_percent, excluded_keywords, min_fare, max_fare FROM user_filters WHERE user_id = ?"
         ).get(userId) as any;
 
-        const defaultRates: Record<string, number> = {
-            "오토바이": 700, "다마스": 800, "라보": 900, "승용차": 900,
-            "1t": 1000, "1.4t": 1100, "2.5t": 1200, "3.5t": 1300,
-            "5t": 1500, "11t": 2000, "25t": 2500, "특수화물": 3000
-        };
-
         res.json({
-            vehicleRates: row?.vehicle_rates ? JSON.parse(row.vehicle_rates) : defaultRates,
-            agencyFeePercent: row?.agency_fee_percent ?? 23,
+            vehicleRates: row?.vehicle_rates ? JSON.parse(row.vehicle_rates) : GROSS_RATE_PER_KM,
+            agencyFeePercent: row?.agency_fee_percent ?? DEFAULT_AGENCY_FEE_PERCENT,
             excludedKeywords: row?.excluded_keywords ? JSON.parse(row.excluded_keywords) : [],
             minFare: row?.min_fare ?? 0,
             maxFare: row?.max_fare ?? 1000000,

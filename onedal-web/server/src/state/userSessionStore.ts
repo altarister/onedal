@@ -3,7 +3,7 @@
  * 바깥 일을 하는 함수: baseFilterFromDb · getUserSession(장부(DB) · 필터 값 읽기 · 오늘 복귀 줄 · 오늘 필터 줄 · 지금 시각 · 로그) · clearUserSession(기다림 끄기 · 로그) · peekUserSession · getAllActiveUserIds · busyCountsOfAll(세션 표) (평소 설정 · 바쁨 셈 baseFilterFrom · busyCountsFrom 은 값만 받는다)
  */
 import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, isTerminal, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom,
-         quadShapeFrom, filterValuesFrom, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
+         quadShapeFrom, filterValuesFrom, DEFAULT_JUDGMENT, judgmentFromRow, DEFAULT_AGENCY_FEE_PERCENT } from "@onedal/shared";
 import type { PhaseKey, JudgmentConfig } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
 import db, { seedCallOptions, loadCallOptions } from "../db";
@@ -411,7 +411,7 @@ export function baseFilterFrom(filterRow: any | null, firstPatch: ReturnType<typ
         ratePerKm: rateFloorsFrom(
             firstPatch.callDiscountPct,
             filterRow.vehicle_rates ? JSON.parse(filterRow.vehicle_rates) : undefined,
-            filterRow.agency_fee_percent ?? 23,
+            filterRow.agency_fee_percent ?? DEFAULT_AGENCY_FEE_PERCENT,
         ),
         // 📐 마름모의 모양 — 국면 밖 한 벌. 칸이 비었으면 기본값 110/110/25
         ...quadShapeFrom(filterRow as any),

@@ -845,12 +845,12 @@ describe('필터 디자인 — 목업 순서 (C4-6)', () => {
         // 버튼 다섯을 늘 펴 두는 격자가 없다
         expect(modal).not.toMatch(/CALL_DISCOUNT_STEPS\.filter/);
         /**
-         * 🔴 **그 칸 «안»을 본다.** `RATE_TABLE_ORDER.map` 은 아래 🩺 모니터에도 있어서
+         * 🔴 **그 칸 «안»을 본다.** `VEHICLE_PICKS.map` 은 아래 받을 짐 칸에도 있어서
          *    화면 전체를 훑으면 하한표를 통째로 지워도 초록불이다 (변이로 확인했다).
          */
         const dial = modal.slice(modal.indexOf('<PickLayer label="💰 콜할인율"'),
                                  modal.indexOf('<PickLayer label="🚚 받을 짐"'));
-        expect(dial).toMatch(/RATE_TABLE_ORDER\.map/);
+        expect(dial).toMatch(/VEHICLE_PICKS\.map/);
         expect(dial).toMatch(/FLOOR_TITLE\[tab\]/);
         expect(dial).toMatch(/foot=\{/);
     });

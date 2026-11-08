@@ -37,23 +37,28 @@ export const GROSS_RATE_PER_KM: Record<string, number> = {
     '승용차': 900,
     '1t': 1000,
     '1.4t': 1100,
+    '2.5t': 1200,
+    '3.5t': 1300,
+    '5t': 1500,
+    '11t': 2000,
+    '25t': 2500,
     '특수화물': 3000,
 };
 
+/** 대행 수수료 % 폴백 — 원천은 DB `agency_fee_percent`(설정창에서 기사님이 바꾼다) · DB 기본값과 같은 값 */
+export const DEFAULT_AGENCY_FEE_PERCENT = 23;
+
 /**
- * 실수령 환산 시세 (원/km) — 총액 × (1 − 수수료 23%).
+ * 실수령 환산 시세 (원/km) — 총액 × (1 − 수수료 %) 를 원 단위로 반올림한다.
  *
  * 전제: **배차앱 표시 금액 = 수수료 공제 후 실수령.**
  * 🔍 검증 대기: 실콜에서 표시 금액과 정산 입금액을 대조한다. 총액으로 판명되면 이 환산을 빼고 총액 그대로 비교한다.
  *
- * ⚠️ 이것도 폴백이다. 수수료율의 원천은 DB `agency_fee_percent`.
+ * 관제웹 필터창은 이 값을 먼저 반올림한 뒤 콜할인율을 곱해 다시 반올림한다.
+ * 서버 `rateFloorsFrom` 은 한 번만 반올림해서 둘이 1원 다를 수 있다.
  */
-export const NET_RATE_PER_KM: Record<string, number> = Object.fromEntries(
-    Object.entries(GROSS_RATE_PER_KM).map(([v, gross]) => [v, Math.round(gross * 0.77)])
-);
-
-
-
+export const netRateOf = (gross: number, agencyFeePercent = DEFAULT_AGENCY_FEE_PERCENT): number =>
+    Math.round(gross * (1 - agencyFeePercent / 100));
 
 /** 콜할인율 값 중 "전부"(금액 무관) — 100% 할인 허용과 같다 */
 export const CALL_DISCOUNT_ALL = 100;
@@ -73,7 +78,7 @@ export const CALL_DISCOUNT_ALL = 100;
 export function rateFloorsFrom(
     callDiscountPct: number,
     grossRates: Record<string, number> = GROSS_RATE_PER_KM,
-    agencyFeePercent = 23,
+    agencyFeePercent = DEFAULT_AGENCY_FEE_PERCENT,
 ): Record<string, number> {
     const keep = Math.max(0, 1 - callDiscountPct / 100);
     const net = Math.max(0, 1 - agencyFeePercent / 100);

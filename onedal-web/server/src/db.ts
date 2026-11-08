@@ -1,7 +1,7 @@
 import type { CallOption } from '@onedal/shared';
 import { dwellRatesOf, JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, buildDefaultCallOptions,
          STEP_TABLES, FILTER_FIELDS, QUAD_FIELDS, RADIUS_BASE_KM_DEFAULT,
-         DEFAULT_FILTER_VALUES, DEFAULT_QUAD_SHAPE } from "@onedal/shared";
+         DEFAULT_FILTER_VALUES, DEFAULT_QUAD_SHAPE, GROSS_RATE_PER_KM } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
 import { slog } from "./utils/fileLogger";
@@ -328,11 +328,8 @@ ensureColumns('user_settings', {
 // ═══════════════════════════════════════
 // [5] 콜 콜 잡기용 필터 정보
 // ═══════════════════════════════════════
-const defaultRates = JSON.stringify({
-    "오토바이": 700, "다마스": 800, "라보": 900, "승용차": 900,
-    "1t": 1000, "1.4t": 1100, "2.5t": 1200, "3.5t": 1300,
-    "5t": 1500, "11t": 2000, "25t": 2500, "특수화물": 3000
-});
+// 차종 단가 기본값 — shared 단가 표 한 벌(`GROSS_RATE_PER_KM`)을 그대로 글자로
+const defaultRates = JSON.stringify(GROSS_RATE_PER_KM);
 
 
 /**
@@ -359,7 +356,7 @@ db.exec(`
         -- is_shared_mode BOOLEAN DEFAULT 0,     항상 0만 저장, 읽기 없음 (세션 파생값)
         -- driver_action TEXT DEFAULT 'WAITING', V6 유물 — 로그인이 하드코딩, 저장 안 함
         vehicle_rates TEXT DEFAULT '${defaultRates}',
-        agency_fee_percent REAL DEFAULT 23.0,
+        agency_fee_percent REAL DEFAULT 23.0,   -- shared DEFAULT_AGENCY_FEE_PERCENT 와 같은 값
         -- 🚫 제외 지역 — «거긴 안 간다». 국면이 아니라 그 지역의 사정이라 여기 한 벌 (이식 C2)
         --    키 문법 S|도 · R|시군구 · D|시군구|동 — 규칙은 shared/callNet.ts 하나
         excluded_regions TEXT DEFAULT '[]',

@@ -5,7 +5,7 @@ import { driveStep, pushTrail } from '../lib/driveStep';
 import { KnobGrid } from '../components/ui/KnobGrid';
 import {
     rateFloorsFrom,
-    NET_RATE_PER_KM, VEHICLE_CAPACITY, CALL_TARGET_LABEL,
+    GROSS_RATE_PER_KM, netRateOf, VEHICLE_CAPACITY, CALL_TARGET_LABEL,
     dwellMinutes, judge, CRITERIA, DEFAULT_JUDGMENT, toSnapshot,
     VEHICLE_SHORT, VEHICLE_PICKS,
 } from '@onedal/shared';
@@ -3182,9 +3182,9 @@ export default function MapMockup() {
                             foot={
                                 <div className="flex flex-col gap-0.5 text-[10px] tabular-nums">
                                     <span className="text-[9.5px] font-bold text-text-muted">차종별 하한 — 콜을 찍으면 이 단가로 요금을 미리 채웁니다</span>
-                                    {Object.entries(NET_RATE_PER_KM).map(([v, net_]) => (
+                                    {Object.entries(GROSS_RATE_PER_KM).map(([v, gross]) => (
                                         <div key={v} className="flex justify-between gap-1">
-                                            <span><b>{v}</b> <span className="text-text-muted">시세 {net_} · 짐 {VEHICLE_CAPACITY[v] ?? '?'}박스</span></span>
+                                            <span><b>{v}</b> <span className="text-text-muted">시세 {netRateOf(gross)} · 짐 {VEHICLE_CAPACITY[v] ?? '?'}박스</span></span>
                                             <b className="text-info">≥ {rateFloorsFrom(knobs.discountPct)[v]}원/km</b>
                                         </div>
                                     ))}
