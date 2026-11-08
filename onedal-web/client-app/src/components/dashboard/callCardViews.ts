@@ -1,4 +1,4 @@
-import { hhmmText, manwonText, stopPhoneOf, unitPoints, dwellMinutes, protectionMinutes, afterworkMinutes, jsonArrayOf, minutesEarly } from '@onedal/shared';
+import { hhmmText, manwonText, stopPhoneOf, unitPoints, dwellMinutes, protectionMinutes, afterworkMinutes, jsonArrayOf, minutesEarly, firstPickupStop, lastDropoffStop, stopTextOf, deliveryKmOf } from '@onedal/shared';
 import type { DwellUnknown } from '@onedal/shared';
 import type { SecuredOrder, StepViewRow, RouteTimelineEntry, CallTiming } from '@onedal/shared';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -63,7 +63,7 @@ export function stepPaneOf({ route, step: x, seededSteps, timeline }: {
         codAmount: route.paymentType === '착불' ? route.fare : null,
         place: {
             name: dd?.contactName || dd?.customerName || undefined,
-            address: dd?.addressDetail || (xPickup ? route.pickup : route.dropoff),
+            address: stopTextOf(xPickup ? firstPickupStop(route) : lastDropoffStop(route)),
             phone: stopPhoneOf(dd),
         },
         prevName: route.pickupDetails?.[0]?.contactName || route.pickupDetails?.[0]?.customerName,
@@ -205,10 +205,10 @@ export function stopDetailRowsOf({ route, timeline, visitOrder, timing, etas }: 
 }): StopDetailRow[] {
     const rows = ([
         { kind: '상차' as const, stopType: 'pickup' as const, seq: visitOrder?.pickupIdx,
-            name: getAddressLabel(route.pickup), legKm: timing.approachKm, fallbackMin: timing.approachMinutes,
+            name: getAddressLabel(firstPickupStop(route)?.listText ?? ''), legKm: timing.approachKm, fallbackMin: timing.approachMinutes,
             arrived: timing.arrivedPickup, promised: timing.pickupPromisedArrivalAt, eta: etas.pickupEta },
         { kind: '하차' as const, stopType: 'dropoff' as const, seq: visitOrder?.dropoffIdx,
-            name: getAddressLabel(route.dropoff), legKm: timing.soloKm, fallbackMin: timing.soloMinutes,
+            name: getAddressLabel(lastDropoffStop(route)?.listText ?? ''), legKm: timing.soloKm, fallbackMin: timing.soloMinutes,
             arrived: timing.arrivedDropoff, promised: timing.dropoffPromisedArrivalAt, eta: etas.dropoffEta },
     ]);
     /** 약속 시각(ISO 문자열) → `05:08`. 없으면 `--:--` (지어내지 않는다) */
@@ -266,7 +266,7 @@ export function stopBlocksOf({ route, timeline, visitOrder, timing, etas, seeded
         return {
             ...r,
             name: dd?.contactName || dd?.customerName || r.name,
-            address: dd?.addressDetail || (pickup ? route.pickup : route.dropoff),
+            address: stopTextOf(pickup ? firstPickupStop(route) : lastDropoffStop(route)),
             phone: stopPhoneOf(dd) ?? null,
             promiseFirm: !!callRow && callRow.born !== false && callRow.row?.status !== 'PLANNED',
             etaText: r.real,
@@ -287,14 +287,14 @@ export function rawFieldsOf(route: SecuredOrder): Array<[string, unknown]> {
         billingType: route.billingType, tripType: route.tripType,
         orderForm: route.orderForm, distanceKm: route.distanceKm,
         dispatcherName: route.dispatcherName, dispatcherPhone: route.dispatcherPhone,
-        companyName: route.companyName, pickup: route.pickup, dropoff: route.dropoff,
+        companyName: route.companyName, pickup: firstPickupStop(route)?.listText, dropoff: lastDropoffStop(route)?.listText,
         fare: route.fare, timestamp: route.timestamp, postTime: route.postTime,
-        scheduleText: route.scheduleText,
+        scheduleText: firstPickupStop(route)?.promiseText ?? undefined,
         detailMemo: route.detailMemo,
         approachDurationMin: route.approachDurationMin,
         kakaoSoloDistanceKm: route.kakaoSoloDistanceKm,
         kakaoSoloDurationMin: route.kakaoSoloDurationMin,
         // 🚚 실측이 없으면 배송거리로 추정한다 — 그 입력을 함께 보여 준다
-        deliveryDistance: route.deliveryDistance,
+        deliveryDistance: deliveryKmOf(route) ?? undefined,
     });
 }

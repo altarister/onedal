@@ -1,4 +1,5 @@
 import { verdictOf, manwonText, wonText, type DecisionStatus } from '@onedal/shared';
+import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import { BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -297,7 +298,7 @@ export default function PinnedRouteCard({
                     {/* 🧭 잡은 뒤 카드는 머리에 경로 — 정거장 덩어리가 이름 · 주소를 들어 덱 요약 줄 없이도 읽힌다 (기사님 «가») */}
                     {!judging && (
                         <span className="min-w-0 truncate text-[15px] font-black text-text-primary">
-                            {getAddressLabel(route.pickup)} → {getAddressLabel(route.dropoff)}
+                            {getAddressLabel(firstPickupStop(route)?.listText ?? '')} → {getAddressLabel(lastDropoffStop(route)?.listText ?? '')}
                         </span>
                     )}
                     {/* 🔄 이번 운행에서 **끝낸** 콜 — 사이클이 도는 동안 카드가 남는다.
@@ -329,7 +330,7 @@ export default function PinnedRouteCard({
                                          bg-warning/15 border-warning/40 text-warning">급송</span>
                     )}
                     {judging && route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
-                    {judging && route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
+                    {judging && firstPickupStop(route)?.promiseText && <span className="text-warning font-bold">🕒 {firstPickupStop(route)?.promiseText}</span>}
                     {/* 🧭 어떻게 잡았나 — 덱 머리글에도 단다 (리스트 헤더에만 달면
                         기사님이 보는 덱에는 안 나온다). 알람 듣고 잡음=알람콜 · 손=직접콜 */}
                     {!evaluating && isManualLineage(route.type) && route.status !== 'ORDER_COMPLETED' && (
@@ -731,7 +732,7 @@ export default function PinnedRouteCard({
                                                 <span>잡은 시각 <b className="text-text-primary">{clockText(route.capturedAt) ?? '-'}</b></span>
                                                 {route.vehicleType && <span className="px-1.5 rounded-[5px] font-black border bg-surface-alt border-border-card text-text-primary">{route.vehicleType}</span>}
                                                 {route.commissionRate && <span>· 수수료 {route.commissionRate}</span>}
-                                                {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
+                                                {firstPickupStop(route)?.promiseText && <span className="text-warning font-bold">🕒 {firstPickupStop(route)?.promiseText}</span>}
                                             </div>
                                             {/**
                                               * 📦 **짐과 버퍼는 한 줄이다** — 둘 다 «이 콜이 어떤 콜인가»의 답.

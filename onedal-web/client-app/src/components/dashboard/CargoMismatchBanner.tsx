@@ -3,6 +3,7 @@ import { socket } from '../../lib/socket';
 import { telHref } from '../../lib/routeUtils';
 import { callNow } from '../../lib/phoneCall';
 import type { SecuredOrder } from '@onedal/shared';
+import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 
 /**
  * 신고 불일치 경고 — 경고에서 **행동까지** 이어진다.
@@ -68,7 +69,7 @@ export default function CargoMismatchBanner({ orders }: { orders: SecuredOrder[]
                                     {where} 짐이 신고와 다릅니다 — 실제가 {a.ratio.toFixed(1)}배 {bigger ? '많음' : '적음'}
                                 </p>
                                 <p className="text-xs text-text-muted mt-0.5 break-keep">
-                                    {order ? `${order.pickup} → ${order.dropoff}` : a.orderId.slice(0, 8)}
+                                    {order ? `${firstPickupStop(order)?.listText ?? ''} → ${lastDropoffStop(order)?.listText ?? ''}` : a.orderId.slice(0, 8)}
                                     {bigger && ' · 이대로 실으면 남은 합짐 계획이 깨집니다'}
                                 </p>
                             </div>

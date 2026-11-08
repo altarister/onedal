@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo, DecisionStatus } from '@onedal/shared';
+import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import { hasVisitedStop, isDeliveredCall, haversineKm } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { useProcessingLock } from '../../hooks/useProcessingLock';
@@ -227,7 +228,7 @@ export default function StageView(props: Props) {
              *    도착 통보가 그 콜이 덱에서 빠진 **뒤**에 오면 열 대상이 없다 — 그것도 로그에 남긴다.
              */
             if (mv.openIdx !== openIdx) {
-                const who = mv.openIdx >= 0 ? (deckList[mv.openIdx]?.dropoff ?? '?') : '없음';
+                const who = mv.openIdx >= 0 ? (lastDropoffStop(deckList[mv.openIdx] ?? {})?.listText ?? '?') : '없음';
                 const miss = eventId && want < 0 ? ` 🔴 가리킨 콜이 덱에 없다(${eventId.slice(-6)})` : '';
                 logStateChange("화면", "시트연콜", `${mv.openIdx} ${who}${miss}`, "무대");
             }
@@ -421,9 +422,9 @@ export default function StageView(props: Props) {
         const callNo = cycleDeck.findIndex(r => r.id === st.orderId) + 1;
         return {
             orderId: st.orderId,
-            x: st.stopType === 'pickup' ? o.pickupX : o.dropoffX,
-            y: st.stopType === 'pickup' ? o.pickupY : o.dropoffY,
-            name: getAddressLabel(st.stopType === 'pickup' ? o.pickup : o.dropoff),
+            x: (st.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.geo?.x,
+            y: (st.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.geo?.y,
+            name: getAddressLabel((st.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.listText ?? ''),
             stopLabel: st.stopType === 'pickup' ? '상차' : '하차',
             callNo, driveMinutes: st.driveMinutes,
             visitNo: (() => { const vo = visitOrderMap.get(st.orderId) as { pickupIdx?: number; dropoffIdx?: number } | number | undefined;

@@ -1,6 +1,6 @@
 import { mockLineOf } from './mockLine';
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { isEvaluating, isTerminal, hasVisitedStop, judgingCallOf, deriveRouteTimeline, derivationInputsOf, deckOfCycle, minRouteBuffer } from '@onedal/shared';
+import { isEvaluating, isTerminal, hasVisitedStop, judgingCallOf, deriveRouteTimeline, derivationInputsOf, deckOfCycle, minRouteBuffer, firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { EMPTY_RECORDS } from './records';
 import { useStepRecords } from './useStepRecords';
@@ -118,10 +118,9 @@ export function useRouteDerivations(
          */
         const out: Array<{ x: number; y: number; visited: boolean }> = [];
         for (const r of liveRoute) {
-            if (r.pickupX != null && r.pickupY != null)
-                out.push({ x: r.pickupX, y: r.pickupY, visited: hasVisitedStop(r, 'pickup') });
-            if (r.dropoffX != null && r.dropoffY != null)
-                out.push({ x: r.dropoffX, y: r.dropoffY, visited: hasVisitedStop(r, 'dropoff') });
+            const p = firstPickupStop(r)?.geo, d = lastDropoffStop(r)?.geo;
+            if (p) out.push({ x: p.x, y: p.y, visited: hasVisitedStop(r, 'pickup') });
+            if (d) out.push({ x: d.x, y: d.y, visited: hasVisitedStop(r, 'dropoff') });
         }
         return out;
     }, [liveRoute]);
@@ -252,39 +251,42 @@ export function useRouteDerivations(
               */
             if (hasVisitedStop(r, st.stopType)) continue;
             const isP = st.stopType === 'pickup';
-            pts.push({ type: isP ? '상차' : '하차', name: getAddressLabel(isP ? r.pickup : r.dropoff),
+            const stop = isP ? firstPickupStop(r) : lastDropoffStop(r);
+            pts.push({ type: isP ? '상차' : '하차', name: getAddressLabel(stop?.listText ?? ''),
                        isEvaluating: false,
-                       x: isP ? r.pickupX : r.dropoffX, y: isP ? r.pickupY : r.dropoffY, routeId: r.id });
+                       x: stop?.geo?.x, y: stop?.geo?.y, routeId: r.id });
         }
         for (const r of liveRoute) {
             // 🚏 다녀온 정거장은 폴백에서도 되살리지 않는다 (기사님 실측) — hasVisitedStop 하나
+            const p = firstPickupStop(r), d = lastDropoffStop(r);
             if (!covered.has(`${r.id}:pickup`) && !hasVisitedStop(r, 'pickup'))
-                pts.push({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: false,
-                           x: r.pickupX, y: r.pickupY, routeId: r.id });
+                pts.push({ type: '상차', name: getAddressLabel(p?.listText ?? ''), isEvaluating: false,
+                           x: p?.geo?.x, y: p?.geo?.y, routeId: r.id });
             if (!covered.has(`${r.id}:dropoff`) && !hasVisitedStop(r, 'dropoff'))
-                pts.push({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: false,
-                           x: r.dropoffX, y: r.dropoffY, routeId: r.id });
+                pts.push({ type: '하차', name: getAddressLabel(d?.listText ?? ''), isEvaluating: false,
+                           x: d?.geo?.x, y: d?.geo?.y, routeId: r.id });
         }
         // 🟡 심사 중인 후보콜 — 경로선과 함께 상차·하차 마커와 지명도 지도에 그린다
         const candidate = judging ?? previewHolder;
         if (candidate && isEvaluating(candidate.status)) {
-            if (candidate.pickupX != null && candidate.pickupY != null) {
+            const p = firstPickupStop(candidate), d = lastDropoffStop(candidate);
+            if (p?.geo) {
                 pts.push({
                     type: '상차',
-                    name: getAddressLabel(candidate.pickup),
+                    name: getAddressLabel(p.listText ?? ''),
                     isEvaluating: true,
-                    x: candidate.pickupX,
-                    y: candidate.pickupY,
+                    x: p.geo.x,
+                    y: p.geo.y,
                     routeId: candidate.id,
                 });
             }
-            if (candidate.dropoffX != null && candidate.dropoffY != null) {
+            if (d?.geo) {
                 pts.push({
                     type: '하차',
-                    name: getAddressLabel(candidate.dropoff),
+                    name: getAddressLabel(d.listText ?? ''),
                     isEvaluating: true,
-                    x: candidate.dropoffX,
-                    y: candidate.dropoffY,
+                    x: d.geo.x,
+                    y: d.geo.y,
                     routeId: candidate.id,
                 });
             }
@@ -448,7 +450,7 @@ export function useRouteDerivations(
         const b = minRouteBuffer(routeTimeline);
         if (!b) { logStateChange("판정", "여유", "없음", "진행중경로"); return; }
         const o = liveRoute.find(r => r.id === b.orderId);
-        const name = o ? getAddressLabel(b.stopType === 'pickup' ? o.pickup : o.dropoff) : b.orderId.slice(-6);
+        const name = o ? getAddressLabel((b.stopType === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.listText ?? '') : b.orderId.slice(-6);
         logStateChange("판정", "여유",
             `${b.minutes >= 0 ? '+' : ''}${b.minutes}분 · ${name} ${b.stopType === 'pickup' ? '상차' : '하차'}` +
             `${b.firm ? ' (확정)' : ' (추정)'}`, "진행중경로");
@@ -485,7 +487,7 @@ export function useRouteDerivations(
         const nameOf = (k: string) => {
             const [id, kind] = [k.slice(0, k.lastIndexOf(':')), k.slice(k.lastIndexOf(':') + 1)];
             const o = cycleDeck.find(r => r.id === id);
-            return o ? `${getAddressLabel(kind === 'pickup' ? o.pickup : o.dropoff)}${kind === 'pickup' ? '상' : '하'}` : id.slice(-6);
+            return o ? `${getAddressLabel((kind === 'pickup' ? firstPickupStop(o) : lastDropoffStop(o))?.listText ?? '')}${kind === 'pickup' ? '상' : '하'}` : id.slice(-6);
         };
         logStateChange("화면", "번호",
             [...stopNoOf.entries()].sort((a, b) => a[1] - b[1]).map(([k, n]) => {

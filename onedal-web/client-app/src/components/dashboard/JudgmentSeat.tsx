@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SecuredOrder, CallTarget, DecisionStatus } from '@onedal/shared';
+import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import { safeCancelSecOf, detailBackSecOf, SERVER_CLEANUP_EXTRA_SEC, manwonText } from '@onedal/shared';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { verdictOf, type Color } from '@onedal/shared';
@@ -240,7 +241,7 @@ export default function JudgmentSeat({ route, confirmedActive, inset, onDecision
             </span>
             <span style={{ fontWeight: 900, fontSize: 14.5, letterSpacing: '-.3px' }} className="whitespace-nowrap">{name}</span>
             <span className="truncate" style={{ color: 'var(--color-text-muted)', fontSize: 12.5, fontWeight: 700 }}>
-                {getAddressLabel(route.pickup)} → {getAddressLabel(route.dropoff)}
+                {getAddressLabel(firstPickupStop(route)?.listText ?? '')} → {getAddressLabel(lastDropoffStop(route)?.listText ?? '')}
             </span>
             <span className="ml-auto flex items-baseline shrink-0" style={{ gap: 10 }}>
                 {/**

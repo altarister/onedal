@@ -31,7 +31,7 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
 import { callNodeFill, callNodeText, stopBoxBg, callTextColor, callLineColor, PROMISE_CALLED } from '../styles/callPalette';
 import { useTheme } from '@onedal/ui/theme';
 import type { SecuredOrder } from '@onedal/shared';
-import { COLOR_DOT, manwonText, wonText } from '@onedal/shared';
+import { COLOR_DOT, manwonText, wonText, firstPickupStop, lastDropoffStop } from '@onedal/shared';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
 import { buildLabFacts, extraDriveMin } from './labJudge';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
@@ -484,7 +484,7 @@ function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMi
                 <span className="shrink-0 font-black text-[12.5px]">
                     {confirmedCount === 0 ? '노선 후보콜' : `노선 합짐${confirmedCount} 후보콜`}
                 </span>
-                <span className="min-w-0 truncate text-text-muted font-bold text-[11px]">{seat.pickup} → {seat.dropoff}</span>
+                <span className="min-w-0 truncate text-text-muted font-bold text-[11px]">{firstPickupStop(seat)?.listText ?? ''} → {lastDropoffStop(seat)?.listText ?? ''}</span>
                 <span className="ml-auto shrink-0 font-black text-[15px] tabular-nums">{manwonText(seat.fare)}</span>
             </div>
             {/* 시급 — 기사님이 가장 먼저 읽는 숫자 */}

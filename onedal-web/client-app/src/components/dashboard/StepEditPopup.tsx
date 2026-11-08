@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { manwonText } from '@onedal/shared';
+import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
 import type { SecuredOrder, StepViewRow, RouteTimelineEntry } from '@onedal/shared';
 import StepSheetMock from './StepSheetMock';
 import StepSwipeTrack from './StepSwipeTrack';
@@ -44,7 +45,7 @@ export default function StepEditPopup({ route, seededSteps, timeline, startIdx, 
         <div className="fixed inset-x-0 top-0 h-[100dvh] z-[70] flex flex-col bg-background text-text-primary" onClick={e => e.stopPropagation()}>
             <div className="shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-border bg-surface">
                 <div className="min-w-0 flex-1">
-                    <div className="text-[15px] font-black truncate">{route.pickup} → {route.dropoff}</div>
+                    <div className="text-[15px] font-black truncate">{firstPickupStop(route)?.listText ?? ''} → {lastDropoffStop(route)?.listText ?? ''}</div>
                     <div className="text-[12px] text-text-muted">{idx + 1}/{seededSteps.length} · {x?.label}</div>
                 </div>
                 {route.fare != null && <div className="text-[16px] font-black text-success">{manwonText(route.fare)}</div>}

@@ -47,7 +47,7 @@ describe('👣 다녀온 순서', () => {
     it('🔴 좌표를 몰라도 순서에 든다 (이력만 남은 행)', () => {
         const deck = [call({
             id: 'A', status: 'ORDER_PICKED_UP',
-            pickupX: null, pickupY: null, dropoffX: null, dropoffY: null,
+            pickupX: undefined, pickupY: undefined, dropoffX: undefined, dropoffY: undefined,
             arrivedPickupAt: '2026-09-12T23:22:57+09:00',
         })];
         expect(seq(deck)).toEqual(['A상']);

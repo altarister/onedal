@@ -5,7 +5,7 @@ import { firstPickupStop, lastDropoffStop, isReservedCall, firstStopKm, delivery
  * 🚏 **첫 상차 · 마지막 하차 정거장** — 맨 위 칸만 있는 콜과 정거장 칸도 있는 콜에서 같은 칸을 낸다.
  *    **예약 콜** — 첫 상차 정거장의 «예약» 글자 · 날로 가른다.
  *    **상차 거리 · 배송 거리** — 정거장 거리에서 꺼내고, 배송 거리는 한 곳이라도 모르면 null.
- * 못 잡는 것: 관제웹 · 서버가 이 함수를 읽는지(읽는 걸음에서).
+ * 못 잡는 것: 서버가 이 함수를 읽는지(읽는 걸음에서) · 관제웹 화면 글자는 관제웹 `stopScreenText.test.ts`.
  */
 describe('🚏 firstPickupStop · lastDropoffStop', () => {
     it('맨 위 칸만 있는 콜 — 목록 글자와 좌표를 정거장 모양으로', () => {
@@ -27,6 +27,13 @@ describe('🚏 firstPickupStop · lastDropoffStop', () => {
             customerName: '모다아울렛', addressDetail: '경기 광주시 초월읍 경충대로 907', listText: '초월읍', geo: { x: 127.31, y: 37.36 }, distanceKm: null,
         });
         expect(lastDropoffStop(o)).toEqual({ customerName: '하나로마트', phone1: '010-0000-0000', listText: '신둔면', geo: null, distanceKm: null });
+    });
+    it('맨 위 약속 칸(scheduleText · reservedDay · reservedAt)을 첫 상차 약속 칸으로 모은다 · 맨 위가 비면 정거장 칸 그대로', () => {
+        const stop = firstPickupStop({ pickup: '가산동', scheduleText: '@낼8:30', reservedDay: 1, reservedAt: '08:30' });
+        expect([stop?.promiseText, stop?.requestedDay, stop?.requestedTime]).toEqual(['@낼8:30', 1, '08:30']);
+        const own = firstPickupStop({ pickupDetails: [{ promiseText: '당상', requestedDay: 0, requestedTime: null }] });
+        expect([own?.promiseText, own?.requestedDay, own?.requestedTime]).toEqual(['당상', 0, null]);
+        expect(lastDropoffStop({ scheduleText: '@낼8:30', reservedDay: 1 })?.promiseText).toBeUndefined();
     });
     it('사본이다 — 돌려준 객체를 고쳐도 콜의 정거장은 그대로', () => {
         const o = { pickup: '초월읍', pickupDetails: [{ customerName: '모다아울렛' }] };

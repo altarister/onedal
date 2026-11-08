@@ -1,4 +1,4 @@
-import { isTerminal, isDeliveredCall, hasVisitedStop } from '@onedal/shared';
+import { isTerminal, isDeliveredCall, hasVisitedStop, firstPickupStop, lastDropoffStop, type StopSource } from '@onedal/shared';
 
 /**
  * 👣 **다녀온 정거장의 순서 — 번호를 세는 목록** (기사님 실측).
@@ -40,15 +40,9 @@ export interface VisitedStop {
     no: number;
 }
 
-interface DeckCall {
+interface DeckCall extends StopSource {
     id: string;
     status?: string | null;
-    pickup: string;
-    dropoff: string;
-    pickupX?: number | null;
-    pickupY?: number | null;
-    dropoffX?: number | null;
-    dropoffY?: number | null;
     arrivedPickupAt?: string | null;
     arrivedDropoffAt?: string | null;
 }
@@ -67,12 +61,16 @@ export function visitedSequenceOf<T extends DeckCall>(
     for (const r of deck) {
         /* 🔴 취소·방출은 **없던 일**이라 발자취에 안 남는다 (`deckOfCycle` 과 같은 기준) */
         if (isTerminal(r.status ?? undefined) && !isDeliveredCall(r)) continue;
-        if (hasVisitedStop(r, 'pickup'))
-            out.push({ x: r.pickupX ?? null, y: r.pickupY ?? null, type: '상차', orderId: r.id, no: 0,
-                       name: nameOf(r.pickup), at: msOf(r.arrivedPickupAt) });
-        if (hasVisitedStop(r, 'dropoff'))
-            out.push({ x: r.dropoffX ?? null, y: r.dropoffY ?? null, type: '하차', orderId: r.id, no: 0,
-                       name: nameOf(r.dropoff), at: msOf(r.arrivedDropoffAt) });
+        if (hasVisitedStop(r, 'pickup')) {
+            const p = firstPickupStop(r);
+            out.push({ x: p?.geo?.x ?? null, y: p?.geo?.y ?? null, type: '상차', orderId: r.id, no: 0,
+                       name: nameOf(p?.listText ?? ''), at: msOf(r.arrivedPickupAt) });
+        }
+        if (hasVisitedStop(r, 'dropoff')) {
+            const d = lastDropoffStop(r);
+            out.push({ x: d?.geo?.x ?? null, y: d?.geo?.y ?? null, type: '하차', orderId: r.id, no: 0,
+                       name: nameOf(d?.listText ?? ''), at: msOf(r.arrivedDropoffAt) });
+        }
     }
     /**
      * 🕐 **시각을 모르면 뒤로 보낸다** — `0` 을 넣으면 «아주 옛날»이라 ✓1 을 훔친다

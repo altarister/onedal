@@ -1,4 +1,5 @@
 import { wonText, MILESTONE_LABEL, timingError } from '@onedal/shared';
+import { firstPickupStop } from '@onedal/shared';
 import type { SecuredOrder } from '@onedal/shared';
 import type { CallRecords } from '../../hooks/records';
 import { rawFieldsOf } from './callCardViews';
@@ -29,7 +30,7 @@ export default function CallEvidenceDrawer({ route, soloKm, soloMin, milestoneLo
                 <span>·</span>
                 <span>{wonText(route.fare)}{route.paymentType ? `(${route.paymentType})` : ''}</span>
                 {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
-                {route.scheduleText && <><span>·</span><span className="text-warning font-bold">🕒 {route.scheduleText}</span></>}
+                {firstPickupStop(route)?.promiseText && <><span>·</span><span className="text-warning font-bold">🕒 {firstPickupStop(route)?.promiseText}</span></>}
             </div>
 
             {/* 마일스톤 이력 — 진행 점이 이미 "어디까지 왔나"를 보여주므로

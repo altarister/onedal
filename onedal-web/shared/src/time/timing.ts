@@ -1427,19 +1427,24 @@ export function minRouteBuffer(timeline: RouteTimelineEntry[]): RouteBufferMin |
     return best;
 }
 
-/** 🚏 정거장을 읽는 함수들의 재료 — 맨 위 글자 · 좌표 · 거리 칸과 정거장 목록 */
-type StopSource = Partial<Pick<OfficeOrder, 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | 'dropoffY' | 'pickupDistance' | 'deliveryDistance' | 'pickupDetails' | 'dropoffDetails'>>;
+/** 🚏 정거장을 읽는 함수들의 재료 — 맨 위 글자 · 좌표 · 약속 · 거리 칸과 정거장 목록 */
+export type StopSource = Partial<Pick<OfficeOrder, 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | 'dropoffY' | 'scheduleText' | 'reservedDay' | 'reservedAt' | 'pickupDistance' | 'deliveryDistance' | 'pickupDetails' | 'dropoffDetails'>>;
 
 /**
- * 🚏 **첫 상차 정거장** — 맨 위 칸(`pickup` · `pickupX/Y` · `pickupDistance`)을 첫 상차 정거장 모양으로 모은 읽기 전용 사본.
+ * 🚏 **첫 상차 정거장** — 맨 위 칸(`pickup` · `pickupX/Y` · `scheduleText` · `reservedDay` · `reservedAt` · `pickupDistance`)을 첫 상차 정거장 모양으로 모은 읽기 전용 사본.
  *    돌려준 객체에 쓰지 않는다 — 맨 위 칸이 정거장으로 옮겨 가기 전까지 사본이다.
+ *    약속 칸은 맨 위 칸이 비면 정거장 칸을 그대로 둔다(맨 위 칸이 없는 콜은 칸 없음).
  */
 export function firstPickupStop(o: StopSource): CallStop | null {
+    const stop = o.pickupDetails?.[0];
     return {
-        ...o.pickupDetails?.[0],
+        ...stop,
         listText: o.pickup ?? null,
         geo: o.pickupX != null && o.pickupY != null ? { x: o.pickupX, y: o.pickupY } : null,
         distanceKm: o.pickupDistance ?? null,
+        promiseText: o.scheduleText ?? stop?.promiseText,
+        requestedDay: o.reservedDay ?? stop?.requestedDay,
+        requestedTime: o.reservedAt ?? stop?.requestedTime,
     };
 }
 
