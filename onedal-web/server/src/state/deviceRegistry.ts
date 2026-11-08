@@ -170,7 +170,7 @@ export function deviceOnList(deviceId: string): boolean {
 
 /** 이 기기가 마지막으로 알린 화면 — 기기 세션이 없으면 undefined(모름) */
 export function deviceScreenOf(deviceId: string): ScreenContextType | undefined {
-    return activeDevices.get(deviceId)?.screenContext;
+    return activeDevices.get(deviceId)?.screenContext ?? undefined;
 }
 
 /**

@@ -7,6 +7,7 @@
  * 어떻게: 보내는 자리에 이 타입 이름을 붙인다
  * 왜: 따로 적으면 칸 이름이 바뀌어도 tsc 가 못 잡아 화면이 조용히 틀리기 때문이다
  */
+import type { ScreenContextType } from '../network/screenKinds';
 
 /**
  * 📦 **서버 응답 · 소켓 알림의 모양 — 한 곳** (공통 함수 6 · `sharedReplies` 검사).
@@ -40,7 +41,10 @@ export interface EmergencyAlert {
     deviceId: string;
     orderId: string;
     reason: string;
-    screenContext: string;
+    /** 🧭 화면 칸 셋 — 서버는 지금 화면 값만 싣는다 · 관제웹은 이 칸을 그리지 않는다 */
+    screenContext: ScreenContextType | null;
+    screenPage?: string | null;
+    screenOverlay?: string | null;
     /** 화면 글자 앞 300자 — 없으면 없음 */
     screenText?: string;
     timestamp: string;

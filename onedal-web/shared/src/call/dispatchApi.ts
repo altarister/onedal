@@ -11,7 +11,7 @@ import { isManualLineage } from './callStatus';
 import type { SimplifiedOfficeOrder, AppCallReport } from './orderShapes';
 import type { AutoDispatchFilter } from '../filter/dispatchFilter';
 import type { DeviceModeType } from '../device/deviceModes';
-import type { ScreenContextType } from '../network/screenKinds';
+import type { ScreenReport } from '../network/screenKinds';
 
 // 서버 전용: 다이내믹 요율 계산 엔진 파라미터 (앱으로 전송하지 않음)
 export interface PricingConfig {
@@ -122,13 +122,12 @@ export type EmergencyReason =
     | 'APP_CRASH';            // 앱 비정상 종료 후 재시작
 
 /**
- * 🚨 Safety Mode V3: POST /api/emergency 요청 바디
+ * 🚨 Safety Mode V3: POST /api/emergency 요청 바디 — 화면 칸 셋은 `ScreenReport`
  */
-export interface EmergencyReport {
+export interface EmergencyReport extends ScreenReport {
     deviceId: string;
     orderId: string;
     reason: EmergencyReason;
-    screenContext: ScreenContextType;
     screenText: string;           // 현재 화면 텍스트 전부 (서버 분석용)
     timestamp: string;
     /**

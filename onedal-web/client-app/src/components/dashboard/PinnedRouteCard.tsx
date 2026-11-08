@@ -620,9 +620,8 @@ export default function PinnedRouteCard({
                         {(() => {
                             /* 🏗️ pDetail/dDetail/phonesOf 는 새 단계 화면이 자기 자리에서 꺼낸다 */
 
-                            const quickName = route.requesterName || '';
-                            const quickPhone = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/)?.[0] || route.dispatcherPhone || '';
-                            const quickClean = quickName.replace(quickPhone, '').trim() || route.dispatcherName || '퀵사무실';
+                            const quickPhone = route.dispatcherPhone || '';
+                            const quickClean = route.dispatcherName || '퀵사무실';
 
                             /**
                              * 📦 **짐은 적요와 따로 칩으로 세운다** (기사님 — 목업에서 칩으로 세우셨다).
@@ -721,7 +720,7 @@ export default function PinnedRouteCard({
                                             {quickPhone ? (
                                                 <a href={telHref(quickPhone)} onClick={e => { e.stopPropagation(); e.preventDefault(); callNow(quickPhone); }}
                                                    className="min-w-0 truncate font-bold text-info">🏢 {quickClean}</a>
-                                            ) : <span className="min-w-0 truncate text-text-muted">🏢 {quickName ? quickClean : route.targetApp === 'kakaopicker' ? '카카오 픽커' : '콜사 정보 없음'}</span>}
+                                            ) : <span className="min-w-0 truncate text-text-muted">🏢 {route.targetApp === 'kakaopicker' ? '카카오 픽커' : '콜사 정보 없음'}</span>}
                                             <span className="ml-auto shrink-0 text-text-muted font-bold">
                                                 <span className="group-open/more:hidden">▸ 더보기</span>
                                                 <span className="hidden group-open/more:inline">▾ 접기</span>

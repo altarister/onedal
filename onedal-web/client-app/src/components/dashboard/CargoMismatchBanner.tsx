@@ -51,8 +51,7 @@ export default function CargoMismatchBanner({ orders }: { orders: SecuredOrder[]
                 const order = orders.find(o => o.id === a.orderId);
                 const where = a.stopType === 'pickup' ? '상차지' : '하차지';
                 const bigger = a.ratio >= 1;
-                const quickPhone =
-                    order?.requesterName?.match(/\d{2,3}-\d{3,4}-\d{4}/)?.[0] || order?.dispatcherPhone || '';
+                const quickPhone = order?.dispatcherPhone || '';
 
                 const resolve = (action: 'CONTINUE' | 'RELEASE') =>
                     socket.emit('resolve-cargo-mismatch', {

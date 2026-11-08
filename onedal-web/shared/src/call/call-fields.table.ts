@@ -83,7 +83,7 @@ export const TABLE = /*JSON*/{
    "required": "필수",
    "filledBy": "앱 목록",
    "ledger": "orders.id",
-   "pageField": "orderNo",
+   "pageField": "",
    "insung": {
     "text": "원달앱이 정함",
     "state": "지금"
@@ -99,6 +99,34 @@ export const TABLE = /*JSON*/{
    "isflex": {
     "text": "원달앱이 정함",
     "state": "지금"
+   },
+   "kind": "내용",
+   "ref": ""
+  },
+  {
+   "id": "C42",
+   "key": "orderNo",
+   "label": "배차망 오더 번호",
+   "desc": "배차망이 화면에 보여 주는 오더 번호 — 이름표 «화물번호:» 는 뗀다 · 우리 콜 번호(id)와 다르다",
+   "required": "",
+   "filledBy": "",
+   "ledger": "",
+   "pageField": "orderNo",
+   "insung": {
+    "text": "—",
+    "state": "없음"
+   },
+   "hwamul24": {
+    "text": "상세 머리 «화물번호:3-9483-2159» — 읽는 곳 없음",
+    "state": "없음"
+   },
+   "kakaopicker": {
+    "text": "—",
+    "state": "없음"
+   },
+   "isflex": {
+    "text": "—",
+    "state": "없음"
    },
    "kind": "내용",
    "ref": ""

@@ -232,7 +232,7 @@ router.post("/", async (req, res) => {
         /* ✋ 확정 누른 주체 하나로 가른다(29 P2) — 기사님 손이면 계약 안 함 폰이어도 진짜 콜 · 바로 KEEP */
         const who = whoConfirmed({ isPreview: isPreviewCall, matchType: payload.matchType, type: pendingOrder.type });
         const isSimulated = who !== 'DRIVER'
-            && (modeActsOf(deviceMode).marksSimulated || pendingOrder.id?.startsWith('SIM-') || !!(pendingOrder as any).isSimulated);
+            && (modeActsOf(deviceMode).marksSimulated || !!pendingOrder.isSimulated);
         const isManual = who === 'DRIVER';
 
         if (isSimulated) {
@@ -421,7 +421,7 @@ router.post("/", async (req, res) => {
                 slog('경고', `🛑 [원달앱 보고 없음] ${orderId} — 배차망에 계약이 남았을 수 있다 · 세지 않음 · 결재석에 둔다`);
                 const alert: EmergencyAlert = {
                     deviceId: payload.deviceId, orderId, reason: APP_NO_REPORT_REASON,
-                    screenContext: '', timestamp: new Date().toISOString(), targetApp,
+                    screenContext: null, timestamp: new Date().toISOString(), targetApp,
                 };
                 io?.to(userId).emit("emergency-alert", alert);
             });

@@ -10,6 +10,7 @@
 import { TARGET_APP_LABEL, type TargetAppType } from './targetApps';
 import { DEVICE_OFFLINE_LABEL, type DeviceOfflineReason } from '../device/deviceOffline';
 import type { ScreenContextType } from '../index';
+import type { ScreenReport } from './screenKinds';
 import { overlayLabelOf } from './networkPages';
 
 /**
@@ -182,13 +183,10 @@ export interface DeviceScreenBadge {
 export function deviceScreenBadge(device: {
     status?: string | null;
     targetApp?: string | null;
-    screenContext?: ScreenContextType | null;
     isScreenOn?: boolean;
     offlineReason?: DeviceOfflineReason;
-    /** 🧭 배차망 페이지 이름 · 덧칸 이름 — 있으면 그대로 그린다(기사님 «가») · 옛 원달앱은 없다 */
-    screenPage?: string | null;
-    screenOverlay?: string | null;
-}): DeviceScreenBadge | null {
+    /* 🧭 화면 칸 셋은 `ScreenReport` — 배차망 페이지 이름 · 덧칸 이름은 있으면 그대로 그린다(기사님 «가») · 옛 원달앱은 없다 */
+} & Partial<ScreenReport>): DeviceScreenBadge | null {
     const disconnected = device.status === "OFFLINE";
 
     /**

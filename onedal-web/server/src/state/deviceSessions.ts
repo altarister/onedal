@@ -4,6 +4,7 @@
  * 바깥 일을 하는 함수: touchDeviceSession · getActiveDevicesSnapshot · getUserDevicesSnapshot · cleanPreviewOfDevice(기기 표 · 세션 · 장부(DB) · 지금 시각 · 소켓 · 기다림 · 로그) (화면 못 읽음 · 상세 떠남 셈 blindSignalFrom · leftDetailFrom 은 값만 받는다)
  */
 import { FilterTally, DeviceSession, DeviceModeType, ScreenContextType, isListScreen, isDetailScreen, isBlipScreen, screenNowOf, UNKNOWN_LEAVE_SEC, BLIND_GRACE_MS, TargetAppType, screenLabelOf, leftForOtherNetwork, isLetGoScreen } from "@onedal/shared";
+import type { ScreenReport } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "./userSessionStore";
 import { requireAuth } from "../middlewares/authMiddleware";
@@ -110,8 +111,9 @@ export function blindSignalFrom(prev: { isScreenOn?: boolean; blindSince?: numbe
  * 📦🚦🎛️ **폰 상태 바가 쓰는 셋**.
  * 앱 안엔 있었는데 여태 안 올라오던 값들이다 — 서버는 **받아 적기만** 한다.
  * ⚠️ 구앱은 안 보낸다 → `undefined` 로 남고, 화면이 아무것도 안 그린다 (규칙 ④).
+ * 🧭 물려받는 배차망 페이지 이름 · 덧칸 이름(`ScreenReport`)은 새 원달앱만 싣는다 · 화면 값이 실린 보고에서만 받는다.
  */
-export interface DeviceStatusExtras {
+export interface DeviceStatusExtras extends Partial<Pick<ScreenReport, 'screenPage' | 'screenOverlay'>> {
     appVersion?: string;
     /** 🚧 통과 콜이 있는데 앱이 안 연 까닭 열쇠 — 목록 보고에만 · 없으면 앱이 열었다 (원달앱 ScrapPayload.openBlocked · shared `OPEN_BLOCKED`) */
     openBlocked?: string;
@@ -132,9 +134,6 @@ export interface DeviceStatusExtras {
      *    «이 폰이 아직 옛 필터로 돌고 있다»가 드러난다 (`DeviceSession.filterVersion` 주석).
      */
     filterVersion?: string;
-    /** 🧭 배차망 페이지 이름 · 덧칸 이름 — 새 원달앱만 싣는다 · 화면 값이 실린 보고에서만 받는다 */
-    screenPage?: string | null;
-    screenOverlay?: string | null;
 }
 
 export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally, targetApp?: TargetAppType, extras?: DeviceStatusExtras): DeviceModeType => {
@@ -220,7 +219,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
                 // 픽커로 바꾼 첫 보고가 인성 이름표로 찍힌다 («읽지 않고 단언한다» 와 같은 결)
                 const net = targetApp ?? session!.targetApp;
                 /* 🧭 페이지 이름이 실려 오면 그 이름(+ «· 덧칸») · 옛 원달앱은 화면 값의 이름표 */
-                const name = (c?: ScreenContextType, page?: string | null, overlay?: string | null) =>
+                const name = (c?: ScreenContextType | null, page?: string | null, overlay?: string | null) =>
                     page ? (overlay ? `${page} · ${overlay}` : page) : (screenLabelOf(net, c)?.label ?? c ?? '모름');
                 slog('화면', `🖥️ [화면 바뀜] ${session.deviceName || deviceId} · ` +
                     `${name(session.screenContext, session.screenPage, session.screenOverlay)} → ${name(screenContext, newPage, newOverlay)} · 직전 보고와 ${gap}`);
@@ -469,7 +468,7 @@ export function leftDetailFrom(now: ScreenContextType | null | undefined, unknow
  * 👁️ **심사 중인 콜의 상세를 봤나** (#154) — 콜이 생긴 뒤 상세 계열 보고가 왔거나, 생긴 뒤 첫 보고 때 직전 화면이 이미 상세였으면 본 것이다.
  * 한 번 본 콜은 계속 본 것이다. 목록 보고 때 치울지는 이 표시 하나로 가른다.
  */
-function markDetailSeen(userId: string, deviceId: string, screenContext?: string, prevScreen?: string): void {
+function markDetailSeen(userId: string, deviceId: string, screenContext?: string, prevScreen?: string | null): void {
     if (!screenContext) return;
     const userSession = getUserSession(userId);
     const id = userSession.deviceEvaluatingMap.get(deviceId);

@@ -11,7 +11,7 @@ import { phoneModeOf } from './allowance';
 import type { DeviceOfflineReason } from './deviceOffline';
 import type { TargetAppType } from '../network/targetApps';
 import type { DeviceStatusType, DeviceModeType } from './deviceModes';
-import type { ScreenContextType } from '../network/screenKinds';
+import type { ScreenReport } from '../network/screenKinds';
 
 /**
  * 👁️ **앱은 켜져 있는데 화면을 못 읽는 중인가** (기사님 확정 · 크리티컬).
@@ -119,7 +119,8 @@ export function isDeviceQuiet(prevSeen: number | undefined, lastSeen: number): b
     return lastSeen - prevSeen > DEVICE_QUIET_MS;
 }
 
-export interface DeviceSession {
+/** 화면 칸 셋(`screenContext` · `screenPage` · `screenOverlay`)은 `ScreenReport` 에서 온다 — 옛 원달앱은 페이지 이름 · 덧칸을 안 싣는다 */
+export interface DeviceSession extends Partial<ScreenReport> {
     deviceId: string;
     deviceName?: string;    // 기기 별명 (PIN 페어링 시 등록, 예: "메인폰", "서브폰")
     lastSeen: number;       // 밀리초 타임스탬프
@@ -167,10 +168,6 @@ export interface DeviceSession {
     filterVersion?: string;
     /** 그 지문을 마지막으로 확인한 시각 (밀리초) — 낡음을 재려면 «언제»가 있어야 한다 */
     filterVersionAt?: number;
-    screenContext?: ScreenContextType;  // [Safety Mode V3] 현재 화면 상태 (물리적 페이지)
-    /** 🧭 원달앱이 싣는 배차망 페이지 이름 · 그 위에 뜬 것(덧칸) 이름 — 배차망 정의 표의 이름 · 옛 원달앱은 안 싣는다 */
-    screenPage?: string | null;
-    screenOverlay?: string | null;
     isHolding?: boolean;    // [Page/Hold 분리] 콜 처리 중 여부 (확정 클릭 ~ 리스트 복귀)
     lat?: number;           // [GPS 텔레메트리] 앱폰(차량) 위도
     lng?: number;           // [GPS 텔레메트리] 앱폰(차량) 경도
