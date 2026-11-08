@@ -44,15 +44,17 @@ object KakaoPickerPages {
             FieldSpec(PageField.PICKUP, "사진 첫 정거장 — 행정동 + 건물", "경기 광주시 경안동 / 람미당", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail"),
             FieldSpec(PageField.CONTACT, "픽업 주소 아래 회색 상호", "분당스퀘어", Seen.REAL, Handling.UNUSED, "",
                 part = "pickup.customer"),
-            /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선 */
-            FieldSpec(PageField.PICKUP_DISTANCE, "사진 정거장 오른쪽", "픽업 4.7km", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — straightKm 읽고 안 씀"),
+            /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선 · 캡처 근거: 실물 상세 6건 + A24 판독 사진 9건 15/15 */
+            FieldSpec(PageField.PICKUP_DISTANCE, "사진 정거장 오른쪽", "픽업 4.7km", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 거리 5 · 걸음 5 — 사진 정거장 straightKm → 정거장 거리) · 원달앱 PickerScreenOcr 는 같은 글자를 straightKm 로 읽어 손 상세의 목록 줄 찾기에만 쓴다",
+                read = Regex("""픽업\s+([\d.]+)km""")),
             FieldSpec(PageField.CLOCK, "픽업 상호 오른쪽 회색", "15:00까지 픽업", Seen.REAL, Handling.READ, "서버 원문의 [사진] 줄(원달앱 사진 판독 줄 · 57 3단계) — 약속 · 마감에는 아직 안 쓴다(57 5단계 미룸)",
                 read = Regex("""([0-9]{1,2}:[0-9]{2})\s*\S{0,2}\s*픽업(?!예약)"""), part = "pickup"),
             FieldSpec(PageField.DROPOFF, "사진 둘째 정거장", "서울 용산구 한남동 / 아라마크", Seen.REAL, Handling.READ, "PickerScreenOcr.parseDetail"),
             FieldSpec(PageField.CONTACT, "배송 주소 아래 회색 상호", "NC이스트폴", Seen.REAL, Handling.UNUSED, "",
                 part = "dropoff.customer"),
-            /* 하차 정거장 거리(상차지 → 하차지) · 직선 */
-            FieldSpec(PageField.DELIVERY_DISTANCE, "사진 정거장 오른쪽", "배송 26.4km", Seen.REAL, Handling.DROPPED, "PickerScreenOcr — straightKm 읽고 안 씀"),
+            /* 하차 정거장 거리(상차지 → 하차지) · 직선 · 캡처 근거: 실물 상세 6건 + A24 판독 사진 9건 15/15 */
+            FieldSpec(PageField.DELIVERY_DISTANCE, "사진 정거장 오른쪽", "배송 26.4km", Seen.REAL, Handling.READ, "지금 읽는 곳 없음(원달앱 거리 5 · 걸음 5 — 사진 정거장 straightKm → 정거장 거리) · 원달앱 PickerScreenOcr 는 straightKm 로 읽고 안 쓴다",
+                read = Regex("""배송\s+([\d.]+)km""")),
             FieldSpec(PageField.CLOCK, "배송 상호 오른쪽 회색", "18:28까지 배송", Seen.REAL, Handling.READ, "서버 원문의 [사진] 줄(원달앱 사진 판독 줄 · 57 3단계) — 약속 · 마감에는 아직 안 쓴다(57 5단계 미룸)",
                 read = Regex("""([0-9]{1,2}:[0-9]{2})\s*\S{0,2}\s*배송"""), part = "dropoff"),
             /* «픽업 장소» 다음부터 «물품 정보» 앞까지 글자 그대로 — 오더번호 글 포함 · 가게 주문 번호이고 우리 콜 번호가 아니다(기사님) */
