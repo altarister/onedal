@@ -22,18 +22,22 @@ export const EVENT_TYPES = {
 /** 콜 종류 — 직접 잡음 · 체험 여부를 함께 담는다. `SimplifiedOfficeOrder.type` 의 타입이다 */
 export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
 
-// 상차지 · 하차지 연락처 — 인성 «출발지 상세» · «도착지 상세» 팝업의 칸과 1:1
-export interface LocationDetailInfo {
-    customerName?: string;    // [고객] 상호/고객명 (예: "*레드캠프", "SK스토아 홈쇼핑(5층하차")
-    department?: string;      // [부서] 부서명 (예: "정실장님", 빈 값일 경우 "*")
-    contactName?: string;     // [담당] 담당자명 (예: "정종혁차장")
-    mileage?: number;         // [마일리지] 마일리지 포인트 (예: 0)
-    phone1?: string;          // [전화1] 대표 연락처 (예: "010-2228-4991")
-    phone2?: string;          // [전화2] 보조 연락처 (예: "031-267-1224", 빈 값일 경우 "*")
-    region?: string;          // [출발/도착] 광역 지역명 (예: "경기 화성시", "서울 마포구")
-    addressDetail?: string;   // [위치] 상세 주소+건물명 (예: "경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)")
-    requestedTime?: string;   // 상차/하차 예약 시간 (내 콜 화면에서 파싱, 예: "13:53")
-    memo?: string;            // 현장 전달사항 (적요 등에서 추출)
+/**
+ * 🚏 정거장 한 곳 — 상차지 · 하차지. 화면이 보인 것만 담고 못 읽은 칸은 비운다.
+ *    칸마다 `?` 다 — 정거장 칸을 채우는 곳이 생기면 꼭 있는 칸(못 읽으면 null)으로 바꾼다.
+ */
+export interface CallStop {
+    listText?: string | null;       // 목록 원문 (예: "@낼08:20/수원이의동") — 상세를 열어도 덮지 않는다
+    region?: string | null;         // 목록 글자에서 얻은 읍 · 면 · 동 (예: "이의동") — 없거나 잘렸으면 비운다
+    addressDetail?: string | null;  // 상세 주소 원문 (예: "경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)")
+    customerName?: string | null;   // 상호 · 고객 (예: "*레드캠프", "SK스토아 홈쇼핑(5층하차")
+    department?: string | null;     // 부서 (예: "정실장님", 빈 값일 경우 "*")
+    contactName?: string | null;    // 담당 (예: "정종혁차장")
+    phone1?: string | null;         // 전화1 (예: "010-2228-4991")
+    phone2?: string | null;         // 전화2 (예: "031-267-1224", 빈 값일 경우 "*")
+    requestedTime?: string;         // 상차/하차 예약 시간 (내 콜 화면에서 파싱, 예: "13:53")
+    memo?: string | null;           // 그 정거장 안내 글
+    geo?: { x: number; y: number } | null;   // 서버가 붙이는 좌표 — 원달앱은 비운다
 }
 
 export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차망 목록에서 읽어 서버로 보내는 칸
@@ -103,8 +107,8 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
     detailMemo?: string;              // 적요 상세 (원문 전체)
     
     // 5. 위치 정보
-    pickupDetails?: LocationDetailInfo[];  // 출발지 상세 정보 (팝업 파싱)
-    dropoffDetails?: LocationDetailInfo[]; // 도착지 상세 정보 (팝업 파싱)
+    pickupDetails?: CallStop[];  // 상차 정거장
+    dropoffDetails?: CallStop[]; // 하차 정거장
     
     // 6. 메타 데이터 및 호환성 필드
     companyName?: string;             // 화주 상호/이름 (과거 호환 유지 목적)

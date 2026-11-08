@@ -17,7 +17,7 @@
  */
 import { unitPoints } from '../cargo/cargoUnits';
 import { protectionMinutes, afterworkMinutes } from '../cargo/cargoUnits';
-import type { CargoReport } from '../index';
+import type { CargoReport, CallStop, OfficeOrder } from '../index';
 import { parseCargoHints } from '../cargo/cargoHints';
 import { hhmmText, kstDateText } from '../common/format';
 import { DEFAULT_JUDGMENT, type JudgmentConfig } from '../judge/judgment';
@@ -1425,4 +1425,28 @@ export function minRouteBuffer(timeline: RouteTimelineEntry[]): RouteBufferMin |
         }
     }
     return best;
+}
+
+/** 🚏 정거장을 읽는 두 함수의 재료 — 맨 위 글자 · 좌표 칸과 정거장 목록 */
+type StopSource = Partial<Pick<OfficeOrder, 'pickup' | 'dropoff' | 'pickupX' | 'pickupY' | 'dropoffX' | 'dropoffY' | 'pickupDetails' | 'dropoffDetails'>>;
+
+/**
+ * 🚏 **첫 상차 정거장** — 맨 위 칸(`pickup` · `pickupX/Y`)을 첫 상차 정거장 모양으로 모은 읽기 전용 사본.
+ *    돌려준 객체에 쓰지 않는다 — 맨 위 칸이 정거장으로 옮겨 가기 전까지 사본이다.
+ */
+export function firstPickupStop(o: StopSource): CallStop | null {
+    return {
+        ...o.pickupDetails?.[0],
+        listText: o.pickup ?? null,
+        geo: o.pickupX != null && o.pickupY != null ? { x: o.pickupX, y: o.pickupY } : null,
+    };
+}
+
+/** 🚏 **마지막 하차 정거장** — `firstPickupStop` 과 같은 사본(하차 목록의 끝 · `dropoff` · `dropoffX/Y`). 돌려준 객체에 쓰지 않는다 */
+export function lastDropoffStop(o: StopSource): CallStop | null {
+    return {
+        ...o.dropoffDetails?.at(-1),
+        listText: o.dropoff ?? null,
+        geo: o.dropoffX != null && o.dropoffY != null ? { x: o.dropoffX, y: o.dropoffY } : null,
+    };
 }

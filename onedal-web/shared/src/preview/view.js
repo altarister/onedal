@@ -137,7 +137,7 @@ function drawFieldSheet(book, shapes, typesFrom) {
         const span = { rowSpan: lineCount };
         const typeCell = put(trs[0], '', span);
         const link = document.createElement('a');
-        link.href = row.type === 'LocationDetailInfo' ? '/shared/call/orderShapes#t-LocationDetailInfo' : `/shared/${typesFrom}#t-${row.type}`;
+        link.href = row.type === 'CallStop' ? '/shared/call/orderShapes#t-CallStop' : `/shared/${typesFrom}#t-${row.type}`;
         link.textContent = row.type;
         typeCell.append(link);
         put(trs[0], row.field, span);

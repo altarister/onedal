@@ -37,6 +37,23 @@ function tablesOf(): Tables {
     return tables = { legalBySigungu, adminBySigungu };
 }
 
+/**
+ * 🗂️ **시구 → 법정동 ∪ 행정동** — «이 글자가 그 시구의 동인가»를 묻는 곳이 본다(원달앱 `RegionRegister.withAdmin` 과 같은 명부).
+ *    판정 글자 함수(`stopQueryOf`)가 붙은 «시…구» · «시 이름 + 동»을 띄울 때 읽는다.
+ */
+let dongsBySigunguMemo: ReadonlyMap<string, ReadonlySet<string>> | null = null;
+export function dongsBySigungu(): ReadonlyMap<string, ReadonlySet<string>> {
+    if (dongsBySigunguMemo) return dongsBySigunguMemo;
+    const { legalBySigungu, adminBySigungu } = tablesOf();
+    const out = new Map<string, Set<string>>();
+    for (const [sigungu, dongs] of legalBySigungu) out.set(sigungu, new Set(dongs));
+    for (const [sigungu, rows] of adminBySigungu) {
+        if (!out.has(sigungu)) out.set(sigungu, new Set());
+        for (const [admin] of rows) out.get(sigungu)!.add(admin);
+    }
+    return dongsBySigunguMemo = out;
+}
+
 export function withAdminDongs(grouped: Readonly<Record<string, readonly string[]>>): Record<string, string[]> {
     const out: Record<string, string[]> = {};
     for (const [sigungu, dongs] of Object.entries(grouped)) {

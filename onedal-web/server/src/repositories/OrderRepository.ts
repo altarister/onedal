@@ -1,6 +1,6 @@
 import db from "../db";
 import { MyOrder, PendingOrder, SecuredOrder, LET_GO_STATUSES } from "@onedal/shared";
-import type { CargoReport, LocationDetailInfo } from "@onedal/shared";
+import type { CargoReport, CallStop } from "@onedal/shared";
 
 export class OrderRepository {
     /**
@@ -276,14 +276,14 @@ export class OrderRepository {
      *    KEEP 할 때 정거장에 남긴 상호 · 전화(`customerNameSnapshot` · `phoneSnapshot`)와 장소의 상세 주소다.
      *    담당자 이름 · 전화2 는 장부에 없어 돌아오지 않는다. 상호도 전화도 없는 쪽은 칸을 싣지 않는다.
      */
-    public static stopContactsOf(orderId: string): { pickupDetails?: LocationDetailInfo[]; dropoffDetails?: LocationDetailInfo[] } {
+    public static stopContactsOf(orderId: string): { pickupDetails?: CallStop[]; dropoffDetails?: CallStop[] } {
         const rows = db.prepare(`
             SELECT s.stopType, s.customerNameSnapshot AS name, s.phoneSnapshot AS phone, p.addressDetail
             FROM orderStops s LEFT JOIN places p ON p.id = s.placeId
             WHERE s.orderId = ? AND s.stopType IN ('pickup', 'dropoff')
             ORDER BY s.rowid ASC
         `).all(orderId) as Array<{ stopType: 'pickup' | 'dropoff'; name: string | null; phone: string | null; addressDetail: string | null }>;
-        const out: { pickupDetails?: LocationDetailInfo[]; dropoffDetails?: LocationDetailInfo[] } = {};
+        const out: { pickupDetails?: CallStop[]; dropoffDetails?: CallStop[] } = {};
         for (const r of rows) {
             const key = r.stopType === 'pickup' ? 'pickupDetails' : 'dropoffDetails';
             /* «배차값없음»은 상호를 못 읽었을 때 정거장에 적는 표지다 — 이름으로 싣지 않는다 */

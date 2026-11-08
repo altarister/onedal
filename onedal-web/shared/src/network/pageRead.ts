@@ -3,14 +3,15 @@
  * 누가: 서버 판정 · 상세 · 스캔 · 시뮬레이션
  * 언제: 배차망 화면 글자에서 칸 값을 꺼낼 때
  * 어디서: 서버가 원달앱 보고를 받는 자리
- * 무엇을: pageFieldOf · pageFareOf · addressOf · geocodeTargetOf · detailRecordOf
+ * 무엇을: pageFieldOf · pageFareOf · addressOf · geocodeTargetOf · stopTextOf · stopQueryOf · detailRecordOf
  * 어떻게: 정의 표의 읽는 법으로 글자를 잘라 낸다
  * 왜: 정의에 없거나 원문에 없는 값을 지어내지 않기 위해서다
  */
-import type { TargetAppType, LocationDetailInfo, DetailedOfficeOrder } from '../index';
+import type { TargetAppType, CallStop, DetailedOfficeOrder } from '../index';
 import { PAYMENT_TYPES, BILLING_TYPES, type PaymentType, type BillingType } from '../call/money';
 import type { PageField, ScreenPage } from './pageFields';
 import { NETWORK_PAGES, fieldsOf } from './networkPages';
+import { dongsBySigungu } from '../filter/adminDongMatch';
 
 /**
  * 📄 **화면 칸을 배차망 정의 표대로 읽는다 — 서버 쪽 한 곳** (원달앱 짝 `core/PageFieldRead.kt`).
@@ -98,6 +99,81 @@ export function geocodeTargetOf(app: TargetAppType, order: GeocodeSource, side: 
     return { text, need };
 }
 
+/** 🏠 **이 정거장 글자** — 상세 주소(앞뒤 빈칸 뗌)가 있으면 그것, 없으면 목록 원문 · 둘 다 없으면 빈 글자 */
+export function stopTextOf(stop: CallStop | null | undefined): string {
+    return stop?.addressDetail?.trim() || stop?.listText || '';
+}
+
+const SPACES = /\s+/;
+/** 약속 앞글자 · 뒷글자와 동을 가르는 표 — «낼8:30/가산동» · «@낼8:30)방배동» · «내곡동/7시까지» */
+const PROMISE_CUT = /[/)]/;
+/** 동 꼴 토막 — 한글 둘 이상으로 시작하고 숫자는 동 번호 둘까지(«역삼1동» · «을지로6가») · «낼8:30» · «7시까지»는 아니다 */
+const PLACE_PIECE = /^[가-힣]{2,}\d{0,2}[가-힣]*$/;
+const JOINED_CITY_GU = /^([가-힣]+[시군])([가-힣]+구)$/;
+/** 번지 — 숫자만 · 숫자-숫자 토막(«907» · «158-95») · «은행2동» 같은 동 번호는 아니다 */
+const LOT_NUMBER = /(?:^|\s)\d+(?:-\d+)?(?=\s|$)/;
+
+/** 시 · 군 짧은 이름(«수원») → 그 시 · 군의 동 전부 · 명부의 동 이름 전부 — 처음 부를 때 만든다 */
+let cityDongsMemo: { byCity: Map<string, Set<string>>; all: Set<string> } | null = null;
+function cityDongs(): { byCity: Map<string, Set<string>>; all: Set<string> } {
+    if (cityDongsMemo) return cityDongsMemo;
+    const byCity = new Map<string, Set<string>>();
+    const all = new Set<string>();
+    for (const [sigungu, dongs] of dongsBySigungu()) {
+        for (const d of dongs) all.add(d);
+        const head = sigungu.split(' ')[0];
+        if (head.length <= 2 || !(head.endsWith('시') || head.endsWith('군'))) continue;
+        const city = head.slice(0, -1);
+        if (!byCity.has(city)) byCity.set(city, new Set());
+        for (const d of dongs) byCity.get(city)!.add(d);
+    }
+    return cityDongsMemo = { byCity, all };
+}
+
+/** «수원시영통구» → «수원시» «영통구» — 명부에 «수원시 영통구» 가 있을 때만 */
+function splitCityGu(token: string): string[] {
+    const m = JOINED_CITY_GU.exec(token);
+    return m && dongsBySigungu().has(`${m[1]} ${m[2]}`) ? [m[1], m[2]] : [token];
+}
+
+/** «수원이의동» → 앞 토막이 없으면 «수원 이의동» · 앞 토막에 그 시가 있으면 «이의동» — 그 글자 자체가 명부 동이거나 명부 밖이면 그대로 */
+function unglueCity(dong: string, head: readonly string[]): string {
+    const { byCity, all } = cityDongs();
+    if (all.has(dong)) return dong;
+    for (const [city, dongs] of byCity) {
+        if (!dong.startsWith(city) || dong.length <= city.length) continue;
+        const rest = dong.slice(city.length);
+        if (!dongs.has(rest)) continue;
+        if (head.length === 0) return `${city} ${rest}`;
+        if (head.some(t => t === city || t === `${city}시` || t === `${city}군`)) return rest;
+    }
+    return dong;
+}
+
+/**
+ * 📍 **판정 글자** — 지오코딩 · 필터 · 상세 요건이 읽는 다듬은 글자와, 좌표를 다시 찍을지(`geocodeTargetOf` 와 같은 규칙).
+ *    ① `stopTextOf` ② 토막마다 앞 «@» 를 떼고, 마지막 토막에 약속 글자가 «/» · «)» 로 붙어 있으면 동 꼴 토막만 남긴다
+ *    ③ 정의 표 `addressCut` ④ 붙은 «…시…구» · «시 이름 + 동»을 명부에 있을 때만 띄운다(원달앱 `IsflexAddress.clean` 과 같은 규칙)
+ *    ⑤ 번지가 없고 상호가 있으면(그 상호가 아직 글자에 없을 때) 뒤에 잇는다.
+ *    정거장에는 화면 원문이 남고, 이 글자는 저장하지 않는다.
+ */
+export function stopQueryOf(app: TargetAppType, stop: (CallStop & { geoText?: string }) | null | undefined): { text: string; need: boolean } {
+    const tokens = stopTextOf(stop).trim().split(SPACES).map(t => t.replace(/^@+/, '')).filter(Boolean);
+    const last = tokens.pop();
+    if (last !== undefined) {
+        const place = PROMISE_CUT.test(last) ? last.split(PROMISE_CUT).filter(p => PLACE_PIECE.test(p)).pop() : undefined;
+        tokens.push(place ?? last);
+    }
+    const cut = addressOf(app, tokens.join(' ')).split(SPACES).filter(Boolean);
+    const dong = cut.pop();
+    const head = cut.flatMap(splitCityGu);
+    let text = [...head, ...(dong !== undefined ? [unglueCity(dong, head)] : [])].join(' ');
+    const name = stop?.customerName?.trim();
+    if (text && name && !LOT_NUMBER.test(text) && !text.includes(name)) text = `${text} ${name}`;
+    const need = !stop?.geo?.x || !stop?.geo?.y || stop?.geoText !== text;
+    return { text, need };
+}
+
 /** 📄 상세 콜 자료 — 상세 화면 정의 칸(· 조각)이 콜의 어느 자료가 되나. 배차망마다 다른 것은 표의 읽는 법뿐이다 */
 type DetailRecordText = 'receiptStatus' | 'itemDescription' | 'commissionRate' | 'tollFare' | 'tripType' | 'orderForm' | 'dispatcherName' | 'dispatcherPhone';
 const DETAIL_RECORD: ReadonlyArray<readonly [key: DetailRecordText, field: PageField, part?: string]> = [
@@ -106,7 +182,7 @@ const DETAIL_RECORD: ReadonlyArray<readonly [key: DetailRecordText, field: PageF
     ['dispatcherName', 'contact', 'dispatcher'], ['dispatcherPhone', 'contact', 'dispatcherPhone'],
 ];
 /** 연락처 팝업 한 덩어리의 조각 — 출발 · 도착이 같은 꼴이다 */
-const STOP_CONTACT: ReadonlyArray<readonly [key: keyof LocationDetailInfo, field: PageField, part: (side: string) => string]> = [
+const STOP_CONTACT: ReadonlyArray<readonly [key: keyof CallStop, field: PageField, part: (side: string) => string]> = [
     ['customerName', 'contact', s => `${s}.customer`], ['addressDetail', 'pickup', () => ''], ['department', 'contact', s => `${s}.department`],
     ['contactName', 'contact', s => `${s}.contactName`], ['phone1', 'contact', s => `${s}.phone1`], ['phone2', 'contact', s => `${s}.phone2`],
 ];
@@ -118,7 +194,7 @@ const STOP_CONTACT: ReadonlyArray<readonly [key: keyof LocationDetailInfo, field
  *    출발 · 도착 연락처는 그 팝업 머리표가 원문에 있을 때만 한 덩어리(없으면 빈 목록).
  */
 export type DetailRecord = Partial<Pick<DetailedOfficeOrder, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>>
-    & { pickupDetails: LocationDetailInfo[]; dropoffDetails: LocationDetailInfo[] };
+    & { pickupDetails: CallStop[]; dropoffDetails: CallStop[] };
 export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecord {
     const read = (field: PageField, part = '') => pageFieldOf(app, 'newCall', field, rawText, part) ?? undefined;
     const out: Partial<Pick<DetailedOfficeOrder, DetailRecordText | 'paymentType' | 'billingType' | 'detailMemo'>> = {};
@@ -129,9 +205,9 @@ export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecor
     if (bill && (BILLING_TYPES as readonly string[]).includes(bill)) out.billingType = bill as BillingType;
     const memo = read('memo', 'popup')?.replace(/\s+/g, ' ').trim() || read('memo', 'body');
     if (memo) out.detailMemo = memo;
-    const stopOf = (side: 'pickup' | 'dropoff', tag: string): LocationDetailInfo[] => {
+    const stopOf = (side: 'pickup' | 'dropoff', tag: string): CallStop[] => {
         if (!rawText.includes(tag)) return [];
-        const info: LocationDetailInfo = {};
+        const info: CallStop = {};
         for (const [key, field, part] of STOP_CONTACT) {
             const v = read(field === 'pickup' ? side : field, part(side));
             if (v !== undefined) (info as Record<string, string>)[key] = v;

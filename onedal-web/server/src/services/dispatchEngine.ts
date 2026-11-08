@@ -4,7 +4,7 @@
  */
 import { businessDayKey, normalizeVehicleType, isEvaluating, isTerminal, reservedForOf, type DecisionStatus } from "@onedal/shared";
 import { isLaterThan, takeReserved } from "./reservedOrders";
-import type { SecuredOrder, PendingOrder, MyOrder, LocationDetailInfo } from "@onedal/shared";
+import type { SecuredOrder, PendingOrder, MyOrder, CallStop } from "@onedal/shared";
 import { calculateSoloRoute } from "./kakaoService";
 import { getUserSession } from "../state/userSessionStore";
 import { cancelOrderWaits } from "../state/waits";
@@ -44,7 +44,7 @@ export const normalizePlaceName = (name?: string) => {
 };
 
 /** 🏷️ 장부에 적을 정거장 한 곳 — 값만 받는 셈 (상세의 첫 줄 · 콜에 적힌 주소 글자 · 좌표) */
-export function stopPlaceFrom(detail: LocationDetailInfo | undefined, text: string, x: number | undefined, y: number | undefined):
+export function stopPlaceFrom(detail: CallStop | undefined, text: string, x: number | undefined, y: number | undefined):
     { name: string; address: string; region: string; x: number | null; y: number | null; phone: string | null } {
     return {
         name: normalizePlaceName(detail?.customerName || "배차값없음"),
