@@ -533,6 +533,9 @@
     {"network": "isflex", "side": "pickup", "stop": {"addressDetail": "@서울 서초구 @낼06:50)반포동"}, "expect": "서울 서초구 반포동", "appNow": "서울 서초구 반포동", "rule": "stopQueryOf", "why": "실물 xml 11_상세_4.xml 확정 전 상세 칸(원달앱 IsflexParserTest 상세 다섯과 같은 답)"},
     {"network": "isflex", "side": "dropoff", "stop": {"addressDetail": "서울 송파구 신천동"}, "expect": "서울 송파구 신천동", "appNow": "서울 송파구 신천동", "rule": "stopQueryOf", "why": "실물 xml 11_상세_4.xml 확정 전 상세 칸(원달앱 IsflexParserTest 상세 다섯과 같은 답)"},
     {"network": "isflex", "side": "pickup", "stop": {"addressDetail": "@경기 파주시 @동패동"}, "expect": "경기 파주시 동패동", "appNow": "경기 파주시 동패동", "rule": "stopQueryOf", "why": "실물 xml 12_상세_5.xml 확정 전 상세 칸(원달앱 IsflexParserTest 상세 다섯과 같은 답)"},
-    {"network": "isflex", "side": "dropoff", "stop": {"addressDetail": "인천 영종구 운서동"}, "expect": "인천 영종구 운서동", "appNow": "인천 영종구 운서동", "rule": "stopQueryOf", "why": "실물 xml 12_상세_5.xml 확정 전 상세 칸(원달앱 IsflexParserTest 상세 다섯과 같은 답)"}
+    {"network": "isflex", "side": "dropoff", "stop": {"addressDetail": "인천 영종구 운서동"}, "expect": "인천 영종구 운서동", "appNow": "인천 영종구 운서동", "rule": "stopQueryOf", "why": "실물 xml 12_상세_5.xml 확정 전 상세 칸(원달앱 IsflexParserTest 상세 다섯과 같은 답)"},
+    {"network": "isflex", "side": "dropoff", "stop": {"listText": "강남역(1번출구)"}, "expect": "강남역(1번출구)", "appNow": null, "rule": "stopQueryOf", "why": "만든 꼴 — 실물 수집 아님 · 괄호 안 «1번출구»는 시 · 군 · 구 이름이 아니라 괄호를 남긴다"},
+    {"network": "isflex", "side": "dropoff", "stop": {"listText": "역삼동(오후3시"}, "expect": "역삼동", "appNow": null, "rule": "stopQueryOf", "why": "만든 꼴 — 실물 수집 아님 · 안 닫힌 «(» 뒤 «오후3시»는 시 · 군 · 구 이름도 도로명도 아니라 버린다"},
+    {"network": "isflex", "side": "dropoff", "stop": {"listText": "신장동(하)"}, "expect": "신장동(하)", "appNow": null, "rule": "stopQueryOf", "why": "만든 꼴 — 실물 수집 아님 · 괄호 안 «하»는 시 · 군 · 구 이름과 똑같지 않아 괄호를 남긴다"}
   ]
 }

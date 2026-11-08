@@ -55,6 +55,20 @@ export function sigunguOfShort(short: string | null | undefined): string {
 const SIGUNGU_NAMES: readonly string[] = [...new Set(DONG_CENTROIDS.map(([, sigungu]) => sigungu))];
 
 /**
+ * 🏙️ **이 글자가 시군구 하나의 짧은 이름인가** — 명부 시군구 이름 토막과 똑같거나 끝 «시 · 군 · 구»를 뗀 것과 똑같고(«하남» · «종로» · «분당»),
+ *    가리키는 곳이 하나일 때만(«중구» = 서울 중구 · 대전 중구는 아니다). 앞글자 맞춤 · 명부 밖 «…구» 안전망은 쓰지 않는다(`sigunguHintBefore` 와 다르다).
+ */
+export function isSigunguShortName(text: string): boolean {
+    const places = new Set<string>();
+    for (const s of SIGUNGU_NAMES) {
+        const parts = s.split(' ');
+        const at = parts.findIndex(p => p === text || p.replace(/[시군구]$/, '') === text);
+        if (at >= 0) places.add(parts.slice(0, at + 1).join(' '));
+    }
+    return places.size === 1;
+}
+
+/**
  * 🏘️ **이름이 둘 이상 시군구에 있는 동** — 명부에서 센다(«고덕동» = 서울 강동구 · 평택시). 서버가 오늘 도착 목록 가운데
  *    이 동에만 destinationDongSigungu 를 붙인다(filterManager).
  */

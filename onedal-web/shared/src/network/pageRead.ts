@@ -13,7 +13,7 @@ import type { BadgePlace, BadgeWord } from '../call/badges';
 import type { PageField, ScreenPage } from './pageFields';
 import { NETWORK_PAGES, fieldsOf } from './networkPages';
 import { dongsBySigungu } from '../filter/adminDongMatch';
-import { sigunguHintBefore } from '../filter/sigungu';
+import { isSigunguShortName } from '../filter/sigungu';
 
 /**
  * 📄 **화면 칸을 배차망 정의 표대로 읽는다 — 서버 쪽 한 곳** (원달앱 짝 `core/PageFieldRead.kt`).
@@ -165,17 +165,17 @@ const ROAD_NOTE = /^[가-힣\d]+[로길]\d+(?:-\d+)?$/;
 
 /**
  * 괄호 · 꺾쇠 덧글 가르기 — 마지막 토막의 «동(덧글)» · 잘린 «동(덧글» · «덧글]동».
- *    덧글이 시 · 군 · 구 짧은 이름(`sigunguHintBefore` 명부 — «하남» · «종로» · «평택»)이면 `city` 로 돌려준다(«시 동»으로 잇는다).
+ *    덧글이 명부의 시 · 군 · 구 짧은 이름과 똑같고 한 곳만 가리키면(`isSigunguShortName` — «하남» · «종로» · «평택») `city` 로 돌려준다(«시 동»으로 잇는다).
  *    닫힌 괄호는 그 밖이면 토막을 그대로 둔다(«잠원동(논현역)») · 잘린 덧글은 도로명 꼴이면 `road` 로 뒤에 잇고(«화도읍(폭포로412-18» → «화도읍 폭포로412-18»), 아니면 버린다(«상대원동(1박스» → «상대원동»).
  */
 function noteOf(token: string): { base: string; city?: string; road?: string } {
     const closed = CLOSED_PAREN.exec(token);
-    if (closed) return sigunguHintBefore(closed[2]) ? { base: closed[1], city: closed[2] } : { base: token };
+    if (closed) return isSigunguShortName(closed[2]) ? { base: closed[1], city: closed[2] } : { base: token };
     const paren = UNCLOSED_PAREN.exec(token);
     const bracket = paren ? null : UNPAIRED_BRACKET.exec(token);
     const [base, extra] = paren ? [paren[1], paren[2]] : bracket ? [bracket[2], bracket[1]] : [token, ''];
     if (!base || !extra) return { base: token };
-    if (sigunguHintBefore(extra)) return { base, city: extra };
+    if (isSigunguShortName(extra)) return { base, city: extra };
     return ROAD_NOTE.test(extra) ? { base, road: extra } : { base };
 }
 
