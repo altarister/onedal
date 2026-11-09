@@ -115,14 +115,22 @@ export function unitPoints(unit?: string | null, quantity?: number | null): numb
  * 서버 합짐 자리 셈은 신고가 없으면 짐 묶음 박스 수(`callBoxesOf` — 크기 낱말 > 차종 표준 · 모르면 자리 없음)로 센다.
  * 이 함수는 콜 스텝 짐 칸 미리 채움이 차종만 보고 쓰는 값이다 — 빈칸으로 두지 않고 기사님은 틀린 것만 고친다.
  *
- * 🔴 순서는 **적요 > 차종 기본값**. 적요에 `카톤 10박스` 가 있으면 그것이 이긴다 —
+ * 🔴 순서는 **적요 > 크기 낱말 박스 > 차종 기본값**. 적요에 `카톤 10박스` 가 있으면 그것이 이긴다 —
  *    적요는 이 콜의 실제 정보이고, 차종은 그 차 한 대 분량이라는 짐작일 뿐이다.
  */
 export function defaultCargoByVehicle(vehicleType?: string | null):
     { unit: CargoUnit; quantity: number; handling: HandlingMethod } | null {
     const v = normalizeVehicleType(vehicleType || '');
     if (!v) return null;
-    const boxes = VEHICLE_CAPACITY[v];
+    return cargoOfBoxes(VEHICLE_CAPACITY[v]);
+}
+
+/**
+ * 📦 **라면박스 수 → 미리 눌러 둘 단위 · 수량 · 방법** — 차종 표준 박스(`defaultCargoByVehicle`)와
+ *    크기 낱말 박스(서버 `stepSeeder` — 정의 표 sizeWords)가 같은 환산을 쓴다. 0 · 없음이면 null.
+ */
+export function cargoOfBoxes(boxes?: number | null):
+    { unit: CargoUnit; quantity: number; handling: HandlingMethod } | null {
     if (!boxes) return null;
     // 1t 이상은 파레트로 센다
     const perPallet = CARGO_UNIT_POINTS['파레트'];

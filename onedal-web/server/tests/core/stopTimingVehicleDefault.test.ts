@@ -1,5 +1,6 @@
 import db from '../../src/db';
 import { getStopTiming, totalDetourCost } from '../../src/core/helpers';
+import { stepsView } from '../../src/services/stepSeeder';
 
 /**
  * 🚚 **차종을 알면 짐을 안다 — 판정이 「모른다」고 하면 안 된다** (기사님 지적)
@@ -154,5 +155,47 @@ maybe('판정 시점의 정차 시간 — 신고가 없어도 차종에서 나�
         expect(차종모름.total).toBe(45);    // 주행 20 + 일반값 25
         expect(차종앎.hasUnknown).toBe(false);
         expect(차종모름.hasUnknown).toBe(true);
+    });
+});
+
+/**
+ * 📦 **크기 낱말도 짐 표현이다** — 픽커는 차종 칸이 없고 물품 정보의 크기 낱말(«소형»)이 다른 배차망 차종과 같은 자리의 정보다.
+ *    콜 스텝 짐 칸 미리 채움은 «적요 힌트 > 크기 낱말 박스(정의 표 sizeWords) > 차종 기본값 > 빈칸» — 출처는 적요(MEMO).
+ *    배차망 이름으로 가르지 않는다 — 크기 낱말에 박스 수가 적힌 표만 채워진다(인성 «다마» · 플렉스 «대박스» 는 박스 모름이라 지금과 같다).
+ */
+maybe('📦 크기 낱말 박스로 짐 칸을 미리 채운다', () => {
+    const memoryCall = (targetApp: string, vehicleType: string | null, sizeText: string | null) => ({
+        id: 'NOT-IN-DB', userId: USER, targetApp, vehicleType,
+        capturedAt: '2026-08-29T00:00:00Z',
+        pickup: '경기 광주시 경안동', dropoff: '경기 광주시 송정동',
+        itemDescription: sizeText ? `${sizeText} 세 변의 합 100cm ∙ 5kg 이하` : null,
+        load: { vehicleText: vehicleType, sizeText, itemText: sizeText ? `${sizeText} 세 변의 합 100cm ∙ 5kg 이하` : null, lines: [] },
+    });
+    const cargoRow = (call: ReturnType<typeof memoryCall>) => {
+        const r = stepsView('NOT-IN-DB', undefined, call)[0].row;
+        return [r.planned_unit, r.planned_quantity, r.planned_handling, r.planned_source];
+    };
+
+    it('🔴 픽커 소형 콜 → 라면박스 2개 · 수작업 · 출처 적요', () => {
+        expect(cargoRow(memoryCall('kakaopicker', null, '소형'))).toEqual(['라면박스', 2, '수작업', 'MEMO']);
+    });
+
+    it('🔴 크기 낱말이 차종보다 먼저 — 픽커 «승» + 초소형 → 라면박스 1개', () => {
+        expect(cargoRow(memoryCall('kakaopicker', '승', '초소형'))).toEqual(['라면박스', 1, '수작업', 'MEMO']);
+    });
+
+    it('🔴 판정 정차 시간도 같은 짐으로 — 픽커 소형은 «모르는 짐» 일반값이 아니다', () => {
+        const t = getStopTiming('NOT-IN-DB', undefined, memoryCall('kakaopicker', null, '소형'));
+        expect(t.hasUnknown).toBe(false);
+    });
+
+    it('박스 수를 모르는 크기 낱말(픽커 «대형»)은 지금처럼 — 차종 기본값 · 없으면 빈칸', () => {
+        expect(cargoRow(memoryCall('kakaopicker', null, '대형'))).toEqual([null, null, null, 'VEHICLE']);
+        expect(cargoRow(memoryCall('kakaopicker', '승', '대형'))).toEqual(['라면박스', 5, '수작업', 'VEHICLE']);
+    });
+
+    it('인성 «다마» · 플렉스 «대박스» 는 박스 모름 — 차종 기본값 그대로', () => {
+        expect(cargoRow(memoryCall('insung', '다마스', '다마'))).toEqual(['라면박스', 30, '수작업', 'VEHICLE']);
+        expect(cargoRow({ ...memoryCall('isflex', '오토', '대박스'), itemDescription: null })[3]).toBe('VEHICLE');
     });
 });

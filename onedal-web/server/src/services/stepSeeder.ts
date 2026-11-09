@@ -23,7 +23,7 @@ import { OrderRepository } from '../repositories/OrderRepository';
 //    «한쪽만 고치는 날» 갈라진다 (규칙 ③).
 import { DEFAULT_PROTECTIONS, DEFAULT_AFTERWORKS, DEFAULT_CARGO_TAG } from '@onedal/shared';
 import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOfSteps,
-         callCargoHintsOf, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT,
+         callCargoHintsOf, sizeBoxesOf, cargoOfBoxes, DEFAULT_TARGET_APP, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT,
          soloMinutesOf, derivationInputsOf, dwellLedgerOfSteps } from '@onedal/shared';
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
 import { slog } from '../utils/fileLogger';
@@ -91,25 +91,28 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     const unk = derivationInputsOf(cfg, o.userId ? dwellRatesFor(o.userId) : undefined).unk;
     // ⏱️ 두 시계 (시간체계 ⑯) — 여유30·휴게30 은 폐기됐다. 지어낸 여유는 없다
 
-    // ── 짐: **가장 신선한 것** — 상차 실측 > 상차 통화 계획 > **적요** > 차종 기본 (규칙 ⑤-2)
+    // ── 짐: **가장 신선한 것** — 상차 실측 > 상차 통화 계획 > **적요** > 크기 낱말 박스 > 차종 기본 (규칙 ⑤-2)
     //    🔴 적요 파싱은 여기(출생) 한 곳이다 (기사님 기획 승인).
     //       옛 시트는 열릴 때마다 파싱했다 — 이제 태어날 때 한 번 읽어 계획에 넣고,
     //       화면은 `planned_source` 배지(📄 적요에서 읽음 · 🚚 차종 기본값)만 그린다.
+    //    📦 크기 낱말(픽커 물품 정보 «소형»)도 이 콜의 짐 표현이다 — 정의 표 sizeWords 에 박스 수가 적힌 낱말만 라면박스로 채우고 출처는 적요.
+    //       박스 모름(«대형» · 인성 «다마»)이면 차종 기본으로 내려간다.
     const loaded = born.LOADED, callP = born.CALL_PICKUP, callD = born.CALL_DROPOFF;
-    const vehicleCargo = defaultCargoByVehicle(o.vehicleType);
+    const sizeCargo = o.load ? cargoOfBoxes(sizeBoxesOf(o.load, o.targetApp ?? DEFAULT_TARGET_APP)) : null;
+    const baseCargo = sizeCargo ?? defaultCargoByVehicle(o.vehicleType);
     const hints = callCargoHintsOf(o);   // 물품 글 + 적요 — 적요가 정의 표 줄을 이은 보기 글(픽커)이면 적요는 안 읽는다
     // 단위 없는 개수는 못 믿는다 — "30개"가 박스인지 마대인지 모른다
     const memoQty = hints.unit != null && hints.quantity != null ? hints.quantity : null;
-    const unit = loaded?.actual_unit ?? callP?.planned_unit ?? hints.unit ?? vehicleCargo?.unit ?? null;
-    const quantity = loaded?.actual_quantity ?? callP?.planned_quantity ?? memoQty ?? vehicleCargo?.quantity ?? null;
-    const handling = loaded?.actual_handling ?? callP?.planned_handling ?? hints.handling ?? vehicleCargo?.handling ?? null;
+    const unit = loaded?.actual_unit ?? callP?.planned_unit ?? hints.unit ?? baseCargo?.unit ?? null;
+    const quantity = loaded?.actual_quantity ?? callP?.planned_quantity ?? memoQty ?? baseCargo?.quantity ?? null;
+    const handling = loaded?.actual_handling ?? callP?.planned_handling ?? hints.handling ?? baseCargo?.handling ?? null;
     const protections: string[] = parse(loaded?.actual_protections) ?? parse(callP?.planned_protections) ?? [...DEFAULT_PROTECTIONS];
     const dropHandling = callD?.planned_handling ?? handling;
     const afterworks: string[] = parse(callD?.planned_afterworks) ?? [...DEFAULT_AFTERWORKS];
     const tags: string[] = parse(callP?.planned_tags) ?? (hints.tags?.length ? hints.tags : null) ?? [DEFAULT_CARGO_TAG];
     const source = loaded?.actual_unit != null ? 'ACTUAL'
         : callP && callP.status !== 'PLANNED' ? 'DECLARED'
-        : hints.unit != null || hints.handling != null ? 'MEMO'
+        : hints.unit != null || hints.handling != null || sizeCargo != null ? 'MEMO'
         : 'VEHICLE';
 
     const points = unitPoints(unit, quantity);

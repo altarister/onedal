@@ -42,18 +42,18 @@ describe('defaultCargoByVehicle — 차종 정원을 기본 짐으로', () => {
 });
 
 /**
- * 순서: **저장값 > 적요 > 차종 기본값** — 시딩(`stepSeeder`) 한 곳이 지키는 규칙.
+ * 순서: **저장값 > 적요 > 크기 낱말 박스 > 차종 기본값** — 시딩(`stepSeeder`) 한 곳이 지키는 규칙.
  * 적요는 이 콜의 실제 정보이고, 차종은 "그 차 한 대 분량"이라는 짐작이라 뒤에 온다.
  */
 describe('미리 채움의 순서 — 시딩(출생) 한 곳이 정한다', () => {
     // 🏗️ 순서 규칙은 시딩 한 곳에 있다:
-    //    실측 > 통화 계획 > **적요** > 차종 기본 — 화면은 planned_source 배지만 그린다
+    //    실측 > 통화 계획 > **적요** > 크기 낱말 박스 > 차종 기본 — 화면은 planned_source 배지만 그린다
     const seeder = () => require('fs').readFileSync(
         require('path').join(__dirname, '../../src/services/stepSeeder.ts'), 'utf8');
 
-    it('적요 힌트가 차종 기본값보다 앞선다 (unit 사슬)', () => {
-        expect(seeder()).toMatch(/hints\.unit \?\? vehicleCargo\?\.unit/);
-        expect(seeder()).toMatch(/hints\.handling \?\? vehicleCargo\?\.handling/);
+    it('적요 힌트가 크기 낱말 박스 · 차종 기본값보다 앞선다 (unit 사슬)', () => {
+        expect(seeder()).toMatch(/hints\.unit \?\? baseCargo\?\.unit/);
+        expect(seeder()).toMatch(/hints\.handling \?\? baseCargo\?\.handling/);
     });
 
     it('눌러 둔 근거(출처)를 남긴다 — 화면 배지의 재료', () => {

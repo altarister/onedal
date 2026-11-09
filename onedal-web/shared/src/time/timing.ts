@@ -104,7 +104,7 @@ export function dwellMinutes(
     /**
      * 🔴 **수량은 늘 있다** (기사님): *"콜이 들어왔다는 건 어떤 차종의 짐을
      *    부른 것이라는 걸 무조건 알 수밖에 없다."* 신고가 없으면 차종 정원이 들어온다
-     *    (`defaultCargoByVehicle` — 화면도 서버도 같은 값).
+     *    (`defaultCargoByVehicle` — 화면도 서버도 같은 값 · 크기 낱말에 박스 수가 있으면 그 박스가 먼저).
      *    다만 **차종조차 못 읽은 콜**은 여전히 있을 수 있어(P3 무결성), 그때만 일반값으로 돈다.
      */
     if (points <= 0) return unknown;

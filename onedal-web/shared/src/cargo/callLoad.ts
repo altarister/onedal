@@ -3,7 +3,7 @@
  * 누가: 콜 모양 · 서버 판정 · 합짐 자리 · 관제웹 짐 표시
  * 언제: 배차망 화면의 차종 · 크기 · 물품 글자를 담거나, 거기서 우리 차종 · 라면박스 수를 꺼낼 때
  * 어디서: 콜 한 건의 짐 묶음과 배차망 정의 표의 차종 낱말 · 크기 낱말 · 사실 칸
- * 무엇을: LOAD_KINDS · CallLoad · loadFrom · carriedLoad · VEHICLE_MATCH_KINDS · VehicleMatch · vehicleMatchOf · boxesOf
+ * 무엇을: LOAD_KINDS · CallLoad · loadFrom · carriedLoad · VEHICLE_MATCH_KINDS · VehicleMatch · vehicleMatchOf · sizeBoxesOf · boxesOf
  * 어떻게: 짐 묶음에는 화면 글자만 담고, 우리 차종 맞춤 · 박스 수는 정의 표를 읽는 함수로 꺼낸다
  * 왜: 네 배차망의 짐 글자를 한 모양으로 담고, 차종 거르기 · 단가 · 합짐 자리가 같은 답을 보게 하기 위해서다
  */
@@ -86,13 +86,18 @@ export function vehicleMatchOf(load: CallLoad, network: TargetAppType): VehicleM
     return { kind: 'UNKNOWN' };
 }
 
+/** 크기 낱말의 라면박스 수 — 그 배차망 정의 표 sizeWords 에 박스 수가 적힌 낱말만 · 낱말이 없거나 박스 모름(«대형» · «다마»)이면 null */
+export function sizeBoxesOf(load: Pick<CallLoad, 'sizeText'>, network: TargetAppType): number | null {
+    return NETWORK_PAGES[network].sizeWords?.find(w => w.word === load.sizeText)?.boxes ?? null;
+}
+
 /**
  * 라면박스 수 — 크기 낱말(정의 표 sizeWords) > 콜 차종 표준(VEHICLE_CAPACITY). 모르면 null.
  * 크기 낱말이 표에 있어도 박스 수가 모름(«대형»)이면 콜 차종 표준으로 넘어간다.
  */
 export function boxesOf(load: CallLoad, network: TargetAppType): number | null {
-    const size = NETWORK_PAGES[network].sizeWords?.find(w => w.word === load.sizeText);
-    if (size?.boxes != null) return size.boxes;
+    const size = sizeBoxesOf(load, network);
+    if (size != null) return size;
     const match = vehicleMatchOf(load, network);
     return match.kind === 'OURS' ? VEHICLE_CAPACITY[match.vehicle] : null;
 }
