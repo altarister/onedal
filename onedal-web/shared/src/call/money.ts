@@ -62,12 +62,13 @@ export const isDigitSlip = (a: number, b: number): boolean => a * DIGIT_SLIP <= 
  * 상세 원문 돈 묶음을 원달앱 보고 돈 묶음 위에 얹는다(/detail) — 상세에 돈 줄이 있으면 그 갈래 줄만 상세 값으로 덮고 다른 갈래 줄은 보고 그대로,
  * 수수료율 · 결제 · 증빙은 상세에 글자가 있을 때만 얹는다. 상세 돈 묶음이 없으면 보고 그대로(인성 상세 «요금 :» 은 갈래 줄이 아니라 보고의 기사님 몫 줄이 남는다).
  * 상세 기사님 몫이 보고 기사님 몫과 오독만큼 다르면(`isDigitSlip` — 픽커 사진 «최종 수익» 한 자리 빠짐 · 붙음) 그 상세 줄은 버리고 보고 줄이 남는다 — 판정 금액이 열 배 틀리지 않게.
+ * 상세 기사님 몫이 0 원 이하면 없는 값으로 쳐 그 상세 줄도 버린다(원달앱 `PickerDetailOcrParser.detailFare` 와 같다).
  */
 export function withDetailMoney(reported: CallMoney | undefined, detail: CallMoney | undefined): CallMoney | undefined {
     if (!detail) return reported;
     if (!reported) return detail;
     const listed = incomeOf(reported);
-    const detailLines = detail.lines.filter(l => !(l.kind === 'income' && listed != null && listed > 0 && l.won > 0 && isDigitSlip(listed, l.won)));
+    const detailLines = detail.lines.filter(l => !(l.kind === 'income' && (l.won <= 0 || (listed != null && listed > 0 && isDigitSlip(listed, l.won)))));
     const kinds = new Set(detailLines.map(l => l.kind));
     return {
         lines: [...detailLines, ...reported.lines.filter(l => !kinds.has(l.kind))],

@@ -103,4 +103,8 @@ describe('💰 상세 돈 묶음을 보고 위에 — 갈래마다 덮고 결제
         expect(incomeOf(withDetailMoney(listed, moneyWith([{ kind: 'income', won: 1200, shown: '1,200' }]))!)).toBe(12000);
         expect(incomeOf(withDetailMoney(listed, moneyWith([{ kind: 'income', won: 24000, shown: '24,000' }]))!)).toBe(24000);
     });
+    it('🔴 상세 기사님 몫이 0 원 이하면 없는 값 — 상세 줄을 버리고 보고 값(원달앱 `detailFare` 와 같다)', () => {
+        const listed = moneyWith([{ kind: 'income', won: 12000, shown: '12,000' }]);
+        expect(incomeOf(withDetailMoney(listed, moneyWith([{ kind: 'income', won: 0, shown: '0' }]))!)).toBe(12000);
+    });
 });
