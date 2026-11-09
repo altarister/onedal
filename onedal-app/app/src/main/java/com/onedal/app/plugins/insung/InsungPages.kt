@@ -139,9 +139,9 @@ object InsungPages {
             /* 실물: PNG 확정 전 0/3 · 영상 확정 전 2/2(영상_0532 · 영상_0938) · 확정 뒤 5/5 · 하차 정거장 거리(상차지 → 하차지) · 직선(화면 글자 «(직선)») */
             FieldSpec(PageField.DELIVERY_DISTANCE, "적요 칸 다음 둘째 거리 줄", "상차지 → 하차지(직선)35.9KM", Seen.REAL, Handling.READ, "InsungSequence.buildOrderFromScreen — 손으로 확정한 콜의 하차 정거장 거리",
                 read = Regex("""상차지\s*→\s*하차지\(직선\)\s*([\d.]+)\s*KM""")),
-            FieldSpec(PageField.TOLL, "탁송료 줄", "탁송료 : 0", Seen.REAL, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱 돈 9(걸음 5)",
+            FieldSpec(PageField.TOLL, "탁송료 줄", "탁송료 : 0", Seen.REAL, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 안 읽는다",
                 read = Regex("""탁송료[ \t]*:[ \t]*([\d,]+)""")),
-            FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 : 23%", Seen.REAL, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱 돈 9(걸음 5)",
+            FieldSpec(PageField.COMMISSION, "수수료 줄", "수수료 : 23%", Seen.REAL, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 안 읽는다",
                 read = Regex("""수수료\s*:\s*(\d+(?:\.\d+)?%)""")),
         ),
     )

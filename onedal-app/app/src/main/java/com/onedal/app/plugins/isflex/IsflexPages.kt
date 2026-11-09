@@ -109,7 +109,7 @@ object IsflexPages {
             FieldSpec(PageField.FARE, "탁송 금액(안내 그림)", "탁송 금액 25,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 플렉스 확정 뒤 상세를 안 읽는다",
                 read = Regex("""탁송 금액\s+([\d,]+)원"""), part = "unknown"),
             /* 뜻 모름 — «탁송 금액»과 함께 실전 한 건으로 가른다 */
-            FieldSpec(PageField.FARE, "배송비(안내 그림)", "배송비 5,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 서버 상세는 확정 전 화면만(확정 뒤 보고는 원달앱 걸음 5 뒤)",
+            FieldSpec(PageField.FARE, "배송비(안내 그림)", "배송비 5,000원", Seen.UNKNOWN, Handling.READ, "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 플렉스 확정 뒤 상세를 안 읽는다",
                 read = Regex("""배송비\s+([\d,]+)원"""), part = "unknown.deliveryFee"),
             FieldSpec(PageField.FARE, "총 수익(안내 그림 — 실물 상세는 «총 수입»)", "총 수익 ₩ 123,000원", Seen.UNKNOWN, Handling.UNUSED),
         ),

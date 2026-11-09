@@ -193,8 +193,8 @@ export const INSUNG_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "stage", "where": "상태 줄", "sample": "상태 : 배송", "seen": "REAL", "handling": "UNUSED"},
       {"field": "vehicleType", "where": "차량 줄", "sample": "차량 : 다마스", "seen": "REAL", "handling": "UNUSED"},
       {"field": "deliveryDistance", "where": "적요 칸 다음 둘째 거리 줄", "sample": "상차지 → 하차지(직선)35.9KM", "seen": "REAL", "handling": "READ", "usedAt": "InsungSequence.buildOrderFromScreen — 손으로 확정한 콜의 하차 정거장 거리", "read": "상차지\\s*→\\s*하차지\\(직선\\)\\s*([\\d.]+)\\s*KM", "note": "실물: PNG 확정 전 0/3 · 영상 확정 전 2/2(영상_0532 · 영상_0938) · 확정 뒤 5/5 · 하차 정거장 거리(상차지 → 하차지) · 직선(화면 글자 «(직선)»)"},
-      {"field": "toll", "where": "탁송료 줄", "sample": "탁송료 : 0", "seen": "REAL", "handling": "READ", "usedAt": "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱 돈 9(걸음 5)", "read": "탁송료[ \\t]*:[ \\t]*([\\d,]+)"},
-      {"field": "commission", "where": "수수료 줄", "sample": "수수료 : 23%", "seen": "REAL", "handling": "READ", "usedAt": "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱 돈 9(걸음 5)", "read": "수수료\\s*:\\s*(\\d+(?:\\.\\d+)?%)"}
+      {"field": "toll", "where": "탁송료 줄", "sample": "탁송료 : 0", "seen": "REAL", "handling": "READ", "usedAt": "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 안 읽는다", "read": "탁송료[ \\t]*:[ \\t]*([\\d,]+)"},
+      {"field": "commission", "where": "수수료 줄", "sample": "수수료 : 23%", "seen": "REAL", "handling": "READ", "usedAt": "지금 읽는 곳 없음 — 확정 뒤 상세라 서버 상세 자료(detailRecordOf) 밖 · 원달앱은 안 읽는다", "read": "수수료\\s*:\\s*(\\d+(?:\\.\\d+)?%)"}
     ]
   }
 }/*JSON*/ as NetworkPageSpec;
