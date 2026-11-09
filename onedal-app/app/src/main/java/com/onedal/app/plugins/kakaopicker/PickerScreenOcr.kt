@@ -93,9 +93,11 @@ object PickerScreenOcr {
     private val CLOCK_START = Regex("^[0-9]{1,2}:[0-9]{2}")
 
     /**
-     * 📦 물품 크기 줄 — 크기 낱말은 배차망 정의 표(`KakaoPickerPages.sizeWords`)에서 · 표 차례(«초소형»이 «소형»보다 먼저) · 서버 `pickerScreenOcr.ts` 와 같은 다섯이다.
+     * 📦 물품 크기 낱말 — 크기 낱말은 배차망 정의 표(`KakaoPickerPages.sizeWords`)에서 · 표 차례(«초소형»이 «소형»보다 먼저) · 서버 `pickerScreenOcr.ts` 와 같은 다섯이다.
+     * 글 맨 앞의 크기 낱말(«소형 세 변의 합 …»)이나 «물품 정보» 바로 뒤의 크기 낱말(«물품 정보 소형 …» — 사진 글자가 제목과 한 줄로 붙여 줄 때 ·
+     * 접근성 글자를 이어 붙인 상세 글)을 찾는다. 첫 묶음이 크기 낱말이다. 상세 크기를 읽는 식은 이 하나다(`KakaoPickerParser.matchListCard` 도 이것).
      */
-    private val SIZE_RE = Regex("^(" + KakaoPickerPages.sizeWords.keys.joinToString("|") { Regex.escape(it) } + ")")
+    private val SIZE_RE = Regex("(?:^|물품\\s*정보\\s*)(" + KakaoPickerPages.sizeWords.keys.joinToString("|") { Regex.escape(it) } + ")")
 
     /** OCR 이 줄 앞에 붙이는 불릿(`•`·`·`·`*`) — 한글·숫자·영문이 나오는 첫 자리부터 남긴다 */
     private val BULLET_RE = Regex("^[^0-9A-Za-z가-힣]+")
@@ -107,8 +109,11 @@ object PickerScreenOcr {
 
     fun stripBullet(text: String): String = text.replace(BULLET_RE, "").trim()
 
-    /** 📦 물품 크기 줄의 앞 크기 낱말(«중형 세 변의 합 140cm …» → «중형») — 짐 묶음 크기 낱말 · 크기 낱말로 시작하지 않으면 null */
-    fun sizeWordOf(line: String?): String? = line?.let { SIZE_RE.find(it)?.value }
+    /** 📦 물품 크기 낱말(«중형 세 변의 합 140cm …» · «물품 정보 중형 …» → «중형») — 짐 묶음 크기 낱말 · 없으면 null */
+    fun sizeWordOf(line: String?): String? = line?.let { SIZE_RE.find(it)?.groupValues?.get(1) }
+
+    /** 📦 물품 크기 줄을 크기 낱말부터(«물품 정보 소형 …» → «소형 …») — 크기 낱말이 없으면 null */
+    private fun sizeLineOf(line: String): String? = SIZE_RE.find(line)?.groups?.get(1)?.let { line.substring(it.range.first) }
 
     fun isAdminLine(text: String): Boolean = PROVINCES.any { text.startsWith("$it ") }
 
@@ -167,8 +172,8 @@ object PickerScreenOcr {
         val pickup = readStop(sorted, pickupHead, dropoffHead.y) ?: return null
         val dropoff = readStop(sorted, dropoffHead, Int.MAX_VALUE) ?: return null
 
-        // ③ 물품 정보 — 크기 낱말로 시작하는 줄 그대로. 우리 적재 체계로 환산하지 않는다 (규칙 ④)
-        val itemSize = sorted.firstOrNull { SIZE_RE.containsMatchIn(it.text) }?.text
+        // ③ 물품 정보 — 크기 낱말부터 줄 끝까지 그대로(«물품 정보»가 앞에 붙어 오면 뗀다). 우리 적재 체계로 환산하지 않는다 (규칙 ④)
+        val itemSize = sorted.firstNotNullOfOrNull { sizeLineOf(it.text) }
 
         // ④ 예약 콜인가 — 「…픽업예약」 줄 하나로 판단한다
         val reservedLine = sorted.firstOrNull { it.text.contains("픽업예약") }?.text

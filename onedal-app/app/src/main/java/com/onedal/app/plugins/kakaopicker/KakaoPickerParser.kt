@@ -582,7 +582,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
              *    요금이 없으면 픽업지(+물품 크기)로 찾고 요금은 카드 것을 쓴다. 못 찾은 콜은 보내지 않는다 (기사님: «못 찾은 콜은 내 콜이 아닌 거지»).
              */
             val detailFare = PickerFinalIncome.of(detailTexts)
-            val size = DETAIL_SIZE_REGEX.find(joined)?.groupValues?.get(1)
+            val size = PickerScreenOcr.sizeWordOf(joined)   // 상세의 «물품 정보 소형 …» — 사진 글자와 같은 식 하나
             val marker = DETAIL_PICKUP_KM_REGEX.find(joined)
             val pickupPart = regionKeys(if (marker != null) joined.substring(0, marker.range.first) else joined)
             val dropoffPart = regionKeys(if (marker != null) joined.substring(marker.range.last + 1) else "")
@@ -683,9 +683,6 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
         /** 사진 픽업 km 와 목록 줄 픽업 km 의 허용 차 — 둘 다 소수 한 자리 직선거리다 */
         private const val PHOTO_MATCH_KM = 0.3
-
-        /** 상세의 «물품 정보 소형 …» — 크기 낱말은 정의 표(`KakaoPickerPages.sizeWords`)에서 · 🔴 «초소형»을 «소형»보다 먼저 본다(표 차례) */
-        private val DETAIL_SIZE_REGEX = Regex("""물품\s*정보\s*(""" + ITEM_SIZES.joinToString("|") { Regex.escape(it) } + ")")
 
         /**
          * 🔔 **축별 판정 결과** (카카오픽커_시뮬레이터.md 3단계 3-2).

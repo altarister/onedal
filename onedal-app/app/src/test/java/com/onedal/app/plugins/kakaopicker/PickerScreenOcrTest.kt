@@ -89,6 +89,19 @@ class PickerScreenOcrTest {
         assertEquals("더에스엠씨그룹", r.dropoff.place)
     }
 
+    /**
+     * 📦 사진 글자가 «물품 정보»와 크기 줄을 한 줄로 붙여 줄 때 — 실물 상세(intel 18058 등) «물품 정보 소형 세 변의 합 100cm. 5kg 이하».
+     * 크기 칸은 크기 낱말부터 싣는다(따로 오는 줄과 같은 꼴).
+     */
+    @Test
+    fun `물품 정보 제목과 크기 줄이 한 줄로 붙어도 크기를 읽는다`() {
+        val joinedLine = "물품 정보 소형 세 변의 합 100cm ∙ 5kg 이하"
+        val r = PickerScreenOcr.parseDetail(실물_위례_삼성2동.filter { it.text != "물품 정보" }.map { if (it.text.startsWith("초소형")) OcrLine(it.y, joinedLine) else it })!!
+        assertEquals("소형 세 변의 합 100cm ∙ 5kg 이하", r.itemSize)
+        assertEquals("소형", PickerScreenOcr.sizeWordOf(joinedLine))
+        assertEquals("더에스엠씨그룹", r.dropoff.place)
+    }
+
     @Test
     fun `지도 위 지명이 주소로 새지 않는다`() {
         val r = PickerScreenOcr.parseDetail(실물_위례_삼성2동)!!

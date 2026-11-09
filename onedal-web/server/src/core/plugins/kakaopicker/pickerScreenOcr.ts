@@ -27,9 +27,10 @@
 import { NETWORK_PAGES } from '@onedal/shared';
 
 /**
- * 📦 물품 크기 줄 — 크기 낱말은 배차망 정의 표(픽커 `sizeWords`)에서 · 표 차례(«초소형»이 «소형»보다 먼저) · 원달앱 `PickerScreenOcr.kt` 와 같은 다섯이다.
+ * 📦 물품 크기 낱말 — 크기 낱말은 배차망 정의 표(픽커 `sizeWords`)에서 · 표 차례(«초소형»이 «소형»보다 먼저) · 원달앱 `PickerScreenOcr.kt` 와 같은 다섯이다.
+ * 줄 맨 앞의 크기 낱말이나 «물품 정보» 바로 뒤의 크기 낱말(사진 글자가 제목과 한 줄로 붙여 줄 때)을 찾는다. 첫 묶음이 크기 낱말이다.
  */
-const SIZE_RE = new RegExp(`^(${(NETWORK_PAGES.kakaopicker.sizeWords ?? []).map(w => w.word).join('|')})`);
+const SIZE_RE = new RegExp(`(?:^|물품\\s*정보\\s*)(${(NETWORK_PAGES.kakaopicker.sizeWords ?? []).map(w => w.word).join('|')})`);
 
 /** OCR 한 줄 — `y` 는 위에서부터의 자리(위가 작다). 엔진이 무엇이든 이 둘만 주면 된다 */
 export interface OcrLine {
@@ -136,11 +137,12 @@ export function parsePickerDetailOcr(lines: OcrLine[]): PickerDetailFromImage | 
     if (!pickup || !dropoff) return null;
 
     /**
-     * ③ 물품 정보 — 「초소형 …」처럼 **크기 낱말로 시작하는 줄**을 그대로 싣는다.
+     * ③ 물품 정보 — 「초소형 …」처럼 **크기 낱말부터 줄 끝까지** 그대로 싣는다(«물품 정보»가 앞에 붙어 오면 뗀다).
      *    ⚠️ 칸을 더 나누지 않는다. 픽커의 크기 체계를 우리 적재 체계로 옮기는 것은
      *       별도 판이고, 지금 나누면 **근거 없는 환산**이 태어난다 (규칙 ④).
      */
-    const itemSize = sorted.find(l => SIZE_RE.test(l.text))?.text ?? null;
+    const sizeHit = sorted.map(l => ({ text: l.text, m: SIZE_RE.exec(l.text) })).find(h => h.m);
+    const itemSize = sizeHit?.m ? sizeHit.text.slice(sizeHit.m.index + sizeHit.m[0].length - sizeHit.m[1].length) : null;
 
     /* ④ 예약 콜인가 — 「…픽업예약」 줄 하나로 판단한다 */
     const reserved = sorted.some(l => l.text.includes('픽업예약'));
