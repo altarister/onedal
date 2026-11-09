@@ -44,7 +44,7 @@ object IsflexPages {
             /* 실물 8건에는 없다 · 안내 그림 img_guide3_1 에만 */
             FieldSpec(PageField.BILLING, "수입 아래 배지(안내 그림)", "계산서", Seen.UNKNOWN, Handling.UNUSED),
             /* 실물 8건에는 없다 · 안내 그림 img_guide3_1 에만 — 차종 바로 뒤에 오면 차종 글자에 섞일 수 있다 */
-            FieldSpec(PageField.TAGS, "차종 아래 배지(안내 그림)", "급 · 왕 · 빈 · 경", Seen.UNKNOWN, Handling.UNUSED),
+            FieldSpec(PageField.TAGS, "차종 아래 배지(안내 그림)", "급 · 왕 · 빈 · 경", Seen.UNKNOWN, Handling.READ, "IsflexParser.parseList — 차종 뒤 낱말을 화면 기록(tagsText) · 구분(tripType) · 형태(orderForm)로"),
         ),
         Page.NEW_CALL to listOf(
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선인지 모름 */

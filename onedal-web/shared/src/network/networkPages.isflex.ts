@@ -104,7 +104,7 @@ export const ISFLEX_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "fare", "where": "수입 칸(«원» 없음)", "sample": "21,252", "seen": "REAL", "handling": "READ", "usedAt": "IsflexParser.parseList — 보고 요금 칸 · 돈 묶음 기사님 몫 줄", "presence": "ALWAYS", "presenceEvidence": {"seen": 8, "of": 8, "from": "실물 ex_images/인성플렉스 02 · 07 목록 줄 11개 — 서로 다른 콜 8건"}},
       {"field": "payment", "where": "수입 아래 작은 테두리 글자", "sample": "선불 · 착불", "seen": "REAL", "handling": "READ", "usedAt": "IsflexParser.parseList — 화면 기록(tagsText) · 돈 묶음 결제", "presence": "SOMETIMES", "presenceEvidence": {"seen": 3, "of": 8, "from": "실물 ex_images/인성플렉스 02 · 07 목록 줄 11개 — 서로 다른 콜 8건 · 방배동 «선불» · 남대문로2가 «착불» · 역삼동 «착불»"}},
       {"field": "billing", "where": "수입 아래 배지(안내 그림)", "sample": "계산서", "seen": "UNKNOWN", "handling": "UNUSED", "note": "실물 8건에는 없다 · 안내 그림 img_guide3_1 에만"},
-      {"field": "tags", "where": "차종 아래 배지(안내 그림)", "sample": "급 · 왕 · 빈 · 경", "seen": "UNKNOWN", "handling": "UNUSED", "note": "실물 8건에는 없다 · 안내 그림 img_guide3_1 에만 — 차종 바로 뒤에 오면 차종 글자에 섞일 수 있다"}
+      {"field": "tags", "where": "차종 아래 배지(안내 그림)", "sample": "급 · 왕 · 빈 · 경", "seen": "UNKNOWN", "handling": "READ", "usedAt": "IsflexParser.parseList — 차종 뒤 낱말을 화면 기록(tagsText) · 구분(tripType) · 형태(orderForm)로", "note": "실물 8건에는 없다 · 안내 그림 img_guide3_1 에만 — 차종 바로 뒤에 오면 차종 글자에 섞일 수 있다"}
     ],
     "newCall": [
       {"field": "pickupDistance", "where": "지도 아래 «출발지까지» 다음", "sample": "출발지까지 26.7km", "seen": "REAL", "handling": "READ", "usedAt": "IsflexParser.fillFromDetail — 정거장 거리(목록 값이 없을 때만)", "read": "출발지까지\\s+([\\d.]+)km", "presence": "ALWAYS", "presenceEvidence": {"seen": 5, "of": 5, "from": "실물 ex_images/인성플렉스 08~12 확정 전 상세 — 서로 다른 콜 5건"}, "note": "첫 상차 정거장 거리(내 자리 → 상차지) · 직선인지 모름"},
