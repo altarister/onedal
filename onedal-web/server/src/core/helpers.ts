@@ -1,4 +1,4 @@
-import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType, vehicleKeyOf, findTagConflicts, computeStopTiming, recordsOfSteps, unitPoints, handMinutesOf, protectionMinutes } from '@onedal/shared';
+import { isTerminal, cargoPoints, boxesOf, vehicleRoomOf, DEFAULT_TARGET_APP, findTagConflicts, computeStopTiming, recordsOfSteps, unitPoints, handMinutesOf, protectionMinutes } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming, JudgmentConfig } from '@onedal/shared';
 import { originOf } from '../services/geoMotion';
 import db from '../db';
@@ -21,7 +21,7 @@ import { getActiveCalls } from "./activeCalls";
  *
  *   현장 실측(ACTUAL)  → 확정
  *   통화 신고(DECLARED) → 신고
- *   없음               → 차종으로 추정 (**그 차종의 정원을 다 먹는다**고 가정)
+ *   없음               → 짐 묶음으로 추정 — 크기 낱말 박스 > 콜 차종 표준 박스 > 모르면 자리 없음(내 차 그릇을 다 먹는다)
  *
  * 🔴 **여기서 내는 `points` 는 «다 더한 값»이다 — 그대로 «지금 적재»로 쓰면 안 된다.**
  *    잡아 둔 콜을 다 더해 세면 하루 6~7콜을 도는데 3~4콜에서 «만재»로 막힌다 (KEEP 은 예약이다).
@@ -29,7 +29,7 @@ import { getActiveCalls } from "./activeCalls";
  *    `pointsByOrder` 가 그 재료다. `points` 는 순서를 모를 때의 «가장 나쁜 경우»로만 쓴다.
  *
  * ⚠️ 적재 판정이 이 값을 먹으므로 숫자를 여기 다시 적지 않는다 — 원천은
- *    `VEHICLE_CAPACITY`(shared/vehicles.ts) 하나다 (규칙 ③)
+ *    정의 표 크기 낱말 · `VEHICLE_CAPACITY`(shared) 를 읽는 `boxesOf` 하나다 (규칙 ③)
  */
 export function computeLoadedPoints(
     calls: MyOrder[],
@@ -60,8 +60,8 @@ export function computeLoadedPoints(
             pointsByOrder[c.id] = reported;
             if (!actual) anyDeclaredOnly = true;
         } else {
-            const key = normalizeVehicleType(c.vehicleType || myVehicle) ?? vehicleKeyOf(myVehicle);
-            const guess = key ? VEHICLE_CAPACITY[key] : 0;
+            /* 📦 콜 차종 칸이 비었다고 내 차로 바꾸지 않는다 — 모르면 자리 없음(안전한 쪽) */
+            const guess = callBoxesOf(c) ?? vehicleRoomOf(myVehicle);
             points += guess;
             pointsByOrder[c.id] = guess;
             anyEstimated = true;
@@ -71,6 +71,18 @@ export function computeLoadedPoints(
     const confidence: CapacityConfidence =
         anyEstimated ? 'ESTIMATED' : anyDeclaredOnly ? 'DECLARED' : 'CONFIRMED';
     return { points, confidence, pointsByOrder };
+}
+
+/**
+ * 📦 **콜 한 건의 라면박스 수 — 짐 묶음에서** (크기 낱말 박스 > 콜 차종 표준 박스 · 모르면 null).
+ *    짐 묶음에 차종 글자가 없으면 콜 차종 칸을 읽는다. 합짐 자리 셈(`computeLoadedPoints`)과 KEEP 뒤 «모름» 경고가 같은 답을 본다.
+ */
+export function callBoxesOf(c: Pick<MyOrder, 'load' | 'vehicleType' | 'targetApp'>): number | null {
+    const load = c.load;
+    return boxesOf({
+        vehicleText: load?.vehicleText ?? c.vehicleType ?? null, sizeText: load?.sizeText ?? null,
+        itemText: load?.itemText ?? null, lines: load?.lines ?? [],
+    }, c.targetApp ?? DEFAULT_TARGET_APP);
 }
 
 /**
@@ -546,9 +558,8 @@ export function setOrderStatus(
  * ⛔ **만석 홀드 — 실을 수 있는 차종이 없으면 콜 잡기를 멈춘다** (기사님 확정).
  *
  * 상차 신고로 적재가 100/100 이 되면 `allowedVehicleTypes` 가 빈 배열이 되는데,
- * 앱 파서는 빈 배열을 "전체 허용"(서버 미응답 대비 오프라인 안전망)으로 읽는다 —
- * 한 신호에 뜻이 둘이라 **만석인데 모든 차종을 잡으러 드는** 사고가 난다.
- * 그래서 만석은 빈 배열이 아니라 isActive=false 로 명시한다 (빈 필터는 고장 — 규칙 ④).
+ * 원달앱도 빈 배열을 «꽉 참»(차종 거르기에서 모두 떨어짐)으로 읽지만, 만석은 isActive=false 로도 함께 명시한다 —
+ * 픽커 알람 · 상세 열기처럼 차종 축이 없는 길도 멈추게 (빈 필터는 고장 — 규칙 ④).
  *
  * 목록이 아예 없는 것(옛 필터·미계산)과 비어 있는 것은 다르다 — 없으면 홀드하지 않는다.
  */

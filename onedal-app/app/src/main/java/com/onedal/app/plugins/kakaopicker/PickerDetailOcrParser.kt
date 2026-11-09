@@ -90,11 +90,16 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
         // 📰 사진에서 칸에 안 넣은 줄 — 상세 페이지의 «정의에 없음»으로 모은다 (`ScreenWords`)
         val photoSample = parsed.unreadLines.joinToString(" ")
         parsed.unreadLines.forEach { ScreenWords.add(it, WordKind.UNKNOWN, photoSample, page = com.onedal.app.core.Page.NEW_CALL) }   // 📸 찍은 화면(상세)으로 — 판독이 끝날 때 화면이 바뀌어 있어도
+        // 🚚 짐 묶음 — 사진 시트 꼬리표의 차종 글자(«승용차»)와 물품 줄의 크기 낱말 · 화면에 없으면 목록 줄의 것 · 차종을 지어내지 않는다
+        val photoVehicle = parsed.unreadLines.flatMap { it.split(' ') }.firstOrNull { it in KakaoPickerPages.vehicleWords }
+        val photoSize = PickerScreenOcr.sizeWordOf(parsed.itemSize)
         if (alarmTappedCard != null) {
             val verifiedOrder = withPhotoStops(withIncomeLine(alarmTappedCard.copy(
                 fare = detailFare(alarmTappedCard.fare, parsed.finalIncome) ?: alarmTappedCard.fare,
                 rawText = rawScreenStr,
-                itemSize = parsed.itemSize ?: alarmTappedCard.itemSize
+                itemSize = parsed.itemSize ?: alarmTappedCard.itemSize,
+                loadVehicleText = photoVehicle ?: alarmTappedCard.load?.vehicleText,
+                loadSizeText = photoSize ?: alarmTappedCard.load?.sizeText,
             )), parsed).let { withDetailPromises(it, parsed) }
             return VerifyResult.Success(verifiedOrder, parsed)
         } else {
@@ -123,9 +128,9 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
                 timestamp = now,
                 rawText = rawScreenStr,
                 itemSize = parsed.itemSize ?: baseOrder.itemSize,
-                vehicleType = KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE,
-                tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ") +
-                    (twinNote?.let { " · $it" } ?: "")
+                loadVehicleText = photoVehicle ?: baseOrder.load?.vehicleText,
+                loadSizeText = photoSize ?: baseOrder.load?.sizeText,
+                tagsText = tagsOf(parsed.itemSize, twinNote)
             ) ?: SimplifiedOfficeOrder(
                 id = "MANUAL-${System.currentTimeMillis()}",
                 type = "MANUAL_CLICK",
@@ -135,13 +140,17 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
                 timestamp = now,
                 rawText = rawScreenStr,
                 itemSize = parsed.itemSize,
-                vehicleType = KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE,
-                tagsText = listOfNotNull(parsed.itemSize, KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" ") +
-                    (twinNote?.let { " · $it" } ?: "")
+                loadVehicleText = photoVehicle,
+                loadSizeText = photoSize,
+                tagsText = tagsOf(parsed.itemSize, twinNote)
             )
             return VerifyResult.Success(withDetailPromises(withPhotoStops(withIncomeLine(manualOrder), parsed), parsed), parsed)
         }
     }
+
+    /** 🏷️ 손으로 연 상세의 화면 기록 — 물품 크기 줄 · 쌍둥이 꼬리 글(« · » 뒤) · 둘 다 없으면 null */
+    private fun tagsOf(itemSize: String?, twinNote: String?): String? =
+        listOfNotNull(itemSize, twinNote).joinToString(" · ").ifEmpty { null }
 
     /**
      * 💰 **판정 요금 — 사진의 «최종 수익»이 있으면 그것, 없으면 목록 줄 요금** (기사님 «가» · `PickerFinalFareTest`).

@@ -336,13 +336,9 @@ class InsungParser(private val context: Context) : IScrapParser {
             // 📅 예약 — 첫 상차 날로 막는다(상세에서 채운 뒤 `passesFilterAfterFill` 이 한 번 더)
             val reservationOk = com.onedal.app.core.engine.ReservationGate.passes(order, filter.reservationMode)
 
-            // ── 조건 1: 차종 매칭 (빈 배열이면 전체 허용) ──
-            val vehicleMatch = if (filter.allowedVehicleTypes.isEmpty()) {
-                true
-            } else {
-                order.vehicleType != null && filter.allowedVehicleTypes.any { allowed ->
-                    vehicleMatches(allowed, order.vehicleType)
-                }
+            // ── 조건 1: 차종 매칭 (빈 배열은 꽉 참 — 서버가 남은 자리에 드는 차종이 없다고 보낸 것 · 못 받은 기본값은 위 조건 0 에서 잠긴다) ──
+            val vehicleMatch = order.vehicleType != null && filter.allowedVehicleTypes.any { allowed ->
+                vehicleMatches(allowed, order.vehicleType)
             }
 
             // ── 조건 1: 도착지 매칭 (2단계 필터링 + 스마트 유추 로직) ──

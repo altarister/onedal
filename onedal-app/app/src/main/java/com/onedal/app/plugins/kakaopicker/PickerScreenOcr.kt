@@ -107,6 +107,9 @@ object PickerScreenOcr {
 
     fun stripBullet(text: String): String = text.replace(BULLET_RE, "").trim()
 
+    /** 📦 물품 크기 줄의 앞 크기 낱말(«중형 세 변의 합 140cm …» → «중형») — 짐 묶음 크기 낱말 · 크기 낱말로 시작하지 않으면 null */
+    fun sizeWordOf(line: String?): String? = line?.let { SIZE_RE.find(it)?.value }
+
     fun isAdminLine(text: String): Boolean = PROVINCES.any { text.startsWith("$it ") }
 
     /** 시각 줄이면 화면에 적힌 시각 그대로(`내일 15:00` · `10:00까지`), 아니면 null */

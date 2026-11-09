@@ -3,7 +3,7 @@
  * 누가: 콜 모양 · 서버 판정 · 합짐 자리 · 관제웹 짐 표시
  * 언제: 배차망 화면의 차종 · 크기 · 물품 글자를 담거나, 거기서 우리 차종 · 라면박스 수를 꺼낼 때
  * 어디서: 콜 한 건의 짐 묶음과 배차망 정의 표의 차종 낱말 · 크기 낱말 · 사실 칸
- * 무엇을: LOAD_KINDS · CallLoad · loadFrom · VEHICLE_MATCH_KINDS · VehicleMatch · vehicleMatchOf · boxesOf
+ * 무엇을: LOAD_KINDS · CallLoad · loadFrom · carriedLoad · VEHICLE_MATCH_KINDS · VehicleMatch · vehicleMatchOf · boxesOf
  * 어떻게: 짐 묶음에는 화면 글자만 담고, 우리 차종 맞춤 · 박스 수는 정의 표를 읽는 함수로 꺼낸다
  * 왜: 네 배차망의 짐 글자를 한 모양으로 담고, 차종 거르기 · 단가 · 합짐 자리가 같은 답을 보게 하기 위해서다
  */
@@ -47,6 +47,18 @@ export function loadFrom(raw: unknown): CallLoad | null {
             ? [{ kind: kind as LoadKind, shown }] : [];
     });
     return { vehicleText: textOrNull(o.vehicleText), sizeText: textOrNull(o.sizeText), itemText: textOrNull(o.itemText), lines };
+}
+
+/**
+ * 📦 **짐 묶음을 칸마다 잇는다** — 앞에 놓인 묶음이 먼저 · 그 칸이 비면(null · 짐 줄 빈 목록) 다음 묶음의 칸.
+ *    서버 `/detail` 이 «상세 짐 → 원달앱 보고 짐 → 앞 기억» 차례로 넘긴다 — 상세에 크기 낱말이 없다고 보고의 크기 낱말이 지워지지 않게.
+ *    묶음이 하나도 없으면 null.
+ */
+export function carriedLoad(...loads: Array<CallLoad | null | undefined>): CallLoad | null {
+    const present = loads.filter((l): l is CallLoad => !!l);
+    if (!present.length) return null;
+    const first = <K extends 'vehicleText' | 'sizeText' | 'itemText'>(k: K) => present.find(l => l[k] != null)?.[k] ?? null;
+    return { vehicleText: first('vehicleText'), sizeText: first('sizeText'), itemText: first('itemText'), lines: present.find(l => l.lines?.length)?.lines ?? [] };
 }
 
 /* 차종 맞춤 넷 — 저장하지 않고 꺼낸다 · 수단 상관없음(ANY)은 허용 차종을 지나고, 우리 차종에 없음(NONE)은 못 싣는 콜이다 */

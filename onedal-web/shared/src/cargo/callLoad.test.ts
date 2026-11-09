@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boxesOf, loadFrom, vehicleMatchOf, type CallLoad } from './callLoad';
+import { boxesOf, carriedLoad, loadFrom, vehicleMatchOf, type CallLoad } from './callLoad';
 
 /**
  * 🚚 **짐 묶음에서 우리 차종 · 라면박스 수를 꺼낸다 — 지금 정의 표 데이터로**.
@@ -65,5 +65,19 @@ describe('loadFrom — 콜 한 칸의 짐 덩어리를 푼다', () => {
 
     it('객체가 아니면 null', () => {
         for (const raw of [null, undefined, '다', 3, []]) expect(loadFrom(raw)).toBeNull();
+    });
+});
+
+describe('carriedLoad', () => {
+    it('칸마다 앞 묶음이 먼저 · 비면 다음 묶음 — 상세에 크기 낱말이 없어도 보고의 크기 낱말이 남는다', () => {
+        const detail: CallLoad = { vehicleText: '트럭-1t', sizeText: null, itemText: null, lines: [{ kind: 'goods', shown: '폰)' }] };
+        const report: CallLoad = { vehicleText: '1t', sizeText: '소형', itemText: null, lines: [] };
+        const memory: CallLoad = { vehicleText: null, sizeText: null, itemText: '박스 2개', lines: [{ kind: 'passenger', shown: '2분동승' }] };
+        expect(carriedLoad(detail, report, memory)).toEqual({ vehicleText: '트럭-1t', sizeText: '소형', itemText: '박스 2개', lines: [{ kind: 'goods', shown: '폰)' }] });
+        expect(carriedLoad(null, report, memory)?.lines).toEqual([{ kind: 'passenger', shown: '2분동승' }]);
+    });
+
+    it('묶음이 하나도 없으면 null', () => {
+        expect(carriedLoad(null, undefined)).toBeNull();
     });
 });

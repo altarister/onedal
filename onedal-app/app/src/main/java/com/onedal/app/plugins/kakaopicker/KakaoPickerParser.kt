@@ -1219,6 +1219,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             timestamp = java.time.OffsetDateTime.now().toString(),
             vehicleType = null,               // 픽커에 차종 축이 없다 — 물품 크기가 대신한다. 섞어 싣지 않는다
             itemSize = itemSize,
+            /* 🚚 꼬리표 «승»(승용차로 가는 콜)은 짐 묶음 차종 글자로도(정의 표 vehicleWords) — 꼬리표는 그대로 · 없으면 수단 상관없음 */
+            loadVehicleText = tags.firstOrNull { it in KakaoPickerPages.vehicleWords },
             tagsText = tags.joinToString(" ").ifEmpty { null },
             /* 🏷️ 꼬리표 «급송» → 형태 · «경유» → 구분(정의 표 badgeWords) — 다른 꼬리표 · 시각이 섞여도 «모름»이 아니라 빈칸 */
             tripType = PageFieldRead.badgeValueAmong(KakaoPickerPages.badgeWords, BadgeMeaning.TRIP_TYPE, PageFieldRead.placed(BadgePlace.ROW, tags)),

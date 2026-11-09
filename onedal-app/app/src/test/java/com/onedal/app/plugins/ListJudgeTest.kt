@@ -18,7 +18,8 @@ import com.onedal.app.core.withLastDropoff
  * 축 차례 · 성적표는 화물24시 판정 검사(`Hwamul24VerdictTest`)가 본다 — 여기서는 인자만.
  */
 class ListJudgeTest {
-    private val on = FilterConfig(isActive = true, minFare = 30000, pickupRadiusKm = 10.0, destinationKeywords = listOf("장상동"))
+    /** 서버가 빈 1t 차에 보내는 허용 차종 다섯 — 빈 목록은 «꽉 참»이다 */
+    private val on = FilterConfig(allowedVehicleTypes = listOf("오토바이", "승용차", "다마스", "라보", "1t"), isActive = true, minFare = 30000, pickupRadiusKm = 10.0, destinationKeywords = listOf("장상동"))
     private fun call(pickup: String = "경기 시흥 정왕동", raw: String? = null, vehicle: String? = "트럭") =
         SimplifiedOfficeOrder(
             id = "c",
@@ -37,6 +38,12 @@ class ListJudgeTest {
         val f = on.copy(excludedKeywords = listOf("수작업"))
         assertEquals("blacklist", ListJudge.judge(o, f, null, rules()).axis)
         assertEquals("pass", ListJudge.judge(o, f, null, rules(text = { "적요 꼬리" })).axis)
+    }
+
+    /** 📦 서버가 보낸 빈 허용 차종은 «꽉 참» — 차종 축에서 모두 떨어진다 */
+    @Test fun `빈 허용 차종은 꽉 참이라 차종 축에서 떨어진다`() {
+        val full = on.copy(allowedVehicleTypes = emptyList())
+        assertEquals("vehicle", ListJudge.judge(call(), full, null, rules(vehicleOf = { "오토바이" })).axis)
     }
 
     @Test fun `차종은 배차망 차종 표로 맞춘 뒤 허용 목록과 같은지 본다`() {

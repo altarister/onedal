@@ -189,7 +189,8 @@ class IsflexParserTest {
     }
 
     // ── 판정 ──
-    private val on = FilterConfig(isActive = true, minFare = 6000, destinationKeywords = listOf("대치동"), pickupKeywords = listOf("역삼동"))
+    /** 서버가 빈 1t 차에 보내는 허용 차종 다섯 — 빈 목록은 «꽉 참»이다 */
+    private val on = FilterConfig(allowedVehicleTypes = listOf("오토바이", "승용차", "다마스", "라보", "1t"), isActive = true, minFare = 6000, destinationKeywords = listOf("대치동"), pickupKeywords = listOf("역삼동"))
     private val row07 by lazy { rowsOf(IsflexRealScreens.LIST_07).map { it.first } }
 
     @Test fun `판정 — 차종 표 · 빈 하차 목록 · 상차 목록 · 제외어는 적요와 꼬리표만`() {

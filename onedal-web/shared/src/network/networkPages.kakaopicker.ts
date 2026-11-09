@@ -28,7 +28,7 @@ export const KAKAO_PICKER_PAGES: NetworkPageSpec = /*JSON*/{
     {"word": "승", "vehicle": "승용차", "seen": "REAL"},
     {"word": "승용차", "vehicle": "승용차", "seen": "REAL"}
   ],
-  "vehicleWordsWhy": "목록 꼬리표 «승»(승용차로 가는 콜) · 확정 전 상세 시트 꼬리표 «승용차» — «승» 없는 퀵은 수단 상관없음(vehicleAbsentMeansAny) · «한차»는 뜻을 몰라 표에 넣지 않는다(표에 없는 낱말이 모름이고, 표의 null 은 «우리 차종 없음»이라 뜻이 다르다) · 원달앱 픽커 목록은 아직 차종을 안 보낸다",
+  "vehicleWordsWhy": "목록 꼬리표 «승»(승용차로 가는 콜) · 확정 전 상세 시트 꼬리표 «승용차» — «승» 없는 퀵은 수단 상관없음(vehicleAbsentMeansAny) · «한차»는 뜻을 몰라 표에 넣지 않는다(표에 없는 낱말이 모름이고, 표의 null 은 «우리 차종 없음»이라 뜻이 다르다) · 원달앱 픽커 목록 · 사진 판독은 이 낱말을 짐 묶음 차종 글자로만 싣는다(차종 칸은 비운다)",
   "vehicleAbsentMeansAny": true,
   "sizeWords": [
     {"word": "초소형", "boxes": 1, "seen": "REAL"},

@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { computeLoadedPoints } from '../../src/core/helpers';
-import { cargoMismatchRatio, unitPoints, peakLoadPoints } from '@onedal/shared';
+import { cargoMismatchRatio, unitPoints, peakLoadPoints, getRemainingCapacityTypesByPoints } from '@onedal/shared';
 import type { CargoReport, MyOrder } from '@onedal/shared';
 
 /**
@@ -140,6 +140,39 @@ describe('📦 합과 최대는 다르다', () => {
         const { pointsByOrder } = computeLoadedPoints([call('A'), call('B')], '1t', reports(['A'], 30));
         expect(pointsByOrder.A).toBe(30);
         expect(pointsByOrder.B).toBeGreaterThan(0);   // 신고가 없으면 차종 추정
+    });
+});
+
+/**
+ * 📦 **합짐 자리는 아는 사실의 차례로 센다** — 통화 신고 > 크기 낱말 박스 > 콜 차종 표준 박스 > 모름이면 자리 없음.
+ * 픽커 소형 콜 하나를 잡은 뒤 남은 자리가 80 박스(목록 길 — 차종 빈칸을 내 차로) · 30 박스(사진 판독 길 — «다마스» 가정)로
+ * 줄면 뒤의 다마스 · 라보 · 1t 콜이 원달앱 차종 거르기에서 떨어진다.
+ */
+describe('📦 픽커 콜의 자리 — 크기 낱말이 먼저', () => {
+    const picker = (id: string, sizeText: string | null, vehicleText: string | null = null): MyOrder =>
+        ({ id, targetApp: 'kakaopicker', status: 'ORDER_CONFIRMED',
+            ...(vehicleText ? { vehicleType: vehicleText } : {}),
+            load: { vehicleText, sizeText, itemText: null, lines: [] } }) as unknown as MyOrder;
+
+    it('🔴 목록 길 — 차종 글자 없는 소형 콜은 2 박스 · 남은 98 박스에 다섯 차종이 다 든다', () => {
+        const { pointsByOrder, confidence } = computeLoadedPoints([picker('a', '소형')], '1t', new Map());
+        expect(pointsByOrder.a).toBe(2);
+        expect(confidence).toBe('ESTIMATED');
+        expect(getRemainingCapacityTypesByPoints('1t', pointsByOrder.a)).toEqual(['오토바이', '다마스', '라보', '승용차', '1t']);
+    });
+
+    it('🔴 차종 글자가 있어도 크기 낱말 박스가 먼저다 (차종 «다마스»였으면 30 박스로 셌다)', () => {
+        expect(computeLoadedPoints([picker('a', '소형', '다마스')], '1t', new Map()).pointsByOrder.a).toBe(2);
+    });
+
+    it('크기 낱말이 없으면 콜 차종 표준 — 픽커 «승» 은 승용차 5 박스', () => {
+        expect(computeLoadedPoints([picker('a', null, '승')], '1t', new Map()).pointsByOrder.a).toBe(5);
+    });
+
+    it('🔴 모르면 자리 없음 — 박스 수 모름(«대형») 콜이 실려 있으면 남은 차종이 없다', () => {
+        const { pointsByOrder, confidence } = computeLoadedPoints([picker('a', '대형')], '1t', new Map());
+        expect(getRemainingCapacityTypesByPoints('1t', pointsByOrder.a)).toEqual([]);
+        expect(confidence).toBe('ESTIMATED');
     });
 });
 

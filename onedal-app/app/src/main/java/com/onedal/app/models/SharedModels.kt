@@ -133,9 +133,16 @@ data class SimplifiedOfficeOrder(
     val dropoffDetails: List<CallStop> = listOf(CallStop()),
     /** 📦 짐 줄 — 칸 앞 토막이 정의 표 짐 줄 갈래로 읽은 것(인성 «폰)» 품목 · «2분동승» 동승) · 보고에는 `load.lines` 로만 간다(Gson 은 `@Transient` 칸을 안 싣는다) */
     @Transient val loadLines: List<LoadLine> = emptyList(),
+    /** 📦 짐 묶음 차종 글자 — 화면 차종 글자가 차종 칸(`vehicleType`)에 안 실릴 때만(픽커 꼬리표 «승» · 사진 시트 «승용차») · 비면 차종 칸 · 보고에는 `load.vehicleText` 로만 간다 */
+    @Transient val loadVehicleText: String? = null,
+    /** 📦 짐 묶음 크기 낱말 — 물품 크기 칸(`itemSize`)이 줄 통째일 때 그 앞 크기 낱말(픽커 사진 «중형 세 변의 합 140cm …» → «중형») · 비면 물품 크기 칸 · 보고에는 `load.sizeText` 로만 간다 */
+    @Transient val loadSizeText: String? = null,
 ) {
-    /** 📦 **짐 묶음** — 맨 위 차종 · 크기 글자 그대로 + 짐 줄 · 셋 다 없으면 null. 생성자 칸에서 만들어 `copy` 해도 따라간다 */
-    val load: CallLoad? = if (vehicleType != null || itemSize != null || loadLines.isNotEmpty()) CallLoad(vehicleType, itemSize, null, loadLines) else null
+    /** 📦 **짐 묶음** — 차종 글자 · 크기 낱말 + 짐 줄 · 셋 다 없으면 null. 생성자 칸에서 만들어 `copy` 해도 따라간다 · 서버 합짐 자리 셈이 크기 낱말 · 차종 글자로 박스를 센다(shared `boxesOf`) */
+    val load: CallLoad? = (loadVehicleText ?: vehicleType).let { vehicle ->
+        val size = loadSizeText ?: itemSize
+        if (vehicle != null || size != null || loadLines.isNotEmpty()) CallLoad(vehicle, size, null, loadLines) else null
+    }
 }
 
 /**
@@ -423,7 +430,7 @@ data class DeviceControl(
  *    통신이 끊겼을 때 **멈추는 쪽**이 맞다 — 잘못 잡은 콜은 패널티가 붙는다.
  */
 data class FilterConfig(
-    val allowedVehicleTypes: List<String> = emptyList(),  // 빈 배열 = 모든 차종
+    val allowedVehicleTypes: List<String> = emptyList(),  // 빈 배열 = 꽉 참(서버가 만재로 보낸 것 — 차종 거르기에서 모두 떨어짐) · 필터를 한 번도 못 받은 기본값은 isActive=false 라 거르기 전에 잠긴다
     /** 통신이 끊기면 콜 잡기을 멈춘다. 서버가 명시적으로 켜 줘야 돈다 */
     val isActive: Boolean = false,
     /**

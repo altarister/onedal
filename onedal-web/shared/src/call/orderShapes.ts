@@ -79,7 +79,7 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     pickupDetails?: CallStop[];
     /** 🚏 하차 정거장 — 마지막 하차의 정거장 거리가 배송 거리다(`deliveryKmOf`) */
     dropoffDetails?: CallStop[];
-    /** 📦 짐 묶음 — 짐 줄 · 차종 맞춤 재료(`cargo/callLoad.ts`). 원달앱이 맨 위 차종 · 크기 글자를 그대로 싣고 서버 `/detail` 이 상세 원문 조각 줄을 얹는다 · 읽는 곳은 아직 없다 — 그동안 `vehicleType` · `itemSize` · `itemDescription` 을 읽는다 */
+    /** 📦 짐 묶음 — 짐 줄 · 차종 맞춤 재료(`cargo/callLoad.ts`). 원달앱이 차종 글자 · 크기 낱말을 그대로 싣고 서버 `/detail` 이 칸마다 상세 · 앞 기억과 잇는다(`carriedLoad`) · 합짐 자리 셈(서버 `computeLoadedPoints`)이 `boxesOf` 로 읽는다 — 나머지는 아직 `vehicleType` · `itemSize` · `itemDescription` 을 읽는다 */
     load?: CallLoad;
     /** 💰 돈 묶음 — 돈 줄 · 결제 · 증빙(`money.ts`). 원달앱이 네 배차망 화면 돈 줄을 싣고, 서버 /detail 이 상세 원문 조각 줄을 갈래마다 얹는다(`withDetailMoney`) · 서버 판정 금액은 기사님 몫 줄 · 착불 미수금은 받을 돈 줄(`callIncomeOf` · `callCollectOf`) */
     money?: CallMoney;

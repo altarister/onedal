@@ -14,7 +14,7 @@ import com.onedal.app.models.CallStop
  */
 class Hwamul24VerdictTest {
     /** 도착지 키워드가 비면 24시는 «보류»(지역 탈락)다 — 지금 코드 그대로. 도착 동 하나를 준다 */
-    private val on = FilterConfig(isActive = true, minFare = 30000, pickupRadiusKm = 10.0, destinationKeywords = listOf("장상동"))
+    private val on = FilterConfig(allowedVehicleTypes = listOf("2.5t"), isActive = true, minFare = 30000, pickupRadiusKm = 10.0, destinationKeywords = listOf("장상동"))   // 빈 허용 차종은 «꽉 참» — 콜 차종 2.5t 를 허용
     private fun call(fare: Int = 50000, vehicle: String? = "2.5톤/윙", km: Double? = 5.0, reservedDay: Int? = null) =
         SimplifiedOfficeOrder(
             id = "c",

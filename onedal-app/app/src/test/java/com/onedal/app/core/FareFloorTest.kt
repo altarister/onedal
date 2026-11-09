@@ -45,6 +45,7 @@ class FareFloorTest {
     }
 
     private fun insungFilter(minFare: Int) = FilterConfig(
+        allowedVehicleTypes = listOf("다마스"),   // 빈 허용 차종은 «꽉 참»
         isActive = true,
         isSharedMode = true,
         minFare = minFare,
@@ -57,7 +58,7 @@ class FareFloorTest {
         type = "NEW_ORDER",
         fare = fare, money = com.onedal.app.models.CallMoney.ofIncome(fare),
         timestamp = "2026-09-28T10:00:00",
-        vehicleType = "다마스",
+        vehicleType = "다",   // 인성 목록 차종 칸 글자 — 차종 축이 정의 표로 다마스에 맞춘다
         rawText = "경기 광주시 태전동 경기 광주시 초월읍",
         pickupDetails = listOf(CallStop(listText = "경기 광주시 태전동")),
         dropoffDetails = listOf(CallStop(listText = "경기 광주시 초월읍", distanceKm = 20.0)),

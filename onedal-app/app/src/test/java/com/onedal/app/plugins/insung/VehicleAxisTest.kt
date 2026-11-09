@@ -79,9 +79,12 @@ class VehicleAxisTest {
         assertEquals(true, InsungParser.decide(call("오"), tight))
     }
 
+    /** 📦 서버가 보낸 빈 허용 차종은 «꽉 참»이다 — 1t 짐 80 + 다마스 30 이 함께 실리면 남은 자리에 드는 차종이 없다 */
     @Test
-    fun `빈 목록은 전체 허용 — 서버가 아직 안 내려준 상태의 안전망`() {
-        val none = filterAllowing()
-        assertEquals(true, InsungParser.decide(call("5t"), none))
+    fun `빈 목록은 꽉 참 — 어떤 차종도 지나지 않는다`() {
+        val full = filterAllowing()
+        for (v in listOf("오", "승", "다", "라", "1t", "5t")) {
+            assertEquals("$v 는 꽉 찬 차에 못 싣는다", false, InsungParser.decide(call(v), full))
+        }
     }
 }

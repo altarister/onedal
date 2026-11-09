@@ -195,6 +195,15 @@ class KakaoPickerParserTest {
         assertTrue(o.tagsText!!.contains("반나절"))
         assertTrue(o.tagsText!!.contains("승"))
         assertNull(o.itemSize)   // 반나절 카드에는 물품 크기 표시가 없다 — 지어내지 않는다
+        // 🚚 꼬리표 «승»은 짐 묶음 차종 글자로도 간다(정의 표 vehicleWords «승» → 승용차)
+        assertEquals("승", o.load?.vehicleText)
+    }
+
+    @Test
+    fun `승 없는 퀵은 차종 글자가 비고 크기 낱말만 짐 묶음에 간다`() {
+        val o = parser.parse(listOf("퀵", "중형", "광주", "쌍령", "3.0km", "광주", "광남2", "4.3km", "15,785"))
+        assertNull(o.load?.vehicleText)
+        assertEquals("중형", o.load?.sizeText)
     }
 
     @Test

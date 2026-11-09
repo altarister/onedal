@@ -56,14 +56,11 @@ object ListJudge {
         // 📅 예약 — 인성 파서와 같은 자리 (첫 상차 날 · 상세에서 채운 뒤 필터가 한 번 더)
         val reservationOk = com.onedal.app.core.engine.ReservationGate.passes(order, filter.reservationMode)
 
-        // ── 조건 1: 차종 매칭 (빈 배열이면 전체 허용) ──
+        // ── 조건 1: 차종 매칭 (빈 배열은 꽉 참 — 서버가 남은 자리에 드는 차종이 없다고 보낸 것) ──
         //    🚚 배차망 낱말(«다마스/전체»의 «다마스»)을 배차망 차종 표(`Rules.vehicleOf`)로 우리 차종에 맞춘 뒤 **같은지**로 본다 —
         //    «담고 있나»로 보면 «11톤»이 허용 1t 에 걸린다. 표에 없는 낱말은 차종 모름 → 지금처럼 거른다
-        val vehicleMatch = if (filter.allowedVehicleTypes.isEmpty()) {
-            true
-        } else {
-            rules.vehicleOf(order.vehicleType)?.let { v -> v in filter.allowedVehicleTypes } ?: false
-        }
+        //    필터를 한 번도 못 받은 기본값(`FilterConfig` · isActive=false)은 위 조건 0 에서 잠겨 여기 안 온다
+        val vehicleMatch = rules.vehicleOf(order.vehicleType)?.let { v -> v in filter.allowedVehicleTypes } ?: false
 
         // ── 조건 2: 도착지 매칭 ──
         //

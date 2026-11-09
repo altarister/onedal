@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -336,7 +335,7 @@ private fun KakaoPickerDetailCard(
             Spacer(modifier = Modifier.height(4.dp))
             DetailBullet("안전취소: 🚫 미지원 (픽커는 기사 직접 수락 시 즉시 계약 체결)")
             DetailBullet("상세 복귀 대기: ${filterConfig?.pickerAlarmDetailSec ?: 30}초 (상세 머문 후 목록 자동 복귀)")
-            DetailBullet("차종 처리: 픽커는 크기 구분만 있으므로 [${KakaoPickerKeywords.PICKER_ASSUMED_VEHICLE} (${KakaoPickerKeywords.PICKER_VEHICLE_UNKNOWN_TAG})] 로 본다")
+            DetailBullet("차종 처리: 크기 낱말로 박스를 센다")
             DetailBullet("화면 판독: 주소가 노드 트리에 없어 상단 스냅샷 OCR(PickerDetailOcrParser) 탑재")
             DetailBullet("패키지 식별: flexer 키워드 포함 앱 감지")
         }

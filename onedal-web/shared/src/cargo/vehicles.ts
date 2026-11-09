@@ -179,15 +179,18 @@ export function getRemainingCapacityTypesByPoints(myVehicle: string, usedPoints:
  *    내 용량이 80이 되어 자투리 20박스를 영영 못 쓴다.
  */
 function typesFittingIn(myVehicle: string, usedCap: number): string[] {
-    const myCap = normalizeVehicleType(myVehicle) === '1t'
-        ? TRUCK_CAPACITY_SLOTS                    // 내 1t 트럭의 그릇 = 100박스
-        : capacityOf(myVehicle, '1t');            // 다른 차주는 베타 이후 — 짐 표로 근사
+    const myCap = vehicleRoomOf(myVehicle);
     const remaining = Math.max(0, myCap - usedCap);
 
     return VEHICLE_OPTIONS.filter(v => {
         const cap = VEHICLE_CAPACITY[v] ?? Infinity;
         return cap <= remaining && cap <= myCap;
     });
+}
+
+/** 📦 내 차의 그릇(라면박스) — 1t 트럭은 100박스(`TRUCK_CAPACITY_SLOTS`) · 다른 차주는 베타 이후라 짐 표로 근사. 합짐 자리 셈이 «모르는 짐은 자리 없음»으로 쓸 때도 이 값이다 */
+export function vehicleRoomOf(myVehicle: string): number {
+    return normalizeVehicleType(myVehicle) === '1t' ? TRUCK_CAPACITY_SLOTS : capacityOf(myVehicle, '1t');
 }
 
 /** 적재 점수의 확신도 — 관제탑에 그대로 표시해 기사님이 위험을 알 수 있게 한다 */

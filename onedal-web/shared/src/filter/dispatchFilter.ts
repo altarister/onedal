@@ -36,7 +36,7 @@ export interface AutoDispatchFilter {
      * 관제탑에 그대로 표시한다 — '추정' 상태에서 잡은 합짐은 현장에서 안 들어갈 수 있다.
      */
     capacityConfidence?: CapacityConfidence;
-    allowedVehicleTypes: string[];   // 허용 차종 배열 (예: ["1t","다마스"]) — 빈 배열이면 모든 차종 허용
+    allowedVehicleTypes: string[];   // 허용 차종 배열 (예: ["1t","다마스"]) — 빈 배열은 꽉 참(원달앱 차종 거르기에서 모두 떨어짐 · 서버는 isActive=false 로 함께 보낸다)
     isActive: boolean;              // 필터링(매크로) 활성화 여부
     /**
      * 🔒 **지금 이 폰이 심사 중인 콜이 있나** — 앱이 «잠김»의 까닭을 가르는 사실.

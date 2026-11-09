@@ -2,7 +2,7 @@
  * ⚖️ **결재 · 경로 다시 재기 · 새 콜 심사 넘기기** — KEEP · 취소 · 강제 정리, 정거장이 바뀌면 카카오로 다시 잰다.
  * 바깥 일을 하는 함수: applyRouteAndSave · applySoloRouteAndSave · forceCancelEvaluatingOrder · promiseOrderOpts · recalcRouteIfStopsChanged · recalculateActiveKakaoRoute · recalculateKakaoRoute · syncDetourFilter · handleDecision · evaluateNewOrder · rebuildDestinationKeywords(세션 · 장부(DB) · 카카오 · 설정 · 지금 시각 · 소켓 · 로그) (장소 이름 · 장부에 적을 정거장 셈 normalizePlaceName · stopPlaceFrom 은 값만 받는다)
  */
-import { businessDayKey, normalizeVehicleType, isEvaluating, isTerminal, reservedForOf, firstPickupStop, lastDropoffStop, stopQueryOf, DEFAULT_TARGET_APP, type DecisionStatus } from "@onedal/shared";
+import { businessDayKey, isEvaluating, isTerminal, reservedForOf, firstPickupStop, lastDropoffStop, stopQueryOf, DEFAULT_TARGET_APP, type DecisionStatus } from "@onedal/shared";
 import { isLaterThan, takeReserved } from "./reservedOrders";
 import type { SecuredOrder, PendingOrder, MyOrder, CallStop } from "@onedal/shared";
 import { calculateSoloRoute } from "./kakaoService";
@@ -25,7 +25,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
 import { getActiveCalls } from "../core/activeCalls";
-import { buildOrderSync, setOrderStatus, filterVersionOf } from "../core/helpers";
+import { buildOrderSync, setOrderStatus, filterVersionOf, callBoxesOf } from "../core/helpers";
 import { slog } from "../utils/fileLogger";
 import { decide } from "../state/decisions";
 
@@ -721,14 +721,16 @@ export async function handleDecision(userId: string, orderId: string, status: De
          *    잡은 콜을 다 더해 세면 KEEP 은 예약인데 3~4콜에서 «만재»로 막힌다.
          */
         const myVehicle = SettingsRepository.getKakaoRoutingOptions(userId).vehicleType || '1t';
-        const loadedVehicles = getActiveCalls(session).map(c => c.vehicleType || myVehicle);
+        /* 📦 잡은 콜마다 짐 묶음의 박스 수(`callBoxesOf` — 합짐 자리 셈과 같은 답) · 차종 칸이 비었다고 내 차로 바꾸지 않는다 */
+        const loadedBoxes = getActiveCalls(session).map(c => ({ vehicle: c.vehicleType || '차종 없음', boxes: callBoxesOf(c) }));
+        const loadedVehicles = loadedBoxes.map(l => `${l.vehicle} ${l.boxes ?? '모름'}박스`);
 
-        // [자체 리뷰 C] 차종을 인식하지 못하면 보수적으로 "내 차를 가득 채운 것"으로 계산한다.
+        // [자체 리뷰 C] 짐 묶음으로 박스를 못 낸 콜은 «자리 없음»으로 센다(내 차 그릇을 다 먹는다).
         // 안전한 방향이지만 그만큼 합짐 콜 잡기 범위가 좁아지므로, 조용히 넘어가면 안 된다.
-        // 파싱 실패율이 높다면 파서를 고쳐야 하므로 눈에 띄게 남긴다.
-        const unknownVehicles = loadedVehicles.filter(v => !normalizeVehicleType(v));
-        if (unknownVehicles.length > 0) {
-            console.warn(`⚠️ [적재 용량] 차종 인식 실패 ${unknownVehicles.length}건 [${unknownVehicles.join(', ')}] → 만재로 간주(보수적). 합짐 범위가 실제보다 좁아집니다.`);
+        // 크기 · 차종 글자를 못 읽는 일이 잦다면 원달앱 읽기를 고쳐야 하므로 눈에 띄게 남긴다.
+        const unknownLoads = loadedBoxes.filter(l => l.boxes === null).map(l => l.vehicle);
+        if (unknownLoads.length > 0) {
+            console.warn(`⚠️ [적재 용량] 짐 묶음으로 박스를 못 냄 ${unknownLoads.length}건 [${unknownLoads.join(', ')}] → 자리 없음 — 모름(보수적). 합짐 범위가 실제보다 좁아집니다.`);
         }
 
         // 경유 한 벌은 위의 syncDetourFilter 가 이미 넣었다 — 전이는 국면과 합짐 표시만 (#81)

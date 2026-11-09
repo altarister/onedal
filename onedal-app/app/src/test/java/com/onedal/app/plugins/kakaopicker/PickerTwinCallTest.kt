@@ -44,6 +44,18 @@ class PickerTwinCallTest {
         assertEquals("기사님 몫 줄 하나 — 낮은 줄 요금 글자", listOf(com.onedal.app.models.MoneyLine("income", 6160, "6,160")), o.money?.lines)
     }
 
+    /** 🚚 손으로 연 상세는 사진 시트 꼬리표 «승용차»를 차종 글자로 · 크기 낱말을 짐 묶음으로 — «다마스»를 지어내지 않는다 */
+    @Test fun `손 상세 - 사진 승용차가 차종 글자 · 크기 낱말이 짐 묶음`() {
+        val a = card(7238)
+        saw(a, 20)
+        val o = verify(listOf(a), finalIncome = 7238)
+        assertEquals("승용차", o.load?.vehicleText)
+        assertEquals("차종 칸은 비운다 — «다마스»를 넣지 않는다", null, o.vehicleType)
+        assertEquals("중형", o.load?.sizeText)
+        assertEquals("중형 세 변의 합 140cm. 20kg 이하", o.itemSize)
+        assertTrue(o.tagsText.orEmpty(), !o.tagsText.orEmpty().contains("차종미확인"))
+    }
+
     @Test fun `진단 줄 끝 - 같은 경로 요금 둘 낮은 값`() {
         val a = card(7238); val b = card(6160)
         saw(a, 20); saw(b, 20)
