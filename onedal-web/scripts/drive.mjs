@@ -177,6 +177,8 @@ async function appUploads(deviceId, id, pk, dp, label) {
         pickupDetails: [{ listText: `모의-${label}-상차`, geo: { x: pk.x, y: pk.y } }],
         dropoffDetails: [{ listText: `모의-${label}-하차`, geo: { x: dp.x, y: dp.y }, distanceKm: 30 }],
         load: { vehicleText: '다마스', sizeText: null, itemText: '모의 주행 콜', lines: [] },
+        /* 💰 원달앱처럼 목록 요금을 돈 묶음 기사님 몫 줄로 — 서버 판정 금액은 이 줄을 읽는다 */
+        money: { lines: [{ kind: 'income', won: 50000, shown: '50,000' }], feeRateText: null, paymentType: '신용', paymentShown: '신용', billingType: null, billingShown: null },
     };
     const base = { deviceId, capturedAt: new Date().toISOString(), matchType: 'AUTO' };
     const post = (path, body) => fetch(`http://localhost:${PORT}/api/orders${path}`, {

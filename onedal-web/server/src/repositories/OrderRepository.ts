@@ -138,14 +138,14 @@ export class OrderRepository {
      * stepSeeder.stepRecordsOf 하나다. 정산(cod·settlement)은 orders 테이블이라 남는다.
      */
 
-    /** 착불 수령 기록 — orders 테이블 (정산은 별도 페이지의 일) */
-    public static setCodCollected(orderId: string, userId: string, received: boolean, amount: number) {
+    /** 착불 수령 기록 — orders 테이블 (정산은 별도 페이지의 일) · 못 받았는데 받을 돈을 모르면 미수금 NULL(합계에서 빠진다) */
+    public static setCodCollected(orderId: string, userId: string, received: boolean, amount: number | null) {
         db.prepare(`UPDATE orders
                     SET settlementStatus = ?, unpaidAmount = ?, settledAt = ?
                     WHERE id = ? AND userId = ?`)
           .run(
               received ? '수령' : '미수금',
-              received ? 0 : (amount || 0),
+              received ? 0 : amount,
               received ? new Date().toISOString() : null,
               orderId, userId,
           );

@@ -7,7 +7,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf, nearestDong, businessDayKey, isEvaluating, reservedForOf, reservedPickupRadiusKmOf, quickFoldSecOf, firstPickupStop, lastDropoffStop, type StopSource } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { judge, COLOR_DOT, manwonText, wonText, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, isTargetApp, DEFAULT_TARGET_APP, stopQueryOf, minutesLate } from '@onedal/shared';
+import { judge, COLOR_DOT, manwonText, wonText, callIncomeOf, CRITERIA, toSnapshot, normalizeVehicleType, resolvePhaseKey, excludeScanTextOf, isTargetApp, DEFAULT_TARGET_APP, stopQueryOf, minutesLate } from '@onedal/shared';
 import type { JudgmentSnapshot, ApproxAddress, TargetAppType } from '@onedal/shared';
 import { judgmentRecordOf } from './judgmentRecord';
 import { firstLoadFacts, mergeFacts, destProgressOf, pickupBackwardOf, lateStopsOf, trappedOf, DEST_ARRIVED_RADIUS_KM } from './judgeFacts';
@@ -624,22 +624,24 @@ export class OrderEvaluator {
          * 모르면(옛 원달앱 · /confirm 없음) 센다 — 같은 최소 금액이라 원달앱이 연 콜도 결과는 같다.
          */
         const skipFareFloor = (order as { openedByApp?: boolean }).openedByApp === true;
-        if (skipFareFloor && order.fare && order.fare > 0) {
+        /* 💰 판정 금액은 돈 묶음의 기사님 몫 — 줄이 없으면 0 이라 하한 · 상한 검사를 건너뛴다 */
+        const income = callIncomeOf(order) ?? 0;
+        if (skipFareFloor && income > 0) {
             pros.push(`요금은 앱이 이미 걸렀다 (최소 금액)`);
         }
-        if (!skipFareFloor && filter.dispatchPhase === 'STANDBY' && filter.minFare > 0 && order.fare && order.fare > 0) {
-            if (order.fare < filter.minFare) {
+        if (!skipFareFloor && filter.dispatchPhase === 'STANDBY' && filter.minFare > 0 && income > 0) {
+            if (income < filter.minFare) {
                 reasons.push(`첫짐 절대하한가 미달 (${wonText(filter.minFare)})`);
-                slog('판정', `   - 💸 [첫짐 하한가] 똥콜 — 실제 ${wonText(order.fare)} < 절대하한 ${wonText(filter.minFare)}`);
+                slog('판정', `   - 💸 [첫짐 하한가] 똥콜 — 실제 ${wonText(income)} < 절대하한 ${wonText(filter.minFare)}`);
             } else {
                 pros.push(`첫짐 절대하한가 통과`);
             }
         }
 
         // 3) 최대 운임 검사
-        if (filter.maxFare > 0 && filter.maxFare < 1000000 && order.fare && order.fare > 0) {
-            if (order.fare > filter.maxFare) {
-                reasons.push(`요금(${manwonText(order.fare)}) 초과`);
+        if (filter.maxFare > 0 && filter.maxFare < 1000000 && income > 0) {
+            if (income > filter.maxFare) {
+                reasons.push(`요금(${manwonText(income)}) 초과`);
             }
         }
 
@@ -700,7 +702,7 @@ export class OrderEvaluator {
      */
     private loadPricing(order: SecuredOrder | PendingOrder, userId: string, callDiscountPct?: number):
         { fairPrice: number; minAcceptable: number } | null {
-        if (!order.kakaoSoloDistanceKm || !order.fare) return null;
+        if (!order.kakaoSoloDistanceKm || !callIncomeOf(order)) return null;
         try {
             const pricing = SettingsRepository.loadPricingConfig(userId, callDiscountPct);
             const routingOpts = SettingsRepository.getKakaoRoutingOptions(userId);
@@ -737,12 +739,13 @@ export class OrderEvaluator {
     private runStage3Pricing(order: SecuredOrder | PendingOrder, userId: string, callDiscountPct: number | undefined, reasons: string[], pros: string[]) {
         void callDiscountPct;
         const p = this.loadPricing(order, userId, 0);
+        const income = callIncomeOf(order) ?? 0;
         if (p) {
             {
                 const adjusted = { adjustedFairPrice: p.fairPrice, adjustedMinAcceptable: p.minAcceptable };
 
-                if (order.fare < adjusted.adjustedMinAcceptable) {
-                    const diff = order.fare - adjusted.adjustedMinAcceptable;
+                if (income < adjusted.adjustedMinAcceptable) {
+                    const diff = income - adjusted.adjustedMinAcceptable;
                     /**
                      * 💸 **한 줄을 짧게 — 기사님이 1~2초에 읽으신다.**
                      *    🔴 «하한»과 «적정»을 갈라 적지 않는다: 할인율 0 으로 재면 `keep = 1` 이라
@@ -750,13 +753,13 @@ export class OrderEvaluator {
                      *       보이면 기사님이 «무엇이 다른가»를 한 번 더 읽으셔야 한다.
                      *    🔴 «시세»라는 낱말은 남긴다 — 그 한 낱말이 «할인율은 안 봤다»를 대신한다.
                      */
-                    reasons.push(`요율 ${manwonText(Math.abs(diff))} 모자람 — 시세 ${manwonText(adjusted.adjustedMinAcceptable)} · 실제 ${manwonText(order.fare)}`);
-                    slog('판정', `   - 💸 [요율 판정] 시세 미달 — 실제 ${wonText(order.fare)} < 시세 하한 ${wonText(adjusted.adjustedMinAcceptable)}`);
-                } else if (order.fare >= adjusted.adjustedFairPrice) {
+                    reasons.push(`요율 ${manwonText(Math.abs(diff))} 모자람 — 시세 ${manwonText(adjusted.adjustedMinAcceptable)} · 실제 ${manwonText(income)}`);
+                    slog('판정', `   - 💸 [요율 판정] 시세 미달 — 실제 ${wonText(income)} < 시세 하한 ${wonText(adjusted.adjustedMinAcceptable)}`);
+                } else if (income >= adjusted.adjustedFairPrice) {
                     pros.push(`꿀콜 🍯 (시세 ${manwonText(adjusted.adjustedFairPrice)} 이상)`);
-                    slog('판정', `   - 🍯 [요율 판정] 꿀콜 — 실제 ${wonText(order.fare)} ≥ 시세 적정 ${wonText(adjusted.adjustedFairPrice)}`);
+                    slog('판정', `   - 🍯 [요율 판정] 꿀콜 — 실제 ${wonText(income)} ≥ 시세 적정 ${wonText(adjusted.adjustedFairPrice)}`);
                 } else {
-                    slog('판정', `   - ✅ [요율 판정] 시세 적정 범위 — 실제 ${wonText(order.fare)} (하한 ${adjusted.adjustedMinAcceptable.toLocaleString()} ~ 적정 ${adjusted.adjustedFairPrice.toLocaleString()})`);
+                    slog('판정', `   - ✅ [요율 판정] 시세 적정 범위 — 실제 ${wonText(income)} (하한 ${adjusted.adjustedMinAcceptable.toLocaleString()} ~ 적정 ${adjusted.adjustedFairPrice.toLocaleString()})`);
                 }
             }
         }
@@ -776,6 +779,8 @@ export function soloJudgmentFrom(o: {
 }) {
     const { order: securedOrder, roadEvent, tollKrw, dwell, firstStop, rateForScore, rateForDisplay, fuelCostPerKm, reservedLater, origin, goal, pickupRadiusKm, excludedHits, judgmentCfg } = o;
     const logs: string[] = [];
+    /* 💰 판정 금액 = 돈 묶음의 기사님 몫 · 줄이 없으면 0 */
+    const income = callIncomeOf(securedOrder) ?? 0;
     const total = securedOrder.totalDurationMin != null
         ? securedOrder.totalDurationMin + dwell.dwell : null;
     const tags: string[] = [...approxTagsOf(securedOrder), ...roadEventTagsOf(roadEvent)];
@@ -816,16 +821,16 @@ export function soloJudgmentFrom(o: {
      *    감점 입력이다. 여기에 시세를 넣으면 점수가 바뀐다 (기사님은 «표시만»을 고르셨다).
      *    그래서 값이 둘이고 이름으로 갈라 둔다.
      */
-    const rateShort = !!rateForScore && securedOrder.fare > 0
-        && securedOrder.fare < rateForScore.minAcceptable;
-    if (rateForDisplay && securedOrder.fare > 0
-        && securedOrder.fare < rateForDisplay.minAcceptable) {
+    const rateShort = !!rateForScore && income > 0
+        && income < rateForScore.minAcceptable;
+    if (rateForDisplay && income > 0
+        && income < rateForDisplay.minAcceptable) {
         /**
          * 💸 **«얼마나 모자라나»를 앞에 둔다** — 기사님이 1~2초에 읽으시는 것은
          *    두 절대값이 아니라 차이다. 거절 사유 줄과 한 모양으로 맞춘다.
          */
-        tags.push(`요율 ${manwonText(rateForDisplay.minAcceptable - securedOrder.fare)} 모자람`
-            + ` — 시세 ${manwonText(rateForDisplay.minAcceptable)} · 실제 ${manwonText(securedOrder.fare)}`);
+        tags.push(`요율 ${manwonText(rateForDisplay.minAcceptable - income)} 모자람`
+            + ` — 시세 ${manwonText(rateForDisplay.minAcceptable)} · 실제 ${manwonText(income)}`);
     }
 
     /**
@@ -849,7 +854,7 @@ export function soloJudgmentFrom(o: {
      *    🔴 합짐이 `totalDetourCost` 로 거치는 그 함수와 **같은 자리**다 (규칙 ③).
      */
     const dry: ReturnType<typeof toSnapshot> & { extraMin?: number | null } = toSnapshot(judge(CRITERIA, firstLoadFacts({
-        fare: securedOrder.fare, totalMinutes: total,
+        fare: income, totalMinutes: total,
         minAcceptableKrw: rateShort ? rateForScore!.minAcceptable : null,
         progress,
         /**
@@ -893,7 +898,7 @@ export function soloJudgmentFrom(o: {
     dry.extraMin = total;
     if (rateShort && (dry.color === '꿀' || dry.color === '보통')) {
         logs.push(`   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
-            `실제 ${wonText(securedOrder.fare)} < 하한 ${wonText(rateForScore!.minAcceptable)})`);
+            `실제 ${wonText(income)} < 하한 ${wonText(rateForScore!.minAcceptable)})`);
         dry.color = '똥';
     }
     return { dry, total, logs };
@@ -913,6 +918,8 @@ export function mergedJudgmentFrom(o: {
 }) {
     const { order: securedOrder, activeCalls, tlAfter, stopsAfter, result, distDiff, cost, conflicts, filter, derivation, fuelCostPerKm, nowMs, goal, excludedHits, judgmentCfg } = o;
     const logs: string[] = [];
+    /* 💰 판정 금액 = 돈 묶음의 기사님 몫 · 줄이 없으면 0 */
+    const income = callIncomeOf(securedOrder) ?? 0;
         const slotsTotal = TRUCK_CAPACITY_SLOTS;
         const slotsUsed = filter.slotsUsed ?? 0;
     const existing = tlAfter.filter(e => e.orderId !== securedOrder.id);
@@ -1062,7 +1069,7 @@ export function mergedJudgmentFrom(o: {
 
     // ⚖️ 색은 판정 함수 하나가 낸다 (6단계 갈아타기 완료)
     const dry: ReturnType<typeof toSnapshot> & { stops?: typeof stopsView; unknownWhy?: string | null; extraMin?: number | null } = toSnapshot(judge(CRITERIA, mergeFacts({
-        fare: securedOrder.fare,
+        fare: income,
         extraMinutes: marginal + cost.dwell,
         /* 🛣️ 길을 벗어나는 분 — 「돈」의 우회 감쇠만 본다 (잰 곳은 위 한 곳이다) */
         offRouteMinutes,
@@ -1179,7 +1186,7 @@ export function fallbackJudgmentFrom(o: {
 }) {
     const { order: securedOrder, why, excludedHits, fuelCostPerKm, origin, goal, pickupRadiusKm, judgmentCfg } = o;
     const dry = toSnapshot(judge(CRITERIA, firstLoadFacts({
-        fare: securedOrder.fare, totalMinutes: null, excludedHits,
+        fare: callIncomeOf(securedOrder) ?? 0, totalMinutes: null, excludedHits,
         /* ⛽⏳ 거리·시간을 모르는 자리다 — 없으면 그 항목만 빠진다 (규칙 ④) */
         extraKm: securedOrder.kakaoSoloDistanceKm ?? null,
         fuelCostPerKm,

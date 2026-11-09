@@ -501,6 +501,8 @@ async function ledger() {
         vehicleType: src.vehicleType || '1t', timestamp: capturedAt,
         itemDescription: '장부 검사', rawText,
         load: { vehicleText: src.vehicleType || '1t', sizeText: null, itemText: '장부 검사', lines: [] },
+        /* 💰 원달앱처럼 목록 요금을 돈 묶음 기사님 몫 줄로 — 서버 판정 금액은 이 줄을 읽는다 */
+        money: { lines: [{ kind: 'income', won: src.fare, shown: src.fare.toLocaleString() }], feeRateText: null, paymentType: '신용', paymentShown: '신용', billingType: null, billingShown: null },
     };
     const post = (path, body) => fetch(`http://localhost:${PORT}/api/orders${path}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),

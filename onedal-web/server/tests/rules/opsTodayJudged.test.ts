@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { testCall } from '../fixtures/testCall';
+import { testCall, testMoney } from '../fixtures/testCall';
 import db from '../../src/db';
 import opsRouter from '../../src/routes/ops';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
@@ -41,10 +41,10 @@ describe('운영센터 회원 상세 — 오늘 판정받은 콜', () => {
         db.prepare(`INSERT INTO orders (id, userId, status, timestamp, capturedAt, pickup, dropoff, fare, vehicleType, totalDistanceKm, totalDurationMin)
             VALUES ('TEST-JUDGED-KEEP', ?, 'ORDER_CONFIRMED', ?, ?, '경기 광주시 경안동', '경기 이천시 관고동', 30000, '1t', 30, 40)`).run(M, now, now);
         OrderRepository.saveJudgment('TEST-JUDGED-KEEP', M, { color: '꿀', score: 81, axes: [{ key: 'money', name: '돈', score: 81, raw: '3.0만 ÷ 40분' }], gates: [], tags: [],
-            ...judgmentRecordOf(testCall({ pickups: [{ listText: '경기 광주시 경안동' }], dropoffs: [{ listText: '경기 이천시 관고동' }], fare: 30000, targetApp: 'insung' } as any), FILTER) });
+            ...judgmentRecordOf(testCall({ pickups: [{ listText: '경기 광주시 경안동' }], dropoffs: [{ listText: '경기 이천시 관고동' }], fare: 30000, money: testMoney(30000), targetApp: 'insung' } as any), FILTER) });
         /* 안 잡은 미리보기 — 판정 표에만 · 판정 때 남긴 내용 */
         OrderRepository.saveJudgment('TEST-JUDGED-PREVIEW', M, { color: '똥', score: 23, axes: [], gates: [], tags: [],
-            ...judgmentRecordOf(testCall({ pickups: [{ listText: '경기 광주시 광남1동' }], dropoffs: [{ listText: '경기 성남시 중원구 금광1동' }], fare: 11011, targetApp: 'kakaopicker', isPreview: true } as any), FILTER) });
+            ...judgmentRecordOf(testCall({ pickups: [{ listText: '경기 광주시 광남1동' }], dropoffs: [{ listText: '경기 성남시 중원구 금광1동' }], fare: 11011, money: testMoney(11011), targetApp: 'kakaopicker', isPreview: true } as any), FILTER) });
         /* 옛 판정 — 기록을 남기기 전(call · filter 없음) · orders 없음 */
         db.prepare(`INSERT INTO order_judgments (orderId, userId, color, score, detail, judgedAt) VALUES ('TEST-JUDGED-OLD', ?, '보통', 50, ?, ?)`)
             .run(M, JSON.stringify({ axes: [], gates: [], tags: [] }), now);

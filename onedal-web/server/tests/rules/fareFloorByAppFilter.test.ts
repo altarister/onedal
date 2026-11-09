@@ -2,6 +2,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { OrderEvaluator } from '../../src/core/engine/OrderEvaluator';
+import { testMoney } from '../fixtures/testCall';
 
 /**
  * 💸 **첫짐 하한은 «원달앱이 이미 걸렀나»로 가른다 — 배차망이 아니라** (기사님 «가» · onedal-69 «가»).
@@ -12,7 +13,7 @@ import { OrderEvaluator } from '../../src/core/engine/OrderEvaluator';
 const filter = { dispatchPhase: 'STANDBY', minFare: 20000, excludedKeywords: [] };
 const run = (app: string, extra: Record<string, unknown>) => {
     const reasons: string[] = [], pros: string[] = [];
-    new OrderEvaluator(app).runStage1ShapeFilter({ pickup: '경기 광주시 경안동', dropoff: '서울 용산구 한남동', fare: 8000, ...extra }, filter, reasons, pros);
+    new OrderEvaluator(app).runStage1ShapeFilter({ pickup: '경기 광주시 경안동', dropoff: '서울 용산구 한남동', fare: 8000, money: testMoney(8000), ...extra }, filter, reasons, pros);
     return { reasons, pros };
 };
 const FLOOR = /첫짐 절대하한가 미달/;

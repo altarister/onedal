@@ -144,6 +144,7 @@
 | 배차망 이름 | 🟡 `TargetApp.kt` |
 | DB 스키마 · `onedal-web/shared/` | 🟡 기존 DB 사본으로 부팅 (빈 DB 는 문제를 숨긴다) · 빈 DB 로도 부팅 |
 | 픽커 상세 화면 OCR 파서 | 🟡 앱 `PickerScreenOcr.kt` ↔ 서버 `pickerScreenOcr.ts` (두 검사가 같은 문제지를 문다) |
+| 픽커 «최종 수익» 오독 문턱 원달앱 `PickerDetailOcrParser.DIGIT_SLIP` ↔ shared `DIGIT_SLIP`(`onedal-web/shared/src/call/money.ts` · 서버 /detail 돈 합치기) | 🟡 같은 숫자 |
 | 판정 글자 shared `stopQueryOf`(`onedal-web/shared/src/network/pageRead.ts`) ↔ 원달앱 `StopText.query`(`core/CallStops.kt`) · 칸 앞 토막 `LocationTextAnalyzer.split` | ✅ 원달앱 `StopTextTest` · shared `stopText.test.ts` — 같은 문제지 `pageReadCases.json` `stopQueryCases` |
 | 예약 콜 shared `isReservedCall`(`onedal-web/shared/src/time/timing.ts`) ↔ 원달앱 `isReservedCall`(`core/CallStops.kt`) | ✅ 원달앱 `CallStopsTest` · shared `stopOf.test.ts` — 같은 문제지 `pageReadCases.json` `reservedCallCases` |
 | 네 모드 표 `onedal-web/shared/src/device/modeTable.ts` ↔ 서버 `modeForPhone` · 원달앱 `ModeActs` · `TargetApp.runningMode` | ✅ shared `modeTable.test.ts` · 원달앱 `ModeTablePairTest` |

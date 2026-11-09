@@ -52,6 +52,7 @@ export function trappedOf(dropoff: { x?: number | null; y?: number | null }): bo
 
 /** 첫짐 — 잡아 둔 콜이 없다. 약속·공간은 «잴 게 없다»가 된다 */
 export function firstLoadFacts(input: {
+    /** 판정 금액 — 돈 묶음의 기사님 몫(원) · 부르는 쪽이 `callIncomeOf` 로 꺼낸다 */
     fare: number;
     /** 이 콜에 쓰는 전체 시간(접근+주행+정차). 모르면 null */
     totalMinutes: number | null;
@@ -199,6 +200,7 @@ export function lateStopsOf(
 
 /** 합짐 — 이미 실린 짐이 있다. 다섯 기준을 다 잰다 (지리는 가중치 0 이라 안 본다) */
 export function mergeFacts(input: {
+    /** 판정 금액 — 돈 묶음의 기사님 몫(원) · 부르는 쪽이 `callIncomeOf` 로 꺼낸다 */
     fare: number;
     /** 붙여서 **늘어나는** 시간(한계 주행 + 늘어난 정차). 모르면 null */
     extraMinutes: number | null;

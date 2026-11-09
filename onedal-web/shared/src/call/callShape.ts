@@ -9,7 +9,7 @@
  */
 import type { MyOrder, OfficeOrder, PendingOrder, SecuredOrder } from './orderShapes';
 import type { BillingType, PaymentType } from './money';
-import { incomeOf, moneyFrom } from './money';
+import { callIncomeOf, moneyFrom } from './money';
 import { isExpressForm, tripTypeOfLedger, orderFormOfLedger, type TripType, type OrderForm } from './badges';
 import { loadFrom } from '../cargo/callLoad';
 import { firstPickupStop, lastDropoffStop } from '../time/timing';
@@ -149,7 +149,7 @@ export function ledgerCopiesOf(call: OfficeOrder): LedgerCopies {
         pickup: stopTextOf(pickupStop),
         dropoff: stopTextOf(dropoffStop),
         fare: call.fare || 0,
-        incomeWon: call.money ? incomeOf(call.money) : null,
+        incomeWon: callIncomeOf(call),
         isExpress: isExpressForm(call.orderForm) ? 1 : 0,
         paymentType: call.paymentType || null,
         billingType: call.billingType || null,

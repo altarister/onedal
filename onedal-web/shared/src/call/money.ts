@@ -3,7 +3,7 @@
  * 누가: 서버 페이지 읽기 · 파서 · 콜 모양
  * 언제: 배차망 화면의 돈 줄 · 결제 · 증빙 글자를 담고 꺼낼 때
  * 어디서: 콜 한 건의 돈 묶음
- * 무엇을: MONEY_KINDS · PAYMENT_TYPES · BILLING_TYPES · CallMoney · incomeOf · collectOf · withDetailMoney · moneyOf · moneyFrom · paymentOf
+ * 무엇을: MONEY_KINDS · PAYMENT_TYPES · BILLING_TYPES · CallMoney · incomeOf · collectOf · callIncomeOf · callCollectOf · DIGIT_SLIP · isDigitSlip · withDetailMoney · moneyOf · moneyFrom · paymentOf
  * 어떻게: 화면에 보인 돈 줄만 담고 기사님 몫 · 받을 돈은 그 갈래 줄에서 꺼낸다
  * 왜: 배차망마다 뜻이 다른 숫자 하나에 기사님 몫과 받을 돈이 섞이지 않게 하기 위해서다
  */
@@ -48,17 +48,29 @@ export interface CallMoney {
 export const incomeOf = (m: CallMoney): number | null => m.lines.find(l => l.kind === 'income')?.won ?? null;
 /** 받을 돈 — 갈래 collect 줄의 금액 · 없으면 null (착불 안내 · 하차 칸 · 받았음/못 받음 · 미수금) */
 export const collectOf = (m: CallMoney): number | null => m.lines.find(l => l.kind === 'collect')?.won ?? null;
+/** 콜의 기사님 몫 — 돈 묶음이 없거나 기사님 몫 줄이 없으면 null (서버 판정 · 같은 콜 찾기 · 장부 사본 incomeWon) */
+export const callIncomeOf = (call: { money?: CallMoney | null }): number | null => (call.money ? incomeOf(call.money) : null);
+/** 콜의 받을 돈 — 돈 묶음이 없거나 받을 돈 줄이 없으면 null (착불 미수금) */
+export const callCollectOf = (call: { money?: CallMoney | null }): number | null => (call.money ? collectOf(call.money) : null);
+
+/** 이만큼(배) 넘게 다르면 숫자 한 자리가 빠지거나 붙은 오독이다 — 열 배에 여유를 둔 값 (원달앱 `PickerDetailOcrParser.DIGIT_SLIP` 과 같은 값) */
+export const DIGIT_SLIP = 8;
+/** 두 금액이 오독만큼 다른가 — 한쪽에 문턱을 곱해도 다른 쪽 이하 · 두 배 인상은 믿는다 */
+export const isDigitSlip = (a: number, b: number): boolean => a * DIGIT_SLIP <= b || b * DIGIT_SLIP <= a;
 
 /**
  * 상세 원문 돈 묶음을 원달앱 보고 돈 묶음 위에 얹는다(/detail) — 상세에 돈 줄이 있으면 그 갈래 줄만 상세 값으로 덮고 다른 갈래 줄은 보고 그대로,
  * 수수료율 · 결제 · 증빙은 상세에 글자가 있을 때만 얹는다. 상세 돈 묶음이 없으면 보고 그대로(인성 상세 «요금 :» 은 갈래 줄이 아니라 보고의 기사님 몫 줄이 남는다).
+ * 상세 기사님 몫이 보고 기사님 몫과 오독만큼 다르면(`isDigitSlip` — 픽커 사진 «최종 수익» 한 자리 빠짐 · 붙음) 그 상세 줄은 버리고 보고 줄이 남는다 — 판정 금액이 열 배 틀리지 않게.
  */
 export function withDetailMoney(reported: CallMoney | undefined, detail: CallMoney | undefined): CallMoney | undefined {
     if (!detail) return reported;
     if (!reported) return detail;
-    const kinds = new Set(detail.lines.map(l => l.kind));
+    const listed = incomeOf(reported);
+    const detailLines = detail.lines.filter(l => !(l.kind === 'income' && listed != null && listed > 0 && l.won > 0 && isDigitSlip(listed, l.won)));
+    const kinds = new Set(detailLines.map(l => l.kind));
     return {
-        lines: [...detail.lines, ...reported.lines.filter(l => !kinds.has(l.kind))],
+        lines: [...detailLines, ...reported.lines.filter(l => !kinds.has(l.kind))],
         feeRateText: detail.feeRateText ?? reported.feeRateText,
         ...(detail.paymentShown ? { paymentType: detail.paymentType, paymentShown: detail.paymentShown } : { paymentType: reported.paymentType, paymentShown: reported.paymentShown }),
         ...(detail.billingShown ? { billingType: detail.billingType, billingShown: detail.billingShown } : { billingType: reported.billingType, billingShown: reported.billingShown }),

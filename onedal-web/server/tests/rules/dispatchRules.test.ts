@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { sameCallOf } from '../../src/routes/detail';
+import { testMoney } from '../fixtures/testCall';
 import { callFromShape, callShapeOf, CALL_SHAPE_VERSION } from '@onedal/shared';
 
 /**
@@ -173,7 +174,7 @@ describe('규칙 ① — 강제 정리는 심사 중인 콜만 건드린다', ()
 describe('🔁 같은 콜 찾기 — sameCallOf', () => {
     const insungPickup = '경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)';
     const call = (id: string, pickup: { listText: string; addressDetail?: string }, dropoff: { listText: string; addressDetail?: string }, fare = 50000): any =>
-        ({ id, fare, pickupDetails: [pickup], dropoffDetails: [dropoff] });
+        ({ id, fare, money: testMoney(fare), pickupDetails: [pickup], dropoffDetails: [dropoff] });
 
     it('🔴 앞 콜 상차 글자가 다듬어져 있어도 상세 주소가 같으면 같은 콜이다', () => {
         const before = call('a', { listText: '경기 화성시 안녕동 158-95', addressDetail: insungPickup }, { listText: '경기 오산시 원동' });

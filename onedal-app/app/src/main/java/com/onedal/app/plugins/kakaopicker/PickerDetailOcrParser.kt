@@ -148,7 +148,7 @@ class PickerDetailOcrParser : com.onedal.app.core.DetailVerifier<PickerDetailFro
      * 픽커는 시간이 지나며 요금을 올려 목록 줄 요금과 다를 수 있다 — 두 값이 다르면 한 줄. 목록 줄(본 콜 기억 지문)은 바꾸지 않는다.
      * 알람 필터(목록 단계)는 목록 요금 그대로, 채운 뒤 필터·서버 판정은 이 값.
      */
-    /** 이만큼(배) 넘게 다르면 숫자 한 자리가 빠지거나 붙은 오독이다 — 열 배에 여유를 둔 값 */
+    /** 이만큼(배) 넘게 다르면 숫자 한 자리가 빠지거나 붙은 오독이다 — 열 배에 여유를 둔 값 (서버 /detail 돈 합치기 shared `DIGIT_SLIP` 과 같은 값) */
     private val DIGIT_SLIP = 8
 
     private fun detailFare(listFare: Int?, finalIncome: Int?): Int? {

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { firstPickupStop, lastDropoffStop } from '@onedal/shared';
-import { testCall } from '../fixtures/testCall';
+import { testCall, testMoney } from '../fixtures/testCall';
 import { OrderEvaluator } from '../../src/core/engine/OrderEvaluator';
 import { SettingsRepository } from '../../src/repositories/SettingsRepository';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
@@ -769,8 +769,8 @@ function make(u: string, f = {}) {
     s.myOrders = [];
     return s;
 }
-const order = (id: string, o = {}) => testCall({ id, pickups: [{ listText: '경기 광주시 곤지암읍' }], dropoffs: [{ listText: '경기 이천시 중리동' }], vehicleType: '1t', fare: 45000, rawText: '',
-    status: 'ORDER_SECURED_EVALUATING', capturedAt: new Date(T).toISOString(), ...o });
+const order = (id: string, o: { fare?: number } = {}) => testCall({ id, pickups: [{ listText: '경기 광주시 곤지암읍' }], dropoffs: [{ listText: '경기 이천시 중리동' }], vehicleType: '1t', fare: 45000, rawText: '',
+    status: 'ORDER_SECURED_EVALUATING', capturedAt: new Date(T).toISOString(), money: testMoney(o.fare ?? 45000), ...o });
 const seen = (o) => ({ j: o.judgment, t: o.kakaoTimeExt, r: o.rejectionReasons, p: o.approvalReasons, st: o.status,
     d: [o.totalDistanceKm, o.totalDurationMin, o.approachDurationMin, o.kakaoSoloDistanceKm] });
 async function run(u: string, o, s) {

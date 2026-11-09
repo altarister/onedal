@@ -30,7 +30,7 @@ describe('💰 상세 요금 — 정의 표대로', () => {
     it('🔴 상세 길이 요금을 짐작 함수가 아니라 정의 표로 읽는다', () => {
         const detail = read('routes/detail.ts');
         expect(detail).not.toMatch(/parseMockupFare/);
-        expect(detail).toMatch(/pageFareOf\(targetApp, 'newCall', rawText\)/);
+        expect(detail).toMatch(/withDetailMoney\(pendingOrder\.money, detailMoney\)/);   // 상세 돈 줄은 정의 표(detailRecordOf)로 읽어 보고 돈 묶음 위에
         expect(read('utils/parser.ts')).not.toMatch(/parseMockupFare/);
     });
     it.each(SHEET.cases.map(c => [`${c.network} ${c.page} ${c.field} — ${c.why}`, c] as const))('공통 문제지: %s', (_, c) => {

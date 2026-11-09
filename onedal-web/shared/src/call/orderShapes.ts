@@ -62,7 +62,7 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     verdict?: string | null;
     id: string;                       // 스캐너 앱 쪽 고유 ID
     type: ReportKind;                 // 보고 종류 — 값 목록 REPORT_KINDS(callIdentity)
-    fare: number;                     // 45000 (숫자)
+    fare: number;                     // 45000 (숫자) — 목록 금액 · 관제웹 금액 표시가 읽는다(서버 판정은 아래 돈 묶음 기사님 몫)
     timestamp: string;                // ISO 8601 포맷
     postTime?: string;                // 콜 상차시간 · 등록시간 (예: "12:23")
     vehicleType?: string;             // 콜 차종 — 목록 줄임말("라", "다", "1t") 또는 상세의 차량 이름("다마스") · 짐 묶음 `load` 로 옮기는 중(짐 7)
@@ -77,7 +77,7 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     dropoffDetails?: CallStop[];
     /** 📦 짐 묶음 — 짐 줄 · 차종 맞춤 재료(`cargo/callLoad.ts`). 원달앱이 맨 위 차종 · 크기 글자를 그대로 싣고 서버 `/detail` 이 상세 원문 조각 줄을 얹는다 · 읽는 곳은 아직 없다 — 그동안 `vehicleType` · `itemSize` · `itemDescription` 을 읽는다 */
     load?: CallLoad;
-    /** 💰 돈 묶음 — 돈 줄 · 결제 · 증빙(`money.ts`). 원달앱이 네 배차망 화면 돈 줄을 싣고, 서버 /detail 이 상세 원문 조각 줄을 갈래마다 얹는다(`withDetailMoney`) · 서버 판정은 아직 `fare` 를 읽는다(돈 8) */
+    /** 💰 돈 묶음 — 돈 줄 · 결제 · 증빙(`money.ts`). 원달앱이 네 배차망 화면 돈 줄을 싣고, 서버 /detail 이 상세 원문 조각 줄을 갈래마다 얹는다(`withDetailMoney`) · 서버 판정 금액은 기사님 몫 줄 · 착불 미수금은 받을 돈 줄(`callIncomeOf` · `callCollectOf`) */
     money?: CallMoney;
 }
 export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보내고 서버가 상세 원문에서 뽑거나 계산해 채우는 칸 · 배차사 · 의뢰인 · 진행 글자는 번호 묶음(CallIdentity)

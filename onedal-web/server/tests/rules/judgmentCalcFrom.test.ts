@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { testCall } from '../fixtures/testCall';
+import { testCall, testMoney } from '../fixtures/testCall';
 import { soloJudgmentFrom, mergedJudgmentFrom, fallbackJudgmentFrom } from '../../src/core/engine/OrderEvaluator';
 import { DEFAULT_JUDGMENT, derivationInputsOf } from '@onedal/shared';
 
@@ -15,7 +15,7 @@ const HD_SINDUN = { x: 127.40410, y: 37.30574 };         // 이천 신둔면
 const BUBAL = { x: 127.4867, y: 37.2602 };               // 이천 부발읍
 const cfg = DEFAULT_JUDGMENT;
 
-const soloOrder = (o = {}) => testCall({ id: 'c', fare: 45000, totalDurationMin: 30, approachDurationMin: 7, kakaoSoloDistanceKm: 15.5, kakaoSoloDurationMin: 23,
+const soloOrder = (o = {}) => testCall({ id: 'c', fare: 45000, money: testMoney(45000), totalDurationMin: 30, approachDurationMin: 7, kakaoSoloDistanceKm: 15.5, kakaoSoloDurationMin: 23,
     pickups: [{ geo: GONJIAM }], dropoffs: [{ geo: TERMINAL }], pickupApprox: null, dropoffApprox: null, ...o });
 const solo = (o = {}) => soloJudgmentFrom({
     order: soloOrder(), roadEvent: null, tollKrw: 1200, dwell: { dwell: 13, hasUnknown: false }, firstStop: { handMinutes: 8, protectionMin: null },
@@ -85,7 +85,7 @@ describe('🎨 판정 불가 셈 — 값만', () => {
 describe('🧩 합짐 판정 셈 — 값만', () => {
     const NOW = Date.parse('2026-10-07T03:00:00.000Z');
     const kept = testCall({ id: 'k1', status: 'ORDER_CONFIRMED', pickups: [{ geo: GONJIAM }], dropoffs: [{ geo: TERMINAL }], goalCity: '이천시' });
-    const cand = testCall({ id: 'c1', fare: 30000, pickups: [{ geo: HD_SINDUN }], dropoffs: [{ geo: BUBAL }], deliveryDistanceKm: 8, pickupApprox: null, dropoffApprox: null });
+    const cand = testCall({ id: 'c1', fare: 30000, money: testMoney(30000), pickups: [{ geo: HD_SINDUN }], dropoffs: [{ geo: BUBAL }], deliveryDistanceKm: 8, pickupApprox: null, dropoffApprox: null });
     const entry = (orderId, stopType, etaMin, promisedMin, arrived = false) => ({
         orderId, stopType, etaMs: etaMin == null ? null : NOW + etaMin * 60_000, dwellMinutes: 5, driveMinutes: etaMin, leadMinutes: 0,
         promisedUntil: promisedMin == null ? null : new Date(NOW + promisedMin * 60_000).toISOString(), promiseConfirmed: false,
@@ -148,5 +148,27 @@ describe('🧩 합짐 판정 셈 — 값만', () => {
         const r = merged({ tlAfter: [], stopsAfter: [] });
         expect(r.dry.unknownWhy).toBe('전체 경로의 정거장 순서를 못 받았다');
         expect(r.dry.tags).toContain('기존 콜 도착 모름 — 전체 경로의 정거장 순서를 못 받았다');
+    });
+
+    /* 💰 판정 금액은 돈 묶음의 기사님 몫 — 콜 요금 칸(목록 금액 · 받을 금액)이 아니다 · 기름값 · 톨비 0 */
+    const paid = (fare, money, minutes) => merged({ order: { ...cand, fare, money },
+        result: { merged: { distance: 31000, duration: 3300 }, timeDiffMin: minutes, distDiffKm: '6.0', tollDiffKrw: 0, roadEvent: null },
+        cost: { total: minutes, drive: minutes, dwell: 0, hasUnknown: false, handMinutes: 8, protectionMin: null }, fuelCostPerKm: 0 }).dry.axes.find(a => a.key === 'money');
+
+    it('🔴 인성 착불 손 확정 — 받을 금액 45,000 이 아니라 실운임 34,650 으로 잰다(70 분)', () => {
+        const m = paid(45000, testMoney(34650, [{ kind: 'collect', won: 45000 }]), 70);
+        expect(m.raw).toContain('3.5만 ÷ 70분');
+        expect(paid(45000, testMoney(45000), 70).score).toBeGreaterThan(m.score);
+    });
+
+    it('🔴 화물24시 선/착불 — 합계 200,000 이 아니라 기사님 몫 180,000 · 수수료 없는 190,000 콜이 위로(240 분)', () => {
+        const a = paid(200000, testMoney(180000, [{ kind: 'total', won: 200000 }, { kind: 'fee', won: 20000 }]), 240);
+        const b = paid(190000, testMoney(190000), 240);
+        expect(a.raw).toContain('18.0만 ÷ 240분 = 4.5만/h');
+        expect(b.score).toBeGreaterThan(a.score);
+    });
+
+    it('🔴 기사님 몫 줄이 없으면 판정 금액 0 — 콜 요금 칸을 대신 읽지 않는다', () => {
+        expect(paid(45000, testMoney(null, [{ kind: 'collect', won: 45000 }]), 70).raw).not.toContain('4.5만');
     });
 });

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { testCall } from '../fixtures/testCall';
+import { testCall, testMoney } from '../fixtures/testCall';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import db from '../../src/db';
@@ -17,7 +17,7 @@ const FILTER = {
     isActive: true, userOverrides: true,
     pickupKeywords: ['경안동', '쌍령동'], destinationKeywords: ['관고동', '증포동', '신둔면'], excludedKeywords: ['착불'],
 };
-const PREVIEW = testCall({ id: 'TEST-JREC-1', pickups: [{ listText: '경기 광주시 광남1동' }], dropoffs: [{ listText: '경기 이천시 관고동' }], fare: 23000, targetApp: 'kakaopicker', isPreview: true });
+const PREVIEW = testCall({ id: 'TEST-JREC-1', pickups: [{ listText: '경기 광주시 광남1동' }], dropoffs: [{ listText: '경기 이천시 관고동' }], fare: 23000, money: testMoney(23000), targetApp: 'kakaopicker', isPreview: true });
 
 describe('판정 기록 — 콜 내용 · 필터 요약', () => {
     afterAll(() => db.prepare(`DELETE FROM order_judgments WHERE orderId LIKE 'TEST-JREC-%'`).run());

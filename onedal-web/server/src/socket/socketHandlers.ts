@@ -31,7 +31,7 @@ import { slog } from "../utils/fileLogger";
 import { ownsOrder } from "../core/orderOwner";
 import { noteOrigin } from "../utils/originLog";
 import { logContext, whoLabel } from "../utils/logContext";
-import { clockText, wonText, isTimeText } from "@onedal/shared";
+import { clockText, wonText, isTimeText, callCollectOf } from "@onedal/shared";
 import { authSocket } from "./authSocket";
 import { webAccountGate } from "./webAccountGate";
 import { registerSupplyNamespace } from "./supplySocket";
@@ -639,8 +639,8 @@ export function registerSocketHandlers(io: Server) {
             const session = getUserSession(userId);
             const order = session.myOrders.find(o => o.id === data.orderId)
                        ?? session.pendingOrdersData.get(data.orderId);
-            // 금액은 서버가 아는 운임을 쓴다 — 화면이 보낸 값을 그대로 믿지 않는다
-            const amount = order?.fare ?? data.amount ?? 0;
+            // 금액은 서버가 아는 받을 돈(돈 묶음 받을 돈 줄)을 쓴다 — 화면이 보낸 값을 그대로 믿지 않는다 · 모르면 금액 빈 값
+            const amount = order ? callCollectOf(order) : null;
 
             OrderRepository.setCodCollected(data.orderId, userId, data.received, amount);
             // 🌉 다리 — 하차 완료 행에도 (완료 카드의 착불 버튼이 이 값으로 불을 켠다)
@@ -650,8 +650,8 @@ export function registerSocketHandlers(io: Server) {
             } catch (e) {
                 console.error(`🌉 [단계 다리 실패] ${data.orderId.slice(-6)}:`, (e as Error).message);
             }
-            slog('콜단계', `💵 [착불 ${data.received ? '수령' : '미수'}] ${data.orderId.slice(0, 8)} ${wonText(amount)}`);
-            logRoadmapEvent('콜단계', "서버", `[착불] ${data.received ? '현장 수령' : '미수금 등록'} ${amount}원`);
+            slog('콜단계', `💵 [착불 ${data.received ? '수령' : '미수'}] ${data.orderId.slice(0, 8)} ${amount == null ? '금액 모름' : wonText(amount)}`);
+            logRoadmapEvent('콜단계', "서버", `[착불] ${data.received ? '현장 수령' : '미수금 등록'} ${amount == null ? '금액 모름' : `${amount}원`}`);
         });
 
         // 착불 표시는 단계 행(cod_received)이, 상태는 orders 가 원천이다

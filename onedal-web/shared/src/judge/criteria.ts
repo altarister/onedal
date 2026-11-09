@@ -39,7 +39,7 @@ import { manwonText } from '../common/format';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export interface MoneyFacts {
-    /** 이 콜의 운임(원) */
+    /** 이 콜의 기사님 몫(원) — 돈 묶음의 기사님 몫 줄(`callIncomeOf`) · 줄이 없으면 0 */
     fare: number;
     /**
      * 이 콜 때문에 **더 쓰는 시간**(분). 주행 + 상하차 정차까지.

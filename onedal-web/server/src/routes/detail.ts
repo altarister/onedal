@@ -6,7 +6,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder, EmergencyAlert } from "@onedal/shared";
-import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, pageFareOf, pageFieldOf, detailRecordOf, missingAlwaysOf, firstPickupStop, lastDropoffStop, stopTextOf, withDetailMoney, withStopLists, STOP_CONTACT_KEYS, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
+import { isTerminal, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, safeCancelSecOf, SERVER_CLEANUP_EXTRA_SEC, callIncomeOf, pageFieldOf, detailRecordOf, missingAlwaysOf, firstPickupStop, lastDropoffStop, stopTextOf, withDetailMoney, withStopLists, STOP_CONTACT_KEYS, kstDateText, modeActsOf, whoConfirmed, timeoutActionOf, APP_REPORT_GRACE_SEC, APP_NO_REPORT_REASON } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { readWaitTimes } from "../core/waitTimes";
 import { getUserSession } from "../state/userSessionStore";
@@ -31,7 +31,7 @@ const router = Router();
 
 /**
  * 🔁 **같은 콜인가 — 값만 받는 셈** (앞에 잡은 콜 · 새로 연 상세).
- *    번호가 같거나 · 요금 · 상차 · 하차 정거장 글자(`stopTextOf` — 상세 주소가 먼저)가 같고 상차 전화나 상차 상세 주소가 같으면 같은 콜이다.
+ *    번호가 같거나 · 기사님 몫 · 상차 · 하차 정거장 글자(`stopTextOf` — 상세 주소가 먼저)가 같고 상차 전화나 상차 상세 주소가 같으면 같은 콜이다.
  *    두 콜 모두 오더 번호(`orderNo`)가 있으면 오더 번호가 같은지만 답이다 — 배차망 이름이 아니라 «번호가 있다» 사실로 가른다.
  *    오더 번호 — 지금 읽는 배차망은 화물24시뿐(정의 표 `orderNo` 줄).
  */
@@ -42,7 +42,8 @@ export function sameCallOf(existingOrder: SecuredOrder | PendingOrder, pendingOr
 
     const isPickupAddressMatch = stopTextOf(firstPickupStop(existingOrder)) === stopTextOf(firstPickupStop(pendingOrder));
     const isDropoffAddressMatch = stopTextOf(lastDropoffStop(existingOrder)) === stopTextOf(lastDropoffStop(pendingOrder));
-    const isFareMatch = existingOrder.fare > 0 && existingOrder.fare === pendingOrder.fare;
+    const income = callIncomeOf(existingOrder);
+    const isFareMatch = !!income && income > 0 && income === callIncomeOf(pendingOrder);
 
     const p1Addr = existingOrder.pickupDetails?.[0]?.addressDetail;
     const p2Addr = pendingOrder.pickupDetails?.[0]?.addressDetail;
@@ -163,10 +164,7 @@ router.post("/", async (req, res) => {
              * 못 채운 콜은 원달앱이 버린다. 위 `detailRecordOf` 의 출발 · 도착 연락처(pickupDetails · dropoffDetails)는 연락처 · 고객 이름을 꺼내는 데 쓴다.
              */
 
-            // 💰 원달앱 요금이 비었을 때만 — 원달앱과 같은 정의 표 · 같은 숫자 규칙으로 읽는다(못 읽으면 0 → [P3] 경고)
-            if (!pendingOrder.fare || pendingOrder.fare <= 0) {
-                pendingOrder.fare = pageFareOf(targetApp, 'newCall', rawText) ?? 0;
-            }
+            // 💰 판정 금액(기사님 몫)은 위 돈 묶음 하나에서 — 보고 돈 줄이 없으면 상세 돈 줄 · 둘 다 없으면 아래 [P3] «요금» 못 읽음
             // 🚚 차종은 짐작하지 않는다 — /confirm 이 남긴 목록 차종이 없을 때만 정의 표의 읽는 법(인성 «차량 : 트럭-1t»)으로.
             //    그래도 없으면 비워 두고 판정의 차종 문은 건너뛴다
             if (!pendingOrder.vehicleType) {
@@ -274,7 +272,7 @@ router.post("/", async (req, res) => {
              *   조용하기 때문에 몇 주 뒤에나 발견된다.
              */
             const unreadable: string[] = [];
-            if (!pendingOrder.fare || pendingOrder.fare <= 0) unreadable.push('요금');
+            if (!callIncomeOf(pendingOrder)) unreadable.push('요금');
             if (!stopTextOf(firstPickupStop(pendingOrder))) unreadable.push('상차지');
             if (!stopTextOf(lastDropoffStop(pendingOrder))) unreadable.push('하차지');
 

@@ -95,4 +95,12 @@ describe('💰 상세 돈 묶음을 보고 위에 — 갈래마다 덮고 결제
         expect(withDetailMoney(reported, undefined)).toBe(reported);
         expect(withDetailMoney(undefined, reported)).toBe(reported);
     });
+    it('🔴 상세 기사님 몫이 보고 기사님 몫과 여덟 배 넘게 다르면 사진 숫자 오독 — 상세 줄을 버리고 보고 값 · 두 배 인상은 믿는다', () => {
+        const listed = moneyWith([{ kind: 'income', won: 12000, shown: '12,000' }]);
+        const slip = withDetailMoney(listed, moneyWith([{ kind: 'income', won: 120000, shown: '120,000' }, { kind: 'deliveryFee', won: 9730, shown: '9,730' }]))!;
+        expect(incomeOf(slip)).toBe(12000);
+        expect(slip.lines.map(l => [l.kind, l.won])).toEqual([['deliveryFee', 9730], ['income', 12000]]);
+        expect(incomeOf(withDetailMoney(listed, moneyWith([{ kind: 'income', won: 1200, shown: '1,200' }]))!)).toBe(12000);
+        expect(incomeOf(withDetailMoney(listed, moneyWith([{ kind: 'income', won: 24000, shown: '24,000' }]))!)).toBe(24000);
+    });
 });

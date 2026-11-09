@@ -130,8 +130,8 @@ describe('🗑️ 결재 취소', () => {
 function ledgerCall(id: string, extra: Record<string, unknown> = {}) {
     const now = new Date().toISOString();
     db.prepare(`INSERT OR REPLACE INTO orders (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, routePolyline, paymentType, ackedAt)
-                VALUES (?, 'NEW_ORDER', ?, ?, ?, ?, '상', '하', 20000, 'insung', ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`)
-        .run(id, extra.status ?? 'ORDER_CONFIRMED', U, now, now, extra.routePolyline === null ? null : JSON.stringify(LINE), extra.paymentType ?? null);
+                VALUES (?, 'NEW_ORDER', ?, ?, ?, ?, '상', '하', ?, 'insung', ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`)
+        .run(id, extra.status ?? 'ORDER_CONFIRMED', U, now, now, extra.fare ?? 20000, extra.routePolyline === null ? null : JSON.stringify(LINE), extra.paymentType ?? null);
     const place = (x: number, y: number, tag: string) => {
         db.prepare(`INSERT OR IGNORE INTO places (address, x, y, addressDetail, customerName) VALUES (?, ?, ?, ?, ?)`).run(tag, x, y, tag, U);
         return (db.prepare(`SELECT id FROM places WHERE addressDetail = ? AND customerName = ?`).get(tag, U) as any).id;
@@ -280,11 +280,21 @@ describe('📦 마일스톤', () => {
         expect(t.myOrders.find(c => c.id === `${U}-m3`).status).toBe('ORDER_CONFIRMED');
     });
 
-    it('🔴 착불을 수령 표시 없이 하차하면 미수금으로 잡는다 · 착불이 아니면 안 잡는다', async () => {
+    it('🔴 착불을 수령 표시 없이 하차하면 받을 돈을 미수금으로 잡는다 · 받을 돈을 모르면 금액 빈 값 · 착불이 아니면 안 잡는다', async () => {
         const cod = jest.spyOn(OrderRepository, 'setCodCollected');
-        confirmed(`${U}-cod`, { paymentType: '착불' });
+        /* 인성 착불 손 확정 — 기사님 몫(실운임) 34,650 · 고객에게 받을 금액 45,000 */
+        const line = (kind: string, won: number) => ({ kind, won, shown: won.toLocaleString() });
+        const money = (...lines) => ({ lines, feeRateText: null, paymentType: '착불', paymentShown: '착불', billingType: null, billingShown: null });
+        const unpaidOf = (id: string) => (db.prepare(`SELECT unpaidAmount FROM orders WHERE id = ?`).get(id) as any).unpaidAmount;
+        confirmed(`${U}-cod`, { paymentType: '착불', fare: 34650, money: money(line('income', 34650), line('collect', 45000)) });
         await reportMilestone(U, `${U}-cod`, 'DELIVERED', 'MANUAL', io);
-        expect(cod).toHaveBeenCalledWith(`${U}-cod`, U, false, 20000);
+        expect(cod).toHaveBeenCalledWith(`${U}-cod`, U, false, 45000);
+        expect(unpaidOf(`${U}-cod`)).toBe(45000);
+        cod.mockClear();
+        confirmed(`${U}-cod2`, { paymentType: '착불', fare: 34650, money: money(line('income', 34650)) });
+        await reportMilestone(U, `${U}-cod2`, 'DELIVERED', 'MANUAL', io);
+        expect(cod).toHaveBeenCalledWith(`${U}-cod2`, U, false, null);
+        expect(unpaidOf(`${U}-cod2`)).toBeNull();
         cod.mockClear();
         confirmed(`${U}-pre`, { paymentType: '선불' });
         await reportMilestone(U, `${U}-pre`, 'DELIVERED', 'MANUAL', io);

@@ -125,6 +125,19 @@ class IsflexParserTest {
         }
     }
 
+    /** 💰 서버 판정 금액은 돈 묶음 기사님 몫 줄 — 플렉스 목록 · 상세 · 채운 콜 모두 «수입» 금액 한 줄 · 결제 글자는 결제 칸 */
+    @Test fun `돈 묶음 — 목록 07 · 상세 다섯 · 채운 콜의 기사님 몫이 수입 금액`() {
+        val incomeOf = { o: SimplifiedOfficeOrder -> o.money?.lines?.filter { it.kind == com.onedal.app.models.MoneyLine.INCOME }?.map { it.won } }
+        for ((i, o) in rowsOf(IsflexRealScreens.LIST_07).map { it.first }.withIndex()) assertEquals("목록 07-${i + 1}", listOf(o.fare), incomeOf(o))
+        for ((texts, w, fields) in wantDetail) {
+            val o = IsflexPlugin().parser.parse(IsflexParser.detailTextsOf(texts))
+            assertEquals("상세 ${w.fare}", listOf(w.fare), incomeOf(o))
+            assertEquals("상세 ${w.fare} 결제", fields.third, o.money?.paymentShown)
+        }
+        val filled = IsflexParser.fillFromDetail(row07[1].copy(rawText = IsflexParser.detailTextsOf(D08).joinToString(" ")), now)
+        assertEquals("채움 07-2", listOf(8500), incomeOf(filled))
+    }
+
     /** 🏠 앱이 연 콜을 상세로 채운다 — 주소 · 예약 · 꼬리표는 상세 값 · 출발지까지는 목록 값(시간이 흐르면 바뀐다) */
     @Test fun `상세 채우기 — 목록 07 줄을 상세 글로`() {
         val list = rowsOf(IsflexRealScreens.LIST_07).map { it.first }

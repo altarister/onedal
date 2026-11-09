@@ -79,10 +79,8 @@ object KakaoPickerPages {
                 read = Regex("""(\S+\s*주문번호\s*:\s*\S+)"""), part = "client"),
             FieldSpec(PageField.MEMO, "사진 유의사항", "바로 배송가주실 분만 잡아주세요", Seen.REAL, Handling.READ, "서버 제외어 찾는 칸(excludeScan) — «유의사항» 다음 «최종 수익» · 버튼 앞 · 원달앱은 이 칸을 안 읽는다(사진 판독도 안 씀)",
                 read = Regex("""유의사항\s+([\s\S]*?)(?=\s+최종 수익|\s+넘기기|\s+수락하기|${'$'})""")),
-            /* 같은 콜의 최종 수익이 보는 중에 오른다(배송비 그대로 · 실물 4번) — 판독 뒤 오른 값은 모른다 */
-            FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "PickerDetailOcrParser.detailFare(사진 판독 · 판정 요금) → 돈 묶음 기사님 몫 줄(PickerDetailOcrParser.withIncomeLine)"),
-            /* 같은 화면 자리에 이름표 없는 줄과 둘 — 읽는 숫자는 같은 «최종 수익» · 캡처 근거: 실물 상세 8/8 */
-            FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "서버 상세 자료 돈 묶음 기사님 몫 줄(detailRecordOf money) · 판정 요금은 이름표 없는 줄(사진 판독) — 돈 8 은 걸음 5 의 돈 9 뒤에 판정 입력을 이 줄로 옮기며 이름표 없는 줄을 지운다",
+            /* 같은 콜의 최종 수익이 보는 중에 오른다(배송비 그대로 · 실물 4번) — 판독 뒤 오른 값은 모른다 · 캡처 근거: 실물 상세 8/8 */
+            FieldSpec(PageField.FARE, "상세 아래 최종 수익", "최종 수익 2,387", Seen.REAL, Handling.READ, "PickerDetailOcrParser.detailFare(사진 판독) → 돈 묶음 기사님 몫 줄(PickerDetailOcrParser.withIncomeLine) · 서버 상세 자료 돈 묶음 기사님 몫 줄(detailRecordOf money) — 서버 판정 금액(callIncomeOf)",
                 read = Regex("""최종 수익\s+([\d,]+)"""), part = "income"),
             /* 캡처 근거: 실물 상세 6/6 — 서버 원문은 수익 상자 아래가 잘린 콜이 많다 */
             FieldSpec(PageField.FARE, "최종 수익 아래 배송비", "배송비 9,730P", Seen.REAL, Handling.READ, "서버 상세 자료 돈 묶음 배송비 줄(detailRecordOf money)",
