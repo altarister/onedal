@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { detailRecordOf, pickupClockMsOf } from '@onedal/shared';
+import { detailRecordOf, pickupClockMsOf, callCargoHintsOf, parseCargoHints } from '@onedal/shared';
 
 /**
  * 📄 **상세 원문의 콜 자료(상태 · 결제 · 수수료 · 연락처 …)는 배차망 정의 표대로 읽는다** (기사님 «1~5 모두 가» · onedal-69).
@@ -119,6 +119,21 @@ describe('📄 상세 콜 자료 — 정의 표', () => {
         expect(sized.load).toEqual({ vehicleText: null, sizeText: null, itemText: null,
             lines: [{ kind: 'dimension', shown: '세 변의 합 140cm' }, { kind: 'weight', shown: '20kg 이하' }, { kind: 'care', shown: '전자제품이에요' }] });
         expect(sized.money?.lines).toEqual([{ kind: 'income', won: 12243, shown: '12,243' }]);
+    });
+    it('🔴 픽커 적요 = 정의 표 «적요로 잇는 줄»(픽업 장소 → 물품 정보 → 유의사항)을 « / » 로 — 짐 · 상차 힌트는 이은 적요를 읽지 않는다', () => {
+        const raw = sheetOf('kakaopicker', 'memo', '매장 직원에게 문의 오더번호 261002072502618', 'pickupPlace')
+            .replace(' 최종 수익', ' 유의사항 공장 4시 상차 부탁드립니다.\n박스 1개 최종 수익');
+        const rec = detailRecordOf('kakaopicker', raw);
+        expect(rec.detailMemo).toBe('매장 직원에게 문의 오더번호 261002072502618 / 초소형 세 변의 합 70cm ∙ 2kg 이하 / 공장 4시 상차 부탁드립니다. 박스 1개');
+        const call = { ...rec, targetApp: 'kakaopicker' as const };
+        expect(callCargoHintsOf(call)).toEqual(parseCargoHints(rec.itemDescription));
+        const captured = Date.parse('2030-01-01T02:00:00+09:00');
+        expect(pickupClockMsOf(call, captured, 30)).toBe(captured + 30 * 60_000);
+        expect(detailRecordOf('kakaopicker', '픽업지 경기 광주시 경안동 물품 정보 소형 세 변의 합 100cm ∙ 5kg 이하 최종 수익 10,830 넘기기').detailMemo).toBe('소형 세 변의 합 100cm ∙ 5kg 이하');
+    });
+    it('적요 줄이 있는 배차망은 적요를 힌트로 읽는다(인성 «03:57 상차» 본문 적요 — 지금과 같음)', () => {
+        const rec = detailRecordOf('insung', BODY.replace('적요상세 10시전하차 착불', '적요상세 03:57 상차'));
+        expect(callCargoHintsOf({ ...rec, targetApp: 'insung' }).promisedAt).toBe('03:57');
     });
     it('🔴 인성 상세 → 의뢰인(«의뢰지») · 가린 «***»는 못 읽은 것(칸 없음)', () => {
         expect(detailRecordOf('insung', sheetOf('insung', 'contact', '쑥쑥 TEST', 'requester')).requesterName).toBe('쑥쑥 TEST');

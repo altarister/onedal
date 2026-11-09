@@ -478,9 +478,14 @@ export const TABLE = /*JSON*/{
     "how": "first"
    },
    "kakaopicker": {
-    "text": "상세 «물품 정보» 원문 + « / » + «유의사항»",
-    "state": "바뀜",
+    "text": "상세 «픽업 장소» 줄 → «물품 정보» 원문 → «유의사항»을 « / » 로(정의 표 «적요로 잇는 줄» memoJoin 차례) · 짐 · 상차 힌트는 이 적요를 안 읽는다",
+    "state": "지금",
     "reads": [
+     {
+      "page": "newCall",
+      "field": "memo",
+      "part": "pickupPlace"
+     },
      {
       "page": "newCall",
       "field": "itemSize",

@@ -17,8 +17,8 @@
  */
 import { unitPoints } from '../cargo/cargoUnits';
 import { protectionMinutes, afterworkMinutes } from '../cargo/cargoUnits';
-import type { CargoReport, CallStop, OfficeOrder } from '../index';
-import { parseCargoHints } from '../cargo/cargoHints';
+import type { CargoReport, CallStop, OfficeOrder, TargetAppType } from '../index';
+import { callCargoHintsOf } from '../cargo/cargoHints';
 import { hhmmText, kstDateText } from '../common/format';
 import { DEFAULT_JUDGMENT, type JudgmentConfig } from '../judge/judgment';
 
@@ -631,9 +631,10 @@ export interface TimingOrderFields {
      *    그러면 화면을 열 때마다 마감이 뒤로 밀려 *"영원히 여유가 있다"* 고 거짓말한다.
      */
     capturedAt?: string;
-    /** ⏱️ 적요 — 상차 시계("HH:MM상차")를 여기서 읽는다 (두 시계 · ⑯) */
+    /** ⏱️ 적요 — 상차 시계("HH:MM상차")를 여기서 읽는다 (두 시계 · ⑯) · 배차망은 적요가 이은 보기 글인지 가른다(`callCargoHintsOf`) */
     itemDescription?: string;
     detailMemo?: string;
+    targetApp?: TargetAppType;
     approachDurationMin?: number;
     totalDistanceKm?: number;
     kakaoSoloDistanceKm?: number;
@@ -764,7 +765,7 @@ export function derivationInputsOf(cfg: Pick<JudgmentConfig, 'unknown' | 'deadli
  * 통화로 굳힌 약속은 호출부(declared)가 이긴다. 파생 한 곳 — 시딩과 타임라인이 같이 쓴다.
  */
 export function pickupClockMsOf(
-    order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo' | 'pickupDetails'>,
+    order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo' | 'targetApp' | 'pickupDetails'>,
     capturedMs: number, offsetMinutes: number,
 ): number | null {
     const { requestedDay, requestedTime } = firstPickupStop(order) ?? {};
@@ -787,7 +788,7 @@ export function pickupClockMsOf(
      *    약속은 기사님이 상차지 통화로 넣으신다.
      */
     if ((requestedDay ?? 0) >= 1) return null;
-    const hint = parseCargoHints(order.itemDescription, order.detailMemo).promisedAt;
+    const hint = callCargoHintsOf(order).promisedAt;
     if (hint) {
         const kstDay = kstDateText(capturedMs);
         const t = Date.parse(`${kstDay}T${hint}:00+09:00`);

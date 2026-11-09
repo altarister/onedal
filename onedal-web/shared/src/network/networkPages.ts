@@ -56,6 +56,12 @@ export interface NetworkFieldSpec {
     presence?: Presence;
     /** 그렇게 정한 근거 — 그 칸 자리가 보인 실물 콜 수(of) 가운데 있던 수(seen) · 어느 캡처들인가(from) */
     presenceEvidence?: { seen: number; of: number; from: string };
+    /**
+     * 🧾 **적요로 잇는 줄** — 상세(newCall) 화면에서 참인 줄들의 값을 이 표 차례로 « / » 로 이어 서버 상세 자료 적요(`detailRecordOf` → `detailMemo`)로 싣는다
+     *    (적요 줄 `memo` 조각 `popup` · `body` 를 못 읽었을 때). 이은 적요는 기사님이 읽는 글이라 짐 · 상차 힌트(`callCargoHintsOf`)는 읽지 않는다.
+     *    서버 · shared 만 읽는다 — 원달앱 생성 파일에는 싣지 않는다.
+     */
+    memoJoin?: true;
 }
 /** 🧾 늘 있음 · 있다 없다 · 한 번만 · 모름 */
 export type Presence = 'ALWAYS' | 'SOMETIMES' | 'ONCE' | 'UNKNOWN';
@@ -254,6 +260,11 @@ export const NETWORK_PAGES: Record<TargetAppType, NetworkPageSpec> = {
     kakaopicker: withCallOverlays(KAKAO_PICKER_PAGES),
     isflex: withCallOverlays(ISFLEX_PAGES),
 };
+
+/** 🧾 그 배차망 상세 화면의 «적요로 잇는 줄» — 표 차례 그대로(없으면 빈 목록) */
+export function memoJoinRowsOf(app: TargetAppType): NetworkFieldSpec[] {
+    return fieldsOf(app, 'newCall').filter(r => r.memoJoin);
+}
 
 /** 📄 그 배차망 · 그 페이지의 칸 */
 export function fieldsOf(app: TargetAppType, page: ScreenPage): NetworkFieldSpec[] {

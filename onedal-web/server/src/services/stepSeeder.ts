@@ -23,7 +23,7 @@ import { OrderRepository } from '../repositories/OrderRepository';
 //    «한쪽만 고치는 날» 갈라진다 (규칙 ③).
 import { DEFAULT_PROTECTIONS, DEFAULT_AFTERWORKS, DEFAULT_CARGO_TAG } from '@onedal/shared';
 import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOfSteps,
-         parseCargoHints, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT,
+         callCargoHintsOf, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT,
          soloMinutesOf, derivationInputsOf, dwellLedgerOfSteps } from '@onedal/shared';
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
 import { slog } from '../utils/fileLogger';
@@ -97,7 +97,7 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     //       화면은 `planned_source` 배지(📄 적요에서 읽음 · 🚚 차종 기본값)만 그린다.
     const loaded = born.LOADED, callP = born.CALL_PICKUP, callD = born.CALL_DROPOFF;
     const vehicleCargo = defaultCargoByVehicle(o.vehicleType);
-    const hints = parseCargoHints(o.itemDescription, o.detailMemo);
+    const hints = callCargoHintsOf(o);   // 물품 글 + 적요 — 적요가 정의 표 줄을 이은 보기 글(픽커)이면 적요는 안 읽는다
     // 단위 없는 개수는 못 믿는다 — "30개"가 박스인지 마대인지 모른다
     const memoQty = hints.unit != null && hints.quantity != null ? hints.quantity : null;
     const unit = loaded?.actual_unit ?? callP?.planned_unit ?? hints.unit ?? vehicleCargo?.unit ?? null;

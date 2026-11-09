@@ -12,7 +12,7 @@ import { PAYMENT_TYPES, BILLING_TYPES, MONEY_KINDS, paymentOf, type PaymentType,
 import { LOAD_KINDS, type CallLoad, type LoadLine, type LoadKind } from '../cargo/callLoad';
 import type { BadgePlace, BadgeWord, TripType, OrderForm } from '../call/badges';
 import type { PageField, ScreenPage } from './pageFields';
-import { NETWORK_PAGES, fieldsOf } from './networkPages';
+import { NETWORK_PAGES, fieldsOf, memoJoinRowsOf } from './networkPages';
 import { dongsBySigungu } from '../filter/adminDongMatch';
 import { isSigunguShortName } from '../filter/sigungu';
 
@@ -301,7 +301,8 @@ export const STOP_CONTACT_KEYS: ReadonlyArray<keyof CallStop> = STOP_CONTACT.map
  * 📄 **상세 원문의 콜 자료** — 상태 · 물품 · 결제 · 계산서 · 수수료 · 탁송료 · 구분 · 형태 · 배차사 · 화물번호 · 가게 주문 번호 · 의뢰인 · 적요 · 출발 · 도착 연락처 · 돈 · 짐 묶음(서버 `/detail` · 기사님 «1~5 모두 가»).
  *    칸마다 상세 화면 정의 줄의 읽는 법으로 읽는다. 🔴 못 찾은 칸은 싣지 않는다 — `/detail` 이 이 결과를 앞 기억 위에 펼치므로 빈 칸이 아는 값을 지우면 안 된다.
  *    구분 · 형태는 두 칸 글자를 이어 표시 글자 표로 정한다(`badgeValueOf` · 플렉스 «급»은 구분 칸에 온다) — 못 정하면 칸 없음.
- *    결제 · 계산서는 알려진 값(결제 · 증빙 값 목록 `money.ts` — «모름» 은 빼고)일 때만 · 적요는 팝업 글(줄바꿈 → 공백)이 먼저, 없으면 본문 «적요상세» 줄(상차 약속 시각이 본문 시각으로 바뀌지 않게).
+ *    결제 · 계산서는 알려진 값(결제 · 증빙 값 목록 `money.ts` — «모름» 은 빼고)일 때만 · 적요는 팝업 글(줄바꿈 → 공백)이 먼저, 없으면 본문 «적요상세» 줄(상차 약속 시각이 본문 시각으로 바뀌지 않게),
+ *    그것도 없으면 정의 표 «적요로 잇는 줄»(`memoJoin` — 픽커 픽업 장소 → 물품 정보 → 유의사항)을 줄바꿈 → 공백으로 표 차례대로 « / » 로 잇는다.
  *    출발 · 도착 정거장은 인성 팝업 머리표가 원문에 있거나 그 정거장 조각(`pickup.` · `dropoff.`) 줄을 하나라도 읽었을 때만 한 덩어리(없으면 빈 목록) —
  *    조각 없는 출발 · 도착 줄만 읽힌 원문(플렉스 상세)은 덩어리를 만들지 않는다.
  *    돈 · 짐 묶음은 조각 이름이 갈래 이름인 줄만 읽는다(`detailMoneyOf` · `detailLoadOf`) — 하나도 못 읽은 묶음은 싣지 않는다.
@@ -321,7 +322,8 @@ export function detailRecordOf(app: TargetAppType, rawText: string): DetailRecor
     if (pay && pay !== '모름' && (PAYMENT_TYPES as readonly string[]).includes(pay)) out.paymentType = pay as PaymentType;
     const bill = read('billing');
     if (bill && bill !== '모름' && (BILLING_TYPES as readonly string[]).includes(bill)) out.billingType = bill as BillingType;
-    const memo = read('memo', 'popup')?.replace(/\s+/g, ' ').trim() || read('memo', 'body');
+    const joined = memoJoinRowsOf(app).map(r => read(r.field, r.part ?? '')?.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' / ');
+    const memo = read('memo', 'popup')?.replace(/\s+/g, ' ').trim() || read('memo', 'body') || joined;
     if (memo) out.detailMemo = memo;
     const stopOf = (side: 'pickup' | 'dropoff', tag: string): CallStop[] => {
         const info: CallStop = {};

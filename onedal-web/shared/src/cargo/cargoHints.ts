@@ -15,6 +15,8 @@
 import type { HandlingMethod } from '../index';
 import type { CargoUnit } from './cargoUnits';
 import type { CargoTag } from './cargoTags';
+import type { TargetAppType } from '../network/targetApps';
+import { memoJoinRowsOf } from '../network/networkPages';
 
 /**
  * [Phase 8.4] 적요·물품 텍스트에서 통화 시트를 **미리 채울 힌트**를 뽑는다.
@@ -127,4 +129,14 @@ export function parseCargoHints(...texts: (string | undefined | null)[]): CargoH
 /** 힌트에 쓸 만한 값이 하나라도 있는가 */
 export function hasCargoHints(h: CargoHints): boolean {
     return !!(h.unit || h.quantity != null || h.handling || h.promisedAt || h.tags?.length);
+}
+
+/**
+ * 📦 **콜 한 건의 짐 · 상차 힌트** — 판정 상차 시계(`pickupClockMsOf`)와 콜 스텝 짐 칸 미리 채움(서버 `stepSeeder`)이 같은 글을 읽는다.
+ *    물품 글 + 적요. 그 배차망 적요가 정의 표 «적요로 잇는 줄»(`memoJoin`)을 이은 보기 글이면 적요는 읽지 않는다 —
+ *    물품 정보를 두 번 읽거나 픽커 유의사항 «공장 4시 상차» 가 새벽 04:00 상차 약속이 되지 않게. 배차망을 모르면 적요를 읽는다.
+ */
+export function callCargoHintsOf(call: { targetApp?: TargetAppType | null; itemDescription?: string | null; detailMemo?: string | null }): CargoHints {
+    const joinedMemo = call.targetApp ? memoJoinRowsOf(call.targetApp).length > 0 : false;
+    return parseCargoHints(call.itemDescription, joinedMemo ? null : call.detailMemo);
 }
