@@ -602,7 +602,7 @@ const PROVENANCE_EXAMPLE_INSUNG = {
 
 /**
  * 화물24시 — 위 `IDENTITY_EXAMPLE_HWAMUL24` 와 같은 사진 ex_images/화물24시/이미지글자_화물24시.md 51_화물상세정보.png(확정 전 상세)
- * - 지금: 원달앱이 상세 보고 원문에서 «상차지» 앞 머리(화주 이름 · 화물번호 · 등록시간)를 떼어 보낸다
+ * - 지금: 원달앱이 서버로 가는 상세 원문을 머리(화주 이름 · 화물번호 · 등록시간)부터 보낸다(`Hwamul24Plugin.serverDetailTextsOf`) — 원달앱 자기 읽기는 «상차지»부터(`Hwamul24Parser.detailTextsOf`)
  * - 묶음: 원달앱이 연 상세라고 치면 AUTO_CLICK · APP · AUTO(화물24시는 자동 확정 배차망) · 원문에 머리 줄이 남는다(번호출처 계획 걸음 9)
  */
 const PROVENANCE_EXAMPLE_HWAMUL24 = {

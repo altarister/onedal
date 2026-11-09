@@ -109,7 +109,7 @@ export const TABLE = /*JSON*/{
    "label": "배차망 오더 번호",
    "desc": "배차망이 화면에 보여 주는 오더 번호 — 이름표 «화물번호:» 는 뗀다 · 우리 콜 번호(id)와 다르다",
    "required": "",
-   "filledBy": "",
+   "filledBy": "서버 원문",
    "ledger": "",
    "pageField": "orderNo",
    "insung": {
@@ -117,8 +117,16 @@ export const TABLE = /*JSON*/{
     "state": "없음"
    },
    "hwamul24": {
-    "text": "상세 머리 «화물번호:3-9483-2159» — 읽는 곳 없음",
-    "state": "없음"
+    "text": "상세 머리 «화물번호:3-9483-2159» — 서버가 상세 원문 머리에서 읽어 같은 콜 찾기(sameCallOf)에 쓴다 · 장부 칸은 없다",
+    "state": "지금",
+    "reads": [
+     {
+      "page": "newCall",
+      "field": "orderNo",
+      "part": ""
+     }
+    ],
+    "how": "first"
    },
    "kakaopicker": {
     "text": "—",
@@ -830,13 +838,13 @@ export const TABLE = /*JSON*/{
    "id": "C21",
    "key": "orderForm",
    "label": "배송 형태",
-   "desc": "보통 · 급송 등 · 다른 배차망은 예약 글이 실린다",
+   "desc": "보통 · 급송 · 모름 — 화면 글자를 정의 표 표시 글자(badgeWords)로 정한 값",
    "required": "",
-   "filledBy": "서버 원문",
+   "filledBy": "앱 목록 · 서버 원문",
    "ledger": "orders.orderForm",
    "pageField": "reservation",
    "insung": {
-    "text": "상세 «형태 :» 줄(실물 «예약»은 못 봄)",
+    "text": "서버가 상세 «형태 :» 줄을 표시 글자로 정한다(실물 «예약»은 못 봄) · 원달앱 목록에는 형태 글자가 없다",
     "state": "지금",
     "reads": [
      {
@@ -852,20 +860,12 @@ export const TABLE = /*JSON*/{
     "state": "없음"
    },
    "kakaopicker": {
-    "text": "상세 사진 띠 글이 실린다(뜻 다름)",
-    "state": "확인 필요",
-    "reads": [
-     {
-      "page": "newCall",
-      "field": "reservation",
-      "part": ""
-     }
-    ],
-    "how": "first"
+    "text": "원달앱이 목록 꼬리표 줄 «급송» → 급송 · 서버 상세는 읽는 법이 없어 안 채운다",
+    "state": "지금"
    },
    "isflex": {
-    "text": "상세 «@» 뒤 앞글자가 실린다(뜻 다름)",
-    "state": "확인 필요",
+    "text": "원달앱이 목록 줄 «급» · «급송» · 칸 앞 토막 «급송/» → 급송 · 서버가 상세 차종 뒤 구분선 다음 글자를 표시 글자로 정한다(표에 없는 낱말이 섞이면 «모름»)",
+    "state": "지금",
     "reads": [
      {
       "page": "newCall",
@@ -884,11 +884,11 @@ export const TABLE = /*JSON*/{
    "label": "배송 구분",
    "desc": "편도 · 왕복 등",
    "required": "",
-   "filledBy": "서버 원문",
+   "filledBy": "앱 목록 · 서버 원문",
    "ledger": "orders.tripType",
    "pageField": "tags",
    "insung": {
-    "text": "상세 «구분 :» 줄",
+    "text": "원달앱이 목록 하차지 칸 앞 토막 «왕복/» → 왕복 · «>» → 경유 · 서버가 상세 «구분 :» 줄을 표시 글자로 정한다",
     "state": "지금",
     "reads": [
      {
@@ -900,16 +900,16 @@ export const TABLE = /*JSON*/{
     "how": "first"
    },
    "hwamul24": {
-    "text": "—",
-    "state": "없음"
+    "text": "원달앱이 목록 꼬리표 · 하차지 칸 조건 토막 «왕복» → 왕복 · 서버 상세는 읽는 법이 없어 안 채운다",
+    "state": "지금"
    },
    "kakaopicker": {
-    "text": "—",
-    "state": "없음"
+    "text": "원달앱이 목록 꼬리표 줄 «경유» → 경유 · 서버 상세는 읽는 법이 없어 안 채운다",
+    "state": "지금"
    },
    "isflex": {
-    "text": "«과적» 글자가 실린다(뜻 다름)",
-    "state": "확인 필요",
+    "text": "원달앱이 목록 줄 «왕» · «왕복» · «경» · 상차지 칸 앞 토막 «왕복» → 그 값 · 서버가 상세 차종 뒤 구분선 다음 글자를 표시 글자로 정한다(«과적»은 구분 낱말이 아니다)",
+    "state": "지금",
     "reads": [
      {
       "page": "newCall",
@@ -1132,8 +1132,16 @@ export const TABLE = /*JSON*/{
     "how": "first"
    },
    "hwamul24": {
-    "text": "—",
-    "state": "없음"
+    "text": "상세 머리 «화물번호» 앞 이름 — 서버가 상세 원문 머리에서 읽어 장부(orders)에 남긴다",
+    "state": "지금",
+    "reads": [
+     {
+      "page": "newCall",
+      "field": "contact",
+      "part": "dispatcher"
+     }
+    ],
+    "how": "first"
    },
    "kakaopicker": {
     "text": "—",
