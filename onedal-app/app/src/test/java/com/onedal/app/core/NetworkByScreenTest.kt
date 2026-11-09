@@ -162,14 +162,25 @@ class NetworkByScreenTest {
         "자주 묻는 질문", "고객센터 연결", "다크 모드 설정", "약관 및 정책", "버전정보", "V.1.4.5",
     )
 
-    /**
-     * 지금은 어느 배차망 표식에도 안 걸려 모른다(null) — 갈아타지 않는다.
-     * 플렉스 표식 `["마이플렉스", "적립금내역"]` 을 더하면 배차망 갈아타기가 바뀌어 운행 변화 — 원달앱 걸음(걸음 5)에서.
-     */
+    /** 플렉스 표식 «마이플렉스» + «적립금내역» — 앞 배차망이 인성 · 픽커여도 플렉스로 갈아탄다 */
     @Test
-    fun `인성 칸으로 적힌 플렉스 마이플렉스 화면 글은 지금 모른다`() {
-        assertNull(TargetApp.networkOfScreen(isflexMyFlexMenu))
-        assertNull(NetworkSwitchGate.switchTargetFor(TargetApp.networkOfScreen(isflexMyFlexMenu), TargetApp.INSUNG))
+    fun `🔴 플렉스 마이플렉스 화면은 인성플렉스로 간다`() {
+        assertEquals(setOf(TargetApp.ISFLEX), TargetApp.networksOnScreen(isflexMyFlexMenu))
+        assertEquals(TargetApp.ISFLEX, NetworkSwitchGate.switchTargetFor(TargetApp.networkOfScreen(isflexMyFlexMenu), TargetApp.INSUNG))
+        assertEquals(TargetApp.ISFLEX, NetworkSwitchGate.switchTargetFor(TargetApp.networkOfScreen(isflexMyFlexMenu), TargetApp.KAKAOPICKER))
+    }
+
+    /** 문제지 `screenCases.json` 의 인성 · 화물24시 · 픽커 화면 글 — 플렉스 «마이플렉스» 묶음에 안 걸린다 */
+    @Test
+    fun `🔴 다른 배차망 화면 문제지는 플렉스 마이플렉스 묶음에 안 걸린다`() {
+        val myFlex = listOf("마이플렉스", "적립금내역")
+        assertTrue(myFlex in com.onedal.app.plugins.isflex.IsflexPages.networkMarkers)
+        val json = com.google.gson.JsonParser.parseString(File("../../onedal-web/shared/src/network/screenCases.json").readText()).asJsonObject
+        val others = json["cases"].asJsonArray.map { it.asJsonObject }.filter { it["network"].asString != TargetApp.ISFLEX }
+        assertTrue(others.isNotEmpty())
+        others.forEach { c ->
+            assertNull("${c["network"].asString} «${c["why"].asString}»", NetworkByScreen.detect(c["text"].asString, mapOf(TargetApp.ISFLEX to listOf(myFlex))))
+        }
     }
 
     @Test
