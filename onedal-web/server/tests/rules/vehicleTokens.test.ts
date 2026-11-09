@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { NETWORK_PAGES } from '@onedal/shared';
+import { NETWORK_PAGES, vehicleMatchOf } from '@onedal/shared';
 
 /**
  * 🚚 **손으로 나열한 차종 목록은 한 벌이다** (실측)
@@ -23,9 +23,6 @@ import { NETWORK_PAGES } from '@onedal/shared';
  */
 const PARSER = join(__dirname,
     '../../../../onedal-app/app/src/main/java/com/onedal/app/plugins/insung/InsungParser.kt');
-/** 💰 차종 → 단가 조회(`FareFloor.rateOf`)가 사는 곳 — 배차망 판정이 모두 이 한 곳을 본다 */
-const FARE_FLOOR = join(__dirname,
-    '../../../../onedal-app/app/src/main/java/com/onedal/app/core/engine/FareFloor.kt');
 
 describe('차종 토큰 — 목록은 한 벌이다', () => {
     const src = () => readFileSync(PARSER, 'utf8');
@@ -44,7 +41,8 @@ describe('차종 토큰 — 목록은 한 벌이다', () => {
         expect(NETWORK_PAGES.insung.vehicleWords?.find(w => w.word === '승')?.vehicle).toBe('승용차');
     });
 
-    it('필터 매칭도 승용차를 «승» 으로 본다 (화면 표기와 같아야 한다)', () => {
-        expect(readFileSync(FARE_FLOOR, 'utf8')).toMatch(/"승용차" -> p\.contains\("승"\)/);
+    /* 단가 차종 맞춤(서버 PricingEngine · 원달앱 FareFloor.rateOf 의 VehicleMatch.of — 같은 문제지 vehicleMatchCases)이 같은 표를 읽는다 */
+    it('단가 차종 맞춤도 «승» 을 승용차로 본다 (화면 표기와 같아야 한다)', () => {
+        expect(vehicleMatchOf({ vehicleText: '승', sizeText: null, itemText: null, lines: [] }, 'insung')).toEqual({ kind: 'OURS', vehicle: '승용차' });
     });
 });

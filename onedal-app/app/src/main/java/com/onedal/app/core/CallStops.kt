@@ -1,15 +1,20 @@
 package com.onedal.app.core
 
 import com.onedal.app.core.engine.RegionRegister
+import com.onedal.app.models.CallLoad
 import com.onedal.app.models.CallMoney
 import com.onedal.app.models.CallStop
 import com.onedal.app.models.MoneyLine
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.DispatchPluginRegistry
+import com.onedal.app.plugins.hwamul24.Hwamul24Pages
+import com.onedal.app.plugins.insung.InsungPages
+import com.onedal.app.plugins.isflex.IsflexPages
+import com.onedal.app.plugins.kakaopicker.KakaoPickerPages
 
 /**
  * 🚏 **콜의 정거장을 읽는 한 자리** — 원달앱 보고는 주소 · 약속 · 거리를 정거장 묶음에 싣는다.
- * shared `firstPickupStop` · `lastDropoffStop` · `isReservedCall` · `stopTextOf` · `stopQueryOf` · `incomeOf`(`time/timing.ts` · `network/pageRead.ts` · `call/money.ts`)의 원달앱 짝이다 — 같은 규칙.
+ * shared `firstPickupStop` · `lastDropoffStop` · `isReservedCall` · `stopTextOf` · `stopQueryOf` · `incomeOf` · `vehicleMatchOf`(`time/timing.ts` · `network/pageRead.ts` · `call/money.ts` · `cargo/callLoad.ts`)의 원달앱 짝이다 — 같은 규칙.
  */
 
 /** 🚏 첫 상차 정거장 — 상차 목록의 처음. 없으면 null */
@@ -222,4 +227,43 @@ object StopText {
     /** 🏘️ 정거장 지역 — 판정 글자의 마지막 토막이 읍 · 면 · 동 · 리 · 가로 끝나면 그것(시 · 구 · 군 · 짧은 이름은 null) */
     fun regionOf(app: String, listText: String?): String? =
         listText?.let { query(app, CallStop(listText = it)).split(SPACES).lastOrNull()?.takeIf { t -> REGION_END.containsMatchIn(t) } }
+}
+
+/**
+ * 🚚 **차종 맞춤 — 짐 묶음 차종 글자 → 우리 차종 · 수단 상관없음 · 우리 차종에 없음 · 모름** (shared `vehicleMatchOf` · 같은 문제지 `vehicleMatchCases`).
+ *    차례: ① 차종 글자가 없으면 그 배차망 «차종 글자가 없으면 수단 상관없음» 칸이 참일 때 수단 상관없음 · 아니면 모름
+ *    ② 우리 차종 이름 그대로면 그 차종 ③ 네 배차망 차종 표를 합친 낱말(첫 «/» · 빈칸 앞 낱말 · «1.4 톤» 은 붙여 «1.4톤»)이면 그 차종
+ *    ④ 그 배차망 표에 «우리 차종 없음»으로 적힌 낱말이면 없음 ⑤ 그 밖은 모름. 배차망 이름으로 가르지 않고 표를 찾아 읽는다.
+ */
+data class VehicleMatch(val kind: Kind, val vehicle: String? = null) {
+    enum class Kind { OURS, ANY, NONE, UNKNOWN }
+
+    companion object {
+        /** 우리 차종 이름 — shared `VEHICLE_OPTIONS`(서버 단가 표 키) · shared 문제지 `vehicleMatchCases` 가 두 목록을 묶는다 */
+        private val OUR_VEHICLES = setOf("오토바이", "다마스", "라보", "승용차", "1t", "1.4t", "2.5t", "3.5t", "5t", "11t", "25t", "특수화물")
+
+        /** 배차망 코드 → 그 배차망 차종 표 · «차종 글자가 없으면 수단 상관없음» 칸 (생성 파일 `*Pages` — 배차망을 더하면 한 줄) */
+        private val TABLES: Map<String, Pair<Map<String, String?>, Boolean>> = mapOf(
+            TargetApp.INSUNG to (InsungPages.vehicleWords to InsungPages.vehicleAbsentMeansAny),
+            TargetApp.HWAMUL24 to (Hwamul24Pages.vehicleWords to Hwamul24Pages.vehicleAbsentMeansAny),
+            TargetApp.KAKAOPICKER to (KakaoPickerPages.vehicleWords to KakaoPickerPages.vehicleAbsentMeansAny),
+            TargetApp.ISFLEX to (IsflexPages.vehicleWords to IsflexPages.vehicleAbsentMeansAny),
+        )
+
+        /** 네 배차망 표를 합친 낱말 → 우리 차종(같은 낱말은 한 뜻 — 서버 검사 `vehicleWordsFromTable`) */
+        private val ALL_WORDS: Map<String, String?> = TABLES.values.fold(emptyMap()) { acc, t -> acc + t.first }
+
+        private val GLUED_TON = Regex("""(\d)\s+톤""")
+        private val WORD_END = Regex("""[/\s]""")
+
+        fun of(load: CallLoad?, app: String): VehicleMatch {
+            val (words, absentMeansAny) = TABLES[app] ?: (emptyMap<String, String?>() to false)
+            val text = load?.vehicleText?.trim()?.ifEmpty { null }
+                ?: return VehicleMatch(if (absentMeansAny) Kind.ANY else Kind.UNKNOWN)
+            if (text in OUR_VEHICLES) return VehicleMatch(Kind.OURS, text)
+            ALL_WORDS[text.replaceFirst(GLUED_TON, "$1톤").split(WORD_END)[0]]?.let { return VehicleMatch(Kind.OURS, it) }
+            if (words.containsKey(text) && words[text] == null) return VehicleMatch(Kind.NONE)
+            return VehicleMatch(Kind.UNKNOWN)
+        }
+    }
 }

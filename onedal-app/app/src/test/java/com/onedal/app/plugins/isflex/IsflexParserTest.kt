@@ -208,14 +208,14 @@ class IsflexParserTest {
         assertEquals("주소 «강남»은 제외어를 안 본다", "pass", IsflexParser.judge(d08, on.copy(excludedKeywords = listOf("강남"))).axis)
     }
 
-    /** 💰 단가 바닥은 기사님 차종 — 🔴 기사님 차종을 못 받았으면(null) 콜 화면 차종 단가로 선다(단가 판정이 꺼지지 않는다) */
-    @Test fun `단가 — 기사님 차종이 없으면 화면 차종 «오토»의 오토바이 단가로 선다`() {
+    /** 💰 단가 바닥은 콜 화면 차종 — 기사님 차종(1t)을 받아도 «오토» 콜은 오토바이 단가로 선다 */
+    @Test fun `단가 — 기사님 차종이 1t 여도 화면 차종 «오토»의 오토바이 단가로 선다`() {
         // 20km · 16,000원 = km 당 800원 — 오토바이 700 은 넘고 1t 1000 은 못 넘는다 · 승용차 900 도 못 넘는다
         val o = withLastDropoff(row07[1].copy(fare = 16000, money = com.onedal.app.models.CallMoney.ofIncome(16000))) { it.copy(distanceKm = 20.0) }
         val rates = on.copy(ratePerKm = mapOf("오토바이" to 700, "승용차" to 900, "1t" to 1000))
-        assertEquals("기사님 차종 1t", "fare", IsflexParser.judge(o, rates.copy(driverVehicleType = "1t")).axis)
+        assertEquals("기사님 차종 1t → 오토바이 700", "pass", IsflexParser.judge(o, rates.copy(driverVehicleType = "1t")).axis)
         assertEquals("기사님 차종 없음 → 오토바이 700", "pass", IsflexParser.judge(o, rates.copy(driverVehicleType = null)).axis)
-        assertEquals("기사님 차종 없음 · 화면 차종 오토바이 단가도 못 넘으면", "fare", IsflexParser.judge(o.copy(fare = 13000, money = com.onedal.app.models.CallMoney.ofIncome(13000)), rates.copy(minFare = 6000, driverVehicleType = null)).axis)
+        assertEquals("오토바이 단가도 못 넘으면", "fare", IsflexParser.judge(o.copy(fare = 13000, money = com.onedal.app.models.CallMoney.ofIncome(13000)), rates.copy(minFare = 6000, driverVehicleType = "1t")).axis)
     }
 
     @Test fun `누르기 전 확인 — 수행하기가 보이거나 칸 머리가 없거나 줄이 움직이면 안 누른다`() {

@@ -110,8 +110,6 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
             blacklistTextOf = ::blacklistTextOf,
             logHead = "플렉스",
             netCode = TargetApp.ISFLEX,
-            // 💰 단가 바닥은 기사님 차종(설정창) — 못 받았으면 콜 화면 차종으로(null 이면 단가 조건이 통째로 빠진다)
-            rateVehicleOf = { order, cfg -> cfg.driverVehicleType ?: order.vehicleType },
         )
 
         /** 🧪 판정 — 몸통은 배차망 공통 `ListJudge` */

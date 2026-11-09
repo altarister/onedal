@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { boxesOf, carriedLoad, loadFrom, vehicleMatchOf, type CallLoad } from './callLoad';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { boxesOf, carriedLoad, loadFrom, vehicleMatchOf, type CallLoad, type VehicleMatch } from './callLoad';
+import { VEHICLE_OPTIONS } from './vehicles';
+import type { TargetAppType } from '../network/targetApps';
 
 /**
  * 🚚 **짐 묶음에서 우리 차종 · 라면박스 수를 꺼낸다 — 지금 정의 표 데이터로**.
@@ -36,6 +40,20 @@ describe('vehicleMatchOf', () => {
 
     it('픽커 «한차» 는 모름이다', () => {
         expect(vehicleMatchOf(loadOf('한차'), 'kakaopicker')).toEqual({ kind: 'UNKNOWN' });
+    });
+});
+
+describe('🚚 vehicleMatchOf — 공통 문제지 vehicleMatchCases (원달앱 VehicleMatch.of 와 같은 답)', () => {
+    const sheet = JSON.parse(readFileSync(join(__dirname, '../network/pageReadCases.json'), 'utf8')) as
+        { vehicleMatchCases: Array<{ network: TargetAppType; vehicleText: string | null; kind: VehicleMatch['kind']; vehicle?: string; why: string }> };
+    it('문제지가 비지 않았다', () => expect(sheet.vehicleMatchCases.length).toBeGreaterThan(5));
+    it.each(sheet.vehicleMatchCases.map(c => [c.why, c] as const))('%s', (_, c) => {
+        expect(vehicleMatchOf(loadOf(c.vehicleText), c.network)).toEqual(c.vehicle ? { kind: c.kind, vehicle: c.vehicle } : { kind: c.kind });
+    });
+    /* 원달앱은 우리 차종 이름 목록을 따로 들고 있다 — 이 줄들이 그 목록을 shared 목록과 묶는다 */
+    it('우리 차종 이름 그대로인 줄이 VEHICLE_OPTIONS 를 다 담는다', () => {
+        const ours = new Set(sheet.vehicleMatchCases.filter(c => c.kind === 'OURS' && c.vehicleText === c.vehicle).map(c => c.vehicle));
+        expect(VEHICLE_OPTIONS.filter(v => !ours.has(v))).toEqual([]);
     });
 });
 

@@ -1,5 +1,5 @@
 import { isTerminal, cargoPoints, boxesOf, vehicleRoomOf, DEFAULT_TARGET_APP, findTagConflicts, computeStopTiming, recordsOfSteps, unitPoints, handMinutesOf, protectionMinutes } from '@onedal/shared';
-import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming, JudgmentConfig } from '@onedal/shared';
+import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming, JudgmentConfig, CallLoad } from '@onedal/shared';
 import { originOf } from '../services/geoMotion';
 import db from '../db';
 import { planArrivalStops } from '../services/routeComposer';
@@ -74,15 +74,23 @@ export function computeLoadedPoints(
 }
 
 /**
- * 📦 **콜 한 건의 라면박스 수 — 짐 묶음에서** (크기 낱말 박스 > 콜 차종 표준 박스 · 모르면 null).
- *    짐 묶음에 차종 글자가 없으면 콜 차종 칸을 읽는다. 합짐 자리 셈(`computeLoadedPoints`)과 KEEP 뒤 «모름» 경고가 같은 답을 본다.
+ * 📦 **콜 한 건의 짐 묶음** — 짐 묶음에 차종 글자가 없으면 콜 차종 칸을 읽는다 · 묶음이 없으면 빈 칸 묶음.
+ *    합짐 자리(`callBoxesOf`)와 단가 차종(`OrderEvaluator` → `PricingEngine`)이 같은 묶음을 본다.
  */
-export function callBoxesOf(c: Pick<MyOrder, 'load' | 'vehicleType' | 'targetApp'>): number | null {
+export function callLoadOf(c: Pick<MyOrder, 'load' | 'vehicleType'>): CallLoad {
     const load = c.load;
-    return boxesOf({
+    return {
         vehicleText: load?.vehicleText ?? c.vehicleType ?? null, sizeText: load?.sizeText ?? null,
         itemText: load?.itemText ?? null, lines: load?.lines ?? [],
-    }, c.targetApp ?? DEFAULT_TARGET_APP);
+    };
+}
+
+/**
+ * 📦 **콜 한 건의 라면박스 수 — 짐 묶음에서** (크기 낱말 박스 > 콜 차종 표준 박스 · 모르면 null).
+ *    합짐 자리 셈(`computeLoadedPoints`)과 KEEP 뒤 «모름» 경고가 같은 답을 본다.
+ */
+export function callBoxesOf(c: Pick<MyOrder, 'load' | 'vehicleType' | 'targetApp'>): number | null {
+    return boxesOf(callLoadOf(c), c.targetApp ?? DEFAULT_TARGET_APP);
 }
 
 /**

@@ -265,7 +265,7 @@ export const APP_FILTER_KEYS = [
     'reservedPickupRadiusKm', 'reservedPickupKeywords', 'reservedPickupGroups',
     /* ⏱️ 배차망별 대기 시간 — 원천 DB user_settings · 칸 이름은 기본값 묶음에서 따온다 */
     ...(Object.keys(DEFAULT_WAIT_TIMES) as (keyof WaitTimes)[]),
-    /* 🚚 기사님 차종(user_settings.vehicle_type) — appFilter 가 조립할 때 얹는다 · 원달앱 목록 판정이 «단가에 쓰는 차종»을 고를 때 읽는다(없으면 화면 차종) */
+    /* 🚚 기사님 차종(user_settings.vehicle_type) — appFilter 가 조립할 때 얹는다 · 원달앱 FilterStore 가 읽어 두지만 판정은 안 쓴다(단가는 콜 차종) */
     'driverVehicleType',
     /**
      * 🔒 **지금 심사 중인 콜이 있나** — «잠김»의 까닭을 가르는 사실 (기사님 · 실주행 오송읍).

@@ -11,6 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import com.onedal.app.models.CallStop
+import com.onedal.app.models.CallLoad
 
 /**
  * 💵 **최소 금액은 세 배차망에 같은 식으로 걸린다** (기사님 «화물24시·인성·픽커 모두 공통으로» · 인성은 «가»)
@@ -32,16 +33,43 @@ class FareFloorTest {
         assertFalse(FareFloor.passes(19999, 20000))
     }
 
-    /** 💰 차종 글자 → 단가 — 화면 낱말(«오» · «승» · «다» · «1t»)과 기사님 차종 글자(«1t» · «승용차»)가 같은 표로 풀린다 */
+    private fun load(vehicle: String?) = CallLoad(vehicle, null, null)
+
+    /** 💰 짐 묶음 차종 글자 → 단가 — 화면 낱말(«오» · «승» · «다» · «1t»)을 차종 맞춤 한 규칙으로 우리 차종에 맞춘 뒤 그 단가 · 표가 비면 null */
     @Test
     fun `차종 글자를 단가표의 차종으로 푼다 - 표가 비면 null`() {
         val rates = mapOf("오토바이" to 700, "승용차" to 900, "다마스" to 800, "1t" to 1000)
-        assertEquals(700, FareFloor.rateOf(rates, "오토"))
-        assertEquals(900, FareFloor.rateOf(rates, "승"))
-        assertEquals(900, FareFloor.rateOf(rates, "승용차"))
-        assertEquals(800, FareFloor.rateOf(rates, "다"))
-        assertEquals(1000, FareFloor.rateOf(rates, "1t"))
-        assertEquals(null, FareFloor.rateOf(emptyMap(), "1t"))
+        assertEquals(700, FareFloor.rateOf(rates, load("오토"), TargetApp.ISFLEX))
+        assertEquals(900, FareFloor.rateOf(rates, load("승"), TargetApp.INSUNG))
+        assertEquals(900, FareFloor.rateOf(rates, load("승용차"), TargetApp.INSUNG))
+        assertEquals(800, FareFloor.rateOf(rates, load("다"), TargetApp.INSUNG))
+        assertEquals(1000, FareFloor.rateOf(rates, load("1t"), TargetApp.INSUNG))
+        assertEquals(null, FareFloor.rateOf(emptyMap(), load("1t"), TargetApp.INSUNG))
+    }
+
+    /** 🔴 톤 글자 콜(«2.5톤/카고» · «5t» · «11t»)이 1t 단가로 가지 않는다 · 모름(«14톤») · 우리 차종에 없음(«14t») · 수단 상관없음(픽커 빈 칸)은 단가를 안 본다 */
+    @Test
+    fun `톤 글자 콜은 그 차종 단가 - 우리 차종이 아니면 단가를 안 본다`() {
+        val rates = mapOf("오토바이" to 700, "다마스" to 800, "1t" to 1000, "2.5t" to 1200, "5t" to 1500, "11t" to 2000)
+        assertEquals(1200, FareFloor.rateOf(rates, load("2.5톤/카고"), TargetApp.HWAMUL24))
+        assertEquals(1500, FareFloor.rateOf(rates, load("5t"), TargetApp.INSUNG))
+        assertEquals(2000, FareFloor.rateOf(rates, load("11t"), TargetApp.INSUNG))
+        assertEquals(null, FareFloor.rateOf(rates, load("14톤"), TargetApp.HWAMUL24))
+        assertEquals(null, FareFloor.rateOf(rates, load("14t"), TargetApp.INSUNG))
+        assertEquals(null, FareFloor.rateOf(rates, null, TargetApp.KAKAOPICKER))
+    }
+
+    /** 🚚 **차종 맞춤 짝** — 공통 문제지 `pageReadCases.json` `vehicleMatchCases` 를 shared `vehicleMatchOf` 와 같은 답으로 푼다 */
+    @Test
+    fun `차종 맞춤 공통 문제지 - shared 와 같은 답`() {
+        val sheet = com.google.gson.JsonParser.parseString(File("../../onedal-web/shared/src/network/pageReadCases.json").readText()).asJsonObject
+        val cases = sheet["vehicleMatchCases"].asJsonArray.map { it.asJsonObject }
+        assertTrue("문제지가 비었다", cases.size > 5)
+        val wrong = cases.filter { c ->
+            fun text(k: String) = c[k]?.takeIf { !it.isJsonNull }?.asString
+            VehicleMatch.of(load(text("vehicleText")), c["network"].asString) != VehicleMatch(VehicleMatch.Kind.valueOf(c["kind"].asString), text("vehicle"))
+        }
+        assertEquals(wrong.joinToString("\n") { it["why"].asString }, 0, wrong.size)
     }
 
     private fun insungFilter(minFare: Int) = FilterConfig(

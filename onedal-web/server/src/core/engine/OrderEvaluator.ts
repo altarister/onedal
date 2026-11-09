@@ -16,7 +16,7 @@ import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf, dwellLedgerFor, firmPromiseMsOf } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
 import { goalCityOf, destCitiesOf, keepGoalCityOf } from "../../state/filterGoals";
-import { findLoadConflicts, totalDetourCost, getStopTiming } from "../helpers";
+import { findLoadConflicts, totalDetourCost, getStopTiming, callLoadOf } from "../helpers";
 import { originOf, homeOriginOf } from "../../services/geoMotion";
 import { haversineKm } from "@onedal/shared";
 import { geocodeCallAddress, calculateSoloRoute, prefetchSoloRoute, roadEventWhereOf, type RoadEventCode } from "../../services/kakaoService";
@@ -708,7 +708,8 @@ export class OrderEvaluator {
             const routingOpts = SettingsRepository.getKakaoRoutingOptions(userId);
             const base = PricingEngine.calculateDynamicFare(
                 order.kakaoSoloDistanceKm,
-                order.vehicleType || undefined,
+                callLoadOf(order),
+                this.targetApp,
                 routingOpts.vehicleType,
                 pricing
             );

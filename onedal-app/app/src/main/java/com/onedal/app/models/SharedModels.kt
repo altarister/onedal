@@ -478,8 +478,8 @@ data class FilterConfig(
      */
     val ratePerKm: Map<String, Int> = emptyMap(),
     /**
-     * 🚚 **기사님 차종**(서버 DB `user_settings.vehicle_type` · 관제웹 설정창 차종) — 목록 판정이 단가에 쓸 차종을 고를 때 읽는다(`ListJudge.Rules.rateVehicleOf`).
-     *    키가 없거나 비면 null — 그때는 콜 화면 차종으로 단가를 본다(옛 서버 · 설정 행 없음). 허용 차종 축과는 따로다.
+     * 🚚 **기사님 차종**(서버 DB `user_settings.vehicle_type` · 관제웹 설정창 차종) — 키가 없거나 비면 null.
+     *    원달앱 판정은 이 칸을 읽지 않는다 — 단가는 콜 짐 묶음 차종으로 찾고(`FareFloor.rateOf`), 허용 차종은 서버가 보낸 목록이다.
      */
     val driverVehicleType: String? = null,
     val destinationCity: String = "",

@@ -403,7 +403,7 @@ class InsungParser(private val context: Context) : IScrapParser {
              *
              * 콜할인율가 "전부"면 서버가 단가를 0 으로 내려 보낸다 → `fare >= 거리 × 0` 은 항상 참.
              */
-            val rateFloor = order.vehicleType?.let { vt -> FareFloor.rateOf(filter.ratePerKm, vt) }
+            val rateFloor = FareFloor.rateOf(filter.ratePerKm, order.load, TargetApp.INSUNG)
             val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && deliveryKmOf(order) != null
 
             // 💰 거르는 돈은 기사님 몫(돈 묶음 기사님 몫 줄) — 착불 손 확정 콜은 받을 돈이 아니라 실운임

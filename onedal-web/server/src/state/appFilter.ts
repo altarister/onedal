@@ -78,7 +78,7 @@ export function appFilterOf(
     // ⏱️ 배차망별 대기 시간 — 원천은 DB(user_settings), 원달앱은 받아 쓴다
     Object.assign(filter, readWaitTimes(userId));
 
-    // 🚚 기사님 차종 — 원천은 DB(user_settings.vehicle_type) · 없으면 칸이 없다(원달앱은 화면 차종으로 단가를 본다)
+    // 🚚 기사님 차종 — 원천은 DB(user_settings.vehicle_type) · 없으면 칸이 없다(원달앱 판정은 이 칸을 읽지 않는다 — 단가는 콜 차종)
     const driverVehicleType = SettingsRepository.getDriverVehicleType(userId);
     if (driverVehicleType) filter.driverVehicleType = driverVehicleType;
 

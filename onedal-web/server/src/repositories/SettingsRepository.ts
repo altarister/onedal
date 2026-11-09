@@ -50,8 +50,8 @@ export class SettingsRepository {
 
     /**
      * 🚚 **기사님 차종**(`user_settings.vehicle_type`) — 원달앱 공급 칸 `driverVehicleType` 의 원천.
-     *    원달앱 목록 판정이 «단가에 쓰는 차종»을 콜 화면 차종 대신 기사님 차로 고르는 배차망에서 읽는다(`ListJudge.Rules.rateVehicleOf`).
-     *    🔴 행이 없거나 비면 `null` — 원달앱은 그때 화면 차종으로 단가를 본다(규칙 ④ · `'1t'` 로 채우지 않는다).
+     *    원달앱 판정은 이 칸을 읽지 않는다 — 단가는 네 배차망 모두 콜 짐 묶음 차종으로 찾는다(`FareFloor.rateOf`).
+     *    🔴 행이 없거나 비면 `null`(규칙 ④ · `'1t'` 로 채우지 않는다).
      */
     public static getDriverVehicleType(userId: string): string | null {
         const row = db.prepare("SELECT vehicle_type FROM user_settings WHERE user_id = ?").get(userId) as { vehicle_type?: string | null } | undefined;
