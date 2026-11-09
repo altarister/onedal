@@ -1,5 +1,7 @@
 package com.onedal.app.plugins.isflex
 
+import com.onedal.app.core.BadgeMeaning
+import com.onedal.app.core.BadgePlace
 import android.content.Context
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.IScrapParser
@@ -171,6 +173,8 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
                 pickupDetails = listOf(CallStop(listText = pickupCell, region = StopText.regionOf(TargetApp.ISFLEX, pickupCell), promiseText = pickup?.promise, distanceKm = pickupDistance)),
                 dropoffDetails = listOf(CallStop(listText = dropoffCell, region = StopText.regionOf(TargetApp.ISFLEX, dropoffCell), promiseText = dropoff?.promise, distanceKm = delivery)),
                 tagsText = tagsOf(*badges.toTypedArray(), *conditionsOf(pickup, dropoff), dropoff?.promise, payment),
+                tripType = valueOf(BadgeMeaning.TRIP_TYPE, badges, pickup, dropoff),
+                orderForm = valueOf(BadgeMeaning.ORDER_FORM, badges, pickup, dropoff),
             ).withPromises(ReservationText.readStops(pickup?.promise, dropoff?.promise, now))   // 🔴 제 칸의 약속 토막만 — 도착 마감 «10:20전»은 하차 정거장
             if (order.fare > 0) {
                 /* 🔕 목록을 읽을 때마다 돈다 — 같은 콜은 글자가 바뀔 때만 */
@@ -189,6 +193,11 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
 
         /** 🏷️ 출발 · 도착 칸의 조건 토막(«급송» · «왕복») — 화면 기록에 남긴다 */
         private fun conditionsOf(vararg cells: com.onedal.app.core.CellPieces?): Array<String> = cells.flatMap { it?.conditions.orEmpty() }.toTypedArray()
+
+        /** 🏷️ 구분 · 형태 값 — 차종 뒤 꼬리표(줄 자리) · 출발 · 도착 칸 조건 토막(«급송/» · «왕복»)을 정의 표 줄로 · 값 낱말이 없으면 null */
+        private fun valueOf(meaning: BadgeMeaning, rowWords: List<String>?, pickup: com.onedal.app.core.CellPieces?, dropoff: com.onedal.app.core.CellPieces?): String? =
+            PageFieldRead.badgeValueAmong(IsflexPages.badgeWords, meaning, PageFieldRead.placed(BadgePlace.ROW, rowWords) +
+                PageFieldRead.placed(BadgePlace.PICKUP, pickup?.conditions) + PageFieldRead.placed(BadgePlace.DROPOFF, dropoff?.conditions))
 
         /** 상세 칸 하나 — 정의 표 읽는 법 */
         private fun detailField(texts: List<String>, field: PageField): String? = PageFieldRead.fieldOf(IsflexPages.pages, Page.NEW_CALL, field, texts)
@@ -218,13 +227,15 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
                 dropoffDetails = listOf(CallStop(listText = dropoffCell, region = StopText.regionOf(TargetApp.ISFLEX, dropoffCell), promiseText = dropoff?.promise,
                     distanceKm = kmOf(detailField(texts, PageField.DELIVERY_DISTANCE)))),
                 tagsText = tagsOf(detailField(texts, PageField.TAGS), *conditionsOf(pickup, dropoff), dropoff?.promise, detailField(texts, PageField.PAYMENT)),
+                tripType = valueOf(BadgeMeaning.TRIP_TYPE, listOfNotNull(detailField(texts, PageField.TAGS)), pickup, dropoff),
+                orderForm = valueOf(BadgeMeaning.ORDER_FORM, listOfNotNull(detailField(texts, PageField.TAGS)), pickup, dropoff),
             ).withPromises(ReservationText.readStops(pickup?.promise, dropoff?.promise, now))
         }
 
         /**
          * 🏠 **앱이 연 콜을 상세 값으로 채운다** (`IsflexPlugin.fillDetail`) — 읽을 글은 `order.rawText`(공통이 채우기 전에 상세 이은 글로 바꿔 둔다).
          * 상세 «출발 · 도착» 원문은 그 정거장 상세 주소(`addressDetail`) — 목록 칸 원문(`listText`)은 그대로 둔다.
-         * 지역 · 약속 · 꼬리표는 상세 값으로 덮고 못 읽으면 목록 값 그대로 · 차종은 비었을 때만 · 정거장 거리는 정거장마다 비었을 때만(`withStopKm` — 네 배차망 같은 순서).
+         * 지역 · 약속 · 꼬리표는 상세 값으로 덮고 못 읽으면 목록 값 그대로 · 구분 · 형태는 상세 값이 있을 때만 덮는다 · 차종은 비었을 때만 · 정거장 거리는 정거장마다 비었을 때만(`withStopKm` — 네 배차망 같은 순서).
          */
         fun fillFromDetail(order: SimplifiedOfficeOrder, now: LocalDateTime): SimplifiedOfficeOrder {
             val d = parseDetail(listOf(order.rawText ?: ""), now)
@@ -233,6 +244,8 @@ class IsflexParser(private val context: Context? = null) : IScrapParser {
             val dd = lastDropoffStop(d)
             val filled = order.copy(
                 tagsText = if (readPickup) d.tagsText else order.tagsText,
+                tripType = (if (readPickup) d.tripType else null) ?: order.tripType,
+                orderForm = (if (readPickup) d.orderForm else null) ?: order.orderForm,
                 vehicleType = order.vehicleType ?: d.vehicleType,
             )
             val withPickup = withFirstPickup(filled) { stop ->

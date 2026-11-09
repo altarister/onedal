@@ -39,8 +39,9 @@ const COLUMN_OF: Record<string, string> = {};
  *      글자 · 거리 · 약속 · 좌표를 `pickup` · `dropoff` · `pickupDistanceKm` · `deliveryDistanceKm` · `scheduleText` · `reservedDay` · `reservedAt` · 좌표 넷 칸에 적는다
  *    · `fromOtherOffice` 공유콜 — 번호 · 출처 묶음 칸이라 콜 한 칸(`orders.callShape`)에 담기고 수집 기록 칸은 없다
  *    · `money` 돈 묶음 — 콜 한 칸(`orders.callShape`)에 담긴다 · 수집 기록은 같은 목록 금액을 `fare` 칸에 적는다
+ *    · `tripType` · `orderForm` 구분 · 형태 값 — 콜 한 칸과 장부 `orders.tripType` · `orders.orderForm` 에 담긴다 · 수집 기록은 그 값을 낸 화면 글자를 `tagsText` 칸에 적는다
  */
-const NOT_STORED = new Set(['id', 'isSimulated', 'pickupDetails', 'dropoffDetails', 'fromOtherOffice', 'money']);
+const NOT_STORED = new Set(['id', 'isSimulated', 'pickupDetails', 'dropoffDetails', 'fromOtherOffice', 'money', 'tripType', 'orderForm']);
 
 /** 📱 앱 그릇(`SimplifiedOfficeOrder`)이 나르는 칸 */
 function appOrderFields(): string[] {

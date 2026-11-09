@@ -52,6 +52,10 @@ export interface SimplifiedOfficeOrder {  // 목록 콜 — 원달앱이 배차�
     itemSize?: string | null;
     /** 🌐 표시 글자 화면 기록 — 화면 글자를 빈칸으로 이은 원문 · 기준 값이 아니다(구분 · 형태 값은 tripType · orderForm) */
     tagsText?: string | null;
+    /** 🏷️ 배송 구분 — 값 목록 `TRIP_TYPES`(badges.ts) · 원달앱이 목록 꼬리표 줄 · 칸 앞 토막을 정의 표 `badgeWords` 로 읽어 싣고(`badgeValueAmong` 짝) 서버 /detail 이 상세 «구분 :» 으로 덮는다 · 값 낱말이 없으면 null */
+    tripType?: TripType | null;
+    /** 🏷️ 배송 형태 — 값 목록 `ORDER_FORMS`(badges.ts) · 위와 같다 */
+    orderForm?: OrderForm | null;
     /**
      * 🗳️ **앱이 이 콜을 어떻게 판정했나**.
      *    `pass` · `vehicle` · `region` · `fare` · `pickup` · `blacklist` · `routeOrder` · `locked` · `reservation`(예약콜 축에 막힘)
@@ -91,8 +95,6 @@ export interface DetailedOfficeOrder {  // 상세 콜 — 원달앱은 안 보�
     billingType?: BillingType;        // 세금계산서, 인수증 발급 형태
     
     // 3. 운행 조건 스펙
-    tripType?: TripType | null;       // 배송 구분 — 값 목록 `TRIP_TYPES`(badges.ts)
-    orderForm?: OrderForm | null;     // 배송 형태 — 값 목록 `ORDER_FORMS`(badges.ts)
     detailMemo?: string;              // 적요 상세 (원문 전체)
 }
 

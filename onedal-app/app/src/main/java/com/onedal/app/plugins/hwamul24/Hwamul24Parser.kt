@@ -24,6 +24,8 @@ import com.onedal.app.models.CallStop
 import com.onedal.app.core.Page
 import com.onedal.app.core.PageField
 import com.onedal.app.core.PageFieldRead
+import com.onedal.app.core.BadgeMeaning
+import com.onedal.app.core.BadgePlace
 import com.onedal.app.core.withFirstPickup
 import com.onedal.app.core.withLastDropoff
 
@@ -78,7 +80,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
          * 원천은 서버 `keywords_24.json` 의 `uiNoiseWords` 이고 그 사전이 이 낱말을 다 담는다 (`Hwamul24NoiseWordsTest` 가 문다).
          */
         internal val NOISE_WORDS = setOf(
-            "당상", "내상", "당착", "내착", "수", "지", "독차", "왕복",  // 날 배지는 지역이 아니다 — 꼬리표·예약으로는 `badgesOf` 가 읽는다
+            "당상", "내상", "당착", "내착", "수", "지", "독차", "왕복",  // 배지는 지역이 아니다 — 화면 기록으로는 `badgesOf` · 예약으로는 `promisesOf` 가 읽는다
             "인수증", "선/착불", "전체", "화물정보", "자동새로고침",
             "오더검색", "자동터치", "성공", "최대", "ON", "OFF",
             "홈", "마이페이지", "환경", "환경설정", "배차내역",  // 아래 막대
@@ -120,10 +122,15 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             return PageFieldRead.withDetailKm(withDropoff, Hwamul24Pages.pages, Page.NEW_CALL, texts)
         }
 
-        /** 🏷️ 날 배지를 꼬리표로 — 잡음으로 버리지 않는다 (지역 후보에서는 빠진다) */
-        fun badgesOf(texts: List<String>): String? =
-            texts.map { it.trim() }.filter { it in PICKUP_DAY_BADGES || it in DROPOFF_DAY_BADGES }
-                .joinToString(" ").ifEmpty { null }
+        /** 🏷️ 화면 기록에 남기는 배지 뜻 — 날(«당상» · «당착») · 상하차 방법(«수» · «지») · 혼적 안 됨(«독차») · 구분(«왕복»). 결제 · 증빙(«선/착불» · «인수증»)은 돈 묶음이 읽는다 */
+        private val RECORDED_BADGES = setOf(BadgeMeaning.PROMISE_DAY, BadgeMeaning.LOADING_METHOD, BadgeMeaning.NO_MIXED_LOAD, BadgeMeaning.TRIP_TYPE)
+
+        /** 🏷️ 배지 노드를 화면 차례 그대로 화면 기록에 — 잡음 낱말이라 지역 후보에서는 빠지지만 버리지 않는다(정의 표 `badgeWords`) */
+        private fun badgeNodesOf(texts: List<String>): List<String> =
+            texts.map { it.trim() }.filter { t -> Hwamul24Pages.badgeWords.any { it.text == t && it.meaning in RECORDED_BADGES } }
+
+        /** 🏷️ 배지 노드 → 화면 기록 글자(`tagsText`) */
+        fun badgesOf(texts: List<String>): String? = badgeNodesOf(texts).joinToString(" ").ifEmpty { null }
 
         /**
          * 📅 **정거장 약속 — 상차는 상차 배지 + 화물 글의 상차 쪽 + 상차지 앞글자 · 하차는 하차 배지 + 화물 글의 하차 쪽 + 하차지 앞글자** (`Hwamul24ReservationTest` · `Hwamul24MemoTimesTest`).
@@ -282,6 +289,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             vehicleType = vehicleType,
             rawText = rawJoined,
             tagsText = badgesOf(texts),
+            tripType = PageFieldRead.badgeValueAmong(Hwamul24Pages.badgeWords, BadgeMeaning.TRIP_TYPE,
+                PageFieldRead.placed(BadgePlace.ROW, badgeNodesOf(texts)) + PageFieldRead.placed(BadgePlace.DROPOFF, dropoffPieces?.conditions)),
             pickupDetails = listOf(CallStop(listText = pickupCell, region = StopText.regionOf(TargetApp.HWAMUL24, pickupCell),
                 promiseText = pickupPieces?.promise, distanceKm = pickupDistance)),
             dropoffDetails = listOf(CallStop(listText = dropoffCell, region = StopText.regionOf(TargetApp.HWAMUL24, dropoffCell),

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { isExpressForm, BADGE_PLACES, BADGE_MEANINGS, TRIP_TYPES, ORDER_FORMS, type BadgePlace } from './badges';
-import { badgeOf } from '../network/pageRead';
+import { badgeOf, badgeValueAmong } from '../network/pageRead';
 import { NETWORK_PAGES } from '../network/networkPages';
 import type { TargetAppType } from '../index';
 
@@ -49,5 +49,18 @@ describe('표시 글자 문제지 (badgeCases)', () => {
             expect(keys.filter((k, i) => keys.indexOf(k) !== i), net).toEqual([]);
             if (words.length) expect(spec.badgeWordsWhy, net).toBeTruthy();
         }
+    });
+});
+
+/**
+ * 🏷️ **목록 꼬리표 줄 · 칸 앞 토막의 구분 · 형태 값** — 공통 문제지 `badgeValueCases` 를 shared `badgeValueAmong` 으로 푼다(원달앱 짝 `BadgeCasesTest` 가 같은 답).
+ * 값 낱말이 있으면 그 값 · 없으면 빈칸 — 구분 · 형태 자리가 따로 없는 글이라 «모름»을 내지 않는다(표시 계획 정해진 것 4).
+ */
+describe('구분 · 형태 값 문제지 (badgeValueCases)', () => {
+    const sheet = JSON.parse(readFileSync(join(__dirname, '../network/pageReadCases.json'), 'utf8')) as
+        { badgeValueCases: Array<{ network: TargetAppType; meaning: 'tripType' | 'orderForm'; words: Array<{ at: BadgePlace; text: string }>; expect: string | null; why: string }> };
+
+    it.each(sheet.badgeValueCases.map(c => [`${c.network} ${c.meaning} ${c.words.map(w => w.text).join(' ')} — ${c.why}`, c] as const))('%s', (_, c) => {
+        expect(badgeValueAmong(c.network, c.meaning, c.words)).toBe(c.expect);
     });
 });

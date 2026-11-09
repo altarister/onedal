@@ -30,7 +30,7 @@ const SHAPE_KEYS: Record<keyof (MyOrder & PendingOrder & SecuredOrder), 'shape' 
     type: 'shape', timestamp: 'shape', rawText: 'shape', openedBy: 'shape', capturedMode: 'shape', isSimulated: 'shape', verdict: 'shape',
     // 목록 콜 (SimplifiedOfficeOrder — 정거장 · 짐 묶음은 아래 줄)
     itemSize: 'shape', tagsText: 'shape', fare: 'shape', postTime: 'shape', vehicleType: 'shape',
-    // 상세 콜 (DetailedOfficeOrder) · 정거장 묶음(SimplifiedOfficeOrder)
+    // 상세 콜 (DetailedOfficeOrder) · 구분 · 형태 · 정거장 묶음(SimplifiedOfficeOrder)
     itemDescription: 'shape', commissionRate: 'shape', tollFare: 'shape', paymentType: 'shape', billingType: 'shape',
     tripType: 'shape', orderForm: 'shape', detailMemo: 'shape', pickupDetails: 'shape', dropoffDetails: 'shape',
     // 돈 · 짐 묶음

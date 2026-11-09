@@ -134,7 +134,7 @@ export const HWAMUL24_PAGES: NetworkPageSpec = /*JSON*/{
       {"field": "vehicleType", "where": "셋째 줄 앞", "sample": "2.5톤/윙 · 3.5톤/전체 (승용·다마스는 못 읽음)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse"},
       {"field": "pickupDistance", "where": "상차 배지 옆", "sample": "15Km", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24CardGrouping.pickupDistanceOf", "note": "첫 상차 정거장 거리(내 자리 → 상차지) · 직선(설명 영상 «현위치에서 상차지까지 직선거리»)"},
       {"field": "reservation", "where": "상차 배지", "sample": "당상 · 내상(실물 캡처에는 없음)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.promisesOf"},
-      {"field": "tags", "where": "하차 배지 · 꼬리표", "sample": "당착 · 내착 (읽음) · 수 · 지 · 독차 · 인수증 (잡음으로 뺌)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.badgesOf"},
+      {"field": "tags", "where": "하차 배지 · 꼬리표", "sample": "당착 · 내착 · 수 · 지 · 독차 (읽음 — 화면 기록) · 인수증 (잡음으로 뺌)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.badgesOf"},
       {"field": "memo", "where": "셋째 줄 화물 글", "sample": "당일상 당착 공파렛 50p / 10시전하차 · 당일오전9시30분상", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24MemoTimes.split — 상차 쪽만 예약으로"},
       {"field": "clock", "where": "하차 배지 앞 시각", "sample": "06:32 (등록 시각인지 모름)", "seen": "REAL", "handling": "READ", "usedAt": "Hwamul24Parser.parse — postTime"}
     ],

@@ -3,11 +3,11 @@
  * 누가: 서버 판정 · 상세 · 스캔 · 시뮬레이션
  * 언제: 배차망 화면 글자에서 칸 값을 꺼낼 때
  * 어디서: 서버가 원달앱 보고를 받는 자리
- * 무엇을: pageFieldOf · pageFareOf · badgeOf · badgeValueOf · addressOf · stopTextOf · stopQueryOf · detailRecordOf(칸 · 정거장 · 돈 · 짐 묶음)
+ * 무엇을: pageFieldOf · pageFareOf · badgeOf · badgeValueOf · badgeValueAmong · addressOf · stopTextOf · stopQueryOf · detailRecordOf(칸 · 정거장 · 돈 · 짐 묶음)
  * 어떻게: 정의 표의 읽는 법으로 글자를 잘라 낸다
  * 왜: 정의에 없거나 원문에 없는 값을 지어내지 않기 위해서다
  */
-import type { TargetAppType, CallStop, DetailedOfficeOrder, CallIdentity } from '../index';
+import type { TargetAppType, CallStop, DetailedOfficeOrder, CallIdentity, SimplifiedOfficeOrder } from '../index';
 import { PAYMENT_TYPES, BILLING_TYPES, MONEY_KINDS, paymentOf, type PaymentType, type BillingType, type CallMoney, type MoneyLine, type MoneyKind } from '../call/money';
 import { LOAD_KINDS, type CallLoad, type LoadLine, type LoadKind } from '../cargo/callLoad';
 import type { BadgePlace, BadgeWord, TripType, OrderForm } from '../call/badges';
@@ -78,6 +78,21 @@ export function badgeValueOf<M extends 'tripType' | 'orderForm'>(app: TargetAppT
     const hit = words.find(w => w?.meaning === meaning && w.value !== undefined);
     if (hit) return hit.value as Value;
     return words.includes(null) ? '모름' as Value : null;
+}
+
+/**
+ * 🏷️ **목록 꼬리표 줄 · 칸 앞 토막의 구분 · 형태 값** — 원달앱 목록 읽기의 짝(원달앱 `PageFieldRead.badgeValueAmong` · 같은 문제지 `badgeValueCases`).
+ *    낱말마다 제 자리의 정의 표 줄을 찾고(칸 앞 토막은 표 글자 끝 «/» · «)» 를 뗀 글자로도 맞는다 — «왕복/» ↔ «왕복») 그 갈래 값이 있는 첫 낱말의 값 · 없으면 null.
+ *    목록 꼬리표 줄에는 구분 · 형태 자리가 따로 없어 표에 없는 낱말로 «모름»을 내지 않는다 — «모름»은 자리가 따로 있는 글(`badgeValueOf` · 인성 상세 «구분 :» · «형태 :»).
+ */
+export function badgeValueAmong<M extends 'tripType' | 'orderForm'>(app: TargetAppType, meaning: M, words: ReadonlyArray<{ at: BadgePlace; text: string }>): (M extends 'tripType' ? TripType : OrderForm) | null {
+    type Value = M extends 'tripType' ? TripType : OrderForm;
+    const table = NETWORK_PAGES[app].badgeWords ?? [];
+    for (const w of words) {
+        const hit = table.find(b => b.at === w.at && b.meaning === meaning && b.value !== undefined && (b.text === w.text || b.text.replace(/[/)]+$/, '') === w.text));
+        if (hit) return hit.value as Value;
+    }
+    return null;
 }
 
 /**
@@ -267,7 +282,7 @@ export function stopQueryOf(app: TargetAppType, stop: CallStop | null | undefine
 type DetailRecordText = 'stageText' | 'itemDescription' | 'commissionRate' | 'tollFare' | 'dispatcherName' | 'dispatcherPhone'
     | 'orderNo' | 'clientOrderNo' | 'requesterName';
 /** 상세 원문에서 읽는 콜 칸 — 상세 칸 + 번호 묶음의 배차사 · 진행 글자 · 화물번호 · 가게 주문 번호 · 의뢰인 */
-type DetailFields = Partial<Pick<DetailedOfficeOrder & CallIdentity, DetailRecordText | 'tripType' | 'orderForm' | 'paymentType' | 'billingType' | 'detailMemo'>>;
+type DetailFields = Partial<Pick<DetailedOfficeOrder & CallIdentity & Pick<SimplifiedOfficeOrder, 'tripType' | 'orderForm'>, DetailRecordText | 'tripType' | 'orderForm' | 'paymentType' | 'billingType' | 'detailMemo'>>;
 const DETAIL_RECORD: ReadonlyArray<readonly [key: DetailRecordText, field: PageField, part?: string]> = [
     ['stageText', 'stage'], ['itemDescription', 'itemSize'], ['commissionRate', 'commission'],
     ['tollFare', 'toll'],

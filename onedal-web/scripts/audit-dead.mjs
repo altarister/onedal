@@ -157,6 +157,7 @@ const TEST_ONLY_KEEP = {
     stopQueryOf: '판정 글자 — 정의(`pageRead.ts`)를 먼저 세웠고 서버 판정 · 필터 · 지오코딩이 이 글자를 읽는 걸음(주소 계획 6)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
     firstStopKm: '상차 거리 — 정의(`timing.ts`)를 먼저 세웠고 서버가 `intel` 상차 거리 칸에 이 값을 적는 걸음(거리 계획 7)부터 본 코드가 부른다 · 부르면 이 줄을 뺀다.',
     pageFareOf: '원달앱 `PageFieldRead.fareOf` 와 같은 숫자 규칙의 짝 — 서버 /detail 은 돈 8(걸음 5-4-5)부터 판정 금액을 돈 묶음에서 읽어 본 코드가 안 부른다 · 공통 문제지(`networkPages.test` · `detailNoGuessing`)가 짝 규칙을 묻는다 · 콜 모양 `fare` 칸을 지우는 돈 10(걸음 6)에서 원달앱 `fareOf` 와 함께 지운다.',
+    badgeValueAmong: '원달앱 `PageFieldRead.badgeValueAmong` 의 짝 — 목록 꼬리표 줄 · 칸 앞 토막의 구분 · 형태는 원달앱이 정해 보고에 싣고 서버는 받은 값을 쓰므로 본 코드가 안 부른다 · 공통 문제지(`badgeValueCases` — `badges.test` · 원달앱 `BadgeCasesTest`)가 짝 규칙을 묻는다 · 부르는 걸음은 아직 정하지 않았다(표시 계획의 고칠 자리 표에서 정한다).',
     OFFICE_ORDER_SAMPLE_09: '콜 모양 견본의 마지막 판 — 견본은 본 코드가 부르지 않는 것이 맞고, 콜 한 칸 문제지(`callShape.test.ts`)가 이 견본으로 글 왕복을 묻는다.',
 };
 /** 🤖 원달앱에서 이름으로 안 불리는데 남기는 fun · const val — 사유 없이는 못 넣는다 (①-3) */

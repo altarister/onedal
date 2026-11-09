@@ -43,7 +43,7 @@ function appFields(): string[] {
  */
 function serverFields(): string[] {
     const sample: Required<SimplifiedOfficeOrder> = {
-        itemSize: null, tagsText: null, verdict: null,
+        itemSize: null, tagsText: null, tripType: null, orderForm: null, verdict: null,
         id: 'c1', type: 'NEW_ORDER', fare: 45000, timestamp: '2026-01-01T00:00:00.000Z',
         postTime: '12:23', vehicleType: '1t', rawText: '',
         isSimulated: false, fromOtherOffice: null,

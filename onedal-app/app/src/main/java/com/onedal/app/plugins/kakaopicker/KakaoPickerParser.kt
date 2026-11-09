@@ -1,5 +1,8 @@
 package com.onedal.app.plugins.kakaopicker
 
+import com.onedal.app.core.PageFieldRead
+import com.onedal.app.core.BadgeMeaning
+import com.onedal.app.core.BadgePlace
 import com.onedal.app.core.Prefs
 import com.onedal.app.core.TargetApp
 import android.content.Context
@@ -1217,6 +1220,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             vehicleType = null,               // 픽커에 차종 축이 없다 — 물품 크기가 대신한다. 섞어 싣지 않는다
             itemSize = itemSize,
             tagsText = tags.joinToString(" ").ifEmpty { null },
+            /* 🏷️ 꼬리표 «급송» → 형태 · «경유» → 구분(정의 표 badgeWords) — 다른 꼬리표 · 시각이 섞여도 «모름»이 아니라 빈칸 */
+            tripType = PageFieldRead.badgeValueAmong(KakaoPickerPages.badgeWords, BadgeMeaning.TRIP_TYPE, PageFieldRead.placed(BadgePlace.ROW, tags)),
+            orderForm = PageFieldRead.badgeValueAmong(KakaoPickerPages.badgeWords, BadgeMeaning.ORDER_FORM, PageFieldRead.placed(BadgePlace.ROW, tags)),
             rawText = texts.joinToString(" "),
             pickupDetails = listOf(CallStop(listText = oneSpaced(pickup), promiseText = listReservation(tags) ?: scheduleTime, distanceKm = pickupKm)),
             dropoffDetails = listOf(CallStop(listText = oneSpaced(dropoff))),   // 리스트에 배송거리가 없다 (인성과의 결정적 차이)

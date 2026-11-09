@@ -39,7 +39,7 @@ object Hwamul24Pages {
             /* 첫 상차 정거장 거리(내 자리 → 상차지) · 직선(설명 영상 «현위치에서 상차지까지 직선거리») */
             FieldSpec(PageField.PICKUP_DISTANCE, "상차 배지 옆", "15Km", Seen.REAL, Handling.READ, "Hwamul24CardGrouping.pickupDistanceOf"),
             FieldSpec(PageField.RESERVATION, "상차 배지", "당상 · 내상(실물 캡처에는 없음)", Seen.REAL, Handling.READ, "Hwamul24Parser.promisesOf"),
-            FieldSpec(PageField.TAGS, "하차 배지 · 꼬리표", "당착 · 내착 (읽음) · 수 · 지 · 독차 · 인수증 (잡음으로 뺌)", Seen.REAL, Handling.READ, "Hwamul24Parser.badgesOf"),
+            FieldSpec(PageField.TAGS, "하차 배지 · 꼬리표", "당착 · 내착 · 수 · 지 · 독차 (읽음 — 화면 기록) · 인수증 (잡음으로 뺌)", Seen.REAL, Handling.READ, "Hwamul24Parser.badgesOf"),
             FieldSpec(PageField.MEMO, "셋째 줄 화물 글", "당일상 당착 공파렛 50p / 10시전하차 · 당일오전9시30분상", Seen.REAL, Handling.READ, "Hwamul24MemoTimes.split — 상차 쪽만 예약으로"),
             FieldSpec(PageField.CLOCK, "하차 배지 앞 시각", "06:32 (등록 시각인지 모름)", Seen.REAL, Handling.READ, "Hwamul24Parser.parse — postTime"),
         ),

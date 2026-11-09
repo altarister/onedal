@@ -31,8 +31,8 @@ class Hwamul24ReservationTest {
         assertEquals(Reservation(0, null), Hwamul24Parser.promisesOf(arriveTomorrow, null, null, now).first)
     }
 
-    @Test fun `배지는 꼬리표로 남는다`() {
-        assertEquals("당상 당착", Hwamul24Parser.badgesOf(card))
+    @Test fun `배지는 꼬리표로 남는다 - 날 · 상하차 방법 · 독차는 화면 차례 그대로 · 인수증은 돈 묶음 몫`() {
+        assertEquals("당상 지 지 당착 독차", Hwamul24Parser.badgesOf(card))
         assertNull(Hwamul24Parser.badgesOf(listOf("경기 시흥 정왕동", "50,000원")))
     }
 

@@ -60,4 +60,22 @@ object PageFieldRead {
     /** 콜에 요금이 비었을 때만 그 화면의 정의로 채운다(돈 묶음 기사님 몫 줄도 같은 값) — 이미 있는 값(앱이 연 콜의 목록 값 · 돈 묶음)은 그대로 */
     fun withFare(order: SimplifiedOfficeOrder, pages: PageSpecs, page: Page, texts: List<String>): SimplifiedOfficeOrder =
         if (order.fare > 0) order else withPageFare(order, pages, page, texts) ?: order
+
+    /** 🏷️ 그 자리 · 그 글자의 표시 글자 줄 — 정의 표 `badgeWords` 에 없으면 null (shared `badgeOf` 와 같은 답 · `BadgeCasesTest`) */
+    fun badgeOf(badges: List<BadgeWord>, at: BadgePlace, text: String): BadgeWord? = badges.firstOrNull { it.at == at && it.text == text }
+
+    /** 🏷️ 낱말 묶음 → 그 자리의 낱말 쌍 — 목록 꼬리표 줄은 빈칸으로 가른 낱말, 칸 앞 토막은 조건 토막 */
+    fun placed(at: BadgePlace, words: List<String>?): List<Pair<BadgePlace, String>> =
+        words.orEmpty().flatMap { it.split(' ') }.filter { it.isNotEmpty() }.map { at to it }
+
+    /**
+     * 🏷️ **목록 꼬리표 줄 · 칸 앞 토막의 구분 · 형태 값** — shared `badgeValueAmong` 의 짝(같은 문제지 `badgeValueCases`).
+     * 낱말마다 제 자리의 정의 표 줄을 찾고(칸 앞 토막은 표 글자 끝 «/» · «)» 를 뗀 글자로도 맞는다 — «왕복/» ↔ «왕복») 그 갈래 값이 있는 첫 낱말의 값 · 없으면 null.
+     * 목록 꼬리표 줄에는 구분 · 형태 자리가 따로 없어 표에 없는 낱말로 «모름»을 내지 않는다.
+     */
+    fun badgeValueAmong(badges: List<BadgeWord>, meaning: BadgeMeaning, words: List<Pair<BadgePlace, String>>): String? =
+        words.firstNotNullOfOrNull { (at, text) ->
+            (badgeOf(badges, at, text)?.takeIf { it.meaning == meaning }
+                ?: badges.firstOrNull { it.at == at && it.meaning == meaning && it.text.trimEnd('/', ')') == text })?.value
+        }
 }

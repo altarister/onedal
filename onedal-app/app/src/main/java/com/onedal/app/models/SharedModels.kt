@@ -100,8 +100,12 @@ data class SimplifiedOfficeOrder(
     val rawText: String? = null,
     /** 🌐 픽커 전용 — 물품 크기(초소형/소형…). 차종 칸에 섞어 싣지 않는다 (규칙 ⑤-4 ⑤) */
     val itemSize: String? = null,
-    /** 🌐 픽커 전용 — 태그 원문(급송·예약 17:00·준비 29분…) */
+    /** 🌐 표시 글자 화면 기록 — 화면 글자를 빈칸으로 이은 원문(급송·예약 17:00·준비 29분 · 화물24시 당상 수 독차 왕복 …) · 기준 값이 아니다 */
     val tagsText: String? = null,
+    /** 🏷️ 배송 구분 — 값 목록 편도 · 왕복 · 경유(shared `TRIP_TYPES`) · 정의 표 `badgeWords` 로 읽는다(`PageFieldRead.badgeValueAmong`) · 화면에 값 낱말이 없으면 null */
+    val tripType: String? = null,
+    /** 🏷️ 배송 형태 — 값 목록 보통 · 급송(shared `ORDER_FORMS`) · 위와 같다 */
+    val orderForm: String? = null,
     /**
      * 🗳️ **앱이 이 콜을 어떻게 판정했나**.
      *

@@ -1,5 +1,8 @@
 package com.onedal.app.plugins.insung
 
+import com.onedal.app.core.PageFieldRead
+import com.onedal.app.core.BadgeMeaning
+import com.onedal.app.core.BadgePlace
 import com.onedal.app.core.Prefs
 import android.content.Context
 import com.onedal.app.core.LogTag
@@ -102,8 +105,9 @@ class InsungParser(private val context: Context) : IScrapParser {
         /** 목록 요금 칸(천 원 단위 소수) → 원. 곱한 뒤 반올림한다 — 잘라 내면 32.3 × 1000 = 32299.999… 가 32,299 원이 된다 */
         private fun fareOfThousands(shown: Double): Int = Math.round(shown * 1000.0).toInt()
 
-        /** 🚏 목록 줄에서 읽은 정거장 둘 · 공유콜 · 조건 토막 · 짐 줄 */
-        data class ListCells(val pickup: CallStop, val dropoff: CallStop, val fromOtherOffice: Boolean?, val conditions: List<String>, val loadLines: List<LoadLine>)
+        /** 🚏 목록 줄에서 읽은 정거장 둘 · 공유콜 · 조건 토막 · 짐 줄 · 구분 · 형태 값(조건 토막을 제 칸 자리의 정의 표 줄로 — «왕복/» → 왕복 · «>» → 경유) */
+        data class ListCells(val pickup: CallStop, val dropoff: CallStop, val fromOtherOffice: Boolean?, val conditions: List<String>, val loadLines: List<LoadLine>,
+                             val tripType: String? = null, val orderForm: String? = null)
 
         /** 📦 조건 토막 → 짐 줄 — 정의 표 목록 페이지의 짐 칸 줄 가운데 조각 이름(짐 줄 갈래)이 있는 줄(«폰)» 품목 · «2분동승» 동승)과 같은 글자 · 화면 글자는 표의 글자 · 같은 줄은 한 번 */
         private fun loadLinesOf(conditions: List<String>): List<LoadLine> {
@@ -136,6 +140,8 @@ class InsungParser(private val context: Context) : IScrapParser {
             val fromOtherOffice = pickupPieces?.let { it.mark || (pickupAt > 0 && trimmed[pickupAt - 1] == "@") }
             // 🏷️ 조건 토막(«급송» · «왕복» · «폰») — 화면 기록에 남기고, 짐 글자는 짐 줄로도
             val conditions = (pickupPieces?.conditions.orEmpty() + dropoffPieces?.conditions.orEmpty().takeIf { dropoffCell != pickupCell }.orEmpty())
+            val placedWords = PageFieldRead.placed(BadgePlace.PICKUP, pickupPieces?.conditions) +
+                PageFieldRead.placed(BadgePlace.DROPOFF, dropoffPieces?.conditions.takeIf { dropoffCell != pickupCell })
             return ListCells(
                 pickup = CallStop(listText = pickupCell, region = StopText.regionOf(TargetApp.INSUNG, pickupCell), promiseText = pickupPieces?.promise),
                 dropoff = CallStop(listText = dropoffCell, region = StopText.regionOf(TargetApp.INSUNG, dropoffCell),
@@ -143,6 +149,8 @@ class InsungParser(private val context: Context) : IScrapParser {
                 fromOtherOffice = fromOtherOffice,
                 conditions = conditions,
                 loadLines = loadLinesOf(conditions),
+                tripType = PageFieldRead.badgeValueAmong(InsungPages.badgeWords, BadgeMeaning.TRIP_TYPE, placedWords),
+                orderForm = PageFieldRead.badgeValueAmong(InsungPages.badgeWords, BadgeMeaning.ORDER_FORM, placedWords),
             )
         }
 
@@ -577,6 +585,8 @@ class InsungParser(private val context: Context) : IScrapParser {
             rawText = rawJoined,
             fromOtherOffice = cells.fromOtherOffice,
             tagsText = cells.conditions.joinToString(" ").ifEmpty { null },
+            tripType = cells.tripType,
+            orderForm = cells.orderForm,
             loadLines = cells.loadLines,
             pickupDetails = listOf(cells.pickup.copy(distanceKm = pickupKm)),
             // 🔴 두 번째 값(배송거리)을 마지막 하차 정거장 거리로 **보존**한다.
