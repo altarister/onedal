@@ -40,6 +40,9 @@ class Hwamul24Plugin(private val context: Context? = null) : IDispatchAppPlugin 
     /** 🧹 상세 글은 «상차지»부터 — 머리(제목 · ID · 잔액 · 화물번호 · 등록시간)를 뗀다(목록 파서가 제목을 상차지로 · 잔액을 요금으로 읽었다 · 29 X12) */
     override fun detailTextsOf(texts: List<String>): List<String> = Hwamul24Parser.detailTextsOf(texts)
 
+    /** 🧾 서버로 가는 상세 원문은 머리부터 — 서버 상세 자료의 화물번호(같은 콜 찾기) · 배차사 이름이 머리에 있다 · 원달앱 자기 읽기는 위 «상차지»부터 */
+    override fun serverDetailTextsOf(texts: List<String>): List<String> = texts
+
     /**
      * ✍️ **배차신청 버튼 글자 — «배차신청» 하나** (기사님 «가»). 글자는 정의 표 잡기 전 상세 기준 페이지의 `buttons.accept`(실물 캡처 18 · 51 · 53 바닥 «배차신청 · 돌아가기»).
      * 🔴 둘째 글자를 두지 않는다 — «배차신청»이 안 보이는 순간 «전화걸기»를 눌러 화주에게 전화가 걸릴 수 있었다. 못 찾으면 «버튼 못 찾음» 길(누르지 않고 빠져나옴).

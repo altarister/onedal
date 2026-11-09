@@ -37,7 +37,8 @@ private const val TAG = "1DAL_PRE_CONFIRM"
 fun ScanContext.handlePreConfirmScreen(
     rootNode: AccessibilityNodeInfo,
     screenTexts: List<String>,
-    rawScreenStr: String
+    rawScreenStr: String,
+    serverText: String,   // 🧾 서버로 가는 상세 원문(`IDispatchAppPlugin.serverDetailTextsOf`) — 원달앱 판정 · 대조는 rawScreenStr
 ) {
     // 잔상 방어: 팝업이 아직 닫히지 않았으면 무시
     if (com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).isPopupResidue(rawScreenStr)) {
@@ -117,11 +118,11 @@ fun ScanContext.handlePreConfirmScreen(
     val order = plugin.fillDetail(this, finalOrder)
     session.lastDetailOrder = order
     // 📝 글자로 읽은 상세도 /detail 원문으로 — 모은 글(인성 팝업)이 있으면 그대로 · 칸 나누기는 서버가 한다(57 3단계)
-    if (session.accumulatedDetailText.isEmpty()) session.accumulatedDetailText = rawScreenStr
+    if (session.accumulatedDetailText.isEmpty()) session.accumulatedDetailText = serverText
 
     // 📸 그래도 필수 요소(전체 주소·요금)가 모자라면 사진 — 사진 판독기가 있는 배차망만. 배차망 이름이 아니라 «모자란가»가 방아쇠다
     if (!OrderRequirement.meetsDetail(currentTargetApp, order) && plugin.ocrParser != null) {
-        handlePreConfirmSnapshot(plugin, rootNode, screenTexts, rawScreenStr)
+        handlePreConfirmSnapshot(plugin, rootNode, screenTexts, rawScreenStr, serverText)
         return
     }
 
@@ -167,7 +168,8 @@ fun ScanContext.handlePreConfirmScreen(
         val appContracts = appPressesAccept(session.contractedByApp, acceptButtons, order)
         // 👀 계약하지 않는 콜은 미리보기 — 선점 보고 **전에** 켠다. 서버는 이 표시가 있어야 심사한다
         if (!appContracts) session.isPreview = true
-        sendConfirmOnce(order, rawScreenStr)
+        // 🧾 선점 보고 원문은 서버로 가는 상세 원문 — 원달앱이 들고 있는 콜(제외어 글)은 처리 글 그대로
+        sendConfirmOnce(order.copy(rawText = serverText), rawScreenStr)
 
         if (appContracts && acceptButtons != null) {
             /**
@@ -267,7 +269,8 @@ private fun ScanContext.handlePreConfirmSnapshot(
     plugin: IDispatchAppPlugin,
     rootNode: AccessibilityNodeInfo,
     screenTexts: List<String>,
-    rawScreenStr: String
+    rawScreenStr: String,
+    serverText: String,
 ) {
     if (session.isVerifyingSnapshot) {
         AppLogger.d(TAG, LogTag.CALL_STAGE, "📸 [스냅샷 중복 진입 방어] 이미 OCR 판독 진행 중")
@@ -357,7 +360,7 @@ private fun ScanContext.handlePreConfirmSnapshot(
                 }
                 ensureSessionId()
                 /* 📸 서버로 가는 상세 글에 판독 줄을 함께 — 접근성에 없는 하차 줄 · 시각 · 거리(57 3단계 · PhotoDetailText) */
-                val detailText = PhotoDetailText.of(rawScreenStr, lines)
+                val detailText = PhotoDetailText.of(serverText, lines)
                 val orderWithId = verifiedOrder.copy(
                     id = session.currentOrderId.ifEmpty { verifiedOrder.id },
                     rawText = detailText,

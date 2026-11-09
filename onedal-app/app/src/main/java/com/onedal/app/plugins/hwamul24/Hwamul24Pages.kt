@@ -44,11 +44,10 @@ object Hwamul24Pages {
             FieldSpec(PageField.CLOCK, "하차 배지 앞 시각", "06:32 (등록 시각인지 모름)", Seen.REAL, Handling.READ, "Hwamul24Parser.parse — postTime"),
         ),
         Page.NEW_CALL to listOf(
-            /* 실물 캡처 3/3 에 있다(18_화물상세정보_배차신청 · 51_화물상세정보 · 53/54 같은 콜) — 서버 원문은 원달앱이 머리를 떼고 보내 원문 기준으로는 모름 */
-            FieldSpec(PageField.ORDER_NO, "머리", "화물번호:3-9483-2159", Seen.REAL, Handling.READ, "서버 상세 자료 화물번호(detailRecordOf orderNo) · 원달앱은 이 칸을 안 읽는다",
+            FieldSpec(PageField.ORDER_NO, "머리", "화물번호:3-9483-2159", Seen.REAL, Handling.READ, "서버 상세 자료 화물번호(detailRecordOf orderNo) — 서버 같은 콜 찾기(sameCallOf) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""화물번호\s*:\s*(\d-\d{4}-\d{4})""")),
             /* 주선한 배차 사무실(설명 영상 00:59) — 실물 캡처 18 · 51 · 53 · 띄어 쓴 이름은 마지막 토막만 읽힌다 */
-            FieldSpec(PageField.CONTACT, "머리 이름(화물번호 위 큰 글자 · 등록 구분 동그라미 · N분 안보기 단추 앞)", "(주)엠케이물류 · 화물과퀵", Seen.REAL, Handling.READ, "서버 상세 자료 배차사(detailRecordOf dispatcherName) — 원달앱이 머리를 떼고 보내는 동안은 원문에 없다 · 원달앱은 이 칸을 안 읽는다",
+            FieldSpec(PageField.CONTACT, "머리 이름(화물번호 위 큰 글자 · 등록 구분 동그라미 · N분 안보기 단추 앞)", "(주)엠케이물류 · 화물과퀵", Seen.REAL, Handling.READ, "서버 상세 자료 배차사(detailRecordOf dispatcherName) · 원달앱은 이 칸을 안 읽는다",
                 read = Regex("""(\S+)\s+(?:[A-Z]\s+)?(?:\d+분 안보기\s+)?화물번호\s*:"""), part = "dispatcher"),
             FieldSpec(PageField.CLOCK, "머리", "등록시간:05:18분", Seen.REAL, Handling.UNUSED),
             FieldSpec(PageField.PICKUP, "상차지 칸", "경기 군포 부곡동 [당상][수] 5Km", Seen.REAL, Handling.UNUSED, "목록 값을 쓴다"),

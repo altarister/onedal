@@ -1484,9 +1484,10 @@ class HijackService : AccessibilityService(), ScanContext {
         when (detected) {
             ScreenContext.LIST -> handleListScreen(rootNode, screenTexts)
             ScreenContext.DETAIL_PRE_CONFIRM -> {
-                // 🧹 상세 처리·서버 글은 배차망이 뗀 글로(픽커: «픽업지» 앞 목록 잔상) — 판별·모은 글자는 원래 글
-                val detailTexts = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).detailTextsOf(screenTexts)
-                handlePreConfirmScreen(rootNode, detailTexts, detailTexts.joinToString(" "))
+                // 🧹 상세 처리는 배차망이 뗀 글로(픽커: «픽업지» 앞 목록 잔상) · 서버 글은 배차망이 고른 원문(화물24시: 머리부터) — 판별·모은 글자는 원래 글
+                val plugin = com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp)
+                val detailTexts = plugin.detailTextsOf(screenTexts)
+                handlePreConfirmScreen(rootNode, detailTexts, detailTexts.joinToString(" "), plugin.serverDetailTextsOf(screenTexts).joinToString(" "))
             }
             /* ✅ 확정 뒤 상세 · 상세 위 팝업에서 할 일은 그 배차망 칸이 정한다 — 인성만 있다(화물24시 · 픽커는 아무것도 안 한다) */
             ScreenContext.DETAIL_CONFIRMED -> com.onedal.app.plugins.DispatchPluginRegistry.get(currentTargetApp).onConfirmedDetail(this, rootNode, screenTexts, rawScreenStr)

@@ -109,6 +109,15 @@ class Hwamul24DetailReadTest {
         assertEquals(unread, Hwamul24Parser.fillFromDetail(unread))
     }
 
+    /** 🔴 서버 상세 자료의 화물번호 · 배차사 이름은 머리에 있다 — 서버로 가는 원문은 머리부터, 원달앱 자기 읽기(제외어 글 · 대조)는 «상차지»부터 */
+    @Test fun `🔴 서버로 가는 상세 원문은 머리(화물번호 · 머리 이름)부터 · 원달앱 처리 글은 «상차지»부터`() {
+        val plugin = Hwamul24Plugin(null)
+        val server = plugin.serverDetailTextsOf(real18).joinToString(" ")
+        assertTrue(server, server.contains("화물번호:3-9483-2159"))
+        assertTrue(server, server.contains("화물과퀵 60분 안보기 화물번호:"))
+        assertEquals("상차지", plugin.detailTextsOf(real18).first())
+    }
+
     @Test fun `상세 글은 «상차지»부터 — 머리가 없는 글은 그대로`() {
         assertEquals("상차지", Hwamul24Plugin(null).detailTextsOf(real18).first())
         val noHead = listOf("경기 군포 부곡동", "60,000원")
