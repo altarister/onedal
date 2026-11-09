@@ -132,7 +132,7 @@ class MainViewModel {
     // ── 파싱된 표시 문자열 및 모델 (computed) ──
 
     data class ParsedFilter(
-        val allowedVehicles: String = "전체 허용",
+        val allowedVehicles: String = "꽉 참",
         val minFare: Int = com.onedal.app.models.FilterConfig().minFare,   // 💵 최소 금액 — 세 배차망 공통
         val pickupRadiusKm: Double = 0.0,
         val destinationCity: String = "미설정",
@@ -149,7 +149,7 @@ class MainViewModel {
             val vehicleArr = json.optJSONArray("allowedVehicleTypes")
             val vehicleStr = if (vehicleArr != null && vehicleArr.length() > 0) {
                 (0 until vehicleArr.length()).map { vehicleArr.getString(it) }.joinToString(", ")
-            } else "전체 허용"
+            } else "꽉 참"
             val destArr = json.optJSONArray("destinationKeywords")
             val exclArr = json.optJSONArray("excludedKeywords")
             ParsedFilter(

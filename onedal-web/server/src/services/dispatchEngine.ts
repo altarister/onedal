@@ -723,7 +723,7 @@ export async function handleDecision(userId: string, orderId: string, status: De
         const myVehicle = SettingsRepository.getKakaoRoutingOptions(userId).vehicleType || '1t';
         /* 📦 잡은 콜마다 짐 묶음의 박스 수(`callBoxesOf` — 합짐 자리 셈과 같은 답) · 차종 칸이 비었다고 내 차로 바꾸지 않는다 */
         const loadedBoxes = getActiveCalls(session).map(c => ({ vehicle: c.vehicleType || '차종 없음', boxes: callBoxesOf(c) }));
-        const loadedVehicles = loadedBoxes.map(l => `${l.vehicle} ${l.boxes ?? '모름'}박스`);
+        const loadedVehicles = loadedBoxes.map(l => (l.boxes === null ? `${l.vehicle} 박스 모름` : `${l.vehicle} ${l.boxes}박스`));
 
         // [자체 리뷰 C] 짐 묶음으로 박스를 못 낸 콜은 «자리 없음»으로 센다(내 차 그릇을 다 먹는다).
         // 안전한 방향이지만 그만큼 합짐 콜 잡기 범위가 좁아지므로, 조용히 넘어가면 안 된다.
