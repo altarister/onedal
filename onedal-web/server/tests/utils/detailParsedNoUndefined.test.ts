@@ -5,8 +5,7 @@ import { detailRecordOf } from '@onedal/shared';
  *
  * `/detail` 은 첫 보고가 남긴 기억 위에 파서 결과를 **통째로 펼친다** (`{ ...pendingOrder, ...parsedDetails }`).
  * 파서는 못 찾은 칸도 `undefined` 로 채워 돌려줘서, 첫 보고가 넣은 값이 조용히 지워졌다.
- * 인성 상세에는 «차종» 줄이 있어 안 드러났다 — 픽커 상세에는 차종이 없어,
- * 첫 보고가 넣은 **차종 일반값(다마스 · 규칙 ⑤-2)** 이 둘째 보고에서 사라진다.
+ * 픽커 상세 원문(아래)에는 물품 정보 · 꼬리표가 없어, 첫 보고가 넣은 **물품 · 꼬리표** 가 둘째 보고에서 사라진다.
  */
 
 /** 폰 로그 `📄 [상세 실물]` — 픽커 상세 화면 글자 */
@@ -24,10 +23,10 @@ describe('상세 원문 파서 — 못 찾은 칸 (#119)', () => {
         expect(undefinedKeys).toEqual([]);
     });
 
-    it('🔴 첫 보고가 넣은 픽커 차종 일반값이 둘째 보고에서 살아남는다', () => {
-        const remembered = { vehicleType: '다마스', tagsText: '차종미확인' };
+    it('🔴 첫 보고가 넣은 픽커 물품 · 꼬리표가 둘째 보고에서 살아남는다', () => {
+        const remembered = { itemSize: '소형 세 변의 합 100cm · 5kg 이하', tagsText: '퀵 반나절 승' };
         const merged = { ...remembered, ...detailRecordOf('kakaopicker', PICKER_DETAIL) };
-        expect(merged.vehicleType).toBe('다마스');
-        expect(merged.tagsText).toBe('차종미확인');
+        expect(merged.itemSize).toBe('소형 세 변의 합 100cm · 5kg 이하');
+        expect(merged.tagsText).toBe('퀵 반나절 승');
     });
 });
